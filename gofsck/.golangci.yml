@@ -1,0 +1,8 @@
+linters-settings:
+  custom:
+    gofsck:
+      path: ./gofsck.so
+
+linters:
+  enable:
+    - gofsck

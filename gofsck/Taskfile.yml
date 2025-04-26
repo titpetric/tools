@@ -1,0 +1,37 @@
+---
+version: "3"
+
+environment:
+  CGO_ENABLED: 1
+
+tasks:
+  default:
+    desc: "Everything"
+    cmds:
+      - task: fmt
+      - task: test
+      - task: build
+      - task: build:test
+
+  fmt:
+    desc: "Format sources"
+    cmds:
+      - goimports -w .
+      - go fmt ./...
+
+  test:
+    desc: "Run tests"
+    cmds:
+      - go test -count=1 -v ./...
+
+  build:
+    desc: "Run build"
+    cmds:
+      - go install .
+      - go build -buildmode=plugin -o gofsck.so .
+
+  build:test:
+    desc: "Test build"
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - golangci-lint run
