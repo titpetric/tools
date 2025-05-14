@@ -1,0 +1,15 @@
+---
+version: "3"
+
+tasks:
+  default:
+    desc: "Run semver on ls-remote tags"
+    cmds:
+      - goimports -w .
+      - go fmt .
+      - go install .
+
+  test:
+    desc: "Run test"
+    cmds:
+      - cat git-tags.txt | semver | jq . > git-tags.json

@@ -1,0 +1,119 @@
+[
+  {
+    "Commit": "e65eff00608a1178a72253b7120bd36ceb881f6f",
+    "Name": "5.8.1",
+    "Ref": "v5.8.1",
+    "Version": "5.8.1",
+    "Major": 5,
+    "Minor": 8,
+    "Patch": 1
+  },
+  {
+    "Commit": "e0bdb65ecbd84d748ba27b9b3558e0874a6a5366",
+    "Name": "5.7.2",
+    "Ref": "v5.7.2",
+    "Version": "5.7.2",
+    "Major": 5,
+    "Minor": 7,
+    "Patch": 2
+  },
+  {
+    "Commit": "4c71f007d0a7c0588648a026e295e6e47314bdb5",
+    "Name": "5.6.1",
+    "Ref": "v5.6.1",
+    "Version": "5.6.1",
+    "Major": 5,
+    "Minor": 6,
+    "Patch": 1
+  },
+  {
+    "Commit": "30b222634df700efcacfd2ffe20a479f25d8bb2e",
+    "Name": "5.5.2",
+    "Ref": "v5.5.2",
+    "Version": "5.5.2",
+    "Major": 5,
+    "Minor": 5,
+    "Patch": 2
+  },
+  {
+    "Commit": "9b62c317f33ab348704455610758324073d15a98",
+    "Name": "5.4.0",
+    "Ref": "v5.4.0",
+    "Version": "5.4.0",
+    "Major": 5,
+    "Minor": 4,
+    "Patch": 0
+  },
+  {
+    "Commit": "0955de61f1c16f571083030ae6107b1c7b1c5466",
+    "Name": "5.3.11",
+    "Ref": "v5.3.11",
+    "Version": "5.3.11",
+    "Major": 5,
+    "Minor": 3,
+    "Patch": 11
+  },
+  {
+    "Commit": "bbdd2620e57e62e7c8ffb05f89b2d2314ae1bd83",
+    "Name": "5.2.6",
+    "Ref": "v5.2.6",
+    "Version": "5.2.6",
+    "Major": 5,
+    "Minor": 2,
+    "Patch": 6
+  },
+  {
+    "Commit": "e8a262533ce613547cd8b09307949a86d086b8ec",
+    "Name": "5.1.2",
+    "Ref": "v5.1.2",
+    "Version": "5.1.2",
+    "Major": 5,
+    "Minor": 1,
+    "Patch": 2
+  },
+  {
+    "Commit": "d3fded64cabcc0e320c013a0ed21d3670eefe341",
+    "Name": "5.0.15",
+    "Ref": "v5.0.15",
+    "Version": "5.0.15",
+    "Major": 5,
+    "Minor": 0,
+    "Patch": 15
+  },
+  {
+    "Commit": "1b907af2551155f30853eca1410fdeffbef91b02",
+    "Name": "4.3.8",
+    "Ref": "v4.3.8",
+    "Version": "4.3.8",
+    "Major": 4,
+    "Minor": 3,
+    "Patch": 8
+  },
+  {
+    "Commit": "5d89b79b6c18763c23ab83a034dc534db7a505e3",
+    "Name": "4.2.4",
+    "Ref": "v4.2.4",
+    "Version": "4.2.4",
+    "Major": 4,
+    "Minor": 2,
+    "Patch": 4
+  },
+  {
+    "Commit": "725902af49c272f00085b16c20fc7d36a7b75879",
+    "Name": "4.1.0",
+    "Ref": "v4.1.0",
+    "Version": "4.1.0",
+    "Major": 4,
+    "Minor": 1,
+    "Patch": 0
+  },
+  {
+    "Commit": "6b05675d0eed42bf3faa256b56356aeb687e2ad3",
+    "Name": "4.0.16",
+    "Ref": "v4.0.16",
+    "Version": "4.0.16",
+    "Major": 4,
+    "Minor": 0,
+    "Patch": 16
+  }
+]
