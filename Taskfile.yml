@@ -1,0 +1,13 @@
+---
+version: "3"
+
+tasks:
+  update:
+    desc: "Set go version for tools"
+    cmds:
+      - task list | xargs -I{} echo 'cd {} ; go mod edit -go=1.25.0 ; go get -u ./... ; go mod tidy ; cd ..' | sh -x
+
+  list:
+    desc: "Print folders with Taskfile.yml"
+    silent: true
+    cmd: find . -mindepth 2 -maxdepth 2 -type f -name Taskfile.yml | xargs -n1 dirname
