@@ -22,7 +22,7 @@ func TestAnalyzer(t *testing.T) {
 	// Expected diagnostics based on the testdata (formatted as "file.go: exported type %q does not match filename")
 	expected := map[string][]string{
 		"wrong_file.go": {
-			`exported type "MyService" does not match filename or fallback to types.go`,
+			`exported type "MyService" does not match filename or fallback to testdata*.go`,
 		},
 	}
 

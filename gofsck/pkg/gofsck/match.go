@@ -6,6 +6,16 @@ import (
 	"strings"
 )
 
+// allowlist is a list of files to allow.
+var allowlist = []string{
+	"types.go",
+	"interfaces.go",
+	"consts.go",
+	"const.go",
+	"funcs.go",
+	"model*.go",
+}
+
 // match returns true if the symbol matches any expected filename patterns.
 func match(symbol AnalyzerSymbol, baseName string) bool {
 	expected := matchFilenames(symbol.Symbol, symbol.Receiver, symbol.Default)
@@ -25,7 +35,16 @@ func match(symbol AnalyzerSymbol, baseName string) bool {
 func matchFilenames(name, receiver, defaultFile string) []string {
 	partials := []string{}
 
-	snakeName := toSnake(name)
+	// Constructors should start with New, followed with the type name.
+	// We trim it away so we can group `NewServer` into server.go.
+	if len(name) > 3 && strings.EqualFold(name[:3], "New") {
+		name = name[3:]
+	}
+
+	// make function name exported for naming checks
+	name = strings.ToUpper(name[:1]) + name[1:]
+
+	snakeName := toSnake(receiver + name)
 	for {
 		lastIndex := strings.LastIndex(snakeName, "_")
 		if lastIndex == -1 {
@@ -37,26 +56,26 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 	}
 	partials = append(partials, snakeName)
 
-	if receiver != "" {
-		result := []string{}
-		for _, partial := range partials {
-			result = append(result, matchFilename(receiver+"_"+partial))
-		}
-		result = append(result, matchFilename(receiver+"*"), matchFilename(name), defaultFile)
-		return result
-	}
-
 	result := []string{}
 	suffix := ""
 	for _, name := range partials {
-		if strings.HasPrefix(name, "new_") {
-			result = append(result, matchFilename(name[4:]+suffix))
-		} else {
-			result = append(result, matchFilename(name+suffix))
-		}
+		result = append(result, matchFilename(name+suffix))
+
 		suffix = "*"
+
+		// Assets{} can be in asset.go.
+		if strings.HasSuffix(name, "s") {
+			result = append(result, matchFilename(name[:len(name)-1]+suffix))
+		}
+
+		// Checker{} can be in checker, checks, check.go.
+		if strings.HasSuffix(name, "er") {
+			result = append(result, matchFilename(name[:len(name)-2]+suffix))
+		}
 	}
-	return append(result, defaultFile)
+
+	result = append(result, defaultFile)
+	return append(result, allowlist...)
 }
 
 // matchFilename applies normalization (snake_case) to match file naming convention.

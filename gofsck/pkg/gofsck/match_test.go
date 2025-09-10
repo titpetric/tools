@@ -12,9 +12,10 @@ func Test_matchFilenames(t *testing.T) {
 		want := []string{
 			"service_discovery_get.go",
 			"service_discovery*.go",
-			"get.go",
+			"service*.go",
 			"default.go",
 		}
+		want = append(want, allowlist...)
 
 		assert.Equal(t, want, got)
 	})
@@ -25,6 +26,33 @@ func Test_matchFilenames(t *testing.T) {
 			"get.go",
 			"default.go",
 		}
+		want = append(want, allowlist...)
+
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Plurality", func(t *testing.T) {
+		got := matchFilenames("Get", "Assets", "default.go")
+		want := []string{
+			"assets_get.go",
+			"assets*.go",
+			"asset*.go",
+			"default.go",
+		}
+		want = append(want, allowlist...)
+
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Doer", func(t *testing.T) {
+		got := matchFilenames("Do", "Checker", "default.go")
+		want := []string{
+			"checker_do.go",
+			"checker*.go",
+			"check*.go",
+			"default.go",
+		}
+		want = append(want, allowlist...)
 
 		assert.Equal(t, want, got)
 	})
@@ -34,19 +62,24 @@ func Test_matchFilenames(t *testing.T) {
 		want := []string{
 			"limiter_func.go",
 			"limiter*.go",
+			"limit*.go",
 			"default.go",
 		}
+		want = append(want, allowlist...)
 
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("New", func(t *testing.T) {
-		got := matchFilenames("NewScheduler", "", "default.go")
+		got := matchFilenames("NewSchedulerContextTimeout", "", "default.go")
 		want := []string{
-			"scheduler.go",
-			"new*.go",
+			"scheduler_context_timeout.go",
+			"scheduler_context*.go",
+			"scheduler*.go",
+			"schedul*.go",
 			"default.go",
 		}
+		want = append(want, allowlist...)
 
 		assert.Equal(t, want, got)
 	})
