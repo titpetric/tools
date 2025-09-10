@@ -33,11 +33,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			case *ast.FuncDecl:
 				handleFuncDecl(pass, decl, fileName, &symbols)
 			case *ast.GenDecl:
-				if decl.Tok == token.CONST {
-					handleConstDecl(pass, decl, fileName, &symbols)
-				} else if decl.Tok == token.VAR {
-					handleVarDecl(pass, decl, fileName, &symbols)
-				} else if decl.Tok == token.TYPE {
+				if decl.Tok == token.TYPE {
 					handleTypeDecl(pass, decl, fileName, &symbols)
 				}
 			}
@@ -61,107 +57,62 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 // handleFuncDecl checks function declarations to ensure their names match expected filenames.
 func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	// Only care about exported functions
-	if decl.Name.IsExported() {
-		// Get the receiver's name (if any) and the function name
-		receiver := getReceiverName(decl)
-		if receiver != "" && !ast.IsExported(receiver) {
-			return
-		}
+	// Get the receiver's name (if any) and the function name
+	receiver := getReceiverName(decl)
 
-		funcName := decl.Name.Name
-
-		// Determine if this is a test or benchmark function
-		isTest := strings.HasPrefix(funcName, "Test") || strings.HasPrefix(funcName, "Benchmark") || strings.HasSuffix(fileName, "_test.go")
-
-		// Add the symbol to the list
-		*symbols = append(*symbols, AnalyzerSymbol{
-			Filename: fileName,
-			Symbol:   funcName,
-			Receiver: receiver,
-			Type:     "func",
-			Default:  "funcs.go",
-			IsTest:   isTest,
-			Pos:      decl.Pos(),
-		})
+	if receiver == "" {
+		return
 	}
-}
-
-// handleConstDecl checks constant declarations to ensure their names match expected filenames.
-func handleConstDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	for _, spec := range decl.Specs {
-		if c, ok := spec.(*ast.ValueSpec); ok {
-			for _, name := range c.Names {
-				// Only check exported constants
-				if name.IsExported() {
-					constName := name.Name
-
-					// Add the symbol to the list
-					*symbols = append(*symbols, AnalyzerSymbol{
-						Filename: fileName,
-						Symbol:   constName,
-						Receiver: "",
-						Type:     "const",
-						Default:  "const.go",
-						IsTest:   false,
-						Pos:      name.Pos(),
-					})
-				}
-			}
-		}
+	if !ast.IsExported(receiver) {
+		return
 	}
-}
 
-// handleVarDecl checks variable declarations to ensure their names match expected filenames.
-func handleVarDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	for _, spec := range decl.Specs {
-		if v, ok := spec.(*ast.ValueSpec); ok {
-			for _, name := range v.Names {
-				// Only check exported variables
-				if name.IsExported() {
-					varName := name.Name
+	funcName := decl.Name.Name
 
-					defaultFile := "vars.go"
-					if strings.HasPrefix(varName, "Err") {
-						defaultFile = "errors.go"
-					}
+	// Determine if this is a test or benchmark function
+	isTest := strings.HasPrefix(funcName, "Test") || strings.HasPrefix(funcName, "Benchmark") || strings.HasSuffix(fileName, "_test.go")
 
-					// Add the symbol to the list
-					*symbols = append(*symbols, AnalyzerSymbol{
-						Filename: fileName,
-						Symbol:   varName,
-						Receiver: "",
-						Type:     "var",
-						Default:  defaultFile,
-						IsTest:   false,
-						Pos:      name.Pos(),
-					})
-				}
-			}
-		}
-	}
+	// Base the default on the package name, e.g. service/service.go;
+	defaultFile := path.Base(path.Dir(fileName)) + "*.go"
+
+	// Add the symbol to the list
+	*symbols = append(*symbols, AnalyzerSymbol{
+		Filename: fileName,
+		Symbol:   funcName,
+		Receiver: receiver,
+		Type:     "func",
+		Default:  defaultFile,
+		IsTest:   isTest,
+		Pos:      decl.Pos(),
+	})
 }
 
 // handleTypeDecl checks type declarations to ensure their names match expected filenames.
 func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
+	// Determine if this is a test scope declaration
+	isTest := strings.HasSuffix(fileName, "_test.go")
+	if isTest {
+		return
+	}
+
 	for _, spec := range decl.Specs {
 		// Ensure we are working with *ast.TypeSpec
 		if t, ok := spec.(*ast.TypeSpec); ok {
-			// Only check exported types
-			if t.Name.IsExported() {
-				typeName := t.Name.Name
+			typeName := t.Name.Name
 
-				// Add the symbol to the list
-				*symbols = append(*symbols, AnalyzerSymbol{
-					Filename: fileName,
-					Symbol:   typeName,
-					Receiver: "",
-					Type:     "type",
-					Default:  "types.go",
-					IsTest:   false,
-					Pos:      t.Pos(),
-				})
-			}
+			// Base the default on the package name, e.g. service/service.go;
+			defaultFile := path.Base(path.Dir(fileName)) + "*.go"
+
+			// Add the symbol to the list
+			*symbols = append(*symbols, AnalyzerSymbol{
+				Filename: fileName,
+				Symbol:   typeName,
+				Receiver: "",
+				Type:     "type",
+				Default:  defaultFile,
+				IsTest:   false,
+				Pos:      t.Pos(),
+			})
 		}
 	}
 }
