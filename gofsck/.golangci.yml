@@ -1,8 +1,12 @@
-linters-settings:
-  custom:
-    gofsck:
-      path: ./gofsck.so
+version: "2"
 
 linters:
+  settings:
+    custom:
+      gofsck:
+        path: /root/github/tools/gofsck/gofsck.so
+
+  default: none
+
   enable:
     - gofsck
