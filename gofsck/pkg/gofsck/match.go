@@ -8,12 +8,11 @@ import (
 
 // allowlist is a list of files to allow.
 var allowlist = []string{
-	"types.go",
-	"interfaces.go",
-	"consts.go",
-	"const.go",
-	"funcs.go",
 	"model*.go",
+	"types*.go",
+	"interface*.go",
+	"const*.go",
+	"func*.go",
 }
 
 // match returns true if the symbol matches any expected filename patterns.
