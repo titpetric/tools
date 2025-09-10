@@ -1,6 +1,6 @@
 module github.com/titpetric/tools/generic
 
-go 1.23.9
+go 1.25.0
 
 require github.com/tj/assert v0.0.3
 
