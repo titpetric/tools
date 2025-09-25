@@ -21,14 +21,13 @@ func Test_matchFilenames(t *testing.T) {
 	})
 
 	t.Run("Errors", func(t *testing.T) {
-		got := matchFilenames("String", "ServiceDiscoveryConnectionError", "default.go")
+		got := matchFilenames("", "ServiceDiscoveryConnectionError", "default.go")
 		want := []string{
-			"errors.go",
-			"service_discovery_connection_error_string.go",
 			"service_discovery_connection_error.go",
 			"service_discovery_connection.go",
 			"service_discovery.go",
 			"service*.go",
+			"errors.go",
 			"default.go",
 		}
 		want = append(want, allowlist...)

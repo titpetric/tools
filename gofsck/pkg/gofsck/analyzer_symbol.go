@@ -8,6 +8,7 @@ type AnalyzerSymbol struct {
 	Symbol   string
 	Receiver string
 	Type     string
+	Package  string
 	Default  string
 
 	Pos token.Pos

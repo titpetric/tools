@@ -14,7 +14,15 @@ var allowlist = []string{
 
 // match returns true if the symbol matches any expected filename patterns.
 func match(symbol AnalyzerSymbol, baseName string) bool {
-	expected := matchFilenames(symbol.Symbol, symbol.Receiver, symbol.Default)
+	// This reverses name and receiver for types.
+	// It could be a better check based on symbol.Type.
+	name, receiver := symbol.Symbol, symbol.Receiver
+	if receiver == "" {
+		receiver = name
+		name = ""
+	}
+
+	expected := matchFilenames(name, receiver, symbol.Default)
 	base := filepath.Base(baseName)
 
 	for _, name := range expected {
@@ -37,13 +45,10 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 		name = name[3:]
 	}
 
-	// Types with Err in the name can be grouped to errors.go.
-	if strings.Contains(receiver, "Err") {
-		result = append(result, "errors.go")
-	}
-
 	// make function name exported for naming checks
-	name = strings.ToUpper(name[:1]) + name[1:]
+	if len(name) > 0 {
+		name = strings.ToUpper(name[:1]) + name[1:]
+	}
 
 	snakeName := toSnake(receiver + name)
 	for {
@@ -74,6 +79,10 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 		if strings.Count(name, "_") == 1 {
 			suffix = "*"
 		}
+	}
+
+	if name == "Error" || strings.Contains(receiver, "Err") {
+		result = append(result, "errors.go")
 	}
 
 	result = append(result, defaultFile)

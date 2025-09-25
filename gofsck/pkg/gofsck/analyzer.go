@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"path"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -19,7 +20,10 @@ func NewAnalyzer() *analysis.Analyzer {
 	return check
 }
 
-var scanned = map[string]bool{}
+var (
+	scanned   = map[string]bool{}
+	scannedMu sync.Mutex
+)
 
 // run performs the analysis logic for the Analyzer.
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -34,14 +38,18 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			continue
 		}
 
-		// Only scan a file once, multiple passes are run.
-		if scanned[fileName] {
-			continue
-		}
-		scanned[fileName] = true
-
 		if pass.Pkg.Name() == "main" {
 			continue
+		}
+
+		// Only scan a file once, multiple passes are run.
+		scannedMu.Lock()
+		if scanned[fileName] {
+			scannedMu.Unlock()
+			continue
+		} else {
+			scanned[fileName] = true
+			scannedMu.Unlock()
 		}
 
 		// Collect all declared types, functions, constants, and variables
@@ -82,13 +90,15 @@ func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, sy
 		return
 	}
 
+	packageName := pass.Pkg.Name()
 	funcName := decl.Name.Name
 
 	// Base the default on the package name, e.g. service/service.go;
-	defaultFile := path.Base(path.Dir(fileName)) + "*.go"
+	defaultFile := packageName + "*.go"
 
 	// Add the symbol to the list
 	*symbols = append(*symbols, AnalyzerSymbol{
+		Package:  packageName,
 		Filename: fileName,
 		Symbol:   funcName,
 		Receiver: receiver,
@@ -100,6 +110,8 @@ func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, sy
 
 // handleTypeDecl checks type declarations to ensure their names match expected filenames.
 func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
+	packageName := pass.Pkg.Name()
+
 	for _, spec := range decl.Specs {
 		// Ensure we are working with *ast.TypeSpec
 		if t, ok := spec.(*ast.TypeSpec); ok {
@@ -110,11 +122,16 @@ func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, sym
 
 			typeName := t.Name.Name
 
+			if !ast.IsExported(typeName) {
+				continue
+			}
+
 			// Base the default on the package name, e.g. service/service.go;
-			defaultFile := path.Base(path.Dir(fileName)) + "*.go"
+			defaultFile := packageName + "*.go"
 
 			// Add the symbol to the list
 			*symbols = append(*symbols, AnalyzerSymbol{
+				Package:  packageName,
 				Filename: fileName,
 				Symbol:   typeName,
 				Receiver: "",
