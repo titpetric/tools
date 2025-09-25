@@ -57,6 +57,19 @@ func Test_matchFilenames(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 
+	t.Run("Acronym", func(t *testing.T) {
+		got := matchFilenames("Request", "HTTPClient", "default.go")
+		want := []string{
+			"http_client_request.go",
+			"http_client*.go",
+			"http*.go",
+			"default.go",
+		}
+		want = append(want, allowlist...)
+
+		assert.Equal(t, want, got)
+	})
+
 	t.Run("Global bound", func(t *testing.T) {
 		got := matchFilenames("LimiterFunc", "", "default.go")
 		want := []string{
