@@ -19,13 +19,30 @@ func NewAnalyzer() *analysis.Analyzer {
 	return check
 }
 
+var scanned = map[string]bool{}
+
 // run performs the analysis logic for the Analyzer.
 func run(pass *analysis.Pass) (interface{}, error) {
 	var symbols []AnalyzerSymbol
 
 	// Traverse the abstract syntax tree (AST) for each file in the package
 	for _, file := range pass.Files {
-		fileName := pass.Fset.Position(file.Pos()).Filename
+		fileName := strings.TrimSpace(pass.Fset.Position(file.Pos()).Filename)
+
+		// No rules enforced in tests
+		if strings.HasSuffix(fileName, "_test.go") {
+			continue
+		}
+
+		// Only scan a file once, multiple passes are run.
+		if scanned[fileName] {
+			continue
+		}
+		scanned[fileName] = true
+
+		if pass.Pkg.Name() == "main" {
+			continue
+		}
 
 		// Collect all declared types, functions, constants, and variables
 		for _, decl := range file.Decls {
@@ -42,13 +59,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Now that we've collected all symbols, check them
 	for _, symbol := range symbols {
-		if !symbol.IsTest {
-			matched := match(symbol, symbol.Filename)
+		matched := match(symbol, symbol.Filename)
 
-			// If no match was found, report an error
-			if !matched {
-				pass.Reportf(symbol.Pos, "%s: exported %s %q does not match filename or fallback to %s", path.Base(symbol.Filename), symbol.Type, symbol.String(), symbol.Default)
-			}
+		// If no match was found, report an error
+		if !matched {
+			pass.Reportf(symbol.Pos, "%s: exported %s %q does not match filename or fallback to %s", path.Base(symbol.Filename), symbol.Type, symbol.String(), symbol.Default)
 		}
 	}
 
@@ -69,9 +84,6 @@ func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, sy
 
 	funcName := decl.Name.Name
 
-	// Determine if this is a test or benchmark function
-	isTest := strings.HasPrefix(funcName, "Test") || strings.HasPrefix(funcName, "Benchmark") || strings.HasSuffix(fileName, "_test.go")
-
 	// Base the default on the package name, e.g. service/service.go;
 	defaultFile := path.Base(path.Dir(fileName)) + "*.go"
 
@@ -82,22 +94,20 @@ func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, sy
 		Receiver: receiver,
 		Type:     "func",
 		Default:  defaultFile,
-		IsTest:   isTest,
 		Pos:      decl.Pos(),
 	})
 }
 
 // handleTypeDecl checks type declarations to ensure their names match expected filenames.
 func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	// Determine if this is a test scope declaration
-	isTest := strings.HasSuffix(fileName, "_test.go")
-	if isTest {
-		return
-	}
-
 	for _, spec := range decl.Specs {
 		// Ensure we are working with *ast.TypeSpec
 		if t, ok := spec.(*ast.TypeSpec); ok {
+			// Only consider structs, skip interfaces and other types
+			if _, isStruct := t.Type.(*ast.StructType); !isStruct {
+				continue
+			}
+
 			typeName := t.Name.Name
 
 			// Base the default on the package name, e.g. service/service.go;
@@ -110,7 +120,6 @@ func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, sym
 				Receiver: "",
 				Type:     "type",
 				Default:  defaultFile,
-				IsTest:   false,
 				Pos:      t.Pos(),
 			})
 		}

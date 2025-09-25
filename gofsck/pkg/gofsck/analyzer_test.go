@@ -24,6 +24,10 @@ func TestAnalyzer(t *testing.T) {
 		"wrong_file.go": {
 			`exported type "MyService" does not match filename or fallback to testdata*.go`,
 		},
+		"client.go": {
+			"exported type \"HTTPClient\" does not match filename or fallback to testdata*.go",
+			"exported func \"HTTPClient.Request\" does not match filename or fallback to testdata*.go",
+		},
 	}
 
 	// Run the analyzer against the test data

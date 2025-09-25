@@ -32,7 +32,7 @@ func match(symbol AnalyzerSymbol, baseName string) bool {
 
 // matchFilenames generates possible filename stems that could contain the given symbol.
 func matchFilenames(name, receiver, defaultFile string) []string {
-	partials := []string{}
+	var result, partials []string
 
 	// Constructors should start with New, followed with the type name.
 	// We trim it away so we can group `NewServer` into server.go.
@@ -55,21 +55,20 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 	}
 	partials = append(partials, snakeName)
 
-	result := []string{}
-	suffix := ""
+	var baseName, singularName, suffix string
 	for _, name := range partials {
 		result = append(result, matchFilename(name+suffix))
 
 		suffix = "*"
 
-		// Assets{} can be in asset.go.
-		if strings.HasSuffix(name, "s") {
-			result = append(result, matchFilename(name[:len(name)-1]+suffix))
+		singularName = getSingular(name)
+		if singularName != name {
+			result = append(result, matchFilename(singularName+suffix))
 		}
 
-		// Checker{} can be in checker, checks, check.go.
-		if strings.HasSuffix(name, "er") {
-			result = append(result, matchFilename(name[:len(name)-2]+suffix))
+		baseName = getBaseNoun(name)
+		if baseName != name {
+			result = append(result, matchFilename(baseName+suffix))
 		}
 	}
 

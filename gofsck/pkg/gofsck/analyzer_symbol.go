@@ -10,8 +10,7 @@ type AnalyzerSymbol struct {
 	Type     string
 	Default  string
 
-	IsTest bool // Track if it's a test symbol
-	Pos    token.Pos
+	Pos token.Pos
 }
 
 func (s *AnalyzerSymbol) String() string {
