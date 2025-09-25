@@ -46,19 +46,25 @@ large package scopes which are typical for the "big ball of mud"
 architecture style, renaming files to correspond to symbol name is
 typical practice in some other languages.
 
-## File naming
+## Scope
 
-- A symbol of `ServiceDisovery` is expected in `service_discovery.go`.
-- A symbol of `ServiceDiscovery.Get` is expected in `service_discovery_get.go` or `service_discovery.go`.
-- The tests for `ServiceDiscovery.Get` should match the name in an adjacent `_test.go` file.
+The tool checks that typed structs and functions with an exported
+receiver are grouped into the correct expected files:
 
-Depending on the declaration kind, additional locations are envisioned:
+- A symbol of `ServiceDiscovery` is expected in `service_discovery.go` or `service*.go`.
+- A symbol of `ServiceDiscovery.Get` is expected in `service_discovery_get.go` or `service_discovery.go`, or `service*.go`.
 
-- constants are global, put them in `consts.go`,
-- vars are global, put them in `vars.go`,
-- data model goes into `types.go` or own package
+Beyond this assertion, some typical filenames are allowed, based on
+symbol type grouping that's a common practice in smaller projects:
 
-## Test naming
+- `model*.go` - holds data model `type` definitions
+- `types*.go` - holds `type` definitions
+
+Ultimately, a lot of packages are small and may contain a single file.
+For a package named `sqlite3`, the exception is to group all symbols in
+`sqlite3/sqlite3.go`.
+
+## Future
 
 The structure is checked with unit tests in mind. Black box unit tests are
 a good way to have the full symbol reference searchable in the source code.
@@ -69,6 +75,10 @@ a good way to have the full symbol reference searchable in the source code.
 
 Using `t.Run` within tests is expected for more fine grained tests.
 
+This structural check isn't currently implemented. The application
+couplings with tests vary greatly, and would better live in a separate
+linter for the purpose.
+
 ## Typical violations
 
 Here are a few typical violations of package structure:
@@ -77,8 +87,9 @@ Here are a few typical violations of package structure:
 - arbitrarily named tests causing duplication
 - multiple type definitions in a single file
 - a single definition over multiple files
-- shared utilities in the same package
-- integration tests not in dedicated packages
+- shared utilities in the same package (globals)
+- integration tests not in dedicated packages (white box tests)
 
 The tooling encourages single responsibility and the testing benefits
-that come with such practices.
+that come with such practices. It concentrates on sorting exported
+package typed structs and the functions bound to them.
