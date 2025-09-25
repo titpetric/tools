@@ -74,10 +74,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, symbols *[]AnalyzerSymbol) {
 	// Get the receiver's name (if any) and the function name
 	receiver := getReceiverName(decl)
-
 	if receiver == "" {
 		return
 	}
+
 	if !ast.IsExported(receiver) {
 		return
 	}
