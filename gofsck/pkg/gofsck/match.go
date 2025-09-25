@@ -10,9 +10,6 @@ import (
 var allowlist = []string{
 	"model*.go",
 	"types*.go",
-	"interface*.go",
-	"const*.go",
-	"func*.go",
 }
 
 // match returns true if the symbol matches any expected filename patterns.
@@ -36,8 +33,13 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 
 	// Constructors should start with New, followed with the type name.
 	// We trim it away so we can group `NewServer` into server.go.
-	if len(name) > 3 && strings.EqualFold(name[:3], "New") {
+	if strings.HasPrefix(name, "New") {
 		name = name[3:]
+	}
+
+	// Types with Err in the name can be grouped to errors.go.
+	if strings.Contains(receiver, "Err") {
+		result = append(result, "errors.go")
 	}
 
 	// make function name exported for naming checks

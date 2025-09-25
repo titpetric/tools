@@ -20,6 +20,22 @@ func Test_matchFilenames(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 
+	t.Run("Errors", func(t *testing.T) {
+		got := matchFilenames("String", "ServiceDiscoveryConnectionError", "default.go")
+		want := []string{
+			"errors.go",
+			"service_discovery_connection_error_string.go",
+			"service_discovery_connection_error.go",
+			"service_discovery_connection.go",
+			"service_discovery.go",
+			"service*.go",
+			"default.go",
+		}
+		want = append(want, allowlist...)
+
+		assert.Equal(t, want, got)
+	})
+
 	t.Run("Global", func(t *testing.T) {
 		got := matchFilenames("Get", "", "default.go")
 		want := []string{
