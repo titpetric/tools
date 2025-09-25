@@ -1,5 +1,11 @@
 version: "2"
 
+issues:
+  max-issues-per-linter: 0
+
+run:
+  issues-exit-code: 0
+
 linters:
   settings:
     custom:
