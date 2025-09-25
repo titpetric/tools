@@ -27,7 +27,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Traverse the abstract syntax tree (AST) for each file in the package
 	for _, file := range pass.Files {
-		fileName := strings.TrimSpace(pass.Fset.Position(file.Pos()).Filename)
+		fileName := pass.Fset.Position(file.Pos()).Filename
 
 		// No rules enforced in tests
 		if strings.HasSuffix(fileName, "_test.go") {

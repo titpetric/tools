@@ -11,7 +11,7 @@ func Test_matchFilenames(t *testing.T) {
 		got := matchFilenames("Get", "ServiceDiscovery", "default.go")
 		want := []string{
 			"service_discovery_get.go",
-			"service_discovery*.go",
+			"service_discovery.go",
 			"service*.go",
 			"default.go",
 		}
@@ -61,7 +61,7 @@ func Test_matchFilenames(t *testing.T) {
 		got := matchFilenames("Request", "HTTPClient", "default.go")
 		want := []string{
 			"http_client_request.go",
-			"http_client*.go",
+			"http_client.go",
 			"http*.go",
 			"default.go",
 		}
@@ -87,7 +87,7 @@ func Test_matchFilenames(t *testing.T) {
 		got := matchFilenames("NewSchedulerContextTimeout", "", "default.go")
 		want := []string{
 			"scheduler_context_timeout.go",
-			"scheduler_context*.go",
+			"scheduler_context.go",
 			"scheduler*.go",
 			"schedul*.go",
 			"default.go",

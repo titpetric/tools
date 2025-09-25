@@ -59,8 +59,6 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 	for _, name := range partials {
 		result = append(result, matchFilename(name+suffix))
 
-		suffix = "*"
-
 		singularName = getSingular(name)
 		if singularName != name {
 			result = append(result, matchFilename(singularName+suffix))
@@ -70,9 +68,14 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 		if baseName != name {
 			result = append(result, matchFilename(baseName+suffix))
 		}
+
+		if strings.Count(name, "_") == 1 {
+			suffix = "*"
+		}
 	}
 
 	result = append(result, defaultFile)
+
 	return append(result, allowlist...)
 }
 
