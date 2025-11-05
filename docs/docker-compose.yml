@@ -1,6 +1,5 @@
 services:
   flatnotes:
-    container_name: flatnotes
     image: dullage/flatnotes:latest
     environment:
       PUID: 1000
