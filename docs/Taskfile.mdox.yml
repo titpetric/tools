@@ -16,12 +16,12 @@ tasks:
   fmt:
     desc: "Run mdox to format markdowns"
     cmds:
-      - mdox fmt -l --no-soft-wraps $(find -name '*.md') {{.folder}}*.md
+      - mdox fmt -l --no-soft-wraps $(find {{.folder}} -name '*.md')
 
   lint:
     desc: "Run vale to lint language"
     cmds:
-      - mdox fmt --check --no-soft-wraps $(find -name '*.md') {{.folder}}*.md
+      - mdox fmt --check --no-soft-wraps $(find {{.folder}} -name '*.md')
       - docker run --rm -v $(pwd):/docs -w /docs jdkato/vale .
 
   setup:
