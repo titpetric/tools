@@ -4,29 +4,14 @@ version: "3"
 # Running this taskfile ensures that markdowns are
 # consistently formatted according to mdox rules.
 
+includes:
+  mdox: ./Taskfile.mdox.yml
+
 tasks:
-  default:
-    desc: "Run mdox to check markdowns"
-    cmds:
-      - task: lint
-
-  fmt:
-    desc: "Run mdox to format markdowns"
-    cmds:
-      - mdox fmt -l --no-soft-wraps $(find -name '*.md') data/*.md
-
-  lint:
-    desc: "Run vale to lint language"
-    cmds:
-      - mdox fmt --check --no-soft-wraps $(find -name '*.md') data/*.md
-      - docker run --rm -v $(pwd):/docs -w /docs jdkato/vale .
-
-  setup:
-    cmds:
-      - go install github.com/bwplotka/mdox@latest
-
   up:
+    desc: "Bring up docker env"
     cmd: docker compose up -d
 
   down:
+    desc: "Bring down docker env"
     cmd: docker compose down

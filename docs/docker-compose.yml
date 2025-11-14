@@ -7,7 +7,7 @@ services:
       FLATNOTES_AUTH_TYPE: "none"
       FLATNOTES_SECRET_KEY: "aLongRandomSeriesOfCharacters"
     volumes:
-      - "./data:/data"
+      - "$PWD/data:/data"
       # Optional. Allows you to save the search index in a different location: 
       # - "./index:/data/.flatnotes"
     ports:
