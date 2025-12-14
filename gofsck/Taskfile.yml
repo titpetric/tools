@@ -35,3 +35,11 @@ tasks:
     cmds:
       - golangci-lint cache clean
       - cd src && golangci-lint run -c ../.golangci.yml && cd ..
+
+  clean:
+    desc: "Clean build artifacts and generated files"
+    cmds:
+      - rm -f gofsck gofsck.so
+      - rm -f go-fsck.db go-fsck.json
+      - rm -f golangci-lint.json report.json
+      - rm -rf ../docs_backup/

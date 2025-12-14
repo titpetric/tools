@@ -1,2 +1,7 @@
+/tests
 *.so
 /src
+/gofsck
+*.db
+*.json
+docs_backup/

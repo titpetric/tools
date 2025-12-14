@@ -1,4 +1,4 @@
-package gofsck
+package grouping
 
 import (
 	"strings"
@@ -67,4 +67,31 @@ func getBaseNoun(word string) string {
 		return base
 	}
 	return word
+}
+
+// splitCamelCase splits a camelCase identifier into parts
+// For example: ServiceDiscovery -> [Service, Discovery]
+func splitCamelCase(word string) []string {
+	if len(word) == 0 {
+		return nil
+	}
+
+	var parts []string
+	var current strings.Builder
+
+	for i, r := range word {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			if current.Len() > 0 {
+				parts = append(parts, current.String())
+				current.Reset()
+			}
+		}
+		current.WriteRune(r)
+	}
+
+	if current.Len() > 0 {
+		parts = append(parts, current.String())
+	}
+
+	return parts
 }

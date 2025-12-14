@@ -1,9 +1,9 @@
-package gofsck
+package grouping
 
 import (
 	"go/ast"
 	"go/token"
-	"path"
+	"go/types"
 	"strings"
 	"sync"
 
@@ -67,11 +67,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Now that we've collected all symbols, check them
 	for _, symbol := range symbols {
-		matched := match(symbol, symbol.Filename)
+		matched, canonicalLocations, totalExpected := matchWithOptions(symbol, symbol.Filename)
 
 		// If no match was found, report an error
 		if !matched {
-			pass.Reportf(symbol.Pos, "%s: exported %s %q does not match filename or fallback to %s", path.Base(symbol.Filename), symbol.Type, symbol.String(), symbol.Default)
+			locStr := strings.Join(canonicalLocations, ", ")
+			pass.Reportf(symbol.Pos, "exported %s %q expected in [%s] (total: %d expected filenames)", symbol.Type, symbol.String(), locStr, totalExpected)
 		}
 	}
 
@@ -80,32 +81,56 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 // handleFuncDecl checks function declarations to ensure their names match expected filenames.
 func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	// Get the receiver's name (if any) and the function name
-	receiver := getReceiverName(decl)
-	if receiver == "" {
-		return
-	}
-
-	if !ast.IsExported(receiver) {
-		return
-	}
-
 	packageName := pass.Pkg.Name()
 	funcName := decl.Name.Name
+
+	// If the function is not exported, skip it
+	if !ast.IsExported(funcName) {
+		return
+	}
 
 	// Base the default on the package name, e.g. service/service.go;
 	defaultFile := packageName + "*.go"
 
-	// Add the symbol to the list
-	*symbols = append(*symbols, AnalyzerSymbol{
-		Package:  packageName,
-		Filename: fileName,
-		Symbol:   funcName,
-		Receiver: receiver,
-		Type:     "func",
-		Default:  defaultFile,
-		Pos:      decl.Pos(),
-	})
+	// Get the receiver's name (if any) and the function name
+	receiver, isInterface := getReceiverNameAndType(pass, decl)
+	if receiver != "" {
+		// Skip methods on interfaces
+		if isInterface {
+			return
+		}
+
+		if !ast.IsExported(receiver) {
+			return
+		}
+
+		// Add the symbol to the list for methods
+		*symbols = append(*symbols, AnalyzerSymbol{
+			Package:  packageName,
+			Filename: fileName,
+			Symbol:   funcName,
+			Receiver: receiver,
+			Type:     "func",
+			Default:  defaultFile,
+			Pos:      decl.Pos(),
+		})
+	} else if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
+		// For package-level functions with typed returns, use the return type
+		// e.g., NewVue() *Vue should be grouped by Vue
+		returnType := extractReturnType(decl.Type.Results.List[0].Type)
+		if returnType != "" && ast.IsExported(returnType) {
+			// Add the symbol to the list for constructors/factories
+			*symbols = append(*symbols, AnalyzerSymbol{
+				Package:  packageName,
+				Filename: fileName,
+				Symbol:   funcName,
+				Receiver: returnType,
+				Type:     "func",
+				Default:  defaultFile,
+				Pos:      decl.Pos(),
+			})
+		}
+	}
 }
 
 // handleTypeDecl checks type declarations to ensure their names match expected filenames.
@@ -143,21 +168,66 @@ func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, sym
 	}
 }
 
-// getReceiverName extracts the receiver's name from a function declaration (if any).
-func getReceiverName(decl *ast.FuncDecl) string {
+// getReceiverNameAndType extracts the receiver's name and determines if it's an interface.
+func getReceiverNameAndType(pass *analysis.Pass, decl *ast.FuncDecl) (string, bool) {
 	// If there is a receiver, return its name
 	if decl.Recv != nil && len(decl.Recv.List) > 0 {
 		recv := decl.Recv.List[0].Type
+		var receiverName string
+
 		if starExpr, ok := recv.(*ast.StarExpr); ok {
 			// If receiver is a pointer, get its underlying type name
 			if ident, ok := starExpr.X.(*ast.Ident); ok {
-				return ident.Name
+				receiverName = ident.Name
 			}
-		}
-		if ident, ok := recv.(*ast.Ident); ok {
+		} else if ident, ok := recv.(*ast.Ident); ok {
 			// If receiver is not a pointer, just return its name
-			return ident.Name
+			receiverName = ident.Name
 		}
+
+		if receiverName == "" {
+			return "", false
+		}
+
+		// Check if the receiver type is an interface
+		isInterface := isInterfaceType(pass, receiverName)
+		return receiverName, isInterface
+	}
+	return "", false
+}
+
+// isInterfaceType checks if a given type name refers to an interface.
+func isInterfaceType(pass *analysis.Pass, typeName string) bool {
+	// Look up the type in the package scope
+	obj := pass.Pkg.Scope().Lookup(typeName)
+	if obj == nil {
+		return false
+	}
+
+	// Check if the object is a type name
+	typeObj, ok := obj.(*types.TypeName)
+	if !ok {
+		return false
+	}
+
+	// Check if the underlying type is an interface
+	_, isInterface := typeObj.Type().(*types.Interface)
+	return isInterface
+}
+
+// extractReturnType extracts the type name from a return type expression.
+// Handles cases like *Vue, Vue, error, []string, etc.
+func extractReturnType(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		// Direct type: Vue, error
+		return e.Name
+	case *ast.StarExpr:
+		// Pointer type: *Vue
+		return extractReturnType(e.X)
+	case *ast.SelectorExpr:
+		// Package-qualified type: foo.Vue
+		return e.Sel.Name
 	}
 	return ""
 }

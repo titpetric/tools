@@ -1,22 +1,124 @@
 # gofsck
 
-A go filesystem check. It checks that exported symbols are appropriately
-grouped into matching filenames, or fall into some default groups
-inside a given package based on the symbol type.
+A Go filesystem check tool with modular analyzers for package structure validation.
 
-```
+Gofsck provides three independent analyzers that can be run in multiple modes:
+
+1. **Pairing Analyzer** - Validates file-test relationships (e.g., `file.go` with `file_test.go`)
+2. **Coverage Analyzer** - Analyzes symbol-test coverage and naming patterns
+3. **Grouping Analyzer** - Ensures exported symbols are in appropriate files
+
+## Installation
+
+```bash
 go install github.com/titpetric/tools/gofsck@latest
 ```
 
-Usage:
+## Usage
 
-```
+### Run All Analyzers (Default)
+
+```bash
 ./gofsck ./...
 ./gofsck .
 ```
 
-It's possible to include gofsck to golangci-lint, see the
-[.golangci.yml](./.golangci.yml) file for the configuration.
+### Output Formats
+
+**Text output (default):**
+```bash
+./gofsck -format text ./pkg/mypackage
+```
+
+**JSON output:**
+```bash
+./gofsck -format json ./pkg/mypackage
+```
+
+### Save Report to File
+
+```bash
+./gofsck -format json -output report.json ./...
+./gofsck -format text -output report.txt ./...
+```
+
+### Linter Integration
+
+For golangci-lint integration, use the grouping analyzer via singlechecker:
+
+```yaml
+# .golangci.yml
+linters:
+  - gofsck
+```
+
+See [.golangci.yml](./.golangci.yml) for configuration examples.
+
+## Analyzers
+
+### 1. Pairing Analyzer
+
+Checks that Go source files have corresponding test files.
+
+**Output:**
+- `files` - Count of non-test Go files
+- `tests` - Count of test Go files
+- `paired` - Number of files with matching test files
+- `standalone_files` - Non-test files without tests
+- `standalone_tests` - Test files without corresponding source files
+
+**Example:**
+```json
+{
+  "files": 42,
+  "tests": 40,
+  "paired": 38,
+  "standalone_files": 4,
+  "standalone_tests": 2
+}
+```
+
+**Package:** `pkg/pairing/`
+
+### 2. Coverage Analyzer
+
+Analyzes symbol-test coverage using naming conventions.
+
+**Test Naming Conventions:**
+- Package function `Flatten` → expects `TestFlatten*`
+- Method `Server.Get` → expects `TestServer_Get*`
+- Context suffixes allowed: `TestServer_Get_WithContext`
+
+**Output:**
+- `symbols` - Map of exported symbols to their test functions
+- `uncovered` - Symbols without test coverage
+- `standalone_tests` - Test functions with no matching symbol
+- `coverage_ratio` - Percentage of covered symbols (0.0 to 1.0)
+
+**Logic:**
+- Walks AST to find exported symbols (functions, types, methods)
+- Extracts test function names using naming conventions
+- Calculates coverage ratio
+- Reports uncovered symbols and standalone tests
+
+**Package:** `pkg/coverage/`
+
+### 3. Grouping Analyzer
+
+Ensures exported symbols are grouped in files matching their names. Available as a golangci-lint plugin.
+
+**Matching Rules:**
+- Symbol names converted to snake_case
+- Singular/plural variations supported
+- Base noun extraction (e.g., Runner → Run)
+- Wildcard patterns (e.g., `service*.go`)
+- Allowlist for `model*.go`, `types*.go`
+
+**Patterns:**
+- Type `ServiceDiscovery` → `service_discovery.go`, `discovery.go`, or `service.go`
+- Method `ServiceDiscovery.Get` → `get.go`, `discovery_get.go`, or `service_discovery_get.go`
+
+**Package:** `pkg/grouping/`
 
 ## Development
 

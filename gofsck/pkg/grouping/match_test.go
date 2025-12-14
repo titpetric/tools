@@ -1,4 +1,4 @@
-package gofsck
+package grouping
 
 import (
 	"testing"
