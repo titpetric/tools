@@ -1,11 +1,13 @@
 package main
 
 import (
-	"bytes"
+	"flag"
 	"fmt"
+	"math/rand"
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -13,7 +15,7 @@ const (
 	GridH = 25
 )
 
-// ANSI colors
+// ANSI
 const (
 	Reset  = "\033[0m"
 	Orange = "\033[38;5;208m"
@@ -27,7 +29,16 @@ type Placement struct {
 	IsPrimary bool
 }
 
+type Renderer interface {
+	Render(grid [][]rune, placed []Placement)
+}
+
 func main() {
+	style := flag.String("style", "default", "render style: default | matrix")
+	flag.Parse()
+
+	rand.Seed(time.Now().UnixNano())
+
 	words := getPackages()
 	if len(words) == 0 {
 		fmt.Println("no packages found")
@@ -48,7 +59,6 @@ func main() {
 
 	var placed []Placement
 
-	// Place primary word
 	mainWord := words[0]
 	startX := GridW/2 - len(mainWord)/2
 	startY := GridH / 2
@@ -66,15 +76,22 @@ func main() {
 		IsPrimary: true,
 	})
 
-	// Place remaining words
 	for _, w := range words[1:] {
-		if tryPlace(grid, &placed, w) {
-			continue
-		}
+		tryPlace(grid, &placed, w)
 	}
 
-	render(grid, placed)
+	var renderer Renderer
+	switch *style {
+	case "matrix":
+		renderer = MatrixRenderer{}
+	default:
+		renderer = DefaultRenderer{}
+	}
+
+	renderer.Render(grid, placed)
 }
+
+// ───────────────── puzzle construction ─────────────────
 
 func getPackages() []string {
 	cmd := exec.Command("go", "list", "./...")
@@ -143,7 +160,6 @@ func canPlace(grid [][]rune, word string, x, y, dx, dy int) bool {
 	for i, r := range word {
 		xx := x + i*dx
 		yy := y + i*dy
-
 		if xx < 0 || yy < 0 || xx >= GridW || yy >= GridH {
 			return false
 		}
@@ -153,99 +169,4 @@ func canPlace(grid [][]rune, word string, x, y, dx, dy int) bool {
 		}
 	}
 	return true
-}
-
-func render(grid [][]rune, placed []Placement) {
-	var buf bytes.Buffer
-
-	// Find used bounds
-	minX, minY := GridW, GridH
-	maxX, maxY := 0, 0
-
-	for y := range grid {
-		for x := range grid[y] {
-			if grid[y][x] != ' ' {
-				if x < minX {
-					minX = x
-				}
-				if y < minY {
-					minY = y
-				}
-				if x > maxX {
-					maxX = x
-				}
-				if y > maxY {
-					maxY = y
-				}
-			}
-		}
-	}
-
-	// Padding
-	minX -= 1
-	minY -= 1
-	maxX += 1
-	maxY += 1
-
-	width := maxX - minX + 1
-
-	// Top border
-	buf.WriteString("┌")
-	for i := 0; i < width*3; i++ {
-		buf.WriteString("─")
-	}
-	buf.WriteString("┐\n")
-
-	for y := minY; y <= maxY; y++ {
-		buf.WriteString("│")
-		for x := minX; x <= maxX; x++ {
-			r := grid[y][x]
-			if r == ' ' {
-				buf.WriteString("   ")
-			} else {
-				color := Gray
-				if isPrimary(placed, x, y) {
-					color = Orange
-				}
-				buf.WriteString(" ")
-				buf.WriteString(color)
-				buf.WriteRune(unicodeUpper(r))
-				buf.WriteString(Reset)
-				buf.WriteString(" ")
-			}
-		}
-		buf.WriteString("│\n")
-	}
-
-	// Bottom border
-	buf.WriteString("└")
-	for i := 0; i < width*3; i++ {
-		buf.WriteString("─")
-	}
-	buf.WriteString("┘\n")
-
-	fmt.Println(buf.String())
-}
-
-func isPrimary(placed []Placement, x, y int) bool {
-	for _, p := range placed {
-		if !p.IsPrimary {
-			continue
-		}
-		for i := range p.Word {
-			xx := p.X + i*p.DX
-			yy := p.Y + i*p.DY
-			if xx == x && yy == y {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func unicodeUpper(r rune) rune {
-	if r >= 'a' && r <= 'z' {
-		return r - 32
-	}
-	return r
 }
