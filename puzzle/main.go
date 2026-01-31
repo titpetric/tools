@@ -15,26 +15,26 @@ const (
 	GridH = 25
 )
 
-// ANSI
-const (
-	Reset  = "\033[0m"
-	Orange = "\033[38;5;208m"
-	Gray   = "\033[38;5;240m"
-)
-
 type Placement struct {
 	Word      string
 	X, Y      int
 	DX, DY    int
 	IsPrimary bool
+	Color string
 }
 
 type Renderer interface {
 	Render(grid [][]rune, placed []Placement)
 }
 
+var options struct {
+	Style string
+	WholeWordColor bool
+}
+
 func main() {
-	style := flag.String("style", "default", "render style: default | matrix")
+	flag.StringVar(&options.Style, "style", "default", "render style: default | matrix")
+        flag.BoolVar(&options.WholeWordColor, "whole", false, "color per word instead of per character")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
@@ -81,7 +81,7 @@ func main() {
 	}
 
 	var renderer Renderer
-	switch *style {
+	switch options.Style {
 	case "matrix":
 		renderer = MatrixRenderer{}
 	default:
