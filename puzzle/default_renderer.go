@@ -9,8 +9,8 @@ import (
 
 type DefaultRenderer struct{}
 
+// Colors for non-primary letters (gradient gray → white)
 var DefaultColors = []string{
-//	"\033[38;5;236m", // dark gray (#333)
 	"\033[38;5;240m", // gray (#555)
 	"\033[38;5;245m", // medium gray (#777)
 	"\033[38;5;250m", // light gray (#aaa)
@@ -18,14 +18,8 @@ var DefaultColors = []string{
 	"\033[38;5;231m", // bright white (#fff)
 }
 
-var (
-	Gray1       = "\033[38;5;245m" // medium gray
-	Gray2       = "\033[38;5;250m" // light gray
-	White       = "\033[97m"       // bright white
-	BrightWhite = "\033[38;5;231m" // bright white, not bold
-	Orange      = "\033[38;5;208m" // primary
-	Reset       = "\033[0m"
-)
+var Orange = "\033[38;5;208m" // primary word
+var Reset = "\033[0m"
 
 func (DefaultRenderer) Render(grid [][]rune, placed []Placement) {
 	rand.Seed(time.Now().UnixNano())
@@ -46,23 +40,50 @@ func (DefaultRenderer) Render(grid [][]rune, placed []Placement) {
 	}
 	buf.WriteString("┐\n")
 
+	// content
 	for y := minY; y <= maxY; y++ {
 		buf.WriteString("│")
 		for x := minX; x <= maxX; x++ {
 			r := grid[y][x]
 			if r == ' ' {
 				buf.WriteString("   ")
-			} else {
-				color := DefaultColors[rand.Intn(len(DefaultColors))]
-				if isPrimary(placed, x, y) {
-					color = Orange
-				}
-				buf.WriteString(" ")
-				buf.WriteString(color)
-				buf.WriteRune(toUpper(r))
-				buf.WriteString(Reset)
-				buf.WriteString(" ")
+				continue
 			}
+
+			var color string
+
+			if isPrimary(placed, x, y) {
+				color = Orange
+			} else if options.WholeWordColor {
+				// lookup placement covering this cell
+				for _, p := range placed {
+					for i := range p.Word {
+						xx := p.X + i*p.DX
+						yy := p.Y + i*p.DY
+						if xx == x && yy == y {
+							color = p.Color
+							break
+						}
+					}
+					if color != "" {
+						break
+					}
+				}
+				// fallback to random shade if no placement color
+				if color == "" {
+					color = DefaultColors[rand.Intn(len(DefaultColors))]
+				}
+			} else {
+				// per-character random shading
+				color = DefaultColors[rand.Intn(len(DefaultColors))]
+			}
+
+			// render with padding
+			buf.WriteString(" ")
+			buf.WriteString(color)
+			buf.WriteRune(toUpper(r))
+			buf.WriteString(Reset)
+			buf.WriteString(" ")
 		}
 		buf.WriteString("│\n")
 	}
