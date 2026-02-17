@@ -47,6 +47,12 @@ func matchWithOptions(symbol AnalyzerSymbol, baseName string) (bool, []string, i
 		if checkPatterns(expected, base, baseStem) {
 			return true, canonicalLocations, len(allExpected)
 		}
+	} else if receiver != "" {
+		// For pure types (no function name), check receiver patterns
+		expected := matchFilenames(name, receiver, symbol.Default)
+		if checkPatterns(expected, base, baseStem) {
+			return true, canonicalLocations, len(allExpected)
+		}
 	}
 
 	// If no match found and we have a camelCase receiver, try each part with the name
