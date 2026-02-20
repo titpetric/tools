@@ -13,6 +13,7 @@ func Test_matchFilenames(t *testing.T) {
 			"service_discovery_get.go",
 			"service_discovery.go",
 			"service*.go",
+			"discovery.go",
 			"default.go",
 		}
 		want = append(want, allowlist...)
@@ -28,6 +29,7 @@ func Test_matchFilenames(t *testing.T) {
 			"service_discovery.go",
 			"service*.go",
 			"errors.go",
+			"error.go",
 			"default.go",
 		}
 		want = append(want, allowlist...)
@@ -78,6 +80,7 @@ func Test_matchFilenames(t *testing.T) {
 			"http_client_request.go",
 			"http_client.go",
 			"http*.go",
+			"client.go",
 			"default.go",
 		}
 		want = append(want, allowlist...)

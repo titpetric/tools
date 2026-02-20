@@ -229,6 +229,16 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 		result = append(result, "errors.go")
 	}
 
+	// For compound names like AnalyzerReport, also try the last component (Report -> report.go)
+	// Split the receiver by PascalCase and try the last part
+	if receiver != "" {
+		parts := splitCamelCase(receiver)
+		if len(parts) > 1 {
+			lastPart := parts[len(parts)-1]
+			result = append(result, matchFilename(lastPart))
+		}
+	}
+
 	result = append(result, defaultFile)
 
 	return append(result, allowlist...)

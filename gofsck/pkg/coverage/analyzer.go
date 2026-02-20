@@ -35,7 +35,7 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 		// Process each file in the package
 		if pkg.Syntax != nil {
 			for _, file := range pkg.Syntax {
-				a.analyzeFile(file, pkg, symbols, testFuncs, symbolToTests, testFileSymbols)
+				a.analyzeFile(file, pkg, symbolToTests, symbols, testFuncs, testFileSymbols)
 			}
 		}
 	}
@@ -102,7 +102,7 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 
 // analyzeFile processes a single AST file to extract symbols and tests.
 func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
-	symbols map[string]bool, testFuncs map[string]bool, symbolToTests map[string][]string,
+	symbolToTests map[string][]string, symbols map[string]bool, testFuncs map[string]bool,
 	testFileSymbols map[string]bool) {
 
 	// Check if this is a test file

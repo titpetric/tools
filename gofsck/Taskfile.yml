@@ -2,7 +2,7 @@
 version: "3"
 
 environment:
-  CGO_ENABLED: 1
+  CGO_ENABLED: 0
 
 tasks:
   default:
@@ -22,19 +22,18 @@ tasks:
   test:
     desc: "Run tests"
     cmds:
-      - go test -count=1 -v ./...
+      - gotestsum ./... -- -count 1
+      - gofsck ./...
 
   build:
     desc: "Run build"
     cmds:
       - go install .
-      - go build -buildmode=plugin -o gofsck.so .
 
   build:test:
     desc: "Test build"
     cmds:
-      - golangci-lint cache clean
-      - cd src && golangci-lint run -c ../.golangci.yml && cd ..
+      - gofsck ./...
 
   clean:
     desc: "Clean build artifacts and generated files"
