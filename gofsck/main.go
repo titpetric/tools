@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
@@ -16,6 +15,7 @@ import (
 	"github.com/titpetric/tools/gofsck/pkg/coverage"
 	"github.com/titpetric/tools/gofsck/pkg/grouping"
 	"github.com/titpetric/tools/gofsck/pkg/pairing"
+	"github.com/titpetric/tools/gofsck/pkg/wraphandler"
 )
 
 var (
@@ -121,76 +121,6 @@ func runCoverageAnalyzer(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-// Violation represents a single grouping violation with position info
-type Violation struct {
-	File    string `json:"file"`
-	Line    int    `json:"line"`
-	Column  int    `json:"column"`
-	Message string `json:"message"`
-}
-
-// runGroupingAnalyzer runs the grouping analyzer on packages and collects violations
-func runGroupingAnalyzer(pkgs []*packages.Package) interface{} {
-	var violations []interface{}
-	var nonViolations []string
-
-	// Create a custom Pass-like structure for grouping analyzer
-	analyzer := grouping.NewAnalyzer()
-
-	// We need to run singlechecker to properly execute the analyzer
-	// Create a temporary args list for singlechecker
-	originalArgs := os.Args
-	defer func() { os.Args = originalArgs }()
-
-	// Set args to suppress normal singlechecker output
-	os.Args = []string{os.Args[0]}
-
-	// Custom driver to collect results
-	for _, pkg := range pkgs {
-		// Skip test packages and main
-		if strings.HasSuffix(pkg.Name, "_test") || pkg.Name == "main" {
-			continue
-		}
-
-		// Create passes for each file
-		for _, f := range pkg.Syntax {
-			// Basic pass implementation for grouping analyzer
-			pass := &analysis.Pass{
-				Analyzer: analyzer,
-				Fset:     pkg.Fset,
-				Files:    pkg.Syntax,
-				Pkg:      pkg.Types,
-				Report: func(d analysis.Diagnostic) {
-					// Store structured violation info
-					pos := pkg.Fset.Position(d.Pos)
-					violations = append(violations, Violation{
-						File:    pos.Filename,
-						Line:    pos.Line,
-						Column:  pos.Column,
-						Message: d.Message,
-					})
-				},
-			}
-
-			// Run the analyzer
-			if _, err := analyzer.Run(pass); err != nil {
-				continue
-			}
-
-			// If no violations for this file, count as non-violation
-			if len(violations) == 0 {
-				nonViolations = append(nonViolations, f.Name.String())
-			}
-		}
-	}
-
-	return map[string]interface{}{
-		"violations":     violations,
-		"non_violations": nonViolations,
-		"info":           "symbol-to-filename grouping validation via singlechecker",
-	}
-}
-
 // NewReport creates an aggregated report by running all analyzers on the provided packages.
 func NewReport(pkgs []*packages.Package) *model.AggregatedReport {
 	report := &model.AggregatedReport{
@@ -224,13 +154,31 @@ func NewReport(pkgs []*packages.Package) *model.AggregatedReport {
 		})
 	}
 
-	// Run grouping analyzer via singlechecker
-	groupingResult := runGroupingAnalyzer(pkgs)
-	report.Analyzers = append(report.Analyzers, &model.AnalyzerReport{
-		Name: "grouping",
-		Type: "grouping",
-		Data: groupingResult,
-	})
+	// Run wraphandler analyzer
+	wraphandlerAnalyzer := wraphandler.New()
+	wraphandlerResult, err := wraphandlerAnalyzer.Analyze(pkgs)
+	if err != nil {
+		report.Errors = append(report.Errors, fmt.Sprintf("wraphandler: %v", err))
+	} else {
+		report.Analyzers = append(report.Analyzers, &model.AnalyzerReport{
+			Name: "wraphandler",
+			Type: "wraphandler",
+			Data: wraphandlerResult,
+		})
+	}
+
+	// Run grouping analyzer
+	groupingAnalyzer := grouping.New()
+	groupingResult, err := groupingAnalyzer.Analyze(pkgs)
+	if err != nil {
+		report.Errors = append(report.Errors, fmt.Sprintf("grouping: %v", err))
+	} else {
+		report.Analyzers = append(report.Analyzers, &model.AnalyzerReport{
+			Name: "grouping",
+			Type: "grouping",
+			Data: groupingResult,
+		})
+	}
 
 	return report
 }
@@ -251,11 +199,13 @@ func formatTextReport(report *model.AggregatedReport) string {
 			if cr, ok := analyzer.Data.(*coverage.Report); ok {
 				output += formatCoverageReport(cr)
 			}
+		case "wraphandler":
+			if wr, ok := analyzer.Data.(*wraphandler.Report); ok {
+				output += formatWraphandlerReport(wr)
+			}
 		case "grouping":
-			if m, ok := analyzer.Data.(map[string]interface{}); ok {
-				output += formatGroupingReport(m)
-			} else if m, ok := analyzer.Data.(map[string]string); ok {
-				output += fmt.Sprintf("Info: %s\n", m["info"])
+			if gr, ok := analyzer.Data.(*grouping.Report); ok {
+				output += formatGroupingReport(gr)
 			}
 		}
 	}
@@ -295,36 +245,27 @@ func formatCoverageReport(cr *coverage.Report) string {
 	return output
 }
 
-func formatGroupingReport(data map[string]interface{}) string {
-	var output string
+func formatWraphandlerReport(wr *wraphandler.Report) string {
+	output := fmt.Sprintf("Handlers Passing: %d/%d\n", wr.Passing, wr.Total)
 
-	if violationsRaw, ok := data["violations"]; ok {
-		var violations []interface{}
-		switch v := violationsRaw.(type) {
-		case []interface{}:
-			violations = v
-		}
-
-		output += fmt.Sprintf("Symbol Grouping Violations: %d\n", len(violations))
-		if len(violations) > 0 {
-			output += "Violations:\n"
-			for _, v := range violations {
-				switch violation := v.(type) {
-				case Violation:
-					output += fmt.Sprintf("  - %s:%d:%d: %s\n", violation.File, violation.Line, violation.Column, violation.Message)
-				case string:
-					output += fmt.Sprintf("  - %s\n", violation)
-				}
-			}
+	if len(wr.Violations) > 0 {
+		output += "\nViolations:\n"
+		for _, v := range wr.Violations {
+			output += fmt.Sprintf("  - %s:%d: %s\n", v.File, v.Line, v.Message)
 		}
 	}
 
-	if nonViolations, ok := data["non_violations"].([]string); ok {
-		output += fmt.Sprintf("Non-Violations: %d\n", len(nonViolations))
-	}
+	return output
+}
 
-	if info, ok := data["info"].(string); ok && info != "" {
-		output += fmt.Sprintf("Info: %s\n", info)
+func formatGroupingReport(gr *grouping.Report) string {
+	output := fmt.Sprintf("Symbols:    %d\nPassing:    %d\nViolations: %d\n", gr.Total, gr.Passing, len(gr.Violations))
+
+	if len(gr.Violations) > 0 {
+		output += "\nViolations:\n"
+		for _, v := range gr.Violations {
+			output += fmt.Sprintf("  - %s:%d:%d: %s\n", v.File, v.Line, v.Column, v.Message)
+		}
 	}
 
 	return output

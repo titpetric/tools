@@ -2,11 +2,12 @@
 
 A Go filesystem check tool with modular analyzers for package structure validation.
 
-Gofsck provides three independent analyzers that can be run in multiple modes:
+Gofsck provides four independent analyzers that can be run in multiple modes:
 
 1. **Pairing Analyzer** - Validates file-test relationships (e.g., `file.go` with `file_test.go`)
 2. **Coverage Analyzer** - Analyzes symbol-test coverage and naming patterns
 3. **Grouping Analyzer** - Ensures exported symbols are in appropriate files
+4. **Wraphandler Analyzer** - Ensures exported HTTP handlers have corresponding unexported error-returning wrappers
 
 ## Installation
 
@@ -119,6 +120,40 @@ Ensures exported symbols are grouped in files matching their names. Available as
 - Method `ServiceDiscovery.Get` → `get.go`, `discovery_get.go`, or `service_discovery_get.go`
 
 **Package:** `pkg/grouping/`
+
+### 4. Wraphandler Analyzer
+
+Ensures exported `http.HandlerFunc` functions have corresponding unexported wrapper functions that return `error`.
+
+**Convention:**
+- Exported handler `Handler(http.ResponseWriter, *http.Request)` → expects unexported `handler(w, r) error`
+- Receiver method `(*Service).Handler(http.ResponseWriter, *http.Request)` → expects `(*Service).handler(w, r) error`
+
+**Output:**
+- `total` - Number of exported HTTP handlers found
+- `passing` - Number of handlers with matching unexported wrappers
+- `violations` - Handlers missing their unexported wrapper
+
+**Example:**
+```json
+{
+  "total": 50,
+  "passing": 15,
+  "violations": [
+    {
+      "file": "handler.go",
+      "line": 42,
+      "symbol": "Handler",
+      "receiver": "Service",
+      "message": "Service.Handler implements HandlerFunc, expected (*Service).handler(w, r) error"
+    }
+  ]
+}
+```
+
+**Summary:** `15/50 handlers passing`
+
+**Package:** `pkg/wraphandler/`
 
 ## Development
 

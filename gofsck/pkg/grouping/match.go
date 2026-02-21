@@ -97,69 +97,6 @@ func matchWithOptions(symbol AnalyzerSymbol, baseName string) (bool, []string, i
 	return false, canonicalLocations, len(allExpected)
 }
 
-// match returns true if the symbol matches any expected filename patterns.
-func match(symbol AnalyzerSymbol, baseName string) bool {
-	// This reverses name and receiver for types.
-	// It could be a better check based on symbol.Type.
-	name, receiver := symbol.Symbol, symbol.Receiver
-	if receiver == "" {
-		receiver = name
-		name = ""
-	}
-
-	base := filepath.Base(baseName)
-	baseStem := strings.TrimSuffix(base, ".go")
-
-	// First try patterns with receiver + name
-	if name != "" {
-		expected := matchFilenames(name, receiver, symbol.Default)
-		if checkPatterns(expected, base, baseStem) {
-			return true
-		}
-	}
-
-	// If no match found and we have a camelCase receiver, try each part with the name
-	// e.g., ServiceDiscovery.Start -> [service_start.go, service.go, discovery_start.go, discovery.go]
-	if name != "" && receiver != "" {
-		receiverParts := splitCamelCase(receiver)
-		for _, part := range receiverParts {
-			partPatterns := matchFilenames(name, part, symbol.Default)
-			if checkPatterns(partPatterns, base, baseStem) {
-				return true
-			}
-		}
-	}
-
-	// If still no match, try each part of the function name separately
-	// e.g., ServiceDiscovery.FooClient -> [foo_client.go, foo.go, client.go]
-	if name != "" && receiver != "" {
-		nameParts := splitCamelCase(name)
-		for _, part := range nameParts {
-			// Try just this part of the name with receiver
-			partNamePatterns := matchFilenames(part, receiver, symbol.Default)
-			if checkPatterns(partNamePatterns, base, baseStem) {
-				return true
-			}
-
-			// Try each part of the name alone
-			justPartPatterns := matchFilenames(part, "", symbol.Default)
-			if checkPatterns(justPartPatterns, base, baseStem) {
-				return true
-			}
-		}
-	}
-
-	// If still no match, try just the function name
-	if name != "" && receiver != "" {
-		justNamePatterns := matchFilenames(name, "", symbol.Default)
-		if checkPatterns(justNamePatterns, base, baseStem) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // checkPatterns checks if any pattern matches the base filename
 func checkPatterns(patterns []string, base, baseStem string) bool {
 	for _, pattern := range patterns {
@@ -185,9 +122,7 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 
 	// Constructors should start with New, followed with the type name.
 	// We trim it away so we can group `NewServer` into server.go.
-	if strings.HasPrefix(name, "New") {
-		name = name[3:]
-	}
+	name = strings.TrimPrefix(name, "New")
 
 	// make function name exported for naming checks
 	if len(name) > 0 {

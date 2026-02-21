@@ -1,6 +1,7 @@
 package grouping
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/packages"
 )
 
 func NewAnalyzer() *analysis.Analyzer {
@@ -18,6 +20,78 @@ func NewAnalyzer() *analysis.Analyzer {
 	}
 
 	return check
+}
+
+// Analyzer performs grouping analysis on a set of packages.
+type Analyzer struct{}
+
+// New creates a new grouping analyzer.
+func New() *Analyzer {
+	return &Analyzer{}
+}
+
+// Analyze examines packages and returns grouping analysis results.
+func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
+	var violations []Violation
+	total := 0
+	seen := make(map[string]bool)
+
+	for _, pkg := range pkgs {
+		if pkg.Name == "main" || strings.HasSuffix(pkg.Name, "_test") {
+			continue
+		}
+		if strings.HasSuffix(pkg.PkgPath, ".test") {
+			continue
+		}
+		if pkg.Syntax == nil || pkg.Types == nil {
+			continue
+		}
+
+		for _, file := range pkg.Syntax {
+			fileName := pkg.Fset.Position(file.Pos()).Filename
+			if strings.HasSuffix(fileName, "_test.go") {
+				continue
+			}
+			if seen[fileName] {
+				continue
+			}
+			seen[fileName] = true
+
+			var symbols []AnalyzerSymbol
+			for _, decl := range file.Decls {
+				switch decl := decl.(type) {
+				case *ast.FuncDecl:
+					handleFuncDecl(pkg.Types.Name(), pkg.Types.Scope(), decl, fileName, &symbols)
+				case *ast.GenDecl:
+					if decl.Tok == token.TYPE {
+						handleTypeDecl(pkg.Types.Name(), decl, fileName, &symbols)
+					}
+				}
+			}
+
+			total += len(symbols)
+			for _, symbol := range symbols {
+				matched, canonicalLocations, totalExpected := matchWithOptions(symbol, symbol.Filename)
+				if !matched {
+					pos := pkg.Fset.Position(symbol.Pos)
+					locStr := strings.Join(canonicalLocations, ", ")
+					violations = append(violations, Violation{
+						File:    pos.Filename,
+						Line:    pos.Line,
+						Column:  pos.Column,
+						Symbol:  symbol.String(),
+						Message: fmt.Sprintf("exported %s %q expected in [%s] (total: %d expected filenames)", symbol.Type, symbol.String(), locStr, totalExpected),
+					})
+				}
+			}
+		}
+	}
+
+	return &Report{
+		Total:      total,
+		Passing:    total - len(violations),
+		Violations: violations,
+	}, nil
 }
 
 var (
@@ -56,10 +130,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for _, decl := range file.Decls {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
-				handleFuncDecl(pass, decl, fileName, &symbols)
+				handleFuncDecl(pass.Pkg.Name(), pass.Pkg.Scope(), decl, fileName, &symbols)
 			case *ast.GenDecl:
 				if decl.Tok == token.TYPE {
-					handleTypeDecl(pass, decl, fileName, &symbols)
+					handleTypeDecl(pass.Pkg.Name(), decl, fileName, &symbols)
 				}
 			}
 		}
@@ -80,8 +154,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // handleFuncDecl checks function declarations to ensure their names match expected filenames.
-func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	packageName := pass.Pkg.Name()
+func handleFuncDecl(packageName string, scope *types.Scope, decl *ast.FuncDecl, fileName string, symbols *[]AnalyzerSymbol) {
 	funcName := decl.Name.Name
 
 	// If the function is not exported, skip it
@@ -93,7 +166,7 @@ func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, sy
 	defaultFile := packageName + "*.go"
 
 	// Get the receiver's name (if any) and the function name
-	receiver, isInterface := getReceiverNameAndType(pass, decl)
+	receiver, isInterface := getReceiverNameAndType(scope, decl)
 	if receiver != "" {
 		// Skip methods on interfaces
 		if isInterface {
@@ -134,8 +207,7 @@ func handleFuncDecl(pass *analysis.Pass, decl *ast.FuncDecl, fileName string, sy
 }
 
 // handleTypeDecl checks type declarations to ensure their names match expected filenames.
-func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
-	packageName := pass.Pkg.Name()
+func handleTypeDecl(packageName string, decl *ast.GenDecl, fileName string, symbols *[]AnalyzerSymbol) {
 
 	for _, spec := range decl.Specs {
 		// Ensure we are working with *ast.TypeSpec
@@ -169,37 +241,41 @@ func handleTypeDecl(pass *analysis.Pass, decl *ast.GenDecl, fileName string, sym
 }
 
 // getReceiverNameAndType extracts the receiver's name and determines if it's an interface.
-func getReceiverNameAndType(pass *analysis.Pass, decl *ast.FuncDecl) (string, bool) {
+func getReceiverNameAndType(scope *types.Scope, decl *ast.FuncDecl) (string, bool) {
 	// If there is a receiver, return its name
 	if decl.Recv != nil && len(decl.Recv.List) > 0 {
-		recv := decl.Recv.List[0].Type
-		var receiverName string
-
-		if starExpr, ok := recv.(*ast.StarExpr); ok {
-			// If receiver is a pointer, get its underlying type name
-			if ident, ok := starExpr.X.(*ast.Ident); ok {
-				receiverName = ident.Name
-			}
-		} else if ident, ok := recv.(*ast.Ident); ok {
-			// If receiver is not a pointer, just return its name
-			receiverName = ident.Name
-		}
-
+		receiverName := extractReceiverName(decl.Recv.List[0].Type)
 		if receiverName == "" {
 			return "", false
 		}
 
 		// Check if the receiver type is an interface
-		isInterface := isInterfaceType(pass, receiverName)
+		isInterface := isInterfaceType(scope, receiverName)
 		return receiverName, isInterface
 	}
 	return "", false
 }
 
+// extractReceiverName extracts the base type name from a receiver expression,
+// handling pointers (*T), generics (List[T]), and combinations (*List[T]).
+func extractReceiverName(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.StarExpr:
+		return extractReceiverName(e.X)
+	case *ast.IndexExpr:
+		return extractReceiverName(e.X)
+	case *ast.IndexListExpr:
+		return extractReceiverName(e.X)
+	}
+	return ""
+}
+
 // isInterfaceType checks if a given type name refers to an interface.
-func isInterfaceType(pass *analysis.Pass, typeName string) bool {
+func isInterfaceType(scope *types.Scope, typeName string) bool {
 	// Look up the type in the package scope
-	obj := pass.Pkg.Scope().Lookup(typeName)
+	obj := scope.Lookup(typeName)
 	if obj == nil {
 		return false
 	}
