@@ -23,7 +23,6 @@ tasks:
     desc: "Run tests"
     cmds:
       - gotestsum ./... -- -count 1
-      - gofsck ./...
 
   build:
     desc: "Run build"

@@ -21,6 +21,7 @@ func New() *Analyzer {
 func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 	var violations []Violation
 	total := 0
+	seen := make(map[string]bool)
 
 	for _, pkg := range pkgs {
 		if skipPackage(pkg) {
@@ -39,6 +40,10 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 			if strings.HasSuffix(filename, "_test.go") {
 				continue
 			}
+			if seen[filename] {
+				continue
+			}
+			seen[filename] = true
 
 			for _, decl := range file.Decls {
 				fd, ok := decl.(*ast.FuncDecl)
