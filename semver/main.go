@@ -93,7 +93,9 @@ func main() {
 	slices.Reverse(majors)
 
 	// keep last 2 major releases for scans
-	majors = majors[0:2]
+	if len(majors) > 2 {
+		majors = majors[0:2]
+	}
 
 	var keep []*Tag
 
