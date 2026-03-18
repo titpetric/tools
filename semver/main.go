@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"maps"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 
@@ -37,8 +39,36 @@ func (l TagList) Filter(cb func(*Tag) bool) TagList {
 func main() {
 	var result TagList
 
-	// Read from stdin (git ls-remote --tags origin)
-	scanner := bufio.NewScanner(os.Stdin)
+	var reader io.Reader = os.Stdin
+
+	// Detect if stdin has piped data. If stdin is a pipe (FIFO), read from it.
+	// Otherwise (terminal, /dev/null, etc.), fall back to git ls-remote.
+	stdinIsPipe := false
+	if info, err := os.Stdin.Stat(); err == nil {
+		stdinIsPipe = (info.Mode() & os.ModeNamedPipe) != 0
+	}
+
+	if !stdinIsPipe {
+		cmd := exec.Command("git", "tag", "-l")
+		cmd.Stderr = os.Stderr
+		out, err := cmd.Output()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error running git tag:", err)
+			os.Exit(1)
+		}
+		// Convert local tag names to the refs/tags/ format expected by the parser.
+		// Use "local" as a placeholder commit hash since we don't need it.
+		var lines []string
+		for _, tag := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				lines = append(lines, "local\trefs/tags/"+tag)
+			}
+		}
+		reader = strings.NewReader(strings.Join(lines, "\n"))
+	}
+
+	scanner := bufio.NewScanner(reader)
 
 	// Process each line of input
 	for scanner.Scan() {
