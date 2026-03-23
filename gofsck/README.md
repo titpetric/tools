@@ -1,4 +1,4 @@
-# gofsck
+# gofsck - A static analysis tool for Go package structure
 
 A Go filesystem check tool with modular analyzers for package structure validation.
 
