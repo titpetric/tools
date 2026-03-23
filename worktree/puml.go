@@ -24,7 +24,10 @@ func renderPUML(w io.Writer, modules []moduleInfo) {
 	for _, m := range modules {
 		short := strings.TrimPrefix(m.Name, "github.com/")
 		idx := strings.LastIndex(short, "/")
-		pkg, label := short[:idx], short[idx+1:]
+		pkg, label := "local", short
+		if idx != -1 {
+			pkg, label = short[:idx], short[idx+1:]
+		}
 		if _, seen := groups[pkg]; !seen {
 			groupOrder = append(groupOrder, pkg)
 		}
@@ -54,20 +57,13 @@ func renderPUML(w io.Writer, modules []moduleInfo) {
 		for _, c := range comps {
 			fmt.Fprintf(w, "  component \"%s\" as %s [[%s]]\n", c.label, c.alias, c.link)
 		}
-		// Hidden links within package for single column
 		for i := 0; i < len(comps)-1; i++ {
-			fmt.Fprintf(w, "  %s -[hidden]down-> %s\n", comps[i].alias, comps[i+1].alias)
+			fmt.Fprintf(w, "  %s --> %s\n", comps[i].alias, comps[i+1].alias)
 		}
 		fmt.Fprintln(w, "}")
 		fmt.Fprintln(w)
 	}
 
-	// Add hidden links to enforce package ordering (top to bottom by module count)
-	for i := 0; i < len(groupOrder)-1; i++ {
-		lastInPkg := groups[groupOrder[i]][len(groups[groupOrder[i]])-1].alias
-		firstInNextPkg := groups[groupOrder[i+1]][0].alias
-		fmt.Fprintf(w, "%s -[hidden]down-> %s\n", lastInPkg, firstInNextPkg)
-	}
 	fmt.Fprintln(w)
 
 	// Build module-to-package lookup and track cross-package imports
@@ -76,8 +72,12 @@ func renderPUML(w io.Writer, modules []moduleInfo) {
 	for _, m := range modules {
 		short := strings.TrimPrefix(m.Name, "github.com/")
 		idx := strings.LastIndex(short, "/")
-		modPkg[m.Name] = short[:idx]
-		modName[m.Name] = short[idx+1:]
+		pkg, name := "local", short
+		if idx != -1 {
+			pkg, name = short[:idx], short[idx+1:]
+		}
+		modPkg[m.Name] = pkg
+		modName[m.Name] = name
 	}
 
 	crossPkgImports := make(map[string][]string)

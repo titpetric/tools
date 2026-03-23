@@ -28,7 +28,10 @@ func renderD2(w io.Writer, modules []moduleInfo) {
 	for _, m := range modules {
 		short := strings.TrimPrefix(m.Name, "github.com/")
 		idx := strings.LastIndex(short, "/")
-		pkg, name := short[:idx], short[idx+1:]
+		pkg, name := "local", short
+		if idx != -1 {
+			pkg, name = short[:idx], short[idx+1:]
+		}
 		if _, seen := groups[pkg]; !seen {
 			groupOrder = append(groupOrder, pkg)
 		}

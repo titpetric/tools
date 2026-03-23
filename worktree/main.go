@@ -36,7 +36,7 @@ func findGoModDirs(root string) []string {
 			return nil
 		}
 		if info.Name() == "go.mod" && !info.IsDir() {
-			dirs = append(dirs, filepath.Dir(path))
+			dirs = append(dirs, "./"+filepath.Dir(path))
 		}
 		return nil
 	})
