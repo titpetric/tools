@@ -1,5 +1,7 @@
 # worktree - Show workspace details
 
+![Worktree status](./examples/worktree.png)
+
 This is a tool for people that:
 
 - Use `git` with git tags
@@ -41,13 +43,9 @@ Several flags invoke tool functionality:
 
 ## Examples
 
-### Basic workspace view
-
-![Worktree status](./examples/worktree.png)
-
 ### Verbose workspace view
 
-![Worktree status - verbose](./examples/worktree.png)
+![Worktree status - verbose](./examples/worktree-verbose.png)
 
 ### D2 Diagram
 
@@ -55,7 +53,7 @@ Several flags invoke tool functionality:
 
 ### PlantUML Diagram
 
-![PlantUML workspace diagram](./examples/workspace.svg).
+![PlantUML workspace diagram](./examples/workspace.svg)
 
 ## Why?
 
