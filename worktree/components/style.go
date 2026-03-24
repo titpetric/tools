@@ -1,6 +1,6 @@
 package components
 
-// xterm256 color constants
+// xterm256 color constants.
 const (
 	ColorReset     = "\033[0m"
 	ColorBorder    = "\033[38;5;60m"

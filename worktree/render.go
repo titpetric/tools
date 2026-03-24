@@ -23,7 +23,7 @@ const (
 	boxCross       = "┼"
 )
 
-func renderTables(modules []moduleInfo, versionRefs map[string]map[string]string, latestTags map[string]string, gitStatuses map[string]*gitStatus, verbose bool) {
+func renderTables(refs versionRefs, modules []moduleInfo, gitStatuses map[string]*gitStatus, tags latestTags, verbose bool) {
 	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
@@ -32,32 +32,30 @@ func renderTables(modules []moduleInfo, versionRefs map[string]map[string]string
 		st := gitStatuses[m.Name]
 		cells := make(components.Rows, numCols)
 
+		g := components.Git{
+			BranchName: m.GitBranch,
+			Ahead:      m.Ahead,
+			Msgs:       m.GitMsgs,
+		}
+		if st != nil {
+			g.Unpushed = st.Unpushed
+			g.DiffLines = st.DiffLines
+		}
+
+		u := buildUsage(refs, m, tags)
+
 		if verbose {
 			cells[0] = components.ModuleVerbose(m.Description, m.Path, m.Name)
 			cells[1] = components.Latest(m.Latest)
-			cells[2] = components.GitBranch(m.GitBranch, m.Ahead)
-
-			var unpushed int
-			var diffLines []string
-			if st != nil {
-				unpushed = st.Unpushed
-				diffLines = st.DiffLines
-			}
-			cells[3] = components.GitStateVerbose(m.Ahead, unpushed, m.GitMsgs, diffLines)
-			cells[4] = components.UsageVerbose(m.Name, m.UsedBy, m.Uses, versionRefs, latestTags)
+			cells[2] = g.Branch()
+			cells[3] = g.StateVerbose()
+			cells[4] = u.Verbose()
 		} else {
 			cells[0] = components.Module(m.Path)
 			cells[1] = components.Latest(m.Latest)
-			cells[2] = components.GitBranch(m.GitBranch, m.Ahead)
-
-			var unpushed int
-			var diffLines []string
-			if st != nil {
-				unpushed = st.Unpushed
-				diffLines = st.DiffLines
-			}
-			cells[3] = components.GitState(unpushed, diffLines)
-			cells[4] = components.UsageCompact(m.Name, m.UsedBy, m.Uses, versionRefs, latestTags)
+			cells[2] = g.Branch()
+			cells[3] = g.State()
+			cells[4] = u.Compact()
 		}
 
 		rows = append(rows, cells)
@@ -99,10 +97,10 @@ func renderTables(modules []moduleInfo, versionRefs map[string]map[string]string
 	// Count outdated dependencies
 	outdated := 0
 	for _, m := range modules {
-		refs := versionRefs[m.Name]
+		modRefs := refs[m.Name]
 		for _, dep := range m.Uses {
-			latest := latestTags[dep]
-			if latest != "" && refs != nil && refs[dep] != "" && refs[dep] != latest {
+			latest := tags[dep]
+			if latest != "" && modRefs != nil && modRefs[dep] != "" && modRefs[dep] != latest {
 				outdated++
 			}
 		}
@@ -112,6 +110,26 @@ func renderTables(modules []moduleInfo, versionRefs map[string]map[string]string
 			components.ColorBorder, components.ColorYellow, components.ColorReset,
 			components.ColorBorder, outdated, components.ColorReset)
 	}
+}
+
+func buildUsage(refs versionRefs, m moduleInfo, tags latestTags) components.Usage {
+	var u components.Usage
+	latest := tags[m.Name]
+	for _, dep := range m.UsedBy {
+		d := components.Dependent{Name: components.ShortName(dep)}
+		if latest != "" {
+			if depRefs, ok := refs[dep]; ok {
+				if ver, ok := depRefs[m.Name]; ok && ver != latest {
+					d.Outdated = true
+				}
+			}
+		}
+		u.UsedBy = append(u.UsedBy, d)
+	}
+	for _, dep := range m.Uses {
+		u.Uses = append(u.Uses, components.ShortName(dep))
+	}
+	return u
 }
 
 func printBorder(left, mid, right string, widths []int) {

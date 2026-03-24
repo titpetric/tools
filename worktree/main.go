@@ -80,7 +80,7 @@ func main() {
 
 	// Build dependency map (uses) and version map
 	uses := make(map[string][]string)
-	versionRefs := make(map[string]map[string]string)
+	versionRefs := make(versionRefs)
 	for modPath, dir := range modPaths {
 		reqs, err := readRequiresVersioned(dir)
 		if err != nil {
@@ -106,7 +106,7 @@ func main() {
 	}
 
 	// Get latest git tag for each module
-	latestTags := make(map[string]string)
+	latestTags := make(latestTags)
 	for modPath, dir := range modPaths {
 		tag := latestGitTag(dir)
 		if tag != "" {
@@ -178,7 +178,7 @@ func main() {
 	}
 
 	if *update {
-		updateDeps(modPaths, versionRefs, latestTags)
+		updateDeps(versionRefs, modPaths, latestTags)
 		return
 	}
 
@@ -192,17 +192,17 @@ func main() {
 		return
 	}
 
-	renderTables(modules, versionRefs, latestTags, gitStatuses, *verbose)
+	renderTables(versionRefs, modules, gitStatuses, latestTags, *verbose)
 }
 
-func updateDeps(modPaths map[string]string, versionRefs map[string]map[string]string, latestTags map[string]string) {
-	for modPath, refs := range versionRefs {
+func updateDeps(refs versionRefs, modPaths map[string]string, tags latestTags) {
+	for modPath, modRefs := range refs {
 		dir := modPaths[modPath]
 		modShort := filepath.Base(modPath)
 		updated := false
 
-		for dep, ver := range refs {
-			latest := latestTags[dep]
+		for dep, ver := range modRefs {
+			latest := tags[dep]
 			if latest == "" || ver == latest {
 				continue
 			}

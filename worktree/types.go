@@ -23,3 +23,9 @@ type requireInfo struct {
 	path    string
 	version string
 }
+
+// versionRefs maps module path → dependency path → version.
+type versionRefs map[string]map[string]string
+
+// latestTags maps module path → latest tag.
+type latestTags map[string]string
