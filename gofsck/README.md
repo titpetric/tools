@@ -86,8 +86,8 @@ Checks that Go source files have corresponding test files.
 Analyzes symbol-test coverage using naming conventions.
 
 **Test Naming Conventions:**
-- Package function `Flatten` → expects `TestFlatten*`
-- Method `Server.Get` → expects `TestServer_Get*`
+- Package function `Flatten` -> expects `TestFlatten*`
+- Method `Server.Get` -> expects `TestServer_Get*`
 - Context suffixes allowed: `TestServer_Get_WithContext`
 
 **Output:**
@@ -111,13 +111,13 @@ Ensures exported symbols are grouped in files matching their names. Available as
 **Matching Rules:**
 - Symbol names converted to snake_case
 - Singular/plural variations supported
-- Base noun extraction (e.g., Runner → Run)
+- Base noun extraction (e.g., Runner -> Run)
 - Wildcard patterns (e.g., `service*.go`)
 - Allowlist for `model*.go`, `types*.go`
 
 **Patterns:**
-- Type `ServiceDiscovery` → `service_discovery.go`, `discovery.go`, or `service.go`
-- Method `ServiceDiscovery.Get` → `get.go`, `discovery_get.go`, or `service_discovery_get.go`
+- Type `ServiceDiscovery` -> `service_discovery.go`, `discovery.go`, or `service.go`
+- Method `ServiceDiscovery.Get` -> `get.go`, `discovery_get.go`, or `service_discovery_get.go`
 
 **Package:** `pkg/grouping/`
 
@@ -126,8 +126,8 @@ Ensures exported symbols are grouped in files matching their names. Available as
 Ensures exported `http.HandlerFunc` functions have corresponding unexported wrapper functions that return `error`.
 
 **Convention:**
-- Exported handler `Handler(http.ResponseWriter, *http.Request)` → expects unexported `handler(w, r) error`
-- Receiver method `(*Service).Handler(http.ResponseWriter, *http.Request)` → expects `(*Service).handler(w, r) error`
+- Exported handler `Handler(http.ResponseWriter, *http.Request)` -> expects unexported `handler(w, r) error`
+- Receiver method `(*Service).Handler(http.ResponseWriter, *http.Request)` -> expects `(*Service).handler(w, r) error`
 
 **Output:**
 - `total` - Number of exported HTTP handlers found
