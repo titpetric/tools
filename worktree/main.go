@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/titpetric/tools/worktree/components"
 )
@@ -51,6 +52,16 @@ func main() {
 	d2 := flag.Bool("d2", false, "output D2 dependency diagram to stdout")
 	verbose := flag.Bool("v", false, "verbose output: show module column and dependency lists")
 	flag.Parse()
+
+	// Resolve optional path filter before chdir
+	var filterPath string
+	if flag.NArg() > 0 {
+		abs, err := filepath.Abs(flag.Arg(0))
+		if err != nil {
+			log.Fatalf("failed to resolve path %s: %v", flag.Arg(0), err)
+		}
+		filterPath = abs
+	}
 
 	var modDirs []string
 	goWorkPath, err := findGoWork()
@@ -133,6 +144,24 @@ func main() {
 		return sortedMods[i] < sortedMods[j]
 	})
 
+	// Filter to a single module if a path argument was given
+	if filterPath != "" {
+		workRoot, _ := os.Getwd()
+		var matched []string
+		for _, mod := range sortedMods {
+			dir := modPaths[mod]
+			absDir := filepath.Join(workRoot, dir)
+			// Match if filterPath is inside the module dir, or module dir is inside filterPath
+			if isSubpath(absDir, filterPath) || isSubpath(filterPath, absDir) {
+				matched = append(matched, mod)
+			}
+		}
+		if len(matched) == 0 {
+			log.Fatalf("no module found containing %s", filterPath)
+		}
+		sortedMods = matched
+	}
+
 	// Build module info list
 	var modules []moduleInfo
 	for _, mod := range sortedMods {
@@ -171,8 +200,8 @@ func main() {
 		if g.Ahead > 0 {
 			g.Msgs = commitMessagesSinceTag(dir, info.Latest)
 		}
+		g.UntrackedFiles = getUntrackedFiles(dir)
 		if *verbose {
-			g.UntrackedFiles = getUntrackedFiles(dir)
 			g.Issues = getGitHubIssues(dir)
 		}
 		info.GitState = g
@@ -199,6 +228,15 @@ func main() {
 	}
 
 	renderTables(modules, *verbose)
+}
+
+// isSubpath reports whether child is equal to or under parent.
+func isSubpath(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
 }
 
 func updateDeps(refs versionRefs, modPaths map[string]string, tags latestTags) {

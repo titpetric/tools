@@ -64,6 +64,16 @@ func (g Git) State() Cell {
 		}
 	}
 
+	if len(g.UntrackedFiles) > 0 {
+		if len(lines) > 0 {
+			lines = append(lines, Separator)
+		}
+		lines = append(lines, ColorAmber+"Untracked files:"+ColorReset)
+		for _, f := range g.UntrackedFiles {
+			lines = append(lines, "- "+f)
+		}
+	}
+
 	return lines
 }
 

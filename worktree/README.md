@@ -17,7 +17,14 @@ To install the tool:
 go install github.com/titpetric/tools/worktree@main
 ```
 
-Run `worktree` in your source workspace.
+Run `worktree` in your source workspace. An optional path argument filters
+the output to modules matching that path:
+
+```bash
+worktree .           # show only the module in the current folder
+worktree ./tools     # show all modules under the tools folder
+worktree /abs/path   # show modules matching an absolute path
+```
 
 Several flags invoke tool functionality:
 
