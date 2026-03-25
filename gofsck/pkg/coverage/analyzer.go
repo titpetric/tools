@@ -18,12 +18,86 @@ func New() *Analyzer {
 	return &Analyzer{}
 }
 
+// symbolIndex collects symbol and test data during analysis.
+type symbolIndex struct {
+	symbols         map[string]bool           // exported symbols
+	symbolPkgPath   map[string]string         // symbol -> package path
+	constructors    map[string]bool           // constructor functions (New*)
+	testFuncs       map[string]bool           // test function names
+	symbolToTests   map[string][]string       // symbol -> tests that cover it
+	testFileSymbols map[string]bool           // symbols defined in test files
+}
+
+func newSymbolIndex() *symbolIndex {
+	return &symbolIndex{
+		symbols:         make(map[string]bool),
+		symbolPkgPath:   make(map[string]string),
+		constructors:    make(map[string]bool),
+		testFuncs:       make(map[string]bool),
+		symbolToTests:   make(map[string][]string),
+		testFileSymbols: make(map[string]bool),
+	}
+}
+
+// integrationPackageSuffixes identifies packages whose symbols require integration tests.
+var integrationPackageSuffixes = []string{
+	"/storage",
+	"/repository",
+}
+
+// testKind returns "integration" or "unit" based on the symbol's package path.
+func testKind(pkgPath string) string {
+	for _, suffix := range integrationPackageSuffixes {
+		if strings.HasSuffix(pkgPath, suffix) {
+			return "integration"
+		}
+	}
+	return "unit"
+}
+
+// matchTestToSymbols matches a test function to all possible symbols it could test.
+func (idx *symbolIndex) matchTestToSymbols(testName string) {
+	possibleMatches := ParseTestName(testName)
+	for _, match := range possibleMatches {
+		idx.symbolToTests[match] = append(idx.symbolToTests[match], testName)
+
+		// For type names, also match constructor functions (e.g., TestVue matches NewVue)
+		if !strings.Contains(match, ".") && match != "" {
+			constructorName := "New" + match
+			idx.symbolToTests[constructorName] = append(idx.symbolToTests[constructorName], testName)
+		}
+	}
+}
+
+// resolveReceiverCoverage maps receiver-level tests (TestServer) to all
+// method symbols on that receiver (Server.Get, Server.Close, etc.).
+func (idx *symbolIndex) resolveReceiverCoverage() {
+	for symbol := range idx.symbols {
+		if _, hasCoverage := idx.symbolToTests[symbol]; hasCoverage {
+			continue
+		}
+
+		parts := strings.SplitN(symbol, ".", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		receiver := parts[0]
+		testName := "Test" + receiver
+		benchName := "Benchmark" + receiver
+
+		if idx.testFuncs[testName] {
+			idx.symbolToTests[symbol] = append(idx.symbolToTests[symbol], testName)
+		}
+		if idx.testFuncs[benchName] {
+			idx.symbolToTests[symbol] = append(idx.symbolToTests[symbol], benchName)
+		}
+	}
+}
+
 // Analyze examines packages and returns symbol-test coverage information.
 func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
-	symbols := make(map[string]bool)           // exported symbols
-	testFuncs := make(map[string]bool)         // test function names
-	symbolToTests := make(map[string][]string) // symbol -> tests that cover it
-	testFileSymbols := make(map[string]bool)   // symbols defined in test files (shouldn't be in uncovered list)
+	idx := newSymbolIndex()
 
 	// Iterate through packages
 	for _, pkg := range pkgs {
@@ -35,37 +109,51 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 		// Process each file in the package
 		if pkg.Syntax != nil {
 			for _, file := range pkg.Syntax {
-				a.analyzeFile(file, pkg, symbolToTests, symbols, testFuncs, testFileSymbols)
+				a.analyzeFile(file, pkg, idx)
 			}
 		}
 	}
 
-	// Find uncovered symbols (excluding those defined in test files)
-	var uncovered []string
-	for symbol := range symbols {
+	// Resolve receiver-level test coverage for methods
+	idx.resolveReceiverCoverage()
+
+	// Find uncovered symbols (excluding constructors and those defined in test files)
+	var uncovered []UncoveredSymbol
+	for symbol := range idx.symbols {
 		// Skip symbols defined in test files (they're test helpers, not part of the public API)
-		if testFileSymbols[symbol] {
+		if idx.testFileSymbols[symbol] {
 			continue
 		}
 
-		if _, hasCoverage := symbolToTests[symbol]; !hasCoverage {
-			// Check if this is a method with indirect coverage via a type test
-			if !hasIndirectCoverage(symbol, testFuncs) {
-				uncovered = append(uncovered, symbol)
-			}
+		// Skip constructors — they are covered by their return type's tests
+		if idx.constructors[symbol] {
+			continue
+		}
+
+		// Skip methods — only require tests for receiver types, not individual methods
+		if strings.Contains(symbol, ".") {
+			continue
+		}
+
+		if _, hasCoverage := idx.symbolToTests[symbol]; !hasCoverage {
+			uncovered = append(uncovered, UncoveredSymbol{
+				Symbol:       symbol,
+				ExpectedTest: ExpectedTestName(symbol),
+				TestKind:     testKind(idx.symbolPkgPath[symbol]),
+			})
 		}
 	}
 
 	// Find standalone tests (tests with no matching symbol that exists)
 	var standaloneTests []string
-	for testName := range testFuncs {
+	for testName := range idx.testFuncs {
 		found := false
 		// Check if this test matches any symbol that actually exists
-		for symbol, tests := range symbolToTests {
+		for symbol, tests := range idx.symbolToTests {
 			for _, t := range tests {
 				if t == testName {
 					// Found the test, but only count it as non-standalone if the symbol exists
-					if _, symbolExists := symbols[symbol]; symbolExists {
+					if _, symbolExists := idx.symbols[symbol]; symbolExists {
 						found = true
 						break
 					}
@@ -81,30 +169,56 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 	}
 
 	// Sort uncovered and standalone tests for consistent output
-	sort.Strings(uncovered)
+	sort.Slice(uncovered, func(i, j int) bool {
+		return uncovered[i].Symbol < uncovered[j].Symbol
+	})
 	sort.Strings(standaloneTests)
 
-	// Calculate coverage ratio
-	totalSymbols := len(symbols)
-	coveredSymbols := len(symbols) - len(uncovered)
+	// Calculate coverage ratio based on eligible symbols only
+	// (excludes constructors and test-file symbols from the total)
+	eligible := 0
+	for symbol := range idx.symbols {
+		if idx.testFileSymbols[symbol] || idx.constructors[symbol] || strings.Contains(symbol, ".") {
+			continue
+		}
+		eligible++
+	}
+	covered := eligible - len(uncovered)
+	constructorCount := len(idx.constructors)
 	coverageRatio := 0.0
-	if totalSymbols > 0 {
-		coverageRatio = float64(coveredSymbols) / float64(totalSymbols)
+	if eligible > 0 {
+		coverageRatio = float64(covered) / float64(eligible)
+	}
+	adjustedCoverage := 0.0
+	adjustedTotal := eligible + constructorCount
+	if adjustedTotal > 0 {
+		adjustedCoverage = float64(covered+constructorCount) / float64(adjustedTotal)
+	}
+
+	wantUnit, wantIntegration := 0, 0
+	for _, u := range uncovered {
+		if u.TestKind == "integration" {
+			wantIntegration++
+		} else {
+			wantUnit++
+		}
 	}
 
 	return &Report{
-		Symbols:         symbolToTests,
-		Uncovered:       uncovered,
-		StandaloneTests: standaloneTests,
-		CoverageRatio:   coverageRatio,
+		Symbols:          idx.symbolToTests,
+		Covered:          covered,
+		Uncovered:        uncovered,
+		Constructors:     constructorCount,
+		StandaloneTests:  standaloneTests,
+		CoverageRatio:    coverageRatio,
+		AdjustedCoverage: adjustedCoverage,
+		WantUnit:         wantUnit,
+		WantIntegration:  wantIntegration,
 	}, nil
 }
 
 // analyzeFile processes a single AST file to extract symbols and tests.
-func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
-	symbolToTests map[string][]string, symbols map[string]bool, testFuncs map[string]bool,
-	testFileSymbols map[string]bool) {
-
+func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package, idx *symbolIndex) {
 	// Check if this is a test file
 	isTestFile := strings.HasSuffix(file.Name.Name, "_test.go")
 
@@ -115,10 +229,8 @@ func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
 
 			// Check if this is a test or benchmark function (before treating as exported symbol)
 			if (strings.HasPrefix(funcName, "Test") || strings.HasPrefix(funcName, "Benchmark")) && d.Recv == nil {
-				testFuncs[funcName] = true
-				// Try to match this test to symbols
-				a.matchTestToSymbols(funcName, symbolToTests)
-				// Don't process as a symbol
+				idx.testFuncs[funcName] = true
+				idx.matchTestToSymbols(funcName)
 				continue
 			}
 
@@ -129,16 +241,23 @@ func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
 					// Method on exported receiver
 					if ast.IsExported(receiver) {
 						symbolName := fmt.Sprintf("%s.%s", receiver, funcName)
-						symbols[symbolName] = true
+						idx.symbols[symbolName] = true
+						idx.symbolPkgPath[symbolName] = pkg.PkgPath
 						if isTestFile {
-							testFileSymbols[symbolName] = true
+							idx.testFileSymbols[symbolName] = true
 						}
 					}
 				} else {
 					// Package-level function
-					symbols[funcName] = true
+					idx.symbols[funcName] = true
+					idx.symbolPkgPath[funcName] = pkg.PkgPath
 					if isTestFile {
-						testFileSymbols[funcName] = true
+						idx.testFileSymbols[funcName] = true
+					}
+
+					// Track constructors (functions starting with New, no receiver)
+					if strings.HasPrefix(funcName, "New") {
+						idx.constructors[funcName] = true
 					}
 
 					// For constructors like NewVue() *Vue, also track the return type
@@ -150,10 +269,10 @@ func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
 						if isStructType(pkg, returnExpr) {
 							returnType := extractReturnType(returnExpr)
 							if returnType != "" && ast.IsExported(returnType) {
-								// Also add as if it were a type symbol for test matching
-								symbols[returnType] = true
+								idx.symbols[returnType] = true
+								idx.symbolPkgPath[returnType] = pkg.PkgPath
 								if isTestFile {
-									testFileSymbols[returnType] = true
+									idx.testFileSymbols[returnType] = true
 								}
 							}
 						}
@@ -169,9 +288,10 @@ func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
 						// Only track exported struct types
 						if ast.IsExported(ts.Name.Name) {
 							if _, isStruct := ts.Type.(*ast.StructType); isStruct {
-								symbols[ts.Name.Name] = true
+								idx.symbols[ts.Name.Name] = true
+								idx.symbolPkgPath[ts.Name.Name] = pkg.PkgPath
 								if isTestFile {
-									testFileSymbols[ts.Name.Name] = true
+									idx.testFileSymbols[ts.Name.Name] = true
 								}
 							}
 						}
@@ -180,43 +300,6 @@ func (a *Analyzer) analyzeFile(file *ast.File, pkg *packages.Package,
 			}
 		}
 	}
-}
-
-// matchTestToSymbols matches a test function to all possible symbols it could test.
-func (a *Analyzer) matchTestToSymbols(testName string, symbolToTests map[string][]string) {
-	possibleMatches := ParseTestName(testName)
-	for _, match := range possibleMatches {
-		symbolToTests[match] = append(symbolToTests[match], testName)
-
-		// For type names, also match constructor functions (e.g., TestVue matches NewVue)
-		// This aligns with grouping analyzer which groups NewVue into vue.go
-		if !strings.Contains(match, ".") && match != "" {
-			constructorName := "New" + match
-			symbolToTests[constructorName] = append(symbolToTests[constructorName], testName)
-		}
-	}
-}
-
-// hasIndirectCoverage checks if a symbol (like "Type.Method") has indirect coverage.
-// If a TestType or BenchmarkType exists, all methods on Type are considered indirectly covered.
-func hasIndirectCoverage(symbol string, testFuncs map[string]bool) bool {
-	// Check if this is a method symbol (contains a dot)
-	if !strings.Contains(symbol, ".") {
-		return false
-	}
-
-	// Extract the receiver type (e.g., "Stack" from "Stack.Get")
-	parts := strings.Split(symbol, ".")
-	if len(parts) != 2 {
-		return false
-	}
-
-	receiverType := parts[0]
-
-	// Check if TestReceiverType or BenchmarkReceiverType exists
-	testName := fmt.Sprintf("Test%s", receiverType)
-	benchmarkName := fmt.Sprintf("Benchmark%s", receiverType)
-	return testFuncs[testName] || testFuncs[benchmarkName]
 }
 
 // isStructType checks if an expression represents a struct type.

@@ -48,6 +48,16 @@ func ParseTestName(testName string) []string {
 	return matches
 }
 
+// ExpectedTestName returns the expected test function name for a given symbol.
+// For "Flatten" it returns "TestFlatten", for "Server.Get" it returns "TestServer_Get".
+func ExpectedTestName(symbolName string) string {
+	if strings.Contains(symbolName, ".") {
+		parts := strings.SplitN(symbolName, ".", 2)
+		return fmt.Sprintf("Test%s_%s", parts[0], parts[1])
+	}
+	return fmt.Sprintf("Test%s", symbolName)
+}
+
 // MatchSymbolToTest returns true if a test name matches a symbol.
 // symbolName can be either "FunctionName" or "ReceiverType.MethodName"
 // Also handles constructor matching: TestVue matches NewVue because NewVue returns Vue

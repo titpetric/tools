@@ -26,7 +26,7 @@ func TestAnalyzer_Analyze(t *testing.T) {
 	assert.NotNil(t, report.Symbols)
 	// Uncovered and StandaloneTests can be nil if empty
 	if report.Uncovered != nil {
-		assert.IsType(t, []string{}, report.Uncovered)
+		assert.IsType(t, []UncoveredSymbol{}, report.Uncovered)
 	}
 	if report.StandaloneTests != nil {
 		assert.IsType(t, []string{}, report.StandaloneTests)
@@ -212,75 +212,68 @@ func TestExtractReturnType(t *testing.T) {
 	}
 }
 
-func TestHasIndirectCoverage(t *testing.T) {
+func TestResolveReceiverCoverage(t *testing.T) {
 	tests := []struct {
-		name      string
-		symbol    string
-		testFuncs map[string]bool
-		expected  bool
+		name          string
+		symbol        string
+		testFuncs     map[string]bool
+		expectCovered bool
 	}{
 		{
-			name:   "method with matching type test",
-			symbol: "Stack.Get",
-			testFuncs: map[string]bool{
-				"TestStack": true,
-			},
-			expected: true,
+			name:          "method with matching type test",
+			symbol:        "Stack.Get",
+			testFuncs:     map[string]bool{"TestStack": true},
+			expectCovered: true,
 		},
 		{
-			name:   "method without matching type test",
-			symbol: "Stack.Get",
-			testFuncs: map[string]bool{
-				"TestOther": true,
-			},
-			expected: false,
+			name:          "method without matching type test",
+			symbol:        "Stack.Get",
+			testFuncs:     map[string]bool{"TestOther": true},
+			expectCovered: false,
 		},
 		{
-			name:   "non-method symbol",
-			symbol: "MyFunction",
-			testFuncs: map[string]bool{
-				"TestMyFunction": true,
-			},
-			expected: false,
+			name:          "non-method symbol",
+			symbol:        "MyFunction",
+			testFuncs:     map[string]bool{"TestMyFunction": true},
+			expectCovered: false,
 		},
 		{
-			name:   "multiple methods with type test",
-			symbol: "Stack.Copy",
-			testFuncs: map[string]bool{
-				"TestStack": true,
-			},
-			expected: true,
+			name:          "multiple methods with type test",
+			symbol:        "Stack.Copy",
+			testFuncs:     map[string]bool{"TestStack": true},
+			expectCovered: true,
 		},
 		{
-			name:   "Stack.EnvMap with TestStack",
-			symbol: "Stack.EnvMap",
-			testFuncs: map[string]bool{
-				"TestStack": true,
-			},
-			expected: true,
+			name:          "Stack.EnvMap with TestStack",
+			symbol:        "Stack.EnvMap",
+			testFuncs:     map[string]bool{"TestStack": true},
+			expectCovered: true,
 		},
 		{
-			name:   "Stack.Copy with BenchmarkStack",
-			symbol: "Stack.Copy",
-			testFuncs: map[string]bool{
-				"BenchmarkStack": true,
-			},
-			expected: true,
+			name:          "Stack.Copy with BenchmarkStack",
+			symbol:        "Stack.Copy",
+			testFuncs:     map[string]bool{"BenchmarkStack": true},
+			expectCovered: true,
 		},
 		{
-			name:   "Queue.Dequeue with BenchmarkQueue",
-			symbol: "Queue.Dequeue",
-			testFuncs: map[string]bool{
-				"BenchmarkQueue": true,
-			},
-			expected: true,
+			name:          "Queue.Dequeue with BenchmarkQueue",
+			symbol:        "Queue.Dequeue",
+			testFuncs:     map[string]bool{"BenchmarkQueue": true},
+			expectCovered: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := hasIndirectCoverage(tc.symbol, tc.testFuncs)
-			assert.Equal(t, tc.expected, result, "symbol: %s, testFuncs: %v", tc.symbol, tc.testFuncs)
+			idx := newSymbolIndex()
+			idx.symbols[tc.symbol] = true
+			for k, v := range tc.testFuncs {
+				idx.testFuncs[k] = v
+			}
+			idx.resolveReceiverCoverage()
+
+			_, covered := idx.symbolToTests[tc.symbol]
+			assert.Equal(t, tc.expectCovered, covered, "symbol: %s, testFuncs: %v", tc.symbol, tc.testFuncs)
 		})
 	}
 }
