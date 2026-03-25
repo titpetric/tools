@@ -32,6 +32,7 @@ The tool scans and displays information about:
 - Unpushed git commits
 - Local changes to source tree
 - README.md title for description
+- GitHub issues (gh issue list)
 
 ## Functionality
 
