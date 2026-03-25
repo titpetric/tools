@@ -23,7 +23,7 @@ const (
 	boxCross       = "┼"
 )
 
-func renderTables(modules []moduleInfo, verbose bool) {
+func renderTables(modules []moduleInfo, opts *Options) {
 	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
@@ -33,7 +33,7 @@ func renderTables(modules []moduleInfo, verbose bool) {
 
 		g := m.GitState
 
-		if verbose {
+		if opts.Verbose {
 			cells[0] = components.ModuleVerbose(m.Description, m.Path, m.Name)
 			cells[1] = components.Latest(m.Latest)
 			cells[2] = g.Branch()
@@ -75,7 +75,7 @@ func renderTables(modules []moduleInfo, verbose bool) {
 	// Data rows
 	for i, row := range rows {
 		printTableRow(row, widths)
-		if verbose && i < len(rows)-1 {
+		if opts.Verbose && i < len(rows)-1 {
 			printBorder(boxTeeRight, boxCross, boxTeeLeft, widths)
 		}
 	}
@@ -92,6 +92,12 @@ func renderTables(modules []moduleInfo, verbose bool) {
 		fmt.Printf("%srun with %s-u%s %sto update %d outdated dependencies in workspace%s\n",
 			components.ColorBorder, components.ColorYellow, components.ColorReset,
 			components.ColorBorder, outdated, components.ColorReset)
+	}
+
+	// Print skipped summary
+	if opts.Skipped > 0 {
+		fmt.Printf("%sSkipped %d modules, use --all to show%s\n",
+			components.ColorHeader, opts.Skipped, components.ColorReset)
 	}
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -47,37 +46,7 @@ func findGoModDirs(root string) []string {
 }
 
 func main() {
-	// Reorder os.Args so flags come before positional args,
-	// allowing e.g. "worktree platform -v" to work.
-	var flags, positional []string
-	for _, arg := range os.Args[1:] {
-		if strings.HasPrefix(arg, "-") {
-			flags = append(flags, arg)
-		} else {
-			positional = append(positional, arg)
-		}
-	}
-	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
-
-	update := flag.Bool("u", false, "update workspace dependencies to latest tags")
-	puml := flag.Bool("puml", false, "output PlantUML dependency diagram to stdout")
-	d2 := flag.Bool("d2", false, "output D2 dependency diagram to stdout")
-	verbose := flag.Bool("v", false, "verbose output: show module column and dependency lists")
-	flag.Parse()
-
-	// Resolve optional path filter before chdir
-	var filterPath string
-	if flag.NArg() > 0 {
-		abs, err := filepath.Abs(flag.Arg(0))
-		if err == nil {
-			if _, err := os.Stat(abs); err == nil {
-				filterPath = abs
-			}
-		}
-		if filterPath == "" {
-			filterPath = flag.Arg(0)
-		}
-	}
+	opts := ParseOptions()
 
 	var modDirs []string
 	goWorkPath, err := findGoWork()
@@ -163,12 +132,11 @@ func main() {
 	})
 
 	// Filter modules if a path argument was given
-	if filterPath != "" {
-		arg := flag.Arg(0)
+	if opts.FilterPath != "" {
 		var matched []string
 
 		// Exact short name match
-		if mod, ok := shortNames[arg]; ok {
+		if mod, ok := shortNames[opts.FilterArg]; ok {
 			matched = append(matched, mod)
 		}
 
@@ -178,7 +146,7 @@ func main() {
 			for _, mod := range sortedMods {
 				dir := modPaths[mod]
 				absDir := filepath.Join(workRoot, dir)
-				if isSubpath(absDir, filterPath) || isSubpath(filterPath, absDir) {
+				if isSubpath(absDir, opts.FilterPath) || isSubpath(opts.FilterPath, absDir) {
 					matched = append(matched, mod)
 				}
 			}
@@ -188,14 +156,14 @@ func main() {
 		if len(matched) == 0 {
 			for _, mod := range sortedMods {
 				dir := modPaths[mod]
-				if strings.Contains(dir, arg) || strings.Contains(mod, arg) {
+				if strings.Contains(dir, opts.FilterArg) || strings.Contains(mod, opts.FilterArg) {
 					matched = append(matched, mod)
 				}
 			}
 		}
 
 		if len(matched) == 0 {
-			log.Fatalf("no module found matching %s", arg)
+			log.Fatalf("no module found matching %s", opts.FilterArg)
 		}
 		sortedMods = matched
 	}
@@ -240,7 +208,7 @@ func main() {
 			g.Msgs = commitMessagesSinceTag(dir, info.Latest)
 		}
 		g.UntrackedFiles = getUntrackedFiles(dir)
-		if *verbose {
+		if opts.Verbose {
 			g.Issues = getGitHubIssues(dir)
 		}
 		info.GitState = g
@@ -248,25 +216,31 @@ func main() {
 		// Build usage
 		info.Usage, info.Outdated = buildUsage(versionRefs, latestTags, info)
 
+		// Skip modules with no changes and no outdated deps unless --all
+		if !opts.All && info.GitState.IsEmpty() && info.Outdated == 0 {
+			opts.Skipped++
+			continue
+		}
+
 		modules = append(modules, info)
 	}
 
-	if *update {
-		updateDeps(versionRefs, modPaths, latestTags)
+	if opts.Update {
+		updateDeps(modPaths, opts)
 		return
 	}
 
-	if *puml {
+	if opts.PUML {
 		renderPUML(os.Stdout, modules)
 		return
 	}
 
-	if *d2 {
+	if opts.D2 {
 		renderD2(os.Stdout, modules)
 		return
 	}
 
-	renderTables(modules, *verbose)
+	renderTables(modules, opts)
 }
 
 // isSubpath reports whether child is equal to or under parent.
@@ -278,31 +252,12 @@ func isSubpath(parent, child string) bool {
 	return rel == "." || (!filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
 }
 
-func updateDeps(refs versionRefs, modPaths map[string]string, tags latestTags) {
-	for modPath, modRefs := range refs {
-		dir := modPaths[modPath]
+func updateDeps(modPaths map[string]string, opts *Options) {
+	for modPath, dir := range modPaths {
 		modShort := filepath.Base(modPath)
-		updated := false
 
-		for dep, ver := range modRefs {
-			latest := tags[dep]
-			if latest == "" || ver == latest {
-				continue
-			}
-			depShort := filepath.Base(dep)
-			fmt.Printf("Updated %s %s@%s to %s@%s\n", modShort, depShort, ver, depShort, latest)
-
-			cmd := exec.Command("go", "get", dep+"@"+latest)
-			cmd.Dir = dir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				log.Printf("  go get failed for %s in %s: %v", dep, modPath, err)
-			}
-			updated = true
-		}
-
-		if updated {
+		if opts.All {
+			fmt.Printf("Updating %s (go get -u ./...)\n", modShort)
 			cmd := exec.Command("go", "get", "-u", "./...")
 			cmd.Dir = dir
 			cmd.Stdout = os.Stdout
@@ -310,14 +265,15 @@ func updateDeps(refs versionRefs, modPaths map[string]string, tags latestTags) {
 			if err := cmd.Run(); err != nil {
 				log.Printf("  go get -u failed in %s: %v", modPath, err)
 			}
+		}
 
-			cmd = exec.Command("go", "mod", "tidy")
-			cmd.Dir = dir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				log.Printf("  go mod tidy failed in %s: %v", modPath, err)
-			}
+		fmt.Printf("Tidying %s\n", modShort)
+		cmd := exec.Command("go", "mod", "tidy")
+		cmd.Dir = dir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Printf("  go mod tidy failed in %s: %v", modPath, err)
 		}
 	}
 }
