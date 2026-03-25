@@ -79,11 +79,11 @@ func (g Git) State() Cell {
 }
 
 // StateVerbose builds a verbose git state cell with commit messages and diff stats.
+// Order: commits since release, local changes, issues.
 func (g Git) StateVerbose() Cell {
 	var lines Cell
 
-	lines = append(lines, g.summaryLine()...)
-
+	// Commits since release
 	if len(g.Msgs) > 0 {
 		lines = append(lines, ColorAmber+"Commits since release:"+ColorReset)
 		for _, msg := range g.Msgs {
@@ -91,16 +91,18 @@ func (g Git) StateVerbose() Cell {
 		}
 	}
 
+	// Local changes (diff stats)
 	if len(g.DiffLines) > 0 {
-		if len(g.Msgs) > 0 {
+		if len(lines) > 0 {
 			lines = append(lines, Separator)
-			lines = append(lines, ColorAmber+"Local changes:"+ColorReset)
 		}
+		lines = append(lines, ColorAmber+"Local changes:"+ColorReset)
 		for _, line := range g.DiffLines {
 			lines = append(lines, formatDiffStatLine(line))
 		}
 	}
 
+	// Untracked files
 	if len(g.UntrackedFiles) > 0 {
 		if len(lines) > 0 {
 			lines = append(lines, Separator)
@@ -111,6 +113,7 @@ func (g Git) StateVerbose() Cell {
 		}
 	}
 
+	// Issues
 	if len(g.Issues) > 0 {
 		if len(lines) > 0 {
 			lines = append(lines, Separator)
