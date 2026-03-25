@@ -20,12 +20,12 @@ func New() *Analyzer {
 
 // symbolIndex collects symbol and test data during analysis.
 type symbolIndex struct {
-	symbols         map[string]bool           // exported symbols
-	symbolPkgPath   map[string]string         // symbol -> package path
-	constructors    map[string]bool           // constructor functions (New*)
-	testFuncs       map[string]bool           // test function names
-	symbolToTests   map[string][]string       // symbol -> tests that cover it
-	testFileSymbols map[string]bool           // symbols defined in test files
+	symbols         map[string]bool     // exported symbols
+	symbolPkgPath   map[string]string   // symbol -> package path
+	constructors    map[string]bool     // constructor functions (New*)
+	testFuncs       map[string]bool     // test function names
+	symbolToTests   map[string][]string // symbol -> tests that cover it
+	testFileSymbols map[string]bool     // symbols defined in test files
 }
 
 func newSymbolIndex() *symbolIndex {

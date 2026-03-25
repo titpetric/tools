@@ -38,5 +38,3 @@ func (c Cell) Line(i int) string {
 	}
 	return ""
 }
-
-

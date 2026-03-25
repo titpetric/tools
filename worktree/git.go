@@ -300,4 +300,3 @@ func cachedGHIssueList(dir string) ([]byte, error) {
 	_ = os.WriteFile(cachePath, out, 0644)
 	return out, nil
 }
-
