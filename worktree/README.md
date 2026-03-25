@@ -64,9 +64,18 @@ and checkouts that aren't a go module source tree.
 
 ## Examples
 
-### Verbose workspace view
+### Summary workspace view
 
-![Worktree status - verbose](./examples/worktree-verbose.png)
+The following screenshots show standard output, workspace filtering and
+verbose output for the complete workspace.
+
+![Worktree status summary](./examples/worktree.png)
+
+![Worktree for Platform](./examples/worktree-platform.png)
+
+![Worktree for LessGo](./examples/worktree-lessgo.png)
+
+![Worktree verbose status](./examples/worktree-verbose.png)
 
 ### D2 Diagram
 

@@ -1,0 +1,12 @@
+#!/usr/bin/env atkins
+tasks:
+  default:
+    desc: "Capture workspace screenshots"
+    steps:
+      - defer: rm -f examples/*.txt
+      - termos shot -c 110 -f examples/worktree -- worktree
+      - termos shot -c 180 -f examples/worktree-platform -- worktree platform -v
+      - termos shot -c 162 -f examples/worktree-lessgo -- worktree lessgo -v
+      - termos shot -c 230 -f examples/worktree-verbose -- worktree -v
+      - worktree -puml | plantuml -tsvg -pipe > examples/workspace.svg
+      - worktree -d2 | d2 --layout elk - examples/workspace-d2.svg

@@ -40,6 +40,14 @@ A CLI tool that reads `git ls-remote --tags` output from stdin, parses semver ta
 go install github.com/titpetric/tools/semver@latest
 ```
 
+### [worktree](worktree/)
+
+A workspace overview tool for Go module and git workspaces. Displays module dependencies, git state, local changes, untracked files, and GitHub issues in a formatted table. Supports filtering by path or module name, verbose output, and can render PlantUML or D2 dependency diagrams.
+
+```
+go install github.com/titpetric/tools/worktree@main
+```
+
 ## Development
 
 Each module is an independent Go module. A root [Taskfile.yml](Taskfile.yml) is provided with:

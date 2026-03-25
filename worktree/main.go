@@ -47,6 +47,18 @@ func findGoModDirs(root string) []string {
 }
 
 func main() {
+	// Reorder os.Args so flags come before positional args,
+	// allowing e.g. "worktree platform -v" to work.
+	var flags, positional []string
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
+
 	update := flag.Bool("u", false, "update workspace dependencies to latest tags")
 	puml := flag.Bool("puml", false, "output PlantUML dependency diagram to stdout")
 	d2 := flag.Bool("d2", false, "output D2 dependency diagram to stdout")
@@ -57,10 +69,14 @@ func main() {
 	var filterPath string
 	if flag.NArg() > 0 {
 		abs, err := filepath.Abs(flag.Arg(0))
-		if err != nil {
-			log.Fatalf("failed to resolve path %s: %v", flag.Arg(0), err)
+		if err == nil {
+			if _, err := os.Stat(abs); err == nil {
+				filterPath = abs
+			}
 		}
-		filterPath = abs
+		if filterPath == "" {
+			filterPath = flag.Arg(0)
+		}
 	}
 
 	var modDirs []string
@@ -81,14 +97,16 @@ func main() {
 		}
 	}
 
-	// Map: module path -> dir
+	// Map: module path -> dir, short name -> module path
 	modPaths := make(map[string]string)
+	shortNames := make(map[string]string)
 	for _, dir := range modDirs {
 		modPath, err := readModulePath(dir)
 		if err != nil {
 			log.Fatalf("failed to read module in %s: %v", dir, err)
 		}
 		modPaths[modPath] = dir
+		shortNames[components.ShortName(modPath)] = modPath
 	}
 
 	// Build dependency map (uses) and version map
@@ -144,20 +162,40 @@ func main() {
 		return sortedMods[i] < sortedMods[j]
 	})
 
-	// Filter to a single module if a path argument was given
+	// Filter modules if a path argument was given
 	if filterPath != "" {
-		workRoot, _ := os.Getwd()
+		arg := flag.Arg(0)
 		var matched []string
-		for _, mod := range sortedMods {
-			dir := modPaths[mod]
-			absDir := filepath.Join(workRoot, dir)
-			// Match if filterPath is inside the module dir, or module dir is inside filterPath
-			if isSubpath(absDir, filterPath) || isSubpath(filterPath, absDir) {
-				matched = append(matched, mod)
+
+		// Exact short name match
+		if mod, ok := shortNames[arg]; ok {
+			matched = append(matched, mod)
+		}
+
+		// Path-based match
+		if len(matched) == 0 {
+			workRoot, _ := os.Getwd()
+			for _, mod := range sortedMods {
+				dir := modPaths[mod]
+				absDir := filepath.Join(workRoot, dir)
+				if isSubpath(absDir, filterPath) || isSubpath(filterPath, absDir) {
+					matched = append(matched, mod)
+				}
 			}
 		}
+
+		// Substring match against dir or module name
 		if len(matched) == 0 {
-			log.Fatalf("no module found containing %s", filterPath)
+			for _, mod := range sortedMods {
+				dir := modPaths[mod]
+				if strings.Contains(dir, arg) || strings.Contains(mod, arg) {
+					matched = append(matched, mod)
+				}
+			}
+		}
+
+		if len(matched) == 0 {
+			log.Fatalf("no module found matching %s", arg)
 		}
 		sortedMods = matched
 	}
@@ -189,6 +227,7 @@ func main() {
 		// Build git state
 		g := &components.Git{
 			BranchName: getGitBranch(dir),
+			LatestTag:  info.Latest,
 		}
 		if info.Latest != "" {
 			g.Ahead = commitsSinceTag(dir, info.Latest)

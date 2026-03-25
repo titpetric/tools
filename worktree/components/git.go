@@ -15,6 +15,7 @@ type Issue struct {
 // Git holds git state for rendering cells.
 type Git struct {
 	BranchName     string
+	LatestTag      string
 	Ahead          int
 	Unpushed       int
 	Msgs           []string
@@ -83,8 +84,11 @@ func (g Git) StateVerbose() Cell {
 
 	lines = append(lines, g.summaryLine()...)
 
-	for _, msg := range g.Msgs {
-		lines = append(lines, formatCommitMsgLine(msg))
+	if len(g.Msgs) > 0 {
+		lines = append(lines, ColorAmber+"Commits since release:"+ColorReset)
+		for _, msg := range g.Msgs {
+			lines = append(lines, formatCommitMsgLine(msg))
+		}
 	}
 
 	if len(g.DiffLines) > 0 {
