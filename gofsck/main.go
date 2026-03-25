@@ -10,9 +10,11 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
 	"golang.org/x/tools/go/packages"
+	"gopkg.in/yaml.v3"
 
 	"github.com/titpetric/tools/gofsck/model"
 	"github.com/titpetric/tools/gofsck/pkg/coverage"
+	"github.com/titpetric/tools/gofsck/pkg/filecheck"
 	"github.com/titpetric/tools/gofsck/pkg/grouping"
 	"github.com/titpetric/tools/gofsck/pkg/pairing"
 	"github.com/titpetric/tools/gofsck/pkg/wraphandler"
@@ -20,7 +22,7 @@ import (
 
 var (
 	outputFile = flag.String("output", "", "Write report to file (empty = stdout)")
-	format     = flag.String("format", "text", "Output format: text or json")
+	format     = flag.String("format", "text", "Output format: text, json, or yaml")
 	useChecker = flag.Bool("checker", false, "Use singlechecker mode (for linter integration)")
 )
 
@@ -59,13 +61,20 @@ func main() {
 
 	// Output results
 	var output string
-	if *format == "json" {
+	switch *format {
+	case "json":
 		data, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
 			log.Fatalf("failed to marshal report: %s", err)
 		}
 		output = string(data)
-	} else {
+	case "yaml":
+		data, err := yaml.Marshal(report)
+		if err != nil {
+			log.Fatalf("failed to marshal report: %s", err)
+		}
+		output = string(data)
+	default:
 		output = formatTextReport(report)
 	}
 
@@ -167,6 +176,19 @@ func NewReport(pkgs []*packages.Package) *model.AggregatedReport {
 		})
 	}
 
+	// Run filecheck analyzer
+	filecheckAnalyzer := filecheck.New()
+	filecheckResult, err := filecheckAnalyzer.Analyze(pkgs)
+	if err != nil {
+		report.Errors = append(report.Errors, fmt.Sprintf("filecheck: %v", err))
+	} else {
+		report.Analyzers = append(report.Analyzers, &model.AnalyzerReport{
+			Name: "filecheck",
+			Type: "filecheck",
+			Data: filecheckResult,
+		})
+	}
+
 	// Run grouping analyzer
 	groupingAnalyzer := grouping.New()
 	groupingResult, err := groupingAnalyzer.Analyze(pkgs)
@@ -203,6 +225,10 @@ func formatTextReport(report *model.AggregatedReport) string {
 			if wr, ok := analyzer.Data.(*wraphandler.Report); ok {
 				output += formatWraphandlerReport(wr)
 			}
+		case "filecheck":
+			if fr, ok := analyzer.Data.(*filecheck.Report); ok {
+				output += formatFilecheckReport(fr)
+			}
 		case "grouping":
 			if gr, ok := analyzer.Data.(*grouping.Report); ok {
 				output += formatGroupingReport(gr)
@@ -230,15 +256,19 @@ Standalone Tests: %d
 }
 
 func formatCoverageReport(cr *coverage.Report) string {
-	output := fmt.Sprintf("Coverage Ratio:    %.2f%%\n", cr.CoverageRatio*100)
-	output += fmt.Sprintf("Covered Symbols:   %d\n", len(cr.Symbols))
-	output += fmt.Sprintf("Uncovered Symbols: %d\n", len(cr.Uncovered))
-	output += fmt.Sprintf("Standalone Tests:  %d\n", len(cr.StandaloneTests))
+	output := fmt.Sprintf("Coverage Ratio:      %.2f%%\n", cr.CoverageRatio*100)
+	output += fmt.Sprintf("Adjusted Coverage:   %.2f%%\n", cr.AdjustedCoverage*100)
+	output += fmt.Sprintf("Covered Symbols:     %d\n", cr.Covered)
+	output += fmt.Sprintf("Uncovered Symbols:   %d\n", len(cr.Uncovered))
+	output += fmt.Sprintf("Constructors:        %d\n", cr.Constructors)
+	output += fmt.Sprintf("Standalone Tests:    %d\n", len(cr.StandaloneTests))
+	output += fmt.Sprintf("Want Unit Tests:     %d\n", cr.WantUnit)
+	output += fmt.Sprintf("Want Integration:    %d\n", cr.WantIntegration)
 
 	if len(cr.Uncovered) > 0 {
 		output += "\nUncovered symbols:\n"
 		for _, sym := range cr.Uncovered {
-			output += fmt.Sprintf("  - %s\n", sym)
+			output += fmt.Sprintf("  - %s (expected test: %s, %s)\n", sym.Symbol, sym.ExpectedTest, sym.TestKind)
 		}
 	}
 
@@ -266,6 +296,16 @@ func formatGroupingReport(gr *grouping.Report) string {
 		for _, v := range gr.Violations {
 			output += fmt.Sprintf("  - %s:%d:%d: %s\n", v.File, v.Line, v.Column, v.Message)
 		}
+	}
+
+	return output
+}
+
+func formatFilecheckReport(fr *filecheck.Report) string {
+	output := fmt.Sprintf("Total Rating: %.2f%%\n\nScanned:\n", fr.Rating)
+
+	for _, sg := range fr.Scanned {
+		output += fmt.Sprintf("  %s: %d files, score: %.2f%%, histogram: %v\n", sg.Ext, sg.Files, sg.Score, sg.Histogram)
 	}
 
 	return output
