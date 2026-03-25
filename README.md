@@ -12,11 +12,13 @@ go install github.com/titpetric/tools/worktree@main
 
 ### [gofsck](gofsck/)
 
-A Go filesystem check tool with modular analyzers for package structure validation. Provides three analyzers:
+A Go filesystem check tool with modular analyzers for package structure validation. Provides five analyzers:
 
 1. **Pairing** - Validates that source files have corresponding test files
 2. **Coverage** - Analyzes symbol-test coverage using naming conventions
 3. **Grouping** - Ensures exported symbols are in appropriately named files (also available as a golangci-lint plugin)
+4. **Wraphandler** - Ensures exported HTTP handlers have corresponding unexported error-returning wrappers
+5. **Filecheck** - Gauges complexity by file size distribution and cognitive load ratings
 
 ```
 go install github.com/titpetric/tools/gofsck@latest
@@ -34,7 +36,7 @@ go install github.com/titpetric/tools/puzzle@main
 
 ### [semver](semver/)
 
-A CLI tool that reads `git ls-remote --tags` output from stdin, parses semver tags, and outputs the latest patch version for each minor release across the last two major versions as JSON.
+A CLI tool that reads git tags from the local repository or `git ls-remote --tags` output from stdin, parses semver tags, and outputs the latest patch version for each minor release across the last two major versions as JSON.
 
 ```
 go install github.com/titpetric/tools/semver@latest
