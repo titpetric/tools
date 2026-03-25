@@ -118,7 +118,7 @@ func renderD2(w io.Writer, modules []moduleInfo) {
 				depPkg := modToPkg[dep]
 				if depPkg == pkg {
 					if toPath, ok := modToPath[dep]; ok {
-						fmt.Fprintf(w, "%s -> %s\n", fromPath, toPath)
+						fmt.Fprintf(w, "%s <- %s\n", fromPath, toPath)
 					}
 				}
 			}
