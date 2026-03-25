@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+// Issue holds a parsed GitHub issue.
+type Issue struct {
+	ID    string
+	Title string
+	Date  string
+}
+
 // Git holds git state for rendering cells.
 type Git struct {
 	BranchName string
@@ -12,6 +19,7 @@ type Git struct {
 	Unpushed   int
 	Msgs       []string
 	DiffLines  []string
+	Issues     []Issue
 }
 
 // Branch formats the git branch with optional commits-ahead indicator.
@@ -25,28 +33,34 @@ func (g Git) Branch() Cell {
 	}
 	line := c + g.BranchName + ColorReset
 	if g.Ahead > 0 {
-		line += fmt.Sprintf(" %s(%s+%d ahead%s)%s", ColorWhite, ColorAmber, g.Ahead, ColorWhite, ColorReset)
+		line += fmt.Sprintf(" %s(%s+%d ahead%s)%s", ColorWhite, ColorRed, g.Ahead, ColorWhite, ColorReset)
 	}
 	return Cell{line}
+}
+
+func (g Git) summaryLine() Cell {
+	if g.Unpushed > 0 {
+		return Cell{ColorRed + fmt.Sprintf("Unpushed changes: %d", g.Unpushed) + ColorReset}
+	} else if len(g.DiffLines) > 0 {
+		return Cell{ColorAmber + "Local changes:" + ColorReset}
+	}
+	return nil
 }
 
 // State builds a compact git state cell (summary line + diff stats).
 func (g Git) State() Cell {
 	var lines Cell
 
-	var parts []string
-	if g.Unpushed > 0 {
-		parts = append(parts, ColorRed+fmt.Sprintf("%d unpushed", g.Unpushed)+ColorReset)
-	}
-	if len(parts) == 0 && len(g.DiffLines) > 0 {
-		parts = append(parts, ColorAmber+"Local changes:"+ColorReset)
-	}
-	if len(parts) > 0 {
-		lines = append(lines, strings.Join(parts, ColorBorder+", "+ColorReset))
-	}
+	lines = append(lines, g.summaryLine()...)
 
-	for _, line := range g.DiffLines {
-		lines = append(lines, formatDiffStatLine(line))
+	if len(g.DiffLines) > 0 {
+		if g.Ahead > 0 || g.Unpushed > 0 {
+			lines = append(lines, Separator)
+			lines = append(lines, ColorAmber+"Local changes:"+ColorReset)
+		}
+		for _, line := range g.DiffLines {
+			lines = append(lines, formatDiffStatLine(line))
+		}
 	}
 
 	return lines
@@ -56,19 +70,7 @@ func (g Git) State() Cell {
 func (g Git) StateVerbose() Cell {
 	var lines Cell
 
-	var summaryParts []string
-	if g.Ahead > 0 {
-		summaryParts = append(summaryParts, ColorAmber+"Unreleased changes:"+ColorReset)
-	}
-	if g.Unpushed > 0 {
-		summaryParts = append(summaryParts, ColorRed+fmt.Sprintf("%d unpushed", g.Unpushed)+ColorReset)
-	}
-	if len(summaryParts) == 0 && len(g.DiffLines) > 0 {
-		summaryParts = append(summaryParts, ColorAmber+"Local changes:"+ColorReset)
-	}
-	if len(summaryParts) > 0 {
-		lines = append(lines, strings.Join(summaryParts, ColorBorder+", "+ColorReset))
-	}
+	lines = append(lines, g.summaryLine()...)
 
 	for _, msg := range g.Msgs {
 		lines = append(lines, formatCommitMsgLine(msg))
@@ -81,6 +83,32 @@ func (g Git) StateVerbose() Cell {
 		}
 		for _, line := range g.DiffLines {
 			lines = append(lines, formatDiffStatLine(line))
+		}
+	}
+
+	if len(g.Issues) > 0 {
+		if len(lines) > 0 {
+			lines = append(lines, Separator)
+		}
+		lines = append(lines, ColorAmber+fmt.Sprintf("Issues: %d open", len(g.Issues))+ColorReset)
+
+		// Compute column widths for aligned output
+		idW, titleW := 0, 0
+		for _, issue := range g.Issues {
+			if len(issue.ID) > idW {
+				idW = len(issue.ID)
+			}
+			if len(issue.Title) > titleW {
+				titleW = len(issue.Title)
+			}
+		}
+		for _, issue := range g.Issues {
+			line := fmt.Sprintf("%s%-*s%s  %s%-*s%s  %s%s%s",
+				ColorTeal, idW, issue.ID, ColorReset,
+				ColorWhite, titleW, issue.Title, ColorReset,
+				ColorBorder, issue.Date, ColorReset,
+			)
+			lines = append(lines, line)
 		}
 	}
 

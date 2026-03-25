@@ -1,5 +1,7 @@
 package main
 
+import "github.com/titpetric/tools/worktree/components"
+
 type gitStatus struct {
 	Unpushed  int
 	Modified  int
@@ -11,10 +13,9 @@ type moduleInfo struct {
 	Path        string
 	Description string
 	Latest      string
-	Ahead       int
-	GitBranch   string
-	Git         string
-	GitMsgs     []string
+	GitState    *components.Git
+	Usage       components.Usage
+	Outdated    int
 	Uses        []string
 	UsedBy      []string
 }

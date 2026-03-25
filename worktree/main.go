@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+
+	"github.com/titpetric/tools/worktree/components"
 )
 
 func findGoWork() (string, error) {
@@ -114,14 +116,6 @@ func main() {
 		}
 	}
 
-	// Get git status for each module
-	gitStatuses := make(map[string]*gitStatus)
-	for modPath, dir := range modPaths {
-		if st := getGitStatus(dir); st != nil {
-			gitStatuses[modPath] = st
-		}
-	}
-
 	// Build sorted output: order by count(used_by) desc, count(uses) asc, name asc
 	var sortedMods []string
 	for mod := range modPaths {
@@ -139,33 +133,21 @@ func main() {
 		return sortedMods[i] < sortedMods[j]
 	})
 
-	// Get git branch for each module
-	gitBranches := make(map[string]string)
-	for modPath, dir := range modPaths {
-		if branch := getGitBranch(dir); branch != "" {
-			gitBranches[modPath] = branch
-		}
-	}
-
 	// Build module info list
 	var modules []moduleInfo
 	for _, mod := range sortedMods {
+		dir := modPaths[mod]
+
 		info := moduleInfo{
 			Name:        mod,
-			Path:        modPaths[mod],
-			Description: readReadmeTitle(modPaths[mod]),
-			GitBranch:   gitBranches[mod],
+			Path:        dir,
+			Description: readReadmeTitle(dir),
 		}
+
 		if tag, ok := latestTags[mod]; ok {
 			info.Latest = tag
-			info.Ahead = commitsSinceTag(modPaths[mod], tag)
 		}
-		if st, ok := gitStatuses[mod]; ok {
-			info.Git = formatGitSummary(st)
-		}
-		if info.Ahead > 0 {
-			info.GitMsgs = commitMessagesSinceTag(modPaths[mod], latestTags[mod])
-		}
+
 		if deps, ok := uses[mod]; ok {
 			sort.Strings(deps)
 			info.Uses = deps
@@ -174,6 +156,29 @@ func main() {
 			sort.Strings(revs)
 			info.UsedBy = revs
 		}
+
+		// Build git state
+		g := &components.Git{
+			BranchName: getGitBranch(dir),
+		}
+		if info.Latest != "" {
+			g.Ahead = commitsSinceTag(dir, info.Latest)
+		}
+		if st := getGitStatus(dir); st != nil {
+			g.Unpushed = st.Unpushed
+			g.DiffLines = st.DiffLines
+		}
+		if g.Ahead > 0 {
+			g.Msgs = commitMessagesSinceTag(dir, info.Latest)
+		}
+		if *verbose {
+			g.Issues = getGitHubIssues(dir)
+		}
+		info.GitState = g
+
+		// Build usage
+		info.Usage, info.Outdated = buildUsage(versionRefs, latestTags, info)
+
 		modules = append(modules, info)
 	}
 
@@ -192,7 +197,7 @@ func main() {
 		return
 	}
 
-	renderTables(versionRefs, modules, gitStatuses, latestTags, *verbose)
+	renderTables(modules, *verbose)
 }
 
 func updateDeps(refs versionRefs, modPaths map[string]string, tags latestTags) {

@@ -23,39 +23,28 @@ const (
 	boxCross       = "┼"
 )
 
-func renderTables(refs versionRefs, modules []moduleInfo, gitStatuses map[string]*gitStatus, tags latestTags, verbose bool) {
+func renderTables(modules []moduleInfo, verbose bool) {
 	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
 	var rows []components.Rows
 	for _, m := range modules {
-		st := gitStatuses[m.Name]
 		cells := make(components.Rows, numCols)
 
-		g := components.Git{
-			BranchName: m.GitBranch,
-			Ahead:      m.Ahead,
-			Msgs:       m.GitMsgs,
-		}
-		if st != nil {
-			g.Unpushed = st.Unpushed
-			g.DiffLines = st.DiffLines
-		}
-
-		u := buildUsage(refs, m, tags)
+		g := m.GitState
 
 		if verbose {
 			cells[0] = components.ModuleVerbose(m.Description, m.Path, m.Name)
 			cells[1] = components.Latest(m.Latest)
 			cells[2] = g.Branch()
 			cells[3] = g.StateVerbose()
-			cells[4] = u.Verbose()
+			cells[4] = m.Usage.Verbose()
 		} else {
 			cells[0] = components.Module(m.Path)
 			cells[1] = components.Latest(m.Latest)
 			cells[2] = g.Branch()
 			cells[3] = g.State()
-			cells[4] = u.Compact()
+			cells[4] = m.Usage.Compact()
 		}
 
 		rows = append(rows, cells)
@@ -97,13 +86,7 @@ func renderTables(refs versionRefs, modules []moduleInfo, gitStatuses map[string
 	// Count outdated dependencies
 	outdated := 0
 	for _, m := range modules {
-		modRefs := refs[m.Name]
-		for _, dep := range m.Uses {
-			latest := tags[dep]
-			if latest != "" && modRefs != nil && modRefs[dep] != "" && modRefs[dep] != latest {
-				outdated++
-			}
-		}
+		outdated += m.Outdated
 	}
 	if outdated > 0 {
 		fmt.Printf("%srun with %s-u%s %sto update %d outdated dependencies in workspace%s\n",
@@ -112,15 +95,17 @@ func renderTables(refs versionRefs, modules []moduleInfo, gitStatuses map[string
 	}
 }
 
-func buildUsage(refs versionRefs, m moduleInfo, tags latestTags) components.Usage {
+func buildUsage(refs versionRefs, tags latestTags, m moduleInfo) (components.Usage, int) {
 	var u components.Usage
 	latest := tags[m.Name]
+	outdated := 0
 	for _, dep := range m.UsedBy {
 		d := components.Dependent{Name: components.ShortName(dep)}
 		if latest != "" {
 			if depRefs, ok := refs[dep]; ok {
 				if ver, ok := depRefs[m.Name]; ok && ver != latest {
 					d.Outdated = true
+					outdated++
 				}
 			}
 		}
@@ -129,7 +114,7 @@ func buildUsage(refs versionRefs, m moduleInfo, tags latestTags) components.Usag
 	for _, dep := range m.Uses {
 		u.Uses = append(u.Uses, components.ShortName(dep))
 	}
-	return u
+	return u, outdated
 }
 
 func printBorder(left, mid, right string, widths []int) {
