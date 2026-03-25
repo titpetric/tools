@@ -1,15 +1,13 @@
 # tools - A collection of Go development tools and libraries
 
-### [generic](generic/)
+### [worktree](worktree/)
 
-A Go library providing type-safe generic utilities:
+A workspace overview tool for Go module and git workspaces. Displays module dependencies, git state, local changes, untracked files, and GitHub issues in a formatted table. Supports filtering by path or module name, verbose output, and can render PlantUML or D2 dependency diagrams.
 
-- **List[T]** - Generic list type with `Filter`, `Find`, `Get`, `Value`, and `ListMap` operations
-- **Pointer[T]** - Helper to get a pointer to any value
-- **TemplateRenderer[T]** - Type-safe HTML template rendering with embedded filesystem support and local file overrides
+![Worktree status](worktree/examples/worktree.png)
 
 ```
-go get github.com/titpetric/tools/generic
+go install github.com/titpetric/tools/worktree@main
 ```
 
 ### [gofsck](gofsck/)
@@ -28,6 +26,8 @@ go install github.com/titpetric/tools/gofsck@latest
 
 A creative tool that visualizes a Go repository's package structure as a crossword puzzle rendered in the terminal. Supports default and matrix rendering styles.
 
+![](puzzle/examples/go-fsck.png)
+
 ```
 go install github.com/titpetric/tools/puzzle@main
 ```
@@ -40,12 +40,16 @@ A CLI tool that reads `git ls-remote --tags` output from stdin, parses semver ta
 go install github.com/titpetric/tools/semver@latest
 ```
 
-### [worktree](worktree/)
+### [generic](generic/)
 
-A workspace overview tool for Go module and git workspaces. Displays module dependencies, git state, local changes, untracked files, and GitHub issues in a formatted table. Supports filtering by path or module name, verbose output, and can render PlantUML or D2 dependency diagrams.
+A Go library providing type-safe generic utilities:
+
+- **List[T]** - Generic list type with `Filter`, `Find`, `Get`, `Value`, and `ListMap` operations
+- **Pointer[T]** - Helper to get a pointer to any value
+- **TemplateRenderer[T]** - Type-safe HTML template rendering with embedded filesystem support and local file overrides
 
 ```
-go install github.com/titpetric/tools/worktree@main
+go get github.com/titpetric/tools/generic
 ```
 
 ## Development
