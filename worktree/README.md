@@ -2,10 +2,11 @@
 
 ![Worktree status](./examples/worktree.png)
 
-This is a tool for people that:
+This is a tool for developers that:
 
-- Use `git` with git tags
+- Use `git` workspaces
 - Use `go` modules or go workspaces
+- Use `gh issues` for issue tracking
 - Need insight to their workspaces
 
 The tool provides information and overview of the workspace state.
@@ -16,31 +17,43 @@ To install the tool:
 go install github.com/titpetric/tools/worktree@main
 ```
 
-Run `worktree` or `worktree -v` in your workspace.
+Run `worktree` in your source workspace.
 
-Pass `-puml` or `-d2` if you want a PlantUML or D2 diagram of your workspace.
+Several flags invoke tool functionality:
+
+- `-v` gives a detailed verbose view with extra data,
+- `-u` flag will update stale workspace dependencies, use latest go module versions,
+- `-puml` will render a plantuml representation of the workspace,
+- `-d2` will render a d2 representation of the workspace.
+
+You can create a symlink to `git-st`.
+
+```bash
+cd /usr/local/bin
+ln -s /usr/local/bin/worktree git-st
+```
+
+Creating the symlink enables running `git st` and `git st -v`.
 
 ## Information summarized
 
 The tool scans and displays information about:
 
-- Go module versions
+- Go module name
+- Go module versions in use (for updates)
 - Go module dependencies in workspace
+- README.md title is read for the description
 - Latest git version tag
 - Git commits since version tag
 - Git branch in source tree
 - Unpushed git commits
 - Local changes to source tree
-- README.md title for description
+- Untracked changes to source tree
 - GitHub issues (gh issue list)
 
-## Functionality
-
-Several flags invoke tool functionality:
-
-- `-u` flag will update stale workspace dependencies, use latest go module versions,
-- `-puml` will render a plantuml representation of the workspace,
-- `-d2` will render a d2 representation of the workspace.
+It's focused on summarizing of Go workspaces, or git checkouts of standalone
+Go modules. Git support may be extended to better account for custom remotes
+and checkouts that aren't a go module source tree.
 
 ## Examples
 
@@ -78,3 +91,4 @@ for the approach.
 Git source trees don't give enough dependency information, so I wanted
 something that reads in go.mod go.work files and provides relevant
 information to you.
+

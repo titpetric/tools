@@ -14,12 +14,13 @@ type Issue struct {
 
 // Git holds git state for rendering cells.
 type Git struct {
-	BranchName string
-	Ahead      int
-	Unpushed   int
-	Msgs       []string
-	DiffLines  []string
-	Issues     []Issue
+	BranchName     string
+	Ahead          int
+	Unpushed       int
+	Msgs           []string
+	DiffLines      []string
+	UntrackedFiles []string
+	Issues         []Issue
 }
 
 // Branch formats the git branch with optional commits-ahead indicator.
@@ -83,6 +84,16 @@ func (g Git) StateVerbose() Cell {
 		}
 		for _, line := range g.DiffLines {
 			lines = append(lines, formatDiffStatLine(line))
+		}
+	}
+
+	if len(g.UntrackedFiles) > 0 {
+		if len(lines) > 0 {
+			lines = append(lines, Separator)
+		}
+		lines = append(lines, ColorAmber+"Untracked files:"+ColorReset)
+		for _, f := range g.UntrackedFiles {
+			lines = append(lines, "- "+f)
 		}
 	}
 

@@ -172,6 +172,7 @@ func main() {
 			g.Msgs = commitMessagesSinceTag(dir, info.Latest)
 		}
 		if *verbose {
+			g.UntrackedFiles = getUntrackedFiles(dir)
 			g.Issues = getGitHubIssues(dir)
 		}
 		info.GitState = g

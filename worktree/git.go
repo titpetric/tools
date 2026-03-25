@@ -123,6 +123,66 @@ func parseNumstat(output, relPath string) []string {
 	return result
 }
 
+func getUntrackedFiles(dir string) []string {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil
+	}
+
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = absDir
+	rootOut, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	gitRoot := strings.TrimSpace(string(rootOut))
+
+	relPath, err := filepath.Rel(gitRoot, absDir)
+	if err != nil {
+		return nil
+	}
+
+	args := []string{"ls-files", "--others", "--exclude-standard"}
+	if relPath != "." {
+		args = append(args, "--", relPath)
+	}
+	cmd = exec.Command("git", args...)
+	cmd.Dir = gitRoot
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	var result []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		file := line
+		if relPath != "." && strings.HasPrefix(file, relPath+"/") {
+			file = strings.TrimPrefix(file, relPath+"/")
+		}
+		fullPath := filepath.Join(absDir, file)
+		lineCount := countLines(fullPath)
+		result = append(result, fmt.Sprintf("%s %s+%d%s", file, components.ColorGreen, lineCount, components.ColorReset))
+	}
+	return result
+}
+
+func countLines(path string) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	n := 0
+	for scanner.Scan() {
+		n++
+	}
+	return n
+}
+
 func getGitBranch(dir string) string {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = dir
