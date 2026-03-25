@@ -2,12 +2,13 @@
 
 A Go filesystem check tool with modular analyzers for package structure validation.
 
-Gofsck provides four independent analyzers that can be run in multiple modes:
+Gofsck provides five independent analyzers that can be run in multiple modes:
 
 1. **Pairing Analyzer** - Validates file-test relationships (e.g., `file.go` with `file_test.go`)
 2. **Coverage Analyzer** - Analyzes symbol-test coverage and naming patterns
 3. **Grouping Analyzer** - Ensures exported symbols are in appropriate files
 4. **Wraphandler Analyzer** - Ensures exported HTTP handlers have corresponding unexported error-returning wrappers
+5. **Filecheck Analyzer** - Gauges complexity by file size distribution and cognitive load ratings
 
 ## Installation
 
@@ -34,6 +35,11 @@ go install github.com/titpetric/tools/gofsck@latest
 **JSON output:**
 ```bash
 ./gofsck -format json ./pkg/mypackage
+```
+
+**YAML output:**
+```bash
+./gofsck -format yaml ./pkg/mypackage
 ```
 
 ### Save Report to File
@@ -92,15 +98,23 @@ Analyzes symbol-test coverage using naming conventions.
 
 **Output:**
 - `symbols` - Map of exported symbols to their test functions
-- `uncovered` - Symbols without test coverage
+- `covered` - Number of covered symbols
+- `uncovered` - Symbols without test coverage (includes expected test name and test kind)
+- `constructors` - Number of constructor functions (`New*`), excluded from uncovered count
 - `standalone_tests` - Test functions with no matching symbol
 - `coverage_ratio` - Percentage of covered symbols (0.0 to 1.0)
+- `adjusted_coverage` - Coverage ratio including constructors as covered
+- `want_unit_tests` - Number of uncovered symbols needing unit tests
+- `want_integration_tests` - Number of uncovered symbols needing integration tests
 
 **Logic:**
 - Walks AST to find exported symbols (functions, types, methods)
 - Extracts test function names using naming conventions
-- Calculates coverage ratio
-- Reports uncovered symbols and standalone tests
+- Constructor functions (`New*`) are tracked separately and excluded from uncovered symbols
+- Methods are covered implicitly when the receiver type has a test (e.g., `TestServer` covers `Server.Get`)
+- Symbols in `/storage` or `/repository` packages are flagged as needing integration tests
+- Reports expected test function names for uncovered symbols (e.g., `TestFlatten` for `Flatten`)
+- Calculates both standard and adjusted coverage ratios
 
 **Package:** `pkg/coverage/`
 
@@ -154,6 +168,39 @@ Ensures exported `http.HandlerFunc` functions have corresponding unexported wrap
 **Summary:** `15/50 handlers passing`
 
 **Package:** `pkg/wraphandler/`
+
+### 5. Filecheck Analyzer
+
+Gauges codebase complexity by analyzing file size distribution across the module. Based on cognitive load estimates for both humans and LLM agents.
+
+**Output:**
+- `scanned` - List of file groups by extension, each with:
+  - `ext` - File extension (e.g., `.go`, `.md`)
+  - `files` - Number of files
+  - `histogram` - File size distribution in power-of-two KB buckets (1, 2, 4, 8, 16, 32...)
+  - `score` - Score for the extension group
+- `rating` - Overall rating: `(sum of ≥16KB file sizes / sum of all file sizes) * 100`
+
+**Example:**
+```json
+{
+  "scanned": [
+    {
+      "ext": ".go",
+      "files": 105,
+      "histogram": [20, 45, 25, 10, 3, 2, 0],
+      "score": 95.20
+    }
+  ],
+  "rating": 95.20
+}
+```
+
+**Note:** Generated code (protobuf `pb.go`, bindata, gRPC service definitions) may penalize the score.
+
+See [pkg/filecheck/README.md](pkg/filecheck/README.md) for cognitive level tables and benchmarks.
+
+**Package:** `pkg/filecheck/`
 
 ## Development
 

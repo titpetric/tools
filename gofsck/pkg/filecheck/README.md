@@ -42,8 +42,8 @@ This is a human authored, tested and partitioned modular monolith codebase.
 
 This is an unpublished, LLM authored DB administration tooling. Aside
 prompting some file and folder structure, enforce linters, no real
-measures have been taken to optimize for file size. It's agent emerged
-from limited context and a screenshot of loveable.
+measures have been taken to optimize for file size. Its agent emerged
+from limited context and a screenshot of Lovable.
 
 ![GoDBAdmin](assets/titpetric-godbadmin.svg)
 
