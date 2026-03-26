@@ -47,6 +47,12 @@ func renderTables(modules []moduleInfo, opts *Options) {
 			cells[4] = m.Usage.Compact()
 		}
 
+		// Skip modules where git state and usage cells are both empty
+		if !opts.All && cells[3].Empty() && m.Outdated == 0 {
+			opts.Skipped++
+			continue
+		}
+
 		rows = append(rows, cells)
 	}
 

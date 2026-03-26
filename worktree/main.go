@@ -216,12 +216,6 @@ func main() {
 		// Build usage
 		info.Usage, info.Outdated = buildUsage(versionRefs, latestTags, info)
 
-		// Skip modules with no changes and no outdated deps unless --all
-		if !opts.All && info.GitState.IsEmpty() && info.Outdated == 0 {
-			opts.Skipped++
-			continue
-		}
-
 		modules = append(modules, info)
 	}
 

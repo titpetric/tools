@@ -24,11 +24,6 @@ type Git struct {
 	Issues         []Issue
 }
 
-// IsEmpty returns true if there are no changes or commits ahead.
-func (g Git) IsEmpty() bool {
-	return g.Ahead == 0 && g.Unpushed == 0 && len(g.DiffLines) == 0 && len(g.UntrackedFiles) == 0
-}
-
 // Branch formats the git branch with optional commits-ahead indicator.
 func (g Git) Branch() Cell {
 	if g.BranchName == "" {

@@ -31,6 +31,11 @@ func (c Cell) Height() int {
 	return len(c)
 }
 
+// Empty returns true if the cell has no content lines.
+func (c Cell) Empty() bool {
+	return len(c) == 0
+}
+
 // Line returns the i-th line of the cell, or "" if out of range.
 func (c Cell) Line(i int) string {
 	if i < len(c) {
