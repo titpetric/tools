@@ -34,7 +34,7 @@ func ParseOptions() *Options {
 	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
 
 	opts := &Options{}
-	flag.BoolVar(&opts.Update, "u", false, "update workspace dependencies (tidy only, with --all: go get -u ./...)")
+	flag.BoolVar(&opts.Update, "u", false, "update workspace dependencies to latest tags + tidy (with --all: go get -u ./...)")
 	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes)")
 	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
 	flag.BoolVar(&opts.D2, "d2", false, "output D2 dependency diagram to stdout")

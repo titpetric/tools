@@ -220,7 +220,7 @@ func main() {
 	}
 
 	if opts.Update {
-		updateDeps(modPaths, opts)
+		updateDeps(modPaths, latestTags, opts)
 		return
 	}
 
@@ -246,7 +246,7 @@ func isSubpath(parent, child string) bool {
 	return rel == "." || (!filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
 }
 
-func updateDeps(modPaths map[string]string, opts *Options) {
+func updateDeps(modPaths map[string]string, tags latestTags, opts *Options) {
 	for modPath, dir := range modPaths {
 		modShort := filepath.Base(modPath)
 
@@ -258,6 +258,23 @@ func updateDeps(modPaths map[string]string, opts *Options) {
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				log.Printf("  go get -u failed in %s: %v", modPath, err)
+			}
+		}
+
+		// Update workspace dependencies to their latest tags
+		reqs, err := readRequiresVersioned(dir)
+		if err == nil {
+			for _, r := range reqs {
+				if tag, ok := tags[r.path]; ok && tag != "" && r.version != tag {
+					fmt.Printf("Updating %s: %s %s -> %s\n", modShort, filepath.Base(r.path), r.version, tag)
+					cmd := exec.Command("go", "get", r.path+"@"+tag)
+					cmd.Dir = dir
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					if err := cmd.Run(); err != nil {
+						log.Printf("  go get %s@%s failed: %v", r.path, tag, err)
+					}
+				}
 			}
 		}
 
