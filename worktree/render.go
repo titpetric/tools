@@ -27,8 +27,8 @@ func renderTables(modules []moduleInfo, opts *Options) {
 	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
-	// Check if all modules would be skipped; if so, show them all
-	if !opts.All {
+	// Check if all modules would be skipped; if so, show them all (only when not verbose)
+	if !opts.All && !opts.Verbose {
 		allSkipped := true
 		for _, m := range modules {
 			g := m.GitState
