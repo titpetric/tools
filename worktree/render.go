@@ -27,6 +27,21 @@ func renderTables(modules []moduleInfo, opts *Options) {
 	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
+	// Check if all modules would be skipped; if so, show them all
+	if !opts.All {
+		allSkipped := true
+		for _, m := range modules {
+			g := m.GitState
+			if !g.State().Empty() || m.Outdated > 0 {
+				allSkipped = false
+				break
+			}
+		}
+		if allSkipped {
+			opts.All = true
+		}
+	}
+
 	var rows []components.Rows
 	for _, m := range modules {
 		cells := make(components.Rows, numCols)
