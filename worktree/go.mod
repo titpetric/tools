@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	github.com/charmbracelet/x/ansi v0.11.6
-	golang.org/x/mod v0.34.0
+	golang.org/x/mod v0.37.0
 )
 
 require (
