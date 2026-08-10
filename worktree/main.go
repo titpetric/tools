@@ -51,9 +51,11 @@ func findGitDirs(root string) []string {
 		if err != nil {
 			return nil
 		}
-		if info.IsDir() && info.Name() == ".git" {
+		if info.Name() == ".git" {
 			dirs = append(dirs, "./"+filepath.Dir(path))
-			return filepath.SkipDir
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
 		}
 		return nil
 	})
@@ -84,6 +86,11 @@ func main() {
 		if len(modDirs) == 0 {
 			log.Fatalf("no go.work, go.mod, or .git directory found")
 		}
+	}
+
+	if opts.Pull {
+		pullRepos(append(modDirs, findGitDirs(".")...))
+		return
 	}
 
 	// Map: module path -> dir, short name -> module path
@@ -313,6 +320,36 @@ func updateDeps(modPaths map[string]string, tags latestTags, opts *Options) {
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			log.Printf("  go mod tidy failed in %s: %v", modPath, err)
+		}
+	}
+}
+
+func pullRepos(dirs []string) {
+	repos := make(map[string]struct{})
+	for _, dir := range dirs {
+		cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+		cmd.Dir = dir
+		out, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+		repos[strings.TrimSpace(string(out))] = struct{}{}
+	}
+
+	paths := make([]string, 0, len(repos))
+	for path := range repos {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		fmt.Printf("Pulling %s\n", path)
+		cmd := exec.Command("git", "pull")
+		cmd.Dir = path
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Printf("  git pull failed in %s: %v", path, err)
 		}
 	}
 }

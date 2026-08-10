@@ -30,6 +30,7 @@ Several flags invoke tool functionality:
 
 - `-v` gives a detailed verbose view with extra data,
 - `-u` flag will update stale workspace dependencies, use latest go module versions,
+- `--pull` pulls new changes for every Git repository in the workspace,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.
 
@@ -107,4 +108,3 @@ for the approach.
 Git source trees don't give enough dependency information, so I wanted
 something that reads in go.mod go.work files and provides relevant
 information to you.
-

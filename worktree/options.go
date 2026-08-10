@@ -10,6 +10,7 @@ import (
 // Options holds command-line options for worktree.
 type Options struct {
 	Update     bool
+	Pull       bool
 	All        bool
 	PUML       bool
 	D2         bool
@@ -35,6 +36,7 @@ func ParseOptions() *Options {
 
 	opts := &Options{}
 	flag.BoolVar(&opts.Update, "u", false, "update workspace dependencies to latest tags + tidy (with --all: go get -u ./...)")
+	flag.BoolVar(&opts.Pull, "pull", false, "pull new changes for each git repository")
 	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes)")
 	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
 	flag.BoolVar(&opts.D2, "d2", false, "output D2 dependency diagram to stdout")
