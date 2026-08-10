@@ -45,10 +45,26 @@ func findGoModDirs(root string) []string {
 	return dirs
 }
 
+func findGitDirs(root string) []string {
+	var dirs []string
+	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() && info.Name() == ".git" {
+			dirs = append(dirs, "./"+filepath.Dir(path))
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	return dirs
+}
+
 func main() {
 	opts := ParseOptions()
 
 	var modDirs []string
+	gitOnly := false
 	goWorkPath, err := findGoWork()
 	if err == nil {
 		if err := os.Chdir(filepath.Dir(goWorkPath)); err != nil {
@@ -62,7 +78,11 @@ func main() {
 		// Fallback: find all go.mod files in current directory and subfolders
 		modDirs = findGoModDirs(".")
 		if len(modDirs) == 0 {
-			log.Fatalf("no go.work or go.mod found")
+			modDirs = findGitDirs(".")
+			gitOnly = true
+		}
+		if len(modDirs) == 0 {
+			log.Fatalf("no go.work, go.mod, or .git directory found")
 		}
 	}
 
@@ -70,9 +90,12 @@ func main() {
 	modPaths := make(map[string]string)
 	shortNames := make(map[string]string)
 	for _, dir := range modDirs {
-		modPath, err := readModulePath(dir)
-		if err != nil {
-			log.Fatalf("failed to read module in %s: %v", dir, err)
+		modPath := filepath.ToSlash(strings.TrimPrefix(dir, "./"))
+		if !gitOnly {
+			modPath, err = readModulePath(dir)
+			if err != nil {
+				log.Fatalf("failed to read module in %s: %v", dir, err)
+			}
 		}
 		modPaths[modPath] = dir
 		shortNames[components.ShortName(modPath)] = modPath
@@ -81,18 +104,20 @@ func main() {
 	// Build dependency map (uses) and version map
 	uses := make(map[string][]string)
 	versionRefs := make(versionRefs)
-	for modPath, dir := range modPaths {
-		reqs, err := readRequiresVersioned(dir)
-		if err != nil {
-			log.Fatalf("failed to read requires for %s: %v", modPath, err)
-		}
-		for _, r := range reqs {
-			if _, ok := modPaths[r.path]; ok {
-				uses[modPath] = append(uses[modPath], r.path)
-				if versionRefs[modPath] == nil {
-					versionRefs[modPath] = make(map[string]string)
+	if !gitOnly {
+		for modPath, dir := range modPaths {
+			reqs, err := readRequiresVersioned(dir)
+			if err != nil {
+				log.Fatalf("failed to read requires for %s: %v", modPath, err)
+			}
+			for _, r := range reqs {
+				if _, ok := modPaths[r.path]; ok {
+					uses[modPath] = append(uses[modPath], r.path)
+					if versionRefs[modPath] == nil {
+						versionRefs[modPath] = make(map[string]string)
+					}
+					versionRefs[modPath][r.path] = r.version
 				}
-				versionRefs[modPath][r.path] = r.version
 			}
 		}
 	}
@@ -220,6 +245,9 @@ func main() {
 	}
 
 	if opts.Update {
+		if gitOnly {
+			log.Fatalf("dependency updates require a go.work or go.mod")
+		}
 		updateDeps(modPaths, latestTags, opts)
 		return
 	}
