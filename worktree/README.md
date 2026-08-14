@@ -79,15 +79,13 @@ and checkouts that aren't a go module source tree.
 The following screenshots show standard output, workspace filtering and
 verbose output for the complete workspace.
 
-![Worktree dependency summary](./examples/worktree.png)
+![Worktree dependency summary](./examples/worktree-matrix.png)
 
 ![Worktree status summary](./examples/worktree.png)
 
 ![Worktree for Platform](./examples/worktree-platform.png)
 
 ![Worktree for LessGo](./examples/worktree-lessgo.png)
-
-![Worktree verbose status](./examples/worktree-verbose.png)
 
 ### D2 Diagram
 
