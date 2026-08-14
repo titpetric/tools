@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/titpetric/tools/worktree/components"
 )
 
 func TestParseOptionsUpdateAllModules(t *testing.T) {
@@ -27,6 +32,48 @@ func TestParseOptionsUpdateAllModules(t *testing.T) {
 	}
 	if opts.FilterPath != "" || opts.FilterArg != "" {
 		t.Fatalf("ParseOptions() treated ./... as a filter: %#v", opts)
+	}
+}
+
+func TestParseOptionsVerbose(t *testing.T) {
+	originalArgs := os.Args
+	originalFlags := flag.CommandLine
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		flag.CommandLine = originalFlags
+	})
+
+	os.Args = []string{"worktree", "-v"}
+	flag.CommandLine = flag.NewFlagSet("worktree", flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+
+	if opts := ParseOptions(); !opts.Verbose {
+		t.Fatal("ParseOptions() did not enable verbose output")
+	}
+}
+
+func TestRunCommandVerboseSuccess(t *testing.T) {
+	var output bytes.Buffer
+	cmd := exec.Command("go", "version")
+	if err := runCommand(cmd, true, &output, &output); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "$ go version " + components.ColorGreen + "✓" + components.ColorReset + "\n"
+	if !strings.HasSuffix(output.String(), want) {
+		t.Fatalf("runCommand() output = %q, want suffix %q", output.String(), want)
+	}
+}
+
+func TestRunCommandVerboseFailureHasNoCheckmark(t *testing.T) {
+	var output bytes.Buffer
+	cmd := exec.Command("go", "definitely-not-a-command")
+	if err := runCommand(cmd, true, &output, &output); err == nil {
+		t.Fatal("runCommand() unexpectedly succeeded")
+	}
+
+	if got, want := output.String(), "$ go definitely-not-a-command\n"; !strings.HasSuffix(got, want) {
+		t.Fatalf("runCommand() output = %q, want suffix %q", got, want)
 	}
 }
 

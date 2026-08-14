@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -308,7 +309,7 @@ func main() {
 		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
 		}
-		updateDeps(goModPaths, latestTags)
+		updateDeps(goModPaths, latestTags, opts.Verbose)
 		return
 	}
 
@@ -334,16 +335,14 @@ func isSubpath(parent, child string) bool {
 	return rel == "." || (!filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
 }
 
-func updateDeps(modPaths map[string]string, tags latestTags) {
+func updateDeps(modPaths map[string]string, tags latestTags, verbose bool) {
 	for modPath, dir := range modPaths {
 		modShort := filepath.Base(modPath)
 
 		fmt.Printf("Updating %s (go get -u ./...)\n", modShort)
 		cmd := exec.Command("go", "get", "-u", "./...")
 		cmd.Dir = dir
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand(cmd, verbose, os.Stdout, os.Stderr); err != nil {
 			log.Printf("  go get -u failed in %s: %v", modPath, err)
 		}
 
@@ -355,9 +354,7 @@ func updateDeps(modPaths map[string]string, tags latestTags) {
 					fmt.Printf("Updating %s: %s %s -> %s\n", modShort, filepath.Base(r.path), r.version, tag)
 					cmd := exec.Command("go", "get", r.path+"@"+tag)
 					cmd.Dir = dir
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
-					if err := cmd.Run(); err != nil {
+					if err := runCommand(cmd, verbose, os.Stdout, os.Stderr); err != nil {
 						log.Printf("  go get %s@%s failed: %v", r.path, tag, err)
 					}
 				}
@@ -367,12 +364,24 @@ func updateDeps(modPaths map[string]string, tags latestTags) {
 		fmt.Printf("Tidying %s\n", modShort)
 		cmd = exec.Command("go", "mod", "tidy")
 		cmd.Dir = dir
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand(cmd, verbose, os.Stdout, os.Stderr); err != nil {
 			log.Printf("  go mod tidy failed in %s: %v", modPath, err)
 		}
 	}
+}
+
+func runCommand(cmd *exec.Cmd, verbose bool, stdout, stderr io.Writer) error {
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	err := cmd.Run()
+	if verbose {
+		fmt.Fprintf(stdout, "$ %s", strings.Join(cmd.Args, " "))
+		if err == nil {
+			fmt.Fprintf(stdout, " %s✓%s", components.ColorGreen, components.ColorReset)
+		}
+		fmt.Fprintln(stdout)
+	}
+	return err
 }
 
 func pullRepos(dirs []string) {

@@ -3,6 +3,7 @@ tasks:
   default:
     desc: "Capture workspace screenshots"
     steps:
+      - go install .
       - defer: rm -f examples/*.txt
       - termos shot -c 110 -f examples/worktree -- worktree
       - termos shot -c 180 -f examples/worktree-platform -- worktree platform -v

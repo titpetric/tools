@@ -32,7 +32,8 @@ worktree /abs/path   # show modules matching an absolute path
 
 Several flags invoke tool functionality:
 
-- `-v` gives a detailed verbose view with extra data,
+- `-v` gives a detailed verbose view with extra data; with `-u`, it also prints
+  each `go get` and `go mod tidy` command and marks successful commands with a green check,
 - `-u` updates every dependency in each selected Go module with `go get -u ./...`,
   updates workspace dependencies to their latest tags, and runs `go mod tidy`.
   Use `worktree -u ./...` to update every Go module under the workspace root,
