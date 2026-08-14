@@ -47,7 +47,7 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		widths[i+1] = max(ansi.StringWidth(labels[i]), 5)
 	}
 	for _, module := range rows {
-		widths[0] = max(widths[0], ansi.StringWidth(components.ShortName(module.Name)))
+		widths[0] = max(widths[0], ansi.StringWidth(matrixProjectLabel(module)))
 	}
 
 	writeBorder(w, boxTopLeft, boxTeeDown, boxTopRight, widths)
@@ -65,17 +65,16 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		}
 
 		row := make([]string, len(widths))
-		row[0] = components.ColorAmber + components.ShortName(module.Name) + components.ColorReset
+		row[0] = matrixProjectLabel(module)
 		for i, candidate := range columns {
 			if _, ok := dependencies[candidate.Name]; ok {
 				color := components.ColorGreen
+				mark := dependencyMark
 				if dependencyOutdated(refs, tags, module.Name, candidate.Name) {
 					color = components.ColorYellow
+					mark += "*"
 				}
-				row[i+1] = color + dependencyMark + components.ColorReset
-				if gitTreeDirty(candidate) {
-					row[i+1] += components.ColorDarkOrange + "*" + components.ColorReset
-				}
+				row[i+1] = color + mark + components.ColorReset
 			}
 		}
 		writeMatrixRow(w, row, widths, true)
@@ -99,4 +98,18 @@ func writeMatrixRow(w io.Writer, cells []string, widths []int, centerData bool) 
 
 func gitTreeDirty(module moduleInfo) bool {
 	return module.GitState != nil && (len(module.GitState.DiffLines) > 0 || len(module.GitState.UntrackedFiles) > 0)
+}
+
+func matrixProjectLabel(module moduleInfo) string {
+	label := components.ColorAmber + components.ShortName(module.Name) + components.ColorReset
+	if module.GitState == nil {
+		return label
+	}
+	if module.GitState.Ahead > 0 {
+		label += fmt.Sprintf(" %s(+%d)%s", components.ColorSeparator, module.GitState.Ahead, components.ColorReset)
+	}
+	if gitTreeDirty(module) {
+		label += " " + components.ColorDarkOrange + "*" + components.ColorReset
+	}
+	return label
 }

@@ -39,8 +39,9 @@ Several flags invoke tool functionality:
   Use `worktree -u ./...` to update every Go module under the workspace root,
 - `--pull` pulls new changes for every Git repository in the workspace,
 - `-t` outputs a dependency matrix, with a green `▲` for current and
-  yellow `▲` for outdated dependencies. A dark-orange `*` marks dependencies
-  with local Git changes; empty rows and columns are omitted,
+  yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)`
+  for commits ahead and a dark-orange `*` for local Git changes; empty rows and
+  columns are omitted,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.
 
