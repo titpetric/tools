@@ -50,13 +50,13 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		widths[0] = max(widths[0], ansi.StringWidth(components.ShortName(module.Name)))
 	}
 
-	writeMatrixRow(w, append([]string{"Project"}, labels...), widths, false)
-	separators := make([]string, len(widths))
-	separators[0] = strings.Repeat("-", widths[0])
-	for i := 1; i < len(separators); i++ {
-		separators[i] = ":" + strings.Repeat("-", widths[i]-2) + ":"
+	writeBorder(w, boxTopLeft, boxTeeDown, boxTopRight, widths)
+	headers := append([]string{"Project"}, labels...)
+	for i, header := range headers {
+		headers[i] = components.ColorHeader + header + components.ColorReset
 	}
-	writeMatrixRow(w, separators, widths, false)
+	writeMatrixRow(w, headers, widths, false)
+	writeBorder(w, boxTeeRight, boxCross, boxTeeLeft, widths)
 
 	for _, module := range rows {
 		dependencies := make(map[string]struct{}, len(module.Uses))
@@ -65,7 +65,7 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		}
 
 		row := make([]string, len(widths))
-		row[0] = components.ShortName(module.Name)
+		row[0] = components.ColorAmber + components.ShortName(module.Name) + components.ColorReset
 		for i, candidate := range columns {
 			if _, ok := dependencies[candidate.Name]; ok {
 				color := components.ColorGreen
@@ -73,21 +73,30 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 					color = components.ColorYellow
 				}
 				row[i+1] = color + dependencyMark + components.ColorReset
+				if gitTreeDirty(candidate) {
+					row[i+1] += components.ColorDarkOrange + "*" + components.ColorReset
+				}
 			}
 		}
 		writeMatrixRow(w, row, widths, true)
 	}
+	writeBorder(w, boxBottomLeft, boxTeeUp, boxBottomRight, widths)
 }
 
 func writeMatrixRow(w io.Writer, cells []string, widths []int, centerData bool) {
-	fmt.Fprint(w, "|")
+	separator := components.ColorSeparator + boxVertical + components.ColorReset
+	fmt.Fprint(w, separator)
 	for i, cell := range cells {
 		left, right := 0, widths[i]-ansi.StringWidth(cell)
 		if centerData && i > 0 {
 			left = right / 2
 			right -= left
 		}
-		fmt.Fprintf(w, " %s%s%s |", strings.Repeat(" ", left), cell, strings.Repeat(" ", right))
+		fmt.Fprintf(w, " %s%s%s %s", strings.Repeat(" ", left), cell, strings.Repeat(" ", right), separator)
 	}
 	fmt.Fprintln(w)
+}
+
+func gitTreeDirty(module moduleInfo) bool {
+	return module.GitState != nil && (len(module.GitState.DiffLines) > 0 || len(module.GitState.UntrackedFiles) > 0)
 }

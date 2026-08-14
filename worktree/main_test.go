@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/titpetric/tools/worktree/components"
 )
 
@@ -72,7 +73,7 @@ func TestParseOptionsDependencyMatrix(t *testing.T) {
 func TestRenderDependencyMatrix(t *testing.T) {
 	modules := []moduleInfo{
 		{Name: "example.com/service", Uses: []string{"example.com/library"}},
-		{Name: "example.com/library"},
+		{Name: "example.com/library", GitState: &components.Git{DiffLines: []string{"library.go +1/-0"}}},
 		{Name: "example.com/client", Uses: []string{"example.com/library", "example.com/service"}},
 	}
 
@@ -88,12 +89,20 @@ func TestRenderDependencyMatrix(t *testing.T) {
 	renderDependencyMatrix(&output, modules, refs, tags)
 
 	want := "" +
-		"| Project | service | library |\n" +
-		"| ------- | :-----: | :-----: |\n" +
-		"| service |         |    " + components.ColorYellow + "▲" + components.ColorReset + "    |\n" +
-		"| client  |    " + components.ColorGreen + "▲" + components.ColorReset + "    |    " + components.ColorGreen + "▲" + components.ColorReset + "    |\n"
-	if got := output.String(); got != want {
+		"╭─────────┬─────────┬─────────╮\n" +
+		"│ Project │ service │ library │\n" +
+		"├─────────┼─────────┼─────────┤\n" +
+		"│ service │         │   ▲*    │\n" +
+		"│ client  │    ▲    │   ▲*    │\n" +
+		"╰─────────┴─────────┴─────────╯\n"
+	if got := ansi.Strip(output.String()); got != want {
 		t.Fatalf("renderDependencyMatrix() =\n%s\nwant:\n%s", got, want)
+	}
+	if got := output.String(); !strings.Contains(got, components.ColorGreen+"▲") || !strings.Contains(got, components.ColorYellow+"▲") {
+		t.Fatalf("renderDependencyMatrix() did not color current and outdated dependencies: %q", got)
+	}
+	if got := output.String(); !strings.Contains(got, components.ColorDarkOrange+"*") {
+		t.Fatalf("renderDependencyMatrix() did not mark dirty dependency: %q", got)
 	}
 }
 

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -149,11 +151,15 @@ func dependencyOutdated(refs versionRefs, tags latestTags, dependent, dependency
 }
 
 func printBorder(left, mid, right string, widths []int) {
+	writeBorder(os.Stdout, left, mid, right, widths)
+}
+
+func writeBorder(w io.Writer, left, mid, right string, widths []int) {
 	var segs []string
-	for _, w := range widths {
-		segs = append(segs, strings.Repeat(boxHorizontal, w+2))
+	for _, width := range widths {
+		segs = append(segs, strings.Repeat(boxHorizontal, width+2))
 	}
-	fmt.Println(components.ColorSeparator + left + strings.Join(segs, mid) + right + components.ColorReset)
+	fmt.Fprintln(w, components.ColorSeparator+left+strings.Join(segs, mid)+right+components.ColorReset)
 }
 
 func printHeaderRow(headers []string, widths []int) {

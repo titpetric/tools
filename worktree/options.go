@@ -41,7 +41,7 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes)")
 	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
 	flag.BoolVar(&opts.D2, "d2", false, "output D2 dependency diagram to stdout")
-	flag.BoolVar(&opts.Matrix, "t", false, "output Markdown dependency matrix to stdout")
+	flag.BoolVar(&opts.Matrix, "t", false, "output dependency matrix to stdout")
 	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details and commands run during updates")
 	flag.Parse()
 
