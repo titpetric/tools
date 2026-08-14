@@ -2,6 +2,12 @@ package main
 
 import "github.com/titpetric/tools/worktree/components"
 
+type projectDir struct {
+	Path     string
+	GoModule bool
+	GitRepo  bool
+}
+
 type gitStatus struct {
 	Unpushed  int
 	Modified  int

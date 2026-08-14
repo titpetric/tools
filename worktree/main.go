@@ -12,113 +12,166 @@ import (
 	"github.com/titpetric/tools/worktree/components"
 )
 
-func findGoWork() (string, error) {
-	dir, err := os.Getwd()
+func findScanRoot(start string) (string, error) {
+	dir, err := filepath.Abs(start)
 	if err != nil {
 		return "", err
 	}
 	for {
-		p := filepath.Join(dir, "go.work")
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
+		for _, marker := range []string{"go.work", "go.mod", ".git"} {
+			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
+				return dir, nil
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			break
+			return filepath.Abs(start)
 		}
 		dir = parent
 	}
-	return "", os.ErrNotExist
 }
 
-func findGoModDirs(root string) []string {
-	var dirs []string
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+func findProjects(root string) ([]projectDir, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	projects := make(map[string]*projectDir)
+	project := func(dir string) (*projectDir, error) {
+		dir, err = filepath.Abs(dir)
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		if info.Name() == "go.mod" && !info.IsDir() {
-			dirs = append(dirs, "./"+filepath.Dir(path))
+		if projects[dir] == nil {
+			projects[dir] = &projectDir{}
 		}
-		return nil
-	})
-	return dirs
-}
+		return projects[dir], nil
+	}
 
-func findGitDirs(root string) []string {
-	var dirs []string
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+	err = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
 			return nil
 		}
-		if info.Name() == ".git" {
-			dirs = append(dirs, "./"+filepath.Dir(path))
+		switch info.Name() {
+		case ".git":
+			p, err := project(filepath.Dir(path))
+			if err != nil {
+				return err
+			}
+			p.GitRepo = true
 			if info.IsDir() {
 				return filepath.SkipDir
+			}
+		case "go.mod":
+			if !info.IsDir() {
+				p, err := project(filepath.Dir(path))
+				if err != nil {
+					return err
+				}
+				p.GoModule = true
+			}
+		case "go.work":
+			if info.IsDir() {
+				break
+			}
+			dirs, err := parseGoWork(path)
+			if err != nil {
+				return err
+			}
+			for _, dir := range dirs {
+				p, err := project(filepath.Join(filepath.Dir(path), dir))
+				if err != nil {
+					return err
+				}
+				if _, err := os.Stat(filepath.Join(filepath.Dir(path), dir, "go.mod")); err == nil {
+					p.GoModule = true
+				}
 			}
 		}
 		return nil
 	})
-	return dirs
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]projectDir, 0, len(projects))
+	for dir, p := range projects {
+		if !p.GoModule && !p.GitRepo {
+			continue
+		}
+		rel, err := filepath.Rel(root, dir)
+		if err != nil {
+			return nil, err
+		}
+		if rel == "." {
+			p.Path = "."
+		} else {
+			p.Path = filepath.Join(".", rel)
+			if !strings.HasPrefix(p.Path, "."+string(filepath.Separator)) && !filepath.IsAbs(p.Path) {
+				p.Path = "." + string(filepath.Separator) + p.Path
+			}
+		}
+		result = append(result, *p)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Path < result[j].Path })
+	return result, nil
 }
 
 func main() {
 	opts := ParseOptions()
 
-	var modDirs []string
-	gitOnly := false
-	goWorkPath, err := findGoWork()
-	if err == nil {
-		if err := os.Chdir(filepath.Dir(goWorkPath)); err != nil {
-			log.Fatalf("failed to chdir to %s: %v", filepath.Dir(goWorkPath), err)
-		}
-		modDirs, err = parseGoWork("go.work")
-		if err != nil {
-			log.Fatalf("failed to parse go.work: %v", err)
-		}
-	} else {
-		// Fallback: find all go.mod files in current directory and subfolders
-		modDirs = findGoModDirs(".")
-		if len(modDirs) == 0 {
-			modDirs = findGitDirs(".")
-			gitOnly = true
-		}
-		if len(modDirs) == 0 {
-			log.Fatalf("no go.work, go.mod, or .git directory found")
-		}
+	root, err := findScanRoot(".")
+	if err != nil {
+		log.Fatalf("failed to find scan root: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		log.Fatalf("failed to chdir to %s: %v", root, err)
+	}
+	projects, err := findProjects(".")
+	if err != nil {
+		log.Fatalf("failed to scan projects: %v", err)
+	}
+	if len(projects) == 0 {
+		log.Fatalf("no go.work, go.mod, or .git directory found")
 	}
 
 	if opts.Pull {
-		pullRepos(append(modDirs, findGitDirs(".")...))
+		var dirs []string
+		for _, project := range projects {
+			dirs = append(dirs, project.Path)
+		}
+		pullRepos(dirs)
 		return
 	}
 
 	// Map: module path -> dir, short name -> module path
 	modPaths := make(map[string]string)
+	goModPaths := make(map[string]string)
 	shortNames := make(map[string]string)
-	for _, dir := range modDirs {
-		modPath := filepath.ToSlash(strings.TrimPrefix(dir, "./"))
-		if !gitOnly {
-			modPath, err = readModulePath(dir)
+	for _, project := range projects {
+		modPath := filepath.ToSlash(strings.TrimPrefix(project.Path, "./"))
+		if project.GoModule {
+			modPath, err = readModulePath(project.Path)
 			if err != nil {
-				log.Fatalf("failed to read module in %s: %v", dir, err)
+				log.Fatalf("failed to read module in %s: %v", project.Path, err)
 			}
+			goModPaths[modPath] = project.Path
 		}
-		modPaths[modPath] = dir
+		modPaths[modPath] = project.Path
 		shortNames[components.ShortName(modPath)] = modPath
 	}
 
 	// Build dependency map (uses) and version map
 	uses := make(map[string][]string)
 	versionRefs := make(versionRefs)
-	if !gitOnly {
-		for modPath, dir := range modPaths {
+	if len(goModPaths) > 0 {
+		for modPath, dir := range goModPaths {
 			reqs, err := readRequiresVersioned(dir)
 			if err != nil {
 				log.Fatalf("failed to read requires for %s: %v", modPath, err)
 			}
 			for _, r := range reqs {
-				if _, ok := modPaths[r.path]; ok {
+				if _, ok := goModPaths[r.path]; ok {
 					uses[modPath] = append(uses[modPath], r.path)
 					if versionRefs[modPath] == nil {
 						versionRefs[modPath] = make(map[string]string)
@@ -252,10 +305,10 @@ func main() {
 	}
 
 	if opts.Update {
-		if gitOnly {
+		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
 		}
-		updateDeps(modPaths, latestTags, opts)
+		updateDeps(goModPaths, latestTags, opts)
 		return
 	}
 

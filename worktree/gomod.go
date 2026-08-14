@@ -12,34 +12,20 @@ import (
 
 // parseGoWork returns relative paths listed under 'use' in go.work
 func parseGoWork(file string) ([]string, error) {
-	f, err := os.Open(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
-	var dirs []string
-	scanner := bufio.NewScanner(f)
-	inUseBlock := false
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "//") {
-			continue
-		}
-		if strings.HasPrefix(line, "use") && strings.HasSuffix(line, "(") {
-			inUseBlock = true
-			continue
-		}
-		if inUseBlock {
-			if line == ")" {
-				inUseBlock = false
-				continue
-			}
-			dirs = append(dirs, line)
-		}
+	work, err := modfile.ParseWork(file, data, nil)
+	if err != nil {
+		return nil, err
 	}
-	return dirs, scanner.Err()
+	dirs := make([]string, 0, len(work.Use))
+	for _, use := range work.Use {
+		dirs = append(dirs, use.Path)
+	}
+	return dirs, nil
 }
 
 func readModulePath(dir string) (string, error) {

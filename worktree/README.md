@@ -17,8 +17,12 @@ To install the tool:
 go install github.com/titpetric/tools/worktree@main
 ```
 
-Run `worktree` in your source workspace. An optional path argument filters
-the output to modules matching that path:
+Run `worktree` anywhere in your source workspace. It uses the nearest current
+or parent directory containing `go.work`, `go.mod`, or `.git` as the scan root.
+If no parent contains one of those markers, it recursively scans the current
+directory. Go modules and Git repositories are both included; when they share
+a directory they appear as one row. An optional path argument filters the
+output to projects matching that path:
 
 ```bash
 worktree .           # show only the module in the current folder
