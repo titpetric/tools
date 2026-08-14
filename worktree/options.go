@@ -35,7 +35,7 @@ func ParseOptions() *Options {
 	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
 
 	opts := &Options{}
-	flag.BoolVar(&opts.Update, "u", false, "update workspace dependencies to latest tags + tidy (with --all: go get -u ./...)")
+	flag.BoolVar(&opts.Update, "u", false, "update all dependencies with go get -u ./... and tidy")
 	flag.BoolVar(&opts.Pull, "pull", false, "pull new changes for each git repository")
 	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes)")
 	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
@@ -44,7 +44,7 @@ func ParseOptions() *Options {
 	flag.Parse()
 
 	// Resolve optional path filter
-	if flag.NArg() > 0 {
+	if flag.NArg() > 0 && flag.Arg(0) != "./..." {
 		opts.FilterArg = flag.Arg(0)
 		abs, err := filepath.Abs(opts.FilterArg)
 		if err == nil {

@@ -33,7 +33,9 @@ worktree /abs/path   # show modules matching an absolute path
 Several flags invoke tool functionality:
 
 - `-v` gives a detailed verbose view with extra data,
-- `-u` flag will update stale workspace dependencies, use latest go module versions,
+- `-u` updates every dependency in each selected Go module with `go get -u ./...`,
+  updates workspace dependencies to their latest tags, and runs `go mod tidy`.
+  Use `worktree -u ./...` to update every Go module under the workspace root,
 - `--pull` pulls new changes for every Git repository in the workspace,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.

@@ -1,11 +1,34 @@
 package main
 
 import (
+	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 )
+
+func TestParseOptionsUpdateAllModules(t *testing.T) {
+	originalArgs := os.Args
+	originalFlags := flag.CommandLine
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		flag.CommandLine = originalFlags
+	})
+
+	os.Args = []string{"worktree", "-u", "./..."}
+	flag.CommandLine = flag.NewFlagSet("worktree", flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+
+	opts := ParseOptions()
+	if !opts.Update {
+		t.Fatal("ParseOptions() did not enable dependency updates")
+	}
+	if opts.FilterPath != "" || opts.FilterArg != "" {
+		t.Fatalf("ParseOptions() treated ./... as a filter: %#v", opts)
+	}
+}
 
 func TestFindScanRootUsesNearestMarker(t *testing.T) {
 	root := t.TempDir()

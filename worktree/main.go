@@ -308,7 +308,7 @@ func main() {
 		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
 		}
-		updateDeps(goModPaths, latestTags, opts)
+		updateDeps(goModPaths, latestTags)
 		return
 	}
 
@@ -334,19 +334,17 @@ func isSubpath(parent, child string) bool {
 	return rel == "." || (!filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
 }
 
-func updateDeps(modPaths map[string]string, tags latestTags, opts *Options) {
+func updateDeps(modPaths map[string]string, tags latestTags) {
 	for modPath, dir := range modPaths {
 		modShort := filepath.Base(modPath)
 
-		if opts.All {
-			fmt.Printf("Updating %s (go get -u ./...)\n", modShort)
-			cmd := exec.Command("go", "get", "-u", "./...")
-			cmd.Dir = dir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				log.Printf("  go get -u failed in %s: %v", modPath, err)
-			}
+		fmt.Printf("Updating %s (go get -u ./...)\n", modShort)
+		cmd := exec.Command("go", "get", "-u", "./...")
+		cmd.Dir = dir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Printf("  go get -u failed in %s: %v", modPath, err)
 		}
 
 		// Update workspace dependencies to their latest tags
@@ -367,7 +365,7 @@ func updateDeps(modPaths map[string]string, tags latestTags, opts *Options) {
 		}
 
 		fmt.Printf("Tidying %s\n", modShort)
-		cmd := exec.Command("go", "mod", "tidy")
+		cmd = exec.Command("go", "mod", "tidy")
 		cmd.Dir = dir
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
