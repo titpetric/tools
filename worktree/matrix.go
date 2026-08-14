@@ -27,7 +27,7 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 				hasDependency = true
 			}
 		}
-		if hasDependency {
+		if hasDependency || gitTreeDirty(module) {
 			rows = append(rows, module)
 		}
 	}
@@ -80,6 +80,10 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		writeMatrixRow(w, row, widths, true)
 	}
 	writeBorder(w, boxBottomLeft, boxTeeUp, boxBottomRight, widths)
+
+	ahead, localChanges, outdated := matrixSummary(modules, refs, tags)
+	fmt.Fprintf(w, "%s%d ahead, %d with local changes, %d deps out of date.%s\n",
+		components.ColorHeader, ahead, localChanges, outdated, components.ColorReset)
 }
 
 func writeMatrixRow(w io.Writer, cells []string, widths []int, centerData bool) {
@@ -112,4 +116,25 @@ func matrixProjectLabel(module moduleInfo) string {
 		label += " " + components.ColorDarkOrange + "*" + components.ColorReset
 	}
 	return label
+}
+
+func matrixSummary(modules []moduleInfo, refs versionRefs, tags latestTags) (ahead, localChanges, outdated int) {
+	available := make(map[string]struct{}, len(modules))
+	for _, module := range modules {
+		available[module.Name] = struct{}{}
+	}
+	for _, module := range modules {
+		if module.GitState != nil {
+			ahead += module.GitState.Ahead
+		}
+		if gitTreeDirty(module) {
+			localChanges++
+		}
+		for _, dependency := range module.Uses {
+			if _, ok := available[dependency]; ok && dependencyOutdated(refs, tags, module.Name, dependency) {
+				outdated++
+			}
+		}
+	}
+	return ahead, localChanges, outdated
 }

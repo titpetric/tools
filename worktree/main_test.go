@@ -83,6 +83,7 @@ func TestRenderDependencyMatrix(t *testing.T) {
 			Uses:     []string{"example.com/library", "example.com/service"},
 			GitState: &components.Git{DiffLines: []string{"go.mod +1/-1"}},
 		},
+		{Name: "example.com/tool", GitState: &components.Git{UntrackedFiles: []string{"PLAN.md"}}},
 	}
 
 	var output bytes.Buffer
@@ -102,7 +103,9 @@ func TestRenderDependencyMatrix(t *testing.T) {
 		"├──────────────┼─────────┼─────────┤\n" +
 		"│ service (+1) │         │   ▲*    │\n" +
 		"│ client *     │    ▲    │    ▲    │\n" +
-		"╰──────────────┴─────────┴─────────╯\n"
+		"│ tool *       │         │         │\n" +
+		"╰──────────────┴─────────┴─────────╯\n" +
+		"1 ahead, 2 with local changes, 1 deps out of date.\n"
 	if got := ansi.Strip(output.String()); got != want {
 		t.Fatalf("renderDependencyMatrix() =\n%s\nwant:\n%s", got, want)
 	}
@@ -111,6 +114,9 @@ func TestRenderDependencyMatrix(t *testing.T) {
 	}
 	if got := output.String(); !strings.Contains(got, components.ColorSeparator+"(+1)") || !strings.Contains(got, components.ColorDarkOrange+"*") {
 		t.Fatalf("renderDependencyMatrix() did not show project Git state: %q", got)
+	}
+	if got := output.String(); !strings.Contains(got, components.ColorHeader+"1 ahead, 2 with local changes, 1 deps out of date.") {
+		t.Fatalf("renderDependencyMatrix() did not style summary: %q", got)
 	}
 }
 

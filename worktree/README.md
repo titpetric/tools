@@ -41,7 +41,8 @@ Several flags invoke tool functionality:
 - `-t` outputs a dependency matrix, with a green `▲` for current and
   yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)`
   for commits ahead and a dark-orange `*` for local Git changes; empty rows and
-  columns are omitted,
+  columns are omitted, except that projects with local changes are always shown.
+  A footer summarizes these workspace states,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.
 
