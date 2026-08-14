@@ -38,6 +38,8 @@ Several flags invoke tool functionality:
   updates workspace dependencies to their latest tags, and runs `go mod tidy`.
   Use `worktree -u ./...` to update every Go module under the workspace root,
 - `--pull` pulls new changes for every Git repository in the workspace,
+- `-t` outputs a Markdown dependency matrix, with a green `▲` for current and
+  yellow `▲` for outdated dependencies; empty rows and columns are omitted,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.
 
@@ -76,6 +78,8 @@ and checkouts that aren't a go module source tree.
 
 The following screenshots show standard output, workspace filtering and
 verbose output for the complete workspace.
+
+![Worktree dependency summary](./examples/worktree.png)
 
 ![Worktree status summary](./examples/worktree.png)
 

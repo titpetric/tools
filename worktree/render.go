@@ -124,17 +124,12 @@ func renderTables(modules []moduleInfo, opts *Options) {
 
 func buildUsage(refs versionRefs, tags latestTags, m moduleInfo) (components.Usage, int) {
 	var u components.Usage
-	latest := tags[m.Name]
 	outdated := 0
 	for _, dep := range m.UsedBy {
 		d := components.Dependent{Name: components.ShortName(dep)}
-		if latest != "" {
-			if depRefs, ok := refs[dep]; ok {
-				if ver, ok := depRefs[m.Name]; ok && ver != latest {
-					d.Outdated = true
-					outdated++
-				}
-			}
+		if dependencyOutdated(refs, tags, dep, m.Name) {
+			d.Outdated = true
+			outdated++
 		}
 		u.UsedBy = append(u.UsedBy, d)
 	}
@@ -142,6 +137,15 @@ func buildUsage(refs versionRefs, tags latestTags, m moduleInfo) (components.Usa
 		u.Uses = append(u.Uses, components.ShortName(dep))
 	}
 	return u, outdated
+}
+
+func dependencyOutdated(refs versionRefs, tags latestTags, dependent, dependency string) bool {
+	latest := tags[dependency]
+	if latest == "" {
+		return false
+	}
+	version, ok := refs[dependent][dependency]
+	return ok && version != latest
 }
 
 func printBorder(left, mid, right string, widths []int) {

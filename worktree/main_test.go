@@ -52,6 +52,51 @@ func TestParseOptionsVerbose(t *testing.T) {
 	}
 }
 
+func TestParseOptionsDependencyMatrix(t *testing.T) {
+	originalArgs := os.Args
+	originalFlags := flag.CommandLine
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		flag.CommandLine = originalFlags
+	})
+
+	os.Args = []string{"worktree", "-t"}
+	flag.CommandLine = flag.NewFlagSet("worktree", flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+
+	if opts := ParseOptions(); !opts.Matrix {
+		t.Fatal("ParseOptions() did not enable dependency matrix output")
+	}
+}
+
+func TestRenderDependencyMatrix(t *testing.T) {
+	modules := []moduleInfo{
+		{Name: "example.com/service", Uses: []string{"example.com/library"}},
+		{Name: "example.com/library"},
+		{Name: "example.com/client", Uses: []string{"example.com/library", "example.com/service"}},
+	}
+
+	var output bytes.Buffer
+	refs := versionRefs{
+		"example.com/service": {"example.com/library": "v1.0.0"},
+		"example.com/client":  {"example.com/library": "v2.0.0", "example.com/service": "v1.0.0"},
+	}
+	tags := latestTags{
+		"example.com/library": "v2.0.0",
+		"example.com/service": "v1.0.0",
+	}
+	renderDependencyMatrix(&output, modules, refs, tags)
+
+	want := "" +
+		"| Project | service | library |\n" +
+		"| ------- | :-----: | :-----: |\n" +
+		"| service |         |    " + components.ColorYellow + "▲" + components.ColorReset + "    |\n" +
+		"| client  |    " + components.ColorGreen + "▲" + components.ColorReset + "    |    " + components.ColorGreen + "▲" + components.ColorReset + "    |\n"
+	if got := output.String(); got != want {
+		t.Fatalf("renderDependencyMatrix() =\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestRunCommandVerboseSuccess(t *testing.T) {
 	var output bytes.Buffer
 	cmd := exec.Command("go", "version")

@@ -323,6 +323,11 @@ func main() {
 		return
 	}
 
+	if opts.Matrix {
+		renderDependencyMatrix(os.Stdout, modules, versionRefs, latestTags)
+		return
+	}
+
 	renderTables(modules, opts)
 }
 
