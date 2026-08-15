@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -25,7 +24,7 @@ const (
 	boxCross       = "┼"
 )
 
-func renderTables(modules []moduleInfo, opts *Options) {
+func renderTables(w io.Writer, modules []moduleInfo, opts *Options, styled bool) {
 	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
@@ -85,26 +84,26 @@ func renderTables(modules []moduleInfo, opts *Options) {
 			}
 		}
 	}
-
-	// Top border
-	printBorder(boxTopLeft, boxTeeDown, boxTopRight, widths)
-
-	// Header row
-	printHeaderRow(headers, widths)
-
-	// Header separator
-	printBorder(boxTeeRight, boxCross, boxTeeLeft, widths)
-
-	// Data rows
-	for i, row := range rows {
-		printTableRow(row, widths)
-		if opts.Verbose && i < len(rows)-1 {
-			printBorder(boxTeeRight, boxCross, boxTeeLeft, widths)
+	if styled {
+		writeBorder(w, boxTopLeft, boxTeeDown, boxTopRight, widths)
+		writeHeaderRow(w, headers, widths)
+		writeBorder(w, boxTeeRight, boxCross, boxTeeLeft, widths)
+		for i, row := range rows {
+			writeTableRow(w, row, widths)
+			if opts.Verbose && i < len(rows)-1 {
+				writeBorder(w, boxTeeRight, boxCross, boxTeeLeft, widths)
+			}
 		}
+		writeBorder(w, boxBottomLeft, boxTeeUp, boxBottomRight, widths)
+	} else {
+		writeMarkdownTable(w, headers, rows)
 	}
 
-	// Bottom border
-	printBorder(boxBottomLeft, boxTeeUp, boxBottomRight, widths)
+	headerColor, borderColor, yellow, reset := "", "", "", ""
+	if styled {
+		headerColor, borderColor = components.ColorHeader, components.ColorBorder
+		yellow, reset = components.ColorYellow, components.ColorReset
+	}
 
 	// Count outdated dependencies
 	outdated := 0
@@ -112,15 +111,14 @@ func renderTables(modules []moduleInfo, opts *Options) {
 		outdated += m.Outdated
 	}
 	if outdated > 0 {
-		fmt.Printf("%srun with %s-u%s %sto update %d outdated dependencies in workspace%s\n",
-			components.ColorBorder, components.ColorYellow, components.ColorReset,
-			components.ColorBorder, outdated, components.ColorReset)
+		fmt.Fprintf(w, "%srun with %s-u%s %sto update %d outdated dependencies in workspace%s\n",
+			borderColor, yellow, reset, borderColor, outdated, reset)
 	}
 
 	// Print skipped summary
 	if opts.Skipped > 0 {
-		fmt.Printf("%sSkipped %d modules, use --all to show%s\n",
-			components.ColorHeader, opts.Skipped, components.ColorReset)
+		fmt.Fprintf(w, "%sSkipped %d modules, use --all to show%s\n",
+			headerColor, opts.Skipped, reset)
 	}
 }
 
@@ -150,10 +148,6 @@ func dependencyOutdated(refs versionRefs, tags latestTags, dependent, dependency
 	return ok && version != latest
 }
 
-func printBorder(left, mid, right string, widths []int) {
-	writeBorder(os.Stdout, left, mid, right, widths)
-}
-
 func writeBorder(w io.Writer, left, mid, right string, widths []int) {
 	var segs []string
 	for _, width := range widths {
@@ -162,18 +156,18 @@ func writeBorder(w io.Writer, left, mid, right string, widths []int) {
 	fmt.Fprintln(w, components.ColorSeparator+left+strings.Join(segs, mid)+right+components.ColorReset)
 }
 
-func printHeaderRow(headers []string, widths []int) {
+func writeHeaderRow(w io.Writer, headers []string, widths []int) {
 	var cells []string
 	for i, h := range headers {
 		pad := widths[i] - ansi.StringWidth(h)
 		cells = append(cells, fmt.Sprintf(" %s%s%s%s ", components.ColorHeader, h, strings.Repeat(" ", pad), components.ColorReset))
 	}
-	fmt.Println(components.ColorSeparator + boxVertical + components.ColorReset +
-		strings.Join(cells, components.ColorSeparator+boxVertical+components.ColorReset) +
-		components.ColorSeparator + boxVertical + components.ColorReset)
+	fmt.Fprintln(w, components.ColorSeparator+boxVertical+components.ColorReset+
+		strings.Join(cells, components.ColorSeparator+boxVertical+components.ColorReset)+
+		components.ColorSeparator+boxVertical+components.ColorReset)
 }
 
-func printTableRow(row components.Rows, widths []int) {
+func writeTableRow(w io.Writer, row components.Rows, widths []int) {
 	h := row.RowHeight()
 	for lineIdx := 0; lineIdx < h; lineIdx++ {
 		var cells []string
@@ -189,8 +183,8 @@ func printTableRow(row components.Rows, widths []int) {
 			}
 			cells = append(cells, " "+s+strings.Repeat(" ", pad)+" ")
 		}
-		fmt.Println(components.ColorSeparator + boxVertical + components.ColorReset +
-			strings.Join(cells, components.ColorSeparator+boxVertical+components.ColorReset) +
-			components.ColorSeparator + boxVertical + components.ColorReset)
+		fmt.Fprintln(w, components.ColorSeparator+boxVertical+components.ColorReset+
+			strings.Join(cells, components.ColorSeparator+boxVertical+components.ColorReset)+
+			components.ColorSeparator+boxVertical+components.ColorReset)
 	}
 }

@@ -11,7 +11,7 @@ import (
 
 const dependencyMark = "▲"
 
-func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs, tags latestTags) {
+func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs, tags latestTags, styled bool) {
 	available := make(map[string]struct{}, len(modules))
 	for _, module := range modules {
 		available[module.Name] = struct{}{}
@@ -37,6 +37,34 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		if _, ok := used[module.Name]; ok {
 			columns = append(columns, module)
 		}
+	}
+	if !styled {
+		headers := []string{"Project"}
+		for _, module := range columns {
+			headers = append(headers, components.ShortName(module.Name))
+		}
+		var values [][]string
+		for _, module := range rows {
+			dependencies := make(map[string]struct{}, len(module.Uses))
+			for _, dependency := range module.Uses {
+				dependencies[dependency] = struct{}{}
+			}
+			row := make([]string, len(headers))
+			row[0] = matrixProjectLabel(module)
+			for i, candidate := range columns {
+				if _, ok := dependencies[candidate.Name]; ok {
+					row[i+1] = dependencyMark
+					if dependencyOutdated(refs, tags, module.Name, candidate.Name) {
+						row[i+1] += "*"
+					}
+				}
+			}
+			values = append(values, row)
+		}
+		writeSimpleTable(w, headers, values, false)
+		ahead, localChanges, outdated := matrixSummary(modules, refs, tags)
+		fmt.Fprintf(w, "%d ahead, %d with local changes, %d deps out of date.\n", ahead, localChanges, outdated)
+		return
 	}
 
 	labels := make([]string, len(columns))

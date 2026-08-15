@@ -141,7 +141,7 @@ func main() {
 		for _, project := range projects {
 			dirs = append(dirs, project.Path)
 		}
-		pullRepos(dirs)
+		pullRepos(os.Stdout, dirs, supportsANSI(os.Stdout))
 		return
 	}
 
@@ -324,11 +324,11 @@ func main() {
 	}
 
 	if opts.Matrix {
-		renderDependencyMatrix(os.Stdout, modules, versionRefs, latestTags)
+		renderDependencyMatrix(os.Stdout, modules, versionRefs, latestTags, supportsANSI(os.Stdout))
 		return
 	}
 
-	renderTables(modules, opts)
+	renderTables(os.Stdout, modules, opts, supportsANSI(os.Stdout))
 }
 
 // isSubpath reports whether child is equal to or under parent.
@@ -389,7 +389,7 @@ func runCommand(cmd *exec.Cmd, verbose bool, stdout, stderr io.Writer) error {
 	return err
 }
 
-func pullRepos(dirs []string) {
+func pullRepos(w io.Writer, dirs []string, styled bool) {
 	repos := make(map[string]struct{})
 	for _, dir := range dirs {
 		cmd := exec.Command("git", "rev-parse", "--show-toplevel")
@@ -407,14 +407,71 @@ func pullRepos(dirs []string) {
 	}
 	sort.Strings(paths)
 
+	var rows [][]string
 	for _, path := range paths {
-		fmt.Printf("Pulling %s\n", path)
-		cmd := exec.Command("git", "pull")
+		remote := firstCommandLine(path, "git", "remote", "-v")
+		branch := getGitBranch(path)
+		before := firstCommandLine(path, "git", "rev-parse", "HEAD")
+		cmd := exec.Command("git", "pull", "--quiet")
 		cmd.Dir = path
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			log.Printf("  git pull failed in %s: %v", path, err)
+		out, err := cmd.CombinedOutput()
+		status := ""
+		if err != nil {
+			status = strings.TrimSpace(string(out))
+			if status == "" {
+				status = err.Error()
+			}
+		} else {
+			after := firstCommandLine(path, "git", "rev-parse", "HEAD")
+			if before == after {
+				status = "Already up to date."
+			} else {
+				revision := after
+				if before != "" {
+					revision = before + ".." + after
+				}
+				count := firstCommandLine(path, "git", "rev-list", "--count", revision)
+				if count == "1" {
+					status = "Pulled 1 commit."
+				} else if count != "" {
+					status = "Pulled " + count + " commits."
+				} else {
+					status = "Updated."
+				}
+			}
 		}
+		if styled {
+			color := components.ColorGreen
+			if err != nil {
+				color = components.ColorRed
+			}
+			lines := strings.Split(status, "\n")
+			for i, line := range lines {
+				lines[i] = color + line + components.ColorReset
+			}
+			status = strings.Join(lines, "\n")
+		}
+		rel, relErr := filepath.Rel(".", path)
+		if relErr != nil {
+			rel = path
+		} else if rel != "." && !strings.HasPrefix(rel, "..") {
+			rel = filepath.Join(".", rel)
+			if !strings.HasPrefix(rel, "."+string(filepath.Separator)) {
+				rel = "." + string(filepath.Separator) + rel
+			}
+		}
+		rows = append(rows, []string{rel, remote, branch, status})
 	}
+	writeSimpleTable(w, []string{"Path", "Remote", "Branch", "Pull status"}, rows, styled)
+}
+
+func firstCommandLine(dir, name string, args ...string) string {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	line, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
+	return strings.ReplaceAll(line, "\t", " ")
 }

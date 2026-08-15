@@ -37,7 +37,8 @@ Several flags invoke tool functionality:
 - `-u` updates every dependency in each selected Go module with `go get -u ./...`,
   updates workspace dependencies to their latest tags, and runs `go mod tidy`.
   Use `worktree -u ./...` to update every Go module under the workspace root,
-- `--pull` pulls new changes for every Git repository in the workspace,
+- `--pull` pulls new changes for every Git repository in the workspace and
+  displays each repository's path, first remote, branch, and `git pull` output,
 - `-t` outputs a dependency matrix, with a green `▲` for current and
   yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)`
   for commits ahead and a dark-orange `*` for local Git changes; empty rows and
@@ -45,6 +46,9 @@ Several flags invoke tool functionality:
   A footer summarizes these workspace states,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.
+
+Table output uses the rounded, colored terminal format when stdout is an ANSI
+terminal and falls back to Markdown when redirected or piped.
 
 You can create a symlink to `git-st`.
 

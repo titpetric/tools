@@ -95,7 +95,7 @@ func TestRenderDependencyMatrix(t *testing.T) {
 		"example.com/library": "v2.0.0",
 		"example.com/service": "v1.0.0",
 	}
-	renderDependencyMatrix(&output, modules, refs, tags)
+	renderDependencyMatrix(&output, modules, refs, tags, true)
 
 	want := "" +
 		"╭──────────────┬─────────┬─────────╮\n" +
@@ -117,6 +117,90 @@ func TestRenderDependencyMatrix(t *testing.T) {
 	}
 	if got := output.String(); !strings.Contains(got, components.ColorHeader+"1 ahead, 2 with local changes, 1 deps out of date.") {
 		t.Fatalf("renderDependencyMatrix() did not style summary: %q", got)
+	}
+}
+
+func TestRenderDependencyMatrixMarkdown(t *testing.T) {
+	modules := []moduleInfo{
+		{Name: "example.com/app", Uses: []string{"example.com/lib"}},
+		{Name: "example.com/lib"},
+	}
+
+	var output bytes.Buffer
+	renderDependencyMatrix(&output, modules, nil, nil, false)
+
+	want := "| Project | lib |\n" +
+		"| --- | --- |\n" +
+		"| app | ▲ |\n" +
+		"0 ahead, 0 with local changes, 0 deps out of date.\n"
+	if got := output.String(); got != want {
+		t.Fatalf("renderDependencyMatrix() markdown =\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestWriteSimpleTableMarkdown(t *testing.T) {
+	var output bytes.Buffer
+	writeSimpleTable(&output,
+		[]string{"Path", "Pull status"},
+		[][]string{{"./service", components.ColorGreen + "Updating | files\nDone" + components.ColorReset}},
+		false,
+	)
+
+	want := "| Path | Pull status |\n" +
+		"| --- | --- |\n" +
+		"| ./service | Updating \\| files<br>Done |\n"
+	if got := output.String(); got != want {
+		t.Fatalf("writeSimpleTable() markdown =\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestPullReposRendersGitDetails(t *testing.T) {
+	root := t.TempDir()
+	remote := filepath.Join(root, "remote.git")
+	repo := filepath.Join(root, "service")
+	runGit(t, root, "init", "--bare", remote)
+	runGit(t, root, "clone", remote, repo)
+	runGit(t, repo, "config", "user.name", "Test User")
+	runGit(t, repo, "config", "user.email", "test@example.com")
+	writeTestFile(t, filepath.Join(repo, "README.md"), "test\n")
+	runGit(t, repo, "add", "README.md")
+	runGit(t, repo, "commit", "-m", "initial")
+	runGit(t, repo, "push", "-u", "origin", "HEAD")
+	updater := filepath.Join(root, "updater")
+	runGit(t, root, "clone", remote, updater)
+	runGit(t, updater, "config", "user.name", "Test User")
+	runGit(t, updater, "config", "user.email", "test@example.com")
+	writeTestFile(t, filepath.Join(updater, "CHANGELOG.md"), "update\n")
+	runGit(t, updater, "add", "CHANGELOG.md")
+	runGit(t, updater, "commit", "-m", "update")
+	runGit(t, updater, "push")
+
+	var output bytes.Buffer
+	pullRepos(&output, []string{repo}, false)
+	got := output.String()
+	for _, want := range []string{
+		"| Path | Remote | Branch | Pull status |",
+		"origin " + remote + " (fetch)",
+		"Pulled 1 commit.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("pullRepos() output missing %q:\n%s", want, got)
+		}
+	}
+
+	output.Reset()
+	pullRepos(&output, []string{repo}, false)
+	if got := output.String(); !strings.Contains(got, "Already up to date.") {
+		t.Fatalf("second pullRepos() did not report an up-to-date repository:\n%s", got)
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, output)
 	}
 }
 
