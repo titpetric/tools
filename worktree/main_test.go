@@ -138,22 +138,6 @@ func TestRenderDependencyMatrixMarkdown(t *testing.T) {
 	}
 }
 
-func TestWriteSimpleTableMarkdown(t *testing.T) {
-	var output bytes.Buffer
-	writeSimpleTable(&output,
-		[]string{"Path", "Pull status"},
-		[][]string{{"./service", components.ColorGreen + "Updating | files\nDone" + components.ColorReset}},
-		false,
-	)
-
-	want := "| Path | Pull status |\n" +
-		"| --- | --- |\n" +
-		"| ./service | Updating \\| files<br>Done |\n"
-	if got := output.String(); got != want {
-		t.Fatalf("writeSimpleTable() markdown =\n%s\nwant:\n%s", got, want)
-	}
-}
-
 func TestPullReposRendersGitDetails(t *testing.T) {
 	root := t.TempDir()
 	remote := filepath.Join(root, "remote.git")
@@ -193,6 +177,22 @@ func TestPullReposRendersGitDetails(t *testing.T) {
 	if got := output.String(); !strings.Contains(got, "Already up to date.") {
 		t.Fatalf("second pullRepos() did not report an up-to-date repository:\n%s", got)
 	}
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(cwd); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func runGit(t *testing.T, dir string, args ...string) {

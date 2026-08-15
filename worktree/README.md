@@ -32,13 +32,22 @@ worktree /abs/path   # show modules matching an absolute path
 
 Several flags invoke tool functionality:
 
-- `-v` gives a detailed verbose view with extra data; with `-u`, it also prints
-  each `go get` and `go mod tidy` command and marks successful commands with a green check,
+- `-v` gives a detailed verbose view with extra data; with `-u`, the update
+  status also lists each `go get` and `go mod tidy` command that ran and marks
+  successful commands with a green check,
 - `-u` updates every dependency in each selected Go module with `go get -u ./...`,
   updates workspace dependencies to their latest tags, and runs `go mod tidy`.
+  It displays each module's path, module name, and the resulting `go.mod`
+  changes (`dep v1.0.0 → v1.1.0`, `+ dep`, `- dep`, or `Already up to date.`).
+  Results print line by line as each module finishes, so progress is visible
+  while the remaining modules are still updating; the path and module name of
+  the module being worked on appear before its results. Version changes to an
+  existing requirement are orange, new requirements green, dropped ones grey,
+  and failing commands are reported in red.
   Use `worktree -u ./...` to update every Go module under the workspace root,
 - `--pull` pulls new changes for every Git repository in the workspace and
-  displays each repository's path, first remote, branch, and `git pull` output,
+  displays each repository's path, first remote, branch, and `git pull` output
+  as a table,
 - `-t` outputs a dependency matrix, with a green `▲` for current and
   yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)`
   for commits ahead and a dark-orange `*` for local Git changes; empty rows and

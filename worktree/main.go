@@ -309,7 +309,7 @@ func main() {
 		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
 		}
-		updateDeps(goModPaths, latestTags, opts.Verbose)
+		updateDeps(os.Stdout, goModPaths, latestTags, opts.Verbose, supportsANSI(os.Stdout))
 		return
 	}
 
@@ -338,41 +338,6 @@ func isSubpath(parent, child string) bool {
 		return false
 	}
 	return rel == "." || (!filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
-}
-
-func updateDeps(modPaths map[string]string, tags latestTags, verbose bool) {
-	for modPath, dir := range modPaths {
-		modShort := filepath.Base(modPath)
-
-		fmt.Printf("Updating %s (go get -u ./...)\n", modShort)
-		cmd := exec.Command("go", "get", "-u", "./...")
-		cmd.Dir = dir
-		if err := runCommand(cmd, verbose, os.Stdout, os.Stderr); err != nil {
-			log.Printf("  go get -u failed in %s: %v", modPath, err)
-		}
-
-		// Update workspace dependencies to their latest tags
-		reqs, err := readRequiresVersioned(dir)
-		if err == nil {
-			for _, r := range reqs {
-				if tag, ok := tags[r.path]; ok && tag != "" && r.version != tag {
-					fmt.Printf("Updating %s: %s %s -> %s\n", modShort, filepath.Base(r.path), r.version, tag)
-					cmd := exec.Command("go", "get", r.path+"@"+tag)
-					cmd.Dir = dir
-					if err := runCommand(cmd, verbose, os.Stdout, os.Stderr); err != nil {
-						log.Printf("  go get %s@%s failed: %v", r.path, tag, err)
-					}
-				}
-			}
-		}
-
-		fmt.Printf("Tidying %s\n", modShort)
-		cmd = exec.Command("go", "mod", "tidy")
-		cmd.Dir = dir
-		if err := runCommand(cmd, verbose, os.Stdout, os.Stderr); err != nil {
-			log.Printf("  go mod tidy failed in %s: %v", modPath, err)
-		}
-	}
 }
 
 func runCommand(cmd *exec.Cmd, verbose bool, stdout, stderr io.Writer) error {
@@ -440,27 +405,11 @@ func pullRepos(w io.Writer, dirs []string, styled bool) {
 				}
 			}
 		}
-		if styled {
-			color := components.ColorGreen
-			if err != nil {
-				color = components.ColorRed
-			}
-			lines := strings.Split(status, "\n")
-			for i, line := range lines {
-				lines[i] = color + line + components.ColorReset
-			}
-			status = strings.Join(lines, "\n")
+		color := components.ColorGreen
+		if err != nil {
+			color = components.ColorRed
 		}
-		rel, relErr := filepath.Rel(".", path)
-		if relErr != nil {
-			rel = path
-		} else if rel != "." && !strings.HasPrefix(rel, "..") {
-			rel = filepath.Join(".", rel)
-			if !strings.HasPrefix(rel, "."+string(filepath.Separator)) {
-				rel = "." + string(filepath.Separator) + rel
-			}
-		}
-		rows = append(rows, []string{rel, remote, branch, status})
+		rows = append(rows, []string{relPath(path), remote, branch, colorLines(status, color, styled)})
 	}
 	writeSimpleTable(w, []string{"Path", "Remote", "Branch", "Pull status"}, rows, styled)
 }
