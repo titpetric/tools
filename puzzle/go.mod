@@ -1,6 +1,6 @@
 module github.com/titpetric/tools/puzzle
 
-go 1.25.5
+go 1.27.0
 
 require golang.org/x/term v0.45.0
 
