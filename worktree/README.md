@@ -30,6 +30,27 @@ worktree ./tools     # show all modules under the tools folder
 worktree /abs/path   # show modules matching an absolute path
 ```
 
+Two commands print the git commands for tagging a new release of the git
+repository in the current directory. They read the existing tags, detect the
+latest semver release, ignoring prereleases and tags that aren't semantic
+versions, and increment it:
+
+```bash
+worktree patch   # v1.2.3 -> git tag v1.2.4
+worktree minor   # v1.2.3 -> git tag v1.3.0
+```
+
+The output is written to stdout so it can be reviewed and then piped into a
+shell:
+
+```bash
+worktree patch | sh -x
+```
+
+The `v` prefix of the latest tag is preserved. If the repository has no
+release tags yet, the version starts at `v0.0.0`, so `patch` proposes
+`v0.0.1` and `minor` proposes `v0.1.0`, with a shell comment noting it.
+
 Several flags invoke tool functionality:
 
 - `-v` gives a detailed verbose view with extra data; with `-u`, the update

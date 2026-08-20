@@ -16,6 +16,7 @@ type Options struct {
 	D2         bool
 	Matrix     bool
 	Verbose    bool
+	Release    string
 	FilterPath string
 	FilterArg  string
 	Skipped    int
@@ -44,6 +45,15 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.Matrix, "t", false, "output dependency matrix to stdout")
 	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details and commands run during updates")
 	flag.Parse()
+
+	// Resolve release subcommands, which take no path filter
+	if flag.NArg() > 0 {
+		switch flag.Arg(0) {
+		case releasePatch, releaseMinor:
+			opts.Release = flag.Arg(0)
+			return opts
+		}
+	}
 
 	// Resolve optional path filter
 	if flag.NArg() > 0 && flag.Arg(0) != "./..." {

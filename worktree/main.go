@@ -121,6 +121,23 @@ func findProjects(root string) ([]projectDir, error) {
 func main() {
 	opts := ParseOptions()
 
+	// Release subcommands work on the git repository of the current
+	// directory, not on the workspace scan root.
+	if opts.Release != "" {
+		tags, err := gitTags(".")
+		if err != nil {
+			log.Fatalf("failed to list git tags: %v", err)
+		}
+		lines, err := releaseCommands(tags, opts.Release)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, line := range lines {
+			fmt.Fprintln(os.Stdout, line)
+		}
+		return
+	}
+
 	root, err := findScanRoot(".")
 	if err != nil {
 		log.Fatalf("failed to find scan root: %v", err)
