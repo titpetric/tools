@@ -200,10 +200,13 @@ func TestUpdateDepsSkipsMatchingGoVersion(t *testing.T) {
 		t.Fatalf("go.mod rewritten:\n%s\nwant:\n%s", got, want)
 	}
 
-	// With -u the module is updated regardless of its go directive.
+	// With -u the module's stale requirements are updated regardless of its
+	// go directive.
+	writeTestFile(t, path, "module example.com/app\n\ngo 1.26\n\nrequire example.com/lib v1.0.0\n")
 	output.Reset()
-	updateDeps(&output, map[string]string{"example.com/app": "."}, nil, &Options{GoVersion: "1.26", Update: true}, false)
-	if got := output.String(); !strings.Contains(got, "go get -u ./...:") {
+	tags := latestTags{"example.com/lib": "v1.2.0"}
+	updateDeps(&output, map[string]string{"example.com/app": "."}, tags, &Options{GoVersion: "1.26", Update: true}, false)
+	if got, want := output.String(), "go get example.com/lib@v1.2.0:"; !strings.Contains(got, want) {
 		t.Fatalf("updateDeps() with -u skipped the update:\n%s", got)
 	}
 }

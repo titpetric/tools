@@ -36,6 +36,26 @@ func TestParseOptionsUpdateAllModules(t *testing.T) {
 	}
 }
 
+// TestParseOptionsUpdateAllDeps checks that -U, the wider dependency update,
+// implies -u.
+func TestParseOptionsUpdateAllDeps(t *testing.T) {
+	originalArgs := os.Args
+	originalFlags := flag.CommandLine
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		flag.CommandLine = originalFlags
+	})
+
+	os.Args = []string{"worktree", "-U"}
+	flag.CommandLine = flag.NewFlagSet("worktree", flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+
+	opts := ParseOptions()
+	if !opts.UpdateAll || !opts.Update {
+		t.Fatalf("ParseOptions(-U) = %#v, want both update flags set", opts)
+	}
+}
+
 func TestParseOptionsVerbose(t *testing.T) {
 	originalArgs := os.Args
 	originalFlags := flag.CommandLine

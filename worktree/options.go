@@ -11,6 +11,7 @@ import (
 // Options holds command-line options for worktree.
 type Options struct {
 	Update     bool
+	UpdateAll  bool
 	Pull       bool
 	All        bool
 	PUML       bool
@@ -49,7 +50,8 @@ func ParseOptions() *Options {
 	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
 
 	opts := &Options{}
-	flag.BoolVar(&opts.Update, "u", false, "update all dependencies with go get -u ./... and tidy")
+	flag.BoolVar(&opts.Update, "u", false, "update the workspace dependencies that are behind their latest tag, and tidy")
+	flag.BoolVar(&opts.UpdateAll, "U", false, "update every dependency with go get -u ./..., including ones outside the workspace")
 	flag.BoolVar(&opts.Pull, "pull", false, "pull new changes for each git repository")
 	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes)")
 	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
@@ -58,6 +60,11 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details and commands run during updates")
 	flag.StringVar(&opts.GoVersion, "go", "", "set the go directive of every go.mod and go.work to this version, then update dependencies")
 	flag.Parse()
+
+	// -U is a wider -u, so it implies it.
+	if opts.UpdateAll {
+		opts.Update = true
+	}
 
 	if opts.GoVersion != "" {
 		goVersion, err := parseGoVersion(opts.GoVersion)

@@ -119,11 +119,29 @@ func diffRequires(before, after []requireInfo) []depChange {
 	return changes
 }
 
+// staleRequires returns the workspace requirements of reqs that don't reference
+// the latest tag of the module they require, paired with the tag to move to.
+func staleRequires(reqs []requireInfo, tags latestTags) []requireInfo {
+	var stale []requireInfo
+	for _, r := range reqs {
+		if tag, ok := tags[r.path]; ok && tag != "" && r.version != tag {
+			stale = append(stale, requireInfo{path: r.path, version: tag})
+		}
+	}
+	return stale
+}
+
 // updateDeps updates dependencies in each Go module, printing each module's
-// go.mod changes as soon as they are known. When opts.GoVersion is set, the go
-// directive of each go.mod is rewritten before the dependencies are updated;
-// a module already declaring that version is reported as up to date and
-// skipped, unless -u asked for a dependency update as well.
+// go.mod changes as soon as they are known. Only requirements known to be
+// stale are updated: a workspace module is moved to its latest tag, and the
+// go tool is left alone when a module has none, so a run over an up to date
+// workspace touches no go.mod. The -U flag additionally upgrades every
+// dependency, including ones outside the workspace, with go get -u ./...
+//
+// When opts.GoVersion is set, the go directive of each go.mod is rewritten
+// before the dependencies are updated; a module already declaring that version
+// is reported as up to date and skipped, unless -u asked for a dependency
+// update as well.
 func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *Options, styled bool) {
 	verbose := opts.Verbose
 
@@ -148,6 +166,7 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *
 		table.start(relPath(dir), components.ShortPath(modPath))
 
 		s := &status{styled: styled}
+		changed := false
 		if opts.GoVersion != "" {
 			prev, err := setGoVersion(dir, opts.GoVersion)
 			switch {
@@ -156,6 +175,7 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *
 				s.add(components.ColorRed, "failed to set go version: %v", err)
 			case prev != opts.GoVersion:
 				s.add(components.ColorAmber, "%s", goVersionChange(prev, opts.GoVersion))
+				changed = true
 			case !opts.Update:
 				// The go.mod already declares the version, so there is
 				// nothing to rewrite and no reason to run the go tool.
@@ -164,19 +184,33 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *
 				continue
 			}
 		}
-		before, _ := readRequiresVersioned(dir)
-		s.run(dir, verbose, "go", "get", "-u", "./...")
 
-		// Update workspace dependencies to their latest tags
-		reqs, err := readRequiresVersioned(dir)
+		before, err := readRequiresVersioned(dir)
 		if err != nil {
 			s.failed = true
 			s.add(components.ColorRed, "failed to read go.mod: %v", err)
 		}
-		for _, r := range reqs {
-			if tag, ok := tags[r.path]; ok && tag != "" && r.version != tag {
-				s.run(dir, verbose, "go", "get", r.path+"@"+tag)
+
+		reqs := before
+		if opts.UpdateAll {
+			s.run(dir, verbose, "go", "get", "-u", "./...")
+			changed = true
+			reqs, _ = readRequiresVersioned(dir)
+		}
+
+		// Update workspace dependencies to their latest tags
+		for _, r := range staleRequires(reqs, tags) {
+			s.run(dir, verbose, "go", "get", r.path+"@"+r.version)
+			changed = true
+		}
+
+		// Nothing was rewritten, so there is nothing for tidy to clean up.
+		if !changed {
+			if s.empty() {
+				s.add(components.ColorGreen, "Already up to date.")
 			}
+			table.finish(s.String())
+			continue
 		}
 
 		s.run(dir, verbose, "go", "mod", "tidy")
