@@ -49,9 +49,22 @@ func findProjects(root string) ([]projectDir, error) {
 		return projects[dir], nil
 	}
 
+	var ignores ignoreStack
 	err = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return nil
+		}
+		// A .gitignore excludes the directories below it, including any Git
+		// repository or Go module they contain.
+		ignores = ignores.prune(path)
+		if path != root && ignores.ignored(path, info.IsDir()) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.IsDir() {
+			ignores = ignores.push(path)
 		}
 		switch info.Name() {
 		case ".git":

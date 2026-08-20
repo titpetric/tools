@@ -276,6 +276,39 @@ func TestFindProjectsIncludesGitRepositoriesAndGoModules(t *testing.T) {
 	}
 }
 
+func TestFindProjectsSkipsIgnoredDirectories(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, ".gitignore"), "vendor/\n/tmp\n!apps/vendor\n")
+
+	// Git repositories and Go modules inside an ignored folder are skipped.
+	if err := os.MkdirAll(filepath.Join(root, "vendor", "example.com", "lib", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(root, "vendor", "example.com", "lib", "go.mod"), "module example.com/lib\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "tmp", "scratch", "go.mod"), "module example.com/scratch\n\ngo 1.25\n")
+
+	// A negation in the same file re-includes the folder.
+	writeTestFile(t, filepath.Join(root, "apps", "vendor", "go.mod"), "module example.com/apps/vendor\n\ngo 1.25\n")
+
+	// An unanchored pattern matches at any depth, an anchored one does not.
+	writeTestFile(t, filepath.Join(root, "libs", "vendor", "go.mod"), "module example.com/libs/vendor\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "libs", "tmp", "go.mod"), "module example.com/libs/tmp\n\ngo 1.25\n")
+
+	got, err := findProjects(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []projectDir{
+		{Path: ".", GoModule: true},
+		{Path: "." + string(filepath.Separator) + filepath.Join("apps", "vendor"), GoModule: true},
+		{Path: "." + string(filepath.Separator) + filepath.Join("libs", "tmp"), GoModule: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findProjects() = %#v, want %#v", got, want)
+	}
+}
+
 func TestFindProjectsIncludesGoWorkUseOutsideRoot(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "workspace")
