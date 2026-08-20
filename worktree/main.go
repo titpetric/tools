@@ -322,11 +322,17 @@ func main() {
 		modules = append(modules, info)
 	}
 
-	if opts.Update {
+	if opts.Update || opts.GoVersion != "" {
 		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
 		}
-		updateDeps(os.Stdout, goModPaths, latestTags, opts.Verbose, supportsANSI(os.Stdout))
+		styled := supportsANSI(os.Stdout)
+		if opts.GoVersion != "" {
+			if err := updateGoWorkVersions(os.Stdout, ".", opts.GoVersion, styled); err != nil {
+				log.Fatal(err)
+			}
+		}
+		updateDeps(os.Stdout, goModPaths, latestTags, opts, styled)
 		return
 	}
 

@@ -66,6 +66,17 @@ Several flags invoke tool functionality:
   existing requirement are orange, new requirements green, dropped ones grey,
   and failing commands are reported in red.
   Use `worktree -u ./...` to update every Go module under the workspace root,
+- `--go=<version>` sets the `go` directive of every `go.mod` and `go.work` in
+  the workspace to that version and then performs the same update as `-u`. The
+  version is given as `1.27`, `1.27.1` or `go1.27`. A `toolchain` directive
+  older than the new version is dropped, since it would leave the file invalid;
+  `go get` and `go mod tidy` add a newer one back when they need it. Changed
+  `go.work` files are reported before the update table, each module's go
+  directive change (`go 1.25 → 1.27`) appears in its update status. A module
+  whose `go.mod` already declares the version is reported as `Already up to
+  date.` and skipped without running the go tool, so a repeated run over an
+  updated workspace returns immediately. Combine it with `-u` to update the
+  dependencies of every module regardless of its go directive,
 - `--pull` pulls new changes for every Git repository in the workspace and
   displays each repository's path, first remote, branch, and `git pull` output
   as a table,

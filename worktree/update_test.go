@@ -56,7 +56,7 @@ func TestUpdateDepsRendersTable(t *testing.T) {
 	chdir(t, root)
 
 	var output bytes.Buffer
-	updateDeps(&output, map[string]string{"example.com/app": "."}, nil, false, false)
+	updateDeps(&output, map[string]string{"example.com/app": "."}, nil, &Options{Update: true}, false)
 
 	want := "| Path | Module | Update status |\n" +
 		"| --- | --- | --- |\n" +
@@ -70,7 +70,7 @@ func TestUpdateDepsReportsFailures(t *testing.T) {
 	chdir(t, t.TempDir())
 
 	var output bytes.Buffer
-	updateDeps(&output, map[string]string{"example.com/missing": "./missing"}, nil, false, false)
+	updateDeps(&output, map[string]string{"example.com/missing": "./missing"}, nil, &Options{Update: true}, false)
 
 	got := output.String()
 	if strings.Contains(got, "Already up to date.") {

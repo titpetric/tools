@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,22 +17,33 @@ type Options struct {
 	D2         bool
 	Matrix     bool
 	Verbose    bool
+	GoVersion  string
 	Release    string
 	FilterPath string
 	FilterArg  string
 	Skipped    int
 }
 
+// valueFlags lists the flags that take a value as a separate argument.
+var valueFlags = map[string]bool{"-go": true, "--go": true}
+
 // ParseOptions parses command-line flags and returns Options.
 func ParseOptions() *Options {
 	// Reorder os.Args so flags come before positional args,
-	// allowing e.g. "worktree platform -v" to work.
+	// allowing e.g. "worktree platform -v" to work. A flag taking a value
+	// keeps the argument after it, so "worktree --go 1.27 ./..." works.
 	var flags, positional []string
-	for _, arg := range os.Args[1:] {
-		if strings.HasPrefix(arg, "-") {
-			flags = append(flags, arg)
-		} else {
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "-") {
 			positional = append(positional, arg)
+			continue
+		}
+		flags = append(flags, arg)
+		if valueFlags[arg] && i+1 < len(args) {
+			flags = append(flags, args[i+1])
+			i++
 		}
 	}
 	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
@@ -44,7 +56,18 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.D2, "d2", false, "output D2 dependency diagram to stdout")
 	flag.BoolVar(&opts.Matrix, "t", false, "output dependency matrix to stdout")
 	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details and commands run during updates")
+	flag.StringVar(&opts.GoVersion, "go", "", "set the go directive of every go.mod and go.work to this version, then update dependencies")
 	flag.Parse()
+
+	if opts.GoVersion != "" {
+		goVersion, err := parseGoVersion(opts.GoVersion)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			flag.Usage()
+			os.Exit(2)
+		}
+		opts.GoVersion = goVersion
+	}
 
 	// Resolve release subcommands, which take no path filter
 	if flag.NArg() > 0 {

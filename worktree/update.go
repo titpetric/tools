@@ -120,8 +120,13 @@ func diffRequires(before, after []requireInfo) []depChange {
 }
 
 // updateDeps updates dependencies in each Go module, printing each module's
-// go.mod changes as soon as they are known.
-func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, verbose, styled bool) {
+// go.mod changes as soon as they are known. When opts.GoVersion is set, the go
+// directive of each go.mod is rewritten before the dependencies are updated;
+// a module already declaring that version is reported as up to date and
+// skipped, unless -u asked for a dependency update as well.
+func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *Options, styled bool) {
+	verbose := opts.Verbose
+
 	mods := make([]string, 0, len(modPaths))
 	for modPath := range modPaths {
 		mods = append(mods, modPath)
@@ -142,9 +147,24 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, verbos
 		dir := modPaths[modPath]
 		table.start(relPath(dir), modPath)
 
-		before, _ := readRequiresVersioned(dir)
-
 		s := &status{styled: styled}
+		if opts.GoVersion != "" {
+			prev, err := setGoVersion(dir, opts.GoVersion)
+			switch {
+			case err != nil:
+				s.failed = true
+				s.add(components.ColorRed, "failed to set go version: %v", err)
+			case prev != opts.GoVersion:
+				s.add(components.ColorAmber, "%s", goVersionChange(prev, opts.GoVersion))
+			case !opts.Update:
+				// The go.mod already declares the version, so there is
+				// nothing to rewrite and no reason to run the go tool.
+				s.add(components.ColorGreen, "Already up to date.")
+				table.finish(s.String())
+				continue
+			}
+		}
+		before, _ := readRequiresVersioned(dir)
 		s.run(dir, verbose, "go", "get", "-u", "./...")
 
 		// Update workspace dependencies to their latest tags
