@@ -46,6 +46,22 @@ func readModulePath(dir string) (string, error) {
 	return mod.Module.Mod.Path, nil
 }
 
+// readGoVersion returns the go directive of the go.mod in dir, or "" when the
+// directory has no readable go.mod or the file declares no go version.
+func readGoVersion(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return ""
+	}
+
+	mod, err := modfile.Parse("go.mod", data, nil)
+	if err != nil || mod.Go == nil {
+		return ""
+	}
+
+	return mod.Go.Version
+}
+
 func readReadmeTitle(dir string) string {
 	f, err := os.Open(filepath.Join(dir, "README.md"))
 	if err != nil {

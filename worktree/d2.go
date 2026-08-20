@@ -5,6 +5,8 @@ import (
 	"io"
 	"sort"
 	"strings"
+
+	"github.com/titpetric/tools/worktree/components"
 )
 
 func renderD2(w io.Writer, modules []moduleInfo) {
@@ -26,7 +28,7 @@ func renderD2(w io.Writer, modules []moduleInfo) {
 	modToPkg := make(map[string]string)
 	var groupOrder []string
 	for _, m := range modules {
-		short := strings.TrimPrefix(m.Name, "github.com/")
+		short := components.ShortPath(m.Name)
 		idx := strings.LastIndex(short, "/")
 		pkg, name := "local", short
 		if idx != -1 {
@@ -127,7 +129,7 @@ func renderD2(w io.Writer, modules []moduleInfo) {
 }
 
 func d2Key(s string) string {
-	s = strings.TrimPrefix(s, "github.com/")
+	s = components.ShortPath(s)
 	r := strings.NewReplacer("/", "-", ".", "-")
 	return r.Replace(s)
 }

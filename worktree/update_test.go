@@ -66,6 +66,26 @@ func TestUpdateDepsRendersTable(t *testing.T) {
 	}
 }
 
+// TestUpdateDepsStripsModuleHost checks that the module column of the update
+// table drops the "github.com/" prefix of an import path.
+func TestUpdateDepsStripsModuleHost(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module github.com/titpetric/tools\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
+	chdir(t, root)
+
+	var output bytes.Buffer
+	updateDeps(&output, map[string]string{"github.com/titpetric/tools": "."}, nil, &Options{Update: true}, false)
+
+	got := output.String()
+	if strings.Contains(got, "github.com/") {
+		t.Fatalf("updateDeps() kept the github.com/ prefix:\n%s", got)
+	}
+	if !strings.Contains(got, "| titpetric/tools |") {
+		t.Fatalf("updateDeps() output missing the module path:\n%s", got)
+	}
+}
+
 func TestUpdateDepsReportsFailures(t *testing.T) {
 	chdir(t, t.TempDir())
 

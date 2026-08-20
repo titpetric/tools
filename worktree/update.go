@@ -137,7 +137,7 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *
 	widths := headerWidths(headers)
 	for _, modPath := range mods {
 		widths[0] = max(widths[0], ansi.StringWidth(relPath(modPaths[modPath])))
-		widths[1] = max(widths[1], ansi.StringWidth(modPath))
+		widths[1] = max(widths[1], ansi.StringWidth(components.ShortPath(modPath)))
 	}
 
 	table := newStreamTable(w, headers, widths, styled)
@@ -145,7 +145,7 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *
 
 	for _, modPath := range mods {
 		dir := modPaths[modPath]
-		table.start(relPath(dir), modPath)
+		table.start(relPath(dir), components.ShortPath(modPath))
 
 		s := &status{styled: styled}
 		if opts.GoVersion != "" {

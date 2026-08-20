@@ -36,6 +36,58 @@ func TestParseVersion(t *testing.T) {
 	}
 }
 
+func TestParseGoDirective(t *testing.T) {
+	tests := []struct {
+		directive string
+		want      Version
+		ok        bool
+	}{
+		{"1.27", Version{Major: 1, Minor: 27}, true},
+		{"1.27.1", Version{Major: 1, Minor: 27, Patch: 1}, true},
+		{"go1.27", Version{Major: 1, Minor: 27}, true},
+		{" 1.9 ", Version{Major: 1, Minor: 9}, true},
+		{"1.21rc1", Version{Major: 1, Minor: 21, Prerelease: "rc1"}, true},
+		{"1.27.1beta2", Version{Major: 1, Minor: 27, Patch: 1, Prerelease: "beta2"}, true},
+		{"1", Version{}, false},
+		{"", Version{}, false},
+	}
+
+	for _, test := range tests {
+		got, ok := ParseGoDirective(test.directive)
+		if ok != test.ok {
+			t.Errorf("ParseGoDirective(%q) ok = %v, want %v", test.directive, ok, test.ok)
+			continue
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("ParseGoDirective(%q) = %#v, want %#v", test.directive, got, test.want)
+		}
+	}
+}
+
+func TestGoDirectiveOrder(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"1.27", "1.27.0", 0},
+		{"1.9", "1.27", -1},
+		{"1.27.1", "1.27", 1},
+		{"1.27rc1", "1.27", -1},
+		{"1.27rc1", "1.26", 1},
+	}
+
+	for _, test := range tests {
+		a, aOK := ParseGoDirective(test.a)
+		b, bOK := ParseGoDirective(test.b)
+		if !aOK || !bOK {
+			t.Fatalf("ParseGoDirective(%q, %q) failed", test.a, test.b)
+		}
+		if got := Compare(a, b); got != test.want {
+			t.Errorf("Compare(%q, %q) = %d, want %d", test.a, test.b, got, test.want)
+		}
+	}
+}
+
 func TestVersionString(t *testing.T) {
 	tests := []string{"v1.2.3", "1.2.3", "v0.0.1", "v1.2.3-rc.1", "v1.2.3+meta"}
 	for _, tag := range tests {

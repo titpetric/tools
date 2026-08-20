@@ -19,6 +19,7 @@ type moduleInfo struct {
 	Path        string
 	Description string
 	Latest      string
+	GoVersion   string
 	GitState    *components.Git
 	Usage       components.Usage
 	Outdated    int

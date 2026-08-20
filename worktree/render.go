@@ -25,7 +25,7 @@ const (
 )
 
 func renderTables(w io.Writer, modules []moduleInfo, opts *Options, styled bool) {
-	headers := []string{"Module", "Latest", "Git Branch", "Git State", "Usage"}
+	headers := []string{"Module", "Latest", "Go", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
 	// Check if all modules would be skipped; if so, show them all (only when not verbose)
@@ -43,28 +43,33 @@ func renderTables(w io.Writer, modules []moduleInfo, opts *Options, styled bool)
 		}
 	}
 
+	latestGo, haveGo := latestGoVersion(modules)
+
 	var rows []components.Rows
 	for _, m := range modules {
 		cells := make(components.Rows, numCols)
 
 		g := m.GitState
+		goOutdated := haveGo && goVersionOutdated(m.GoVersion, latestGo)
 
 		if opts.Verbose {
 			cells[0] = components.ModuleVerbose(m.Description, m.Path, m.Name)
 			cells[1] = components.Latest(m.Latest)
-			cells[2] = g.Branch()
-			cells[3] = g.StateVerbose()
-			cells[4] = m.Usage.Verbose()
+			cells[2] = components.GoVersion(m.GoVersion, goOutdated)
+			cells[3] = g.Branch()
+			cells[4] = g.StateVerbose()
+			cells[5] = m.Usage.Verbose()
 		} else {
 			cells[0] = components.Module(m.Path)
 			cells[1] = components.Latest(m.Latest)
-			cells[2] = g.Branch()
-			cells[3] = g.State()
-			cells[4] = m.Usage.Compact()
+			cells[2] = components.GoVersion(m.GoVersion, goOutdated)
+			cells[3] = g.Branch()
+			cells[4] = g.State()
+			cells[5] = m.Usage.Compact()
 		}
 
 		// Skip modules where git state and usage cells are both empty
-		if !opts.All && cells[3].Empty() && m.Outdated == 0 {
+		if !opts.All && cells[4].Empty() && m.Outdated == 0 {
 			opts.Skipped++
 			continue
 		}
@@ -120,6 +125,31 @@ func renderTables(w io.Writer, modules []moduleInfo, opts *Options, styled bool)
 		fmt.Fprintf(w, "%sSkipped %d modules, use --all to show%s\n",
 			headerColor, opts.Skipped, reset)
 	}
+}
+
+// latestGoVersion returns the highest go directive the workspace declares,
+// the version every module's go column is compared against. It reports false
+// when no module declares a version this can parse.
+func latestGoVersion(modules []moduleInfo) (Version, bool) {
+	var latest Version
+	var found bool
+	for _, m := range modules {
+		v, ok := ParseGoDirective(m.GoVersion)
+		if !ok {
+			continue
+		}
+		if !found || Compare(v, latest) > 0 {
+			latest, found = v, true
+		}
+	}
+	return latest, found
+}
+
+// goVersionOutdated reports whether a go directive is below latest. A version
+// that isn't a parseable directive is left alone.
+func goVersionOutdated(version string, latest Version) bool {
+	v, ok := ParseGoDirective(version)
+	return ok && Compare(v, latest) < 0
 }
 
 func buildUsage(refs versionRefs, tags latestTags, m moduleInfo) (components.Usage, int) {

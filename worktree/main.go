@@ -280,6 +280,7 @@ func main() {
 			Name:        mod,
 			Path:        dir,
 			Description: readReadmeTitle(dir),
+			GoVersion:   readGoVersion(dir),
 		}
 
 		if tag, ok := latestTags[mod]; ok {

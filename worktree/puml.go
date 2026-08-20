@@ -5,6 +5,8 @@ import (
 	"io"
 	"sort"
 	"strings"
+
+	"github.com/titpetric/tools/worktree/components"
 )
 
 func renderPUML(w io.Writer, modules []moduleInfo) {
@@ -22,7 +24,7 @@ func renderPUML(w io.Writer, modules []moduleInfo) {
 	groups := make(map[string][]pumlComponent)
 	var groupOrder []string
 	for _, m := range modules {
-		short := strings.TrimPrefix(m.Name, "github.com/")
+		short := components.ShortPath(m.Name)
 		idx := strings.LastIndex(short, "/")
 		pkg, label := "local", short
 		if idx != -1 {
@@ -70,7 +72,7 @@ func renderPUML(w io.Writer, modules []moduleInfo) {
 	modPkg := make(map[string]string)
 	modName := make(map[string]string)
 	for _, m := range modules {
-		short := strings.TrimPrefix(m.Name, "github.com/")
+		short := components.ShortPath(m.Name)
 		idx := strings.LastIndex(short, "/")
 		pkg, name := "local", short
 		if idx != -1 {

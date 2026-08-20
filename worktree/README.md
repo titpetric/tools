@@ -17,12 +17,7 @@ To install the tool:
 go install github.com/titpetric/tools/worktree@main
 ```
 
-Run `worktree` anywhere in your source workspace. It uses the nearest current
-or parent directory containing `go.work`, `go.mod`, or `.git` as the scan root.
-If no parent contains one of those markers, it recursively scans the current
-directory. Go modules and Git repositories are both included; when they share
-a directory they appear as one row. An optional path argument filters the
-output to projects matching that path:
+Run `worktree` anywhere in your source workspace. It uses the nearest current or parent directory containing `go.work`, `go.mod`, or `.git` as the scan root. If no parent contains one of those markers, it recursively scans the current directory. Go modules and Git repositories are both included; when they share a directory they appear as one row. An optional path argument filters the output to projects matching that path:
 
 ```bash
 worktree .           # show only the module in the current folder
@@ -30,66 +25,34 @@ worktree ./tools     # show all modules under the tools folder
 worktree /abs/path   # show modules matching an absolute path
 ```
 
-Two commands print the git commands for tagging a new release of the git
-repository in the current directory. They read the existing tags, detect the
-latest semver release, ignoring prereleases and tags that aren't semantic
-versions, and increment it:
+Two commands print the git commands for tagging a new release of the git repository in the current directory. They read the existing tags, detect the latest semver release, ignoring prereleases and tags that aren't semantic versions, and increment it:
 
 ```bash
 worktree patch   # v1.2.3 -> git tag v1.2.4
 worktree minor   # v1.2.3 -> git tag v1.3.0
 ```
 
-The output is written to stdout so it can be reviewed and then piped into a
-shell:
+The output is written to stdout so it can be reviewed and then piped into a shell:
 
 ```bash
 worktree patch | sh -x
 ```
 
-The `v` prefix of the latest tag is preserved. If the repository has no
-release tags yet, the version starts at `v0.0.0`, so `patch` proposes
-`v0.0.1` and `minor` proposes `v0.1.0`, with a shell comment noting it.
+The `v` prefix of the latest tag is preserved. If the repository has no release tags yet, the version starts at `v0.0.0`, so `patch` proposes `v0.0.1` and `minor` proposes `v0.1.0`, with a shell comment noting it.
 
 Several flags invoke tool functionality:
 
-- `-v` gives a detailed verbose view with extra data; with `-u`, the update
-  status also lists each `go get` and `go mod tidy` command that ran and marks
-  successful commands with a green check,
-- `-u` updates every dependency in each selected Go module with `go get -u ./...`,
-  updates workspace dependencies to their latest tags, and runs `go mod tidy`.
-  It displays each module's path, module name, and the resulting `go.mod`
-  changes (`dep v1.0.0 → v1.1.0`, `+ dep`, `- dep`, or `Already up to date.`).
-  Results print line by line as each module finishes, so progress is visible
-  while the remaining modules are still updating; the path and module name of
-  the module being worked on appear before its results. Version changes to an
-  existing requirement are orange, new requirements green, dropped ones grey,
-  and failing commands are reported in red.
-  Use `worktree -u ./...` to update every Go module under the workspace root,
-- `--go=<version>` sets the `go` directive of every `go.mod` and `go.work` in
-  the workspace to that version and then performs the same update as `-u`. The
-  version is given as `1.27`, `1.27.1` or `go1.27`. A `toolchain` directive
-  older than the new version is dropped, since it would leave the file invalid;
-  `go get` and `go mod tidy` add a newer one back when they need it. Changed
-  `go.work` files are reported before the update table, each module's go
-  directive change (`go 1.25 → 1.27`) appears in its update status. A module
-  whose `go.mod` already declares the version is reported as `Already up to
-  date.` and skipped without running the go tool, so a repeated run over an
-  updated workspace returns immediately. Combine it with `-u` to update the
-  dependencies of every module regardless of its go directive,
-- `--pull` pulls new changes for every Git repository in the workspace and
-  displays each repository's path, first remote, branch, and `git pull` output
-  as a table,
-- `-t` outputs a dependency matrix, with a green `▲` for current and
-  yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)`
-  for commits ahead and a dark-orange `*` for local Git changes; empty rows and
-  columns are omitted, except that projects with local changes are always shown.
-  A footer summarizes these workspace states,
+- `-v` gives a detailed verbose view with extra data; with `-u`, the update status also lists each `go get` and `go mod tidy` command that ran and marks successful commands with a green check,
+- `-u` updates every dependency in each selected Go module with `go get -u ./...`, updates workspace dependencies to their latest tags, and runs `go mod tidy`. It displays each module's path, module name, and the resulting `go.mod` changes (`dep v1.0.0 → v1.1.0`, `+ dep`, `- dep`, or `Already up to date.`). Results print line by line as each module finishes, so progress is visible while the remaining modules are still updating; the path and module name of the module being worked on appear before its results. Version changes to an existing requirement are orange, new requirements green, dropped ones grey, and failing commands are reported in red. Use `worktree -u ./...` to update every Go module under the workspace root,
+- `--go=<version>` sets the `go` directive of every `go.mod` and `go.work` in the workspace to that version and then performs the same update as `-u`. The version is given as `1.27`, `1.27.1` or `go1.27`. A `toolchain` directive older than the new version is dropped, since it would leave the file invalid; `go get` and `go mod tidy` add a newer one back when they need it. Changed `go.work` files are reported before the update table, each module's go directive change (`go 1.25 → 1.27`) appears in its update status. A module whose `go.mod` already declares the version is reported as `Already up to date.` and skipped without running the go tool, so a repeated run over an updated workspace returns immediately. Combine it with `-u` to update the dependencies of every module regardless of its go directive,
+- `--pull` pulls new changes for every Git repository in the workspace and displays each repository's path, first remote, branch, and `git pull` output as a table,
+- `-t` outputs a dependency matrix, with a green `▲` for current and yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)` for commits ahead and a dark-orange `*` for local Git changes; empty rows and columns are omitted, except that projects with local changes are always shown. A footer summarizes these workspace states,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace.
 
-Table output uses the rounded, colored terminal format when stdout is an ANSI
-terminal and falls back to Markdown when redirected or piped.
+Table output uses the rounded, colored terminal format when stdout is an ANSI terminal and falls back to Markdown when redirected or piped.
+
+The `Go` column holds each module's go directive. The versions are compared as semantic versions, where a missing patch reads as `.0` and a release candidate such as `1.27rc1` sorts below `1.27`. Every module below the highest version the workspace declares is colored orange, the rest teal. Module import paths lose their `github.com/` prefix, so the module column stays narrow.
 
 You can create a symlink to `git-st`.
 
@@ -105,6 +68,7 @@ Creating the symlink enables running `git st` and `git st -v`.
 The tool scans and displays information about:
 
 - Go module name
+- Go version from the go.mod go directive
 - Go module versions in use (for updates)
 - Go module dependencies in workspace
 - README.md title is read for the description
@@ -116,16 +80,13 @@ The tool scans and displays information about:
 - Untracked changes to source tree
 - GitHub issues (gh issue list)
 
-It's focused on summarizing of Go workspaces, or git checkouts of standalone
-Go modules. Git support may be extended to better account for custom remotes
-and checkouts that aren't a go module source tree.
+It's focused on summarizing of Go workspaces, or git checkouts of standalone Go modules. Git support may be extended to better account for custom remotes and checkouts that aren't a go module source tree.
 
 ## Examples
 
 ### Summary workspace view
 
-The following screenshots show standard output, workspace filtering and
-verbose output for the complete workspace.
+The following screenshots show standard output, workspace filtering and verbose output for the complete workspace.
 
 ![Worktree dependency summary](./examples/worktree-matrix.png)
 
@@ -145,11 +106,9 @@ verbose output for the complete workspace.
 
 ## Why?
 
-Using a go workspace is a relatively smooth experience, but most
-software still gets built and delivered outside a workspace.
+Using a go workspace is a relatively smooth experience, but most software still gets built and delivered outside a workspace.
 
-This process requires updating the go.mod dependencies as a new version
-gets tagged. For each module in a workspace I'm interested in:
+This process requires updating the go.mod dependencies as a new version gets tagged. For each module in a workspace I'm interested in:
 
 - using the latest release across the workspace in go.mod
 - seeing any local changes not yet commited or pushed
@@ -157,11 +116,6 @@ gets tagged. For each module in a workspace I'm interested in:
 
 ## Alternatives considered
 
-For years now, I've been using `git st`, to get a recursive view of a
-git source tree. I maintain a bash version of it in my dotfiles, as well
-as had a php version eons ago. Let's consider this something like a v3
-for the approach.
+For years now, I've been using `git st`, to get a recursive view of a git source tree. I maintain a bash version of it in my dotfiles, as well as had a php version eons ago. Let's consider this something like a v3 for the approach.
 
-Git source trees don't give enough dependency information, so I wanted
-something that reads in go.mod go.work files and provides relevant
-information to you.
+Git source trees don't give enough dependency information, so I wanted something that reads in go.mod go.work files and provides relevant information to you.

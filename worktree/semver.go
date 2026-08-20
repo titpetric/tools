@@ -64,6 +64,34 @@ func ParseVersion(tag string) (Version, bool) {
 	return v, true
 }
 
+// ParseGoDirective parses the version of a go directive, where the patch
+// number is optional: "1.27" reads as 1.27.0, the way the go tool orders it.
+// A leading "go" is accepted, so "go1.27" parses too, and a release candidate
+// such as "1.27rc1" becomes the prerelease 1.27.0-rc1.
+func ParseGoDirective(directive string) (Version, bool) {
+	s := strings.TrimPrefix(strings.TrimSpace(directive), "go")
+	base, pre := cutGoPrerelease(s)
+	if strings.Count(base, ".") == 1 {
+		base += ".0"
+	}
+	if pre != "" {
+		base += "-" + pre
+	}
+	return ParseVersion(base)
+}
+
+// cutGoPrerelease splits the "rc1" of a go version such as "1.27rc1" off the
+// numbers preceding it. Go writes prereleases without a separator, where
+// semver expects a "-".
+func cutGoPrerelease(s string) (base, pre string) {
+	for i, r := range s {
+		if r >= 'a' && r <= 'z' {
+			return s[:i], s[i:]
+		}
+	}
+	return s, ""
+}
+
 // ParseVersions parses every tag, silently dropping the ones that aren't
 // semantic versions.
 func ParseVersions(tags []string) []Version {

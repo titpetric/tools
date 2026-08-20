@@ -15,6 +15,6 @@ func ModuleVerbose(description, dirPath, moduleName string) Cell {
 		lines = append(lines, ColorWhite+title+ColorReset)
 	}
 
-	lines = append(lines, ColorTeal+moduleName+ColorReset+" "+ColorWhite+"("+ColorAmber+dirPath+ColorWhite+")"+ColorReset)
+	lines = append(lines, ColorTeal+ShortPath(moduleName)+ColorReset+" "+ColorWhite+"("+ColorAmber+dirPath+ColorWhite+")"+ColorReset)
 	return lines
 }
