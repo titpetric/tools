@@ -121,8 +121,8 @@ func TestRenderDependencyMatrix(t *testing.T) {
 		"╭──────────────┬─────────┬─────────╮\n" +
 		"│ Project      │ service │ library │\n" +
 		"├──────────────┼─────────┼─────────┤\n" +
-		"│ service (+1) │         │   ▲*    │\n" +
-		"│ client *     │    ▲    │    ▲    │\n" +
+		"│ service (+1) │         │ ▲*      │\n" +
+		"│ client *     │ ▲       │ ▲       │\n" +
 		"│ tool *       │         │         │\n" +
 		"╰──────────────┴─────────┴─────────╯\n" +
 		"1 ahead, 2 with local changes, 1 deps out of date.\n"
@@ -137,6 +137,27 @@ func TestRenderDependencyMatrix(t *testing.T) {
 	}
 	if got := output.String(); !strings.Contains(got, components.ColorHeader+"1 ahead, 2 with local changes, 1 deps out of date.") {
 		t.Fatalf("renderDependencyMatrix() did not style summary: %q", got)
+	}
+}
+
+func TestRenderDependencyMatrixMinWidth(t *testing.T) {
+	modules := []moduleInfo{
+		{Name: "example.com/app", Uses: []string{"example.com/db"}},
+		{Name: "example.com/db"},
+	}
+
+	var output bytes.Buffer
+	renderDependencyMatrix(&output, modules, nil, nil, true)
+
+	want := "" +
+		"╭─────────┬─────╮\n" +
+		"│ Project │ db  │\n" +
+		"├─────────┼─────┤\n" +
+		"│ app     │ ▲   │\n" +
+		"╰─────────┴─────╯\n" +
+		"0 ahead, 0 with local changes, 0 deps out of date.\n"
+	if got := ansi.Strip(output.String()); got != want {
+		t.Fatalf("renderDependencyMatrix() =\n%s\nwant:\n%s", got, want)
 	}
 }
 

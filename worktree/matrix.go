@@ -11,6 +11,10 @@ import (
 
 const dependencyMark = "▲"
 
+// matrixMinWidth is the narrowest a dependency column gets, five cells wide
+// once the single space of padding on each side is counted.
+const matrixMinWidth = 3
+
 func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs, tags latestTags, styled bool) {
 	available := make(map[string]struct{}, len(modules))
 	for _, module := range modules {
@@ -72,7 +76,7 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 	widths[0] = ansi.StringWidth("Project")
 	for i, module := range columns {
 		labels[i] = components.ShortName(module.Name)
-		widths[i+1] = max(ansi.StringWidth(labels[i]), 5)
+		widths[i+1] = max(ansi.StringWidth(labels[i]), matrixMinWidth)
 	}
 	for _, module := range rows {
 		widths[0] = max(widths[0], ansi.StringWidth(matrixProjectLabel(module)))
@@ -83,7 +87,7 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 	for i, header := range headers {
 		headers[i] = components.ColorHeader + header + components.ColorReset
 	}
-	writeMatrixRow(w, headers, widths, false)
+	writeMatrixRow(w, headers, widths)
 	writeBorder(w, boxTeeRight, boxCross, boxTeeLeft, widths)
 
 	for _, module := range rows {
@@ -105,7 +109,7 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 				row[i+1] = color + mark + components.ColorReset
 			}
 		}
-		writeMatrixRow(w, row, widths, true)
+		writeMatrixRow(w, row, widths)
 	}
 	writeBorder(w, boxBottomLeft, boxTeeUp, boxBottomRight, widths)
 
@@ -114,16 +118,14 @@ func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs,
 		components.ColorHeader, ahead, localChanges, outdated, components.ColorReset)
 }
 
-func writeMatrixRow(w io.Writer, cells []string, widths []int, centerData bool) {
+// writeMatrixRow writes one row, every cell left aligned within its column and
+// padded by a single space on each side.
+func writeMatrixRow(w io.Writer, cells []string, widths []int) {
 	separator := components.ColorSeparator + boxVertical + components.ColorReset
 	fmt.Fprint(w, separator)
 	for i, cell := range cells {
-		left, right := 0, widths[i]-ansi.StringWidth(cell)
-		if centerData && i > 0 {
-			left = right / 2
-			right -= left
-		}
-		fmt.Fprintf(w, " %s%s%s %s", strings.Repeat(" ", left), cell, strings.Repeat(" ", right), separator)
+		pad := max(widths[i]-ansi.StringWidth(cell), 0)
+		fmt.Fprintf(w, " %s%s %s", cell, strings.Repeat(" ", pad), separator)
 	}
 	fmt.Fprintln(w)
 }
