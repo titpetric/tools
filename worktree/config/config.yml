@@ -1,0 +1,44 @@
+# worktree configuration.
+#
+# This file is the complete configuration. When it exists the built-in
+# defaults are not applied underneath it, so a setting the file does not
+# name reads as off. "worktree config" always writes every key back, so
+# editing through the setup screen cannot drop one.
+#
+# Command line flags cover what to display and what to update; this file
+# covers how the workspace is scanned. Where the two ever overlap, a flag
+# given on the command line wins.
+
+# Document version, so a later build can tell what it is reading. A file
+# without one is accepted as unversioned.
+version: 1
+
+# How the workspace is scanned for git repositories and go modules.
+scan:
+  # Honour .gitignore files while walking. Turn this off when the
+  # workspace consolidates git checkouts that a parent repository
+  # gitignores: with it on, those checkouts are never descended into and
+  # do not appear at all.
+  enable_gitignore: true
+
+  # List git repositories that are not also go modules.
+  enable_git_repos: true
+
+  # Directory names never descended into, whether or not a .gitignore
+  # mentions them. Matched against the directory name alone, at any depth.
+  # This is the way to keep a listing clean with enable_gitignore off; it is
+  # empty by default because it also overrides a negation that re-includes
+  # the name, for example "!vendor". Add entries such as:
+  #
+  #   ignore_paths:
+  #     - node_modules
+  #     - vendor
+  ignore_paths: []
+
+  # Files marking the workspace root. The nearest parent directory holding
+  # one of these becomes the scan root; with no markers the current
+  # directory is used.
+  root_markers:
+    - go.work
+    - go.mod
+    - .git

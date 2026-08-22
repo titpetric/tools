@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/titpetric/tools/worktree/config"
 )
 
 func TestParseGoVersion(t *testing.T) {
@@ -129,7 +131,7 @@ func TestFindGoWorkFiles(t *testing.T) {
 	chdir(t, root)
 
 	want := []string{"go.work", filepath.Join("nested", "go.work")}
-	if got := findGoWorkFiles("."); !reflect.DeepEqual(got, want) {
+	if got := findGoWorkFiles(".", config.Default().Scan); !reflect.DeepEqual(got, want) {
 		t.Fatalf("findGoWorkFiles() = %v, want %v", got, want)
 	}
 }
@@ -141,7 +143,7 @@ func TestUpdateGoWorkVersions(t *testing.T) {
 	chdir(t, root)
 
 	var output bytes.Buffer
-	if err := updateGoWorkVersions(&output, ".", "1.27", false); err != nil {
+	if err := updateGoWorkVersions(&output, ".", "1.27", config.Default().Scan, false); err != nil {
 		t.Fatalf("updateGoWorkVersions() error: %v", err)
 	}
 	if got, want := output.String(), "./go.work: go 1.25 → 1.27\n"; got != want {
@@ -150,7 +152,7 @@ func TestUpdateGoWorkVersions(t *testing.T) {
 
 	// A second run has nothing to report.
 	output.Reset()
-	if err := updateGoWorkVersions(&output, ".", "1.27", false); err != nil {
+	if err := updateGoWorkVersions(&output, ".", "1.27", config.Default().Scan, false); err != nil {
 		t.Fatalf("updateGoWorkVersions() error: %v", err)
 	}
 	if got := output.String(); got != "" {
@@ -223,7 +225,7 @@ func TestUpdateWorkspaceGoVersion(t *testing.T) {
 	chdir(t, root)
 
 	var output bytes.Buffer
-	if err := updateGoWorkVersions(&output, ".", "1.25", false); err != nil {
+	if err := updateGoWorkVersions(&output, ".", "1.25", config.Default().Scan, false); err != nil {
 		t.Fatalf("updateGoWorkVersions() error: %v", err)
 	}
 	modPaths := map[string]string{"example.com/app": "./app", "example.com/lib": "./lib"}

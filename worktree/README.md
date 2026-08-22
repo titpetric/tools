@@ -25,7 +25,7 @@ worktree ./tools     # show all modules under the tools folder
 worktree /abs/path   # show modules matching an absolute path
 ```
 
-The scan honours `.gitignore` files. An ignored folder is not descended into, so Git repositories and Go modules inside it are skipped; this keeps vendored checkouts and build output out of the listing. Only `.gitignore` files are read, not `.git/info/exclude` or the global excludes file, and a pattern applies even to paths that the repository tracks.
+By default the scan honours `.gitignore` files. An ignored folder is not descended into, so Git repositories and Go modules inside it are skipped; this keeps vendored checkouts and build output out of the listing. Only `.gitignore` files are read, not `.git/info/exclude` or the global excludes file, and a pattern applies even to paths that the repository tracks. Set `enable_gitignore: false` in the configuration to turn this off; see [Configuration](#configuration).
 
 Two commands print the git commands for tagging a new release of the git repository in the current directory. They read the existing tags, detect the latest semver release, ignoring prereleases and tags that aren't semantic versions, and increment it:
 
@@ -56,6 +56,50 @@ Several flags invoke tool functionality:
 Table output uses the rounded, colored terminal format when stdout is an ANSI terminal and falls back to Markdown when redirected or piped.
 
 The `Go` column holds each module's go directive. The versions are compared as semantic versions, where a missing patch reads as `.0` and a release candidate such as `1.27rc1` sorts below `1.27`. Every module below the highest version the workspace declares is colored orange, the rest teal. Module import paths lose their `github.com/` prefix, so the module column stays narrow.
+
+## Configuration
+
+Command line flags select what to display and what to update. How the workspace is scanned is configured instead, in `~/.config/worktree.yml`. Run `worktree config` to edit it in a form, printed inline in the same frame the tables use:
+
+```bash
+worktree config
+```
+
+![Worktree config form](./examples/worktree-config.png)
+
+The form shows every setting at once, each on its own row with its value and a short description of what it does; the file it writes is captioned in the bottom border. Nothing is hidden behind a dialog.
+
+Arrow keys move between rows. A flag is toggled where it stands with `←`, `→` or `Space`. A list setting is typed into where it stands, its entries separated by commas. `Enter` on a setting changes nothing and moves the focus to the `Save` button below the settings, where `Enter` writes the file; `Discard` beside it leaves the file alone. Saving a form with nothing changed writes nothing. `F10` saves from any row, `Esc` leaves, or moves to `Discard` first when there are unsaved edits.
+
+The settings are:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `scan.enable_gitignore` | `true` | Honour `.gitignore` files while walking. |
+| `scan.enable_git_repos` | `true` | List Git repositories that are not also Go modules. |
+| `scan.ignore_paths` | empty | Directory names never descended into, whether or not a `.gitignore` mentions them. Matched against the directory name alone, at any depth. |
+| `scan.root_markers` | `go.work`, `go.mod`, `.git` | Files marking the workspace root. The nearest parent directory holding one of them becomes the scan root; with no markers the current directory is used. |
+
+Turn `enable_gitignore` off when a repository consolidates further Git checkouts below it and gitignores those folders to keep them out of its own index. With the setting on, those checkouts are never descended into, so they do not appear at all:
+
+```yaml
+scan:
+  enable_gitignore: false
+```
+
+`ignore_paths` is the way to keep such a listing clean. It is empty by default because it also overrides a negation that re-includes the name, such as `!vendor`:
+
+```yaml
+scan:
+  enable_gitignore: false
+  ignore_paths:
+    - node_modules
+    - vendor
+```
+
+The file is the complete configuration. The built-in defaults are not applied underneath it, so a setting the file does not name reads as off, and every setting is named so that off is what a missing key means. `worktree config` always writes every key back, so editing through the setup screen cannot drop one. Where a flag and a setting ever cover the same behaviour, the flag given on the command line wins.
+
+When no file exists the built-in defaults apply, which are the behaviour the tool had before it was configurable. A file that cannot be parsed is reported rather than ignored; `worktree config` still opens on it, starting from the defaults, so it can be fixed.
 
 You can create a symlink to `git-st`.
 

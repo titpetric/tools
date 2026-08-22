@@ -11,6 +11,7 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"github.com/titpetric/tools/worktree/components"
+	"github.com/titpetric/tools/worktree/config"
 )
 
 // parseGoVersion validates a --go flag value and returns it in the form used
@@ -109,11 +110,20 @@ func writeModFile(path string, syntax *modfile.FileSyntax) error {
 	return os.WriteFile(path, modfile.Format(syntax), perm)
 }
 
-// findGoWorkFiles returns the go.work files under root.
-func findGoWorkFiles(root string) []string {
+// findGoWorkFiles returns the go.work files under root. It applies the same
+// scan rules as the workspace listing, so the files it rewrites are the ones
+// the table showed.
+func findGoWorkFiles(root string, scan config.Scan) []string {
 	var files []string
+	s := newScanner(scan, root)
 	_ = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
+			return nil
+		}
+		if s.skip(path, info.IsDir()) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if info.IsDir() {
@@ -132,8 +142,8 @@ func findGoWorkFiles(root string) []string {
 
 // updateGoWorkVersions sets the go directive of every go.work file under root,
 // reporting the files it changed.
-func updateGoWorkVersions(w io.Writer, root, goVersion string, styled bool) error {
-	for _, path := range findGoWorkFiles(root) {
+func updateGoWorkVersions(w io.Writer, root, goVersion string, scan config.Scan, styled bool) error {
+	for _, path := range findGoWorkFiles(root, scan) {
 		before, err := setGoWorkVersion(path, goVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update %s: %w", relPath(path), err)

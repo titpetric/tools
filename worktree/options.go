@@ -18,12 +18,16 @@ type Options struct {
 	D2         bool
 	Matrix     bool
 	Verbose    bool
+	Configure  bool
 	GoVersion  string
 	Release    string
 	FilterPath string
 	FilterArg  string
 	Skipped    int
 }
+
+// commandConfig opens the setup screen instead of scanning the workspace.
+const commandConfig = "config"
 
 // valueFlags lists the flags that take a value as a separate argument.
 var valueFlags = map[string]bool{"-go": true, "--go": true}
@@ -76,11 +80,14 @@ func ParseOptions() *Options {
 		opts.GoVersion = goVersion
 	}
 
-	// Resolve release subcommands, which take no path filter
+	// Resolve subcommands, which take no path filter
 	if flag.NArg() > 0 {
 		switch flag.Arg(0) {
 		case releasePatch, releaseMinor:
 			opts.Release = flag.Arg(0)
+			return opts
+		case commandConfig:
+			opts.Configure = true
 			return opts
 		}
 	}

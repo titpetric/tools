@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/titpetric/tools/worktree/components"
+	"github.com/titpetric/tools/worktree/config"
 )
 
 func TestParseOptionsUpdateAllModules(t *testing.T) {
@@ -70,6 +71,29 @@ func TestParseOptionsVerbose(t *testing.T) {
 
 	if opts := ParseOptions(); !opts.Verbose {
 		t.Fatal("ParseOptions() did not enable verbose output")
+	}
+}
+
+// TestParseOptionsConfigure checks the config subcommand opens the setup
+// screen and is not mistaken for a path filter.
+func TestParseOptionsConfigure(t *testing.T) {
+	originalArgs := os.Args
+	originalFlags := flag.CommandLine
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		flag.CommandLine = originalFlags
+	})
+
+	os.Args = []string{"worktree", commandConfig}
+	flag.CommandLine = flag.NewFlagSet("worktree", flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+
+	opts := ParseOptions()
+	if !opts.Configure {
+		t.Fatal("ParseOptions() did not select the setup screen")
+	}
+	if opts.FilterArg != "" || opts.FilterPath != "" {
+		t.Fatalf("ParseOptions() treated %q as a filter: %#v", commandConfig, opts)
 	}
 }
 
@@ -280,7 +304,7 @@ func TestFindScanRootUsesNearestMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := findScanRoot(start)
+	got, err := findScanRoot(start, config.Default().Scan.RootMarkers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +326,7 @@ func TestFindProjectsIncludesGitRepositoriesAndGoModules(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "standalone", "nested", "go.mod"), "module example.com/nested\n\ngo 1.25\n")
 	writeTestFile(t, filepath.Join(root, "module-only", "go.mod"), "module example.com/module-only\n\ngo 1.25\n")
 
-	got, err := findProjects(root)
+	got, err := findProjects(root, config.Default().Scan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +360,7 @@ func TestFindProjectsSkipsIgnoredDirectories(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "libs", "vendor", "go.mod"), "module example.com/libs/vendor\n\ngo 1.25\n")
 	writeTestFile(t, filepath.Join(root, "libs", "tmp", "go.mod"), "module example.com/libs/tmp\n\ngo 1.25\n")
 
-	got, err := findProjects(root)
+	got, err := findProjects(root, config.Default().Scan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,6 +374,124 @@ func TestFindProjectsSkipsIgnoredDirectories(t *testing.T) {
 	}
 }
 
+// TestFindProjectsWithoutGitignore checks the setting that turns the
+// .gitignore rules off. A workspace that consolidates git checkouts below it
+// gitignores those folders so they stay out of its own index, and with the
+// rules on their checkouts are never listed.
+func TestFindProjectsWithoutGitignore(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, ".gitignore"), "checkouts/\n")
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "checkouts", "lib", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(root, "checkouts", "lib", "go.mod"), "module example.com/lib\n\ngo 1.25\n")
+
+	scan := config.Default().Scan
+	nested := projectDir{
+		Path:     "." + string(filepath.Separator) + filepath.Join("checkouts", "lib"),
+		GoModule: true,
+		GitRepo:  true,
+	}
+
+	// With the rules on, the checkout is hidden.
+	got, err := findProjects(root, scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []projectDir{{Path: ".", GitRepo: true}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("findProjects() = %#v, want %#v", got, want)
+	}
+
+	// With them off, it is listed.
+	scan.EnableGitignore = false
+	got, err = findProjects(root, scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []projectDir{{Path: ".", GitRepo: true}, nested}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findProjects() = %#v, want %#v", got, want)
+	}
+}
+
+// TestFindProjectsSkipsIgnorePaths checks the configured ignore paths exclude
+// a directory no .gitignore mentions, which is how a listing is kept clean
+// once the .gitignore rules are off.
+func TestFindProjectsSkipsIgnorePaths(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "node_modules", "dep", "go.mod"), "module example.com/dep\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "apps", "go.mod"), "module example.com/apps\n\ngo 1.25\n")
+
+	scan := config.Default().Scan
+	scan.EnableGitignore = false
+	scan.IgnorePaths = []string{"node_modules"}
+
+	got, err := findProjects(root, scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []projectDir{
+		{Path: ".", GoModule: true},
+		{Path: "." + string(filepath.Separator) + "apps", GoModule: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findProjects() = %#v, want %#v", got, want)
+	}
+}
+
+// TestFindProjectsWithoutGitRepos checks the setting that drops git
+// repositories holding no go module, leaving a go only listing.
+func TestFindProjectsWithoutGitRepos(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.25\n")
+	if err := os.MkdirAll(filepath.Join(root, "docs", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	scan := config.Default().Scan
+	scan.EnableGitRepos = false
+
+	got, err := findProjects(root, scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []projectDir{{Path: ".", GoModule: true}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("findProjects() = %#v, want %#v", got, want)
+	}
+}
+
+// TestFindScanRootUsesConfiguredMarkers checks the root markers come from the
+// configuration, and that a walk with none starts where it was asked to.
+func TestFindScanRootUsesConfiguredMarkers(t *testing.T) {
+	root := t.TempDir()
+	start := filepath.Join(root, "nested", "deep")
+	writeTestFile(t, filepath.Join(root, "go.work"), "go 1.25\n")
+	if err := os.MkdirAll(start, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := findScanRoot(start, []string{"go.work"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != root {
+		t.Fatalf("findScanRoot() = %q, want %q", got, root)
+	}
+
+	// A marker the workspace does not hold walks up to the filesystem root
+	// and falls back to the directory it started in.
+	if got, err = findScanRoot(start, []string{"Cargo.toml"}); err != nil || got != start {
+		t.Fatalf("findScanRoot() = %q, %v, want %q, nil", got, err, start)
+	}
+	if got, err = findScanRoot(start, nil); err != nil || got != start {
+		t.Fatalf("findScanRoot() with no markers = %q, %v, want %q, nil", got, err, start)
+	}
+}
+
 func TestFindProjectsIncludesGoWorkUseOutsideRoot(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "workspace")
@@ -357,7 +499,7 @@ func TestFindProjectsIncludesGoWorkUseOutsideRoot(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "go.work"), "go 1.25\n\nuse ../external\n")
 	writeTestFile(t, filepath.Join(external, "go.mod"), "module example.com/external\n\ngo 1.25\n")
 
-	got, err := findProjects(root)
+	got, err := findProjects(root, config.Default().Scan)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/titpetric/tools/worktree/config"
 )
 
 // ignoreRule is a single parsed .gitignore pattern.
@@ -187,4 +189,44 @@ func slashRel(parent, child string) string {
 // isSlashSubpath reports whether child is equal to or below parent.
 func isSlashSubpath(parent, child string) bool {
 	return slashRel(parent, child) != ""
+}
+
+// scanner applies the configured scan rules to a workspace walk. It holds the
+// .gitignore files that apply to the directory being visited, so the walk
+// functions that use it stay a plain filepath.Walk callback.
+type scanner struct {
+	scan    config.Scan
+	root    string
+	ignores ignoreStack
+}
+
+// newScanner returns a scanner for a walk rooted at root, which is the one
+// path the rules never exclude.
+func newScanner(scan config.Scan, root string) *scanner {
+	return &scanner{scan: scan, root: root}
+}
+
+// skip reports whether the walked path is excluded, and records the
+// .gitignore of a directory that is not. The walk must call this for every
+// path it visits, in walk order, because the ignore stack is unwound from the
+// path being visited.
+func (s *scanner) skip(path string, isDir bool) bool {
+	if s.scan.EnableGitignore {
+		s.ignores = s.ignores.prune(path)
+	}
+	if path != s.root {
+		// A directory named in ignore_paths is excluded whatever the
+		// .gitignore files say, so the listing can be kept clean with the
+		// gitignore rules turned off.
+		if isDir && s.scan.Ignored(filepath.Base(path)) {
+			return true
+		}
+		if s.scan.EnableGitignore && s.ignores.ignored(path, isDir) {
+			return true
+		}
+	}
+	if isDir && s.scan.EnableGitignore {
+		s.ignores = s.ignores.push(path)
+	}
+	return false
 }

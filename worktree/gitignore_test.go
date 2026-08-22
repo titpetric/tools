@@ -3,6 +3,8 @@ package main
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/titpetric/tools/worktree/config"
 )
 
 func TestParseIgnoreRuleSkipsBlanksAndComments(t *testing.T) {
@@ -89,5 +91,53 @@ func TestIgnoreStackPruneUnwindsToSibling(t *testing.T) {
 	}
 	if stack.ignored(sibling, true) {
 		t.Fatal("ignoreStack applied the apps/.gitignore to a sibling directory")
+	}
+}
+
+// TestScannerAppliesIgnorePathsWithoutGitignore checks a configured ignore
+// path excludes a directory whether or not the .gitignore rules are on, and
+// that the root of the walk is never excluded.
+func TestScannerAppliesIgnorePathsWithoutGitignore(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, ".gitignore"), "build\n")
+
+	scan := config.Scan{IgnorePaths: []string{"node_modules"}}
+	s := newScanner(scan, root)
+
+	if s.skip(root, true) {
+		t.Fatal("scanner excluded the root of the walk")
+	}
+	if !s.skip(filepath.Join(root, "node_modules"), true) {
+		t.Fatal("scanner did not exclude a configured ignore path")
+	}
+	if s.skip(filepath.Join(root, "build"), true) {
+		t.Fatal("scanner applied a .gitignore rule with the rules turned off")
+	}
+	// An ignore path names a directory, so a file of that name is kept.
+	if s.skip(filepath.Join(root, "node_modules"), false) {
+		t.Fatal("scanner excluded a file matching an ignore path")
+	}
+}
+
+// TestScannerAppliesGitignoreWhenEnabled checks the .gitignore rules apply
+// with the setting on, and that an ignore path still wins over a negation.
+func TestScannerAppliesGitignoreWhenEnabled(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, ".gitignore"), "build\n!vendor\n")
+
+	scan := config.Scan{EnableGitignore: true, IgnorePaths: []string{"vendor"}}
+	s := newScanner(scan, root)
+
+	if s.skip(root, true) {
+		t.Fatal("scanner excluded the root of the walk")
+	}
+	if !s.skip(filepath.Join(root, "build"), true) {
+		t.Fatal("scanner did not apply a .gitignore rule")
+	}
+	if !s.skip(filepath.Join(root, "vendor"), true) {
+		t.Fatal("an ignore path did not override the negation re-including it")
+	}
+	if s.skip(filepath.Join(root, "apps"), true) {
+		t.Fatal("scanner excluded a directory no rule names")
 	}
 }

@@ -11,15 +11,19 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/worktree/components"
+	"github.com/titpetric/tools/worktree/config"
 )
 
-func findScanRoot(start string) (string, error) {
+// findScanRoot returns the nearest current or parent directory holding one of
+// the configured root markers. With no markers, or none found, the walk starts
+// where it was asked to.
+func findScanRoot(start string, markers []string) (string, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
 		return "", err
 	}
 	for {
-		for _, marker := range []string{"go.work", "go.mod", ".git"} {
+		for _, marker := range markers {
 			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
 				return dir, nil
 			}
@@ -32,7 +36,7 @@ func findScanRoot(start string) (string, error) {
 	}
 }
 
-func findProjects(root string) ([]projectDir, error) {
+func findProjects(root string, scan config.Scan) ([]projectDir, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -49,22 +53,16 @@ func findProjects(root string) ([]projectDir, error) {
 		return projects[dir], nil
 	}
 
-	var ignores ignoreStack
+	s := newScanner(scan, root)
 	err = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return nil
 		}
-		// A .gitignore excludes the directories below it, including any Git
-		// repository or Go module they contain.
-		ignores = ignores.prune(path)
-		if path != root && ignores.ignored(path, info.IsDir()) {
+		if s.skip(path, info.IsDir()) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
-		}
-		if info.IsDir() {
-			ignores = ignores.push(path)
 		}
 		switch info.Name() {
 		case ".git":
@@ -110,7 +108,9 @@ func findProjects(root string) ([]projectDir, error) {
 
 	result := make([]projectDir, 0, len(projects))
 	for dir, p := range projects {
-		if !p.GoModule && !p.GitRepo {
+		// A git repository that holds no go module is only listed when the
+		// configuration asks for one.
+		if !p.GoModule && !(p.GitRepo && scan.EnableGitRepos) {
 			continue
 		}
 		rel, err := filepath.Rel(root, dir)
@@ -134,6 +134,15 @@ func findProjects(root string) ([]projectDir, error) {
 func main() {
 	opts := ParseOptions()
 
+	// The setup screen runs before the configuration is read for the scan,
+	// so a document that fails to parse can still be fixed from it.
+	if opts.Configure {
+		if err := config.Run(os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	// Release subcommands work on the git repository of the current
 	// directory, not on the workspace scan root.
 	if opts.Release != "" {
@@ -151,14 +160,19 @@ func main() {
 		return
 	}
 
-	root, err := findScanRoot(".")
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("failed to load configuration: %v", err)
+	}
+
+	root, err := findScanRoot(".", cfg.Scan.RootMarkers)
 	if err != nil {
 		log.Fatalf("failed to find scan root: %v", err)
 	}
 	if err := os.Chdir(root); err != nil {
 		log.Fatalf("failed to chdir to %s: %v", root, err)
 	}
-	projects, err := findProjects(".")
+	projects, err := findProjects(".", cfg.Scan)
 	if err != nil {
 		log.Fatalf("failed to scan projects: %v", err)
 	}
@@ -342,7 +356,7 @@ func main() {
 		}
 		styled := supportsANSI(os.Stdout)
 		if opts.GoVersion != "" {
-			if err := updateGoWorkVersions(os.Stdout, ".", opts.GoVersion, styled); err != nil {
+			if err := updateGoWorkVersions(os.Stdout, ".", opts.GoVersion, cfg.Scan, styled); err != nil {
 				log.Fatal(err)
 			}
 		}
