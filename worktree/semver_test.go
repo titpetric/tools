@@ -157,3 +157,43 @@ func TestBump(t *testing.T) {
 		t.Errorf("BumpMinor() = %q, want v1.3.0", got)
 	}
 }
+
+func TestReleases(t *testing.T) {
+	tags := []string{"v0.2.0", "not-a-version", "v0.10.0", "v0.2.1-rc.1", "v0.1.0", "v0.2.1"}
+
+	var got []string
+	for _, v := range Releases(tags) {
+		got = append(got, v.String())
+	}
+	// Ascending, prereleases and tags that aren't versions dropped, and 0.10
+	// above 0.2 because the numbers are compared rather than the text.
+	want := []string{"v0.1.0", "v0.2.0", "v0.2.1", "v0.10.0"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Releases() = %#v, want %#v", got, want)
+	}
+}
+
+func TestPreviousRelease(t *testing.T) {
+	tests := []struct {
+		name  string
+		tags  []string
+		want  string
+		found bool
+	}{
+		{name: "no tags", tags: nil},
+		{name: "one release has nothing before it", tags: []string{"v1.0.0"}},
+		{name: "a prerelease is not a release", tags: []string{"v1.0.0", "v1.1.0-rc.1"}},
+		{name: "the release below the latest", tags: []string{"v1.0.0", "v0.9.0", "v1.1.0"}, want: "v1.0.0", found: true},
+	}
+
+	for _, test := range tests {
+		got, found := PreviousRelease(test.tags)
+		if found != test.found {
+			t.Errorf("%s: PreviousRelease() found = %v, want %v", test.name, found, test.found)
+			continue
+		}
+		if found && got.String() != test.want {
+			t.Errorf("%s: PreviousRelease() = %q, want %q", test.name, got, test.want)
+		}
+	}
+}

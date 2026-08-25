@@ -20,9 +20,12 @@ type Options struct {
 	Verbose    bool
 	Configure  bool
 	Resolve    bool
+	Verdict    bool
 	Apply      bool
 	GoVersion  string
 	Release    string
+	From       string
+	To         string
 	FilterPath string
 	FilterArg  string
 	Skipped    int
@@ -34,8 +37,11 @@ const commandConfig = "config"
 // commandResolve releases the selected modules in dependency order.
 const commandResolve = "resolve"
 
+// commandVerdict reports the release one module has earned, as markdown.
+const commandVerdict = "verdict"
+
 // valueFlags lists the flags that take a value as a separate argument.
-var valueFlags = map[string]bool{"-go": true, "--go": true}
+var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true}
 
 // ParseOptions parses command-line flags and returns Options.
 func ParseOptions() *Options {
@@ -68,6 +74,8 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.Matrix, "t", false, "output dependency matrix to stdout")
 	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details and commands run during updates")
 	flag.BoolVar(&opts.Apply, "apply", false, "perform the resolution instead of rendering it")
+	flag.StringVar(&opts.From, "from", "", "the revision worktree verdict measures from, a tag by default")
+	flag.StringVar(&opts.To, "to", "", "the revision worktree verdict measures to, the working tree by default")
 	flag.StringVar(&opts.GoVersion, "go", "", "set the go directive of every go.mod and go.work to this version, then update dependencies")
 	flag.Parse()
 
@@ -87,7 +95,8 @@ func ParseOptions() *Options {
 	}
 
 	// Resolve subcommands. The release and setup screens take no path filter;
-	// "resolve" does, so it reads its filter from the argument after it.
+	// "resolve" and "verdict" do, so they read theirs from the argument after
+	// them.
 	filter := 0
 	if flag.NArg() > 0 {
 		switch flag.Arg(0) {
@@ -96,6 +105,10 @@ func ParseOptions() *Options {
 			return opts
 		case commandConfig:
 			opts.Configure = true
+			return opts
+		case commandVerdict:
+			opts.Verdict = true
+			opts.setFilter(flag.Arg(1))
 			return opts
 		case commandResolve:
 			opts.Resolve = true

@@ -260,6 +260,98 @@ func repoPaths(dir string) (root, rel string, err error) {
 	return root, filepath.ToSlash(rel), nil
 }
 
+// commitLog is one commit of a module, as a release note lists it.
+type commitLog struct {
+	Hash    string
+	Subject string
+}
+
+// commitLogSinceTag returns the commits made to the module in dir since tag,
+// newest first. With no tag the whole history of the module is returned, which
+// is what a first release covers.
+func commitLogSinceTag(dir, tag string) []commitLog {
+	return commitLogBetween(dir, tag, "HEAD")
+}
+
+// commitLogBetween returns the commits made to the module in dir between two
+// revisions, newest first. An empty from is the start of history, which is
+// what a first release covers.
+func commitLogBetween(dir, from, to string) []commitLog {
+	if to == "" {
+		to = "HEAD"
+	}
+
+	args := []string{"log", "--format=%h%x00%s"}
+	if from != "" {
+		args = append(args, from+".."+to)
+	} else {
+		args = append(args, to)
+	}
+	// The pathspec is read relative to the working directory, so this is the
+	// module's own history rather than the whole repository's.
+	args = append(args, "--", ".")
+
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	var commits []commitLog
+	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		hash, subject, ok := strings.Cut(line, "\x00")
+		if !ok {
+			continue
+		}
+		commits = append(commits, commitLog{Hash: hash, Subject: subject})
+	}
+	return commits
+}
+
+// repoURL returns the address a browser opens the repository of dir at, or an
+// empty string when there is no origin to derive one from.
+//
+// Only "git remote get-url" is ever run: reading the address of a remote is
+// all that is wanted here, and nothing about the repository's remotes is
+// written.
+func repoURL(dir string) string {
+	return browsableRemote(firstCommandLine(dir, "git", "remote", "get-url", "origin"))
+}
+
+// browsableRemote rewrites a git remote as the https address of the same
+// repository. The scp form "git@host:path" and an ssh URL both become
+// "https://host/path"; anything else that is not already http is left out,
+// since there is nothing to link to.
+func browsableRemote(remote string) string {
+	remote = strings.TrimSuffix(strings.TrimSpace(remote), ".git")
+	switch {
+	case remote == "":
+		return ""
+	case strings.HasPrefix(remote, "https://"), strings.HasPrefix(remote, "http://"):
+		return remote
+	case strings.HasPrefix(remote, "ssh://"):
+		remote = strings.TrimPrefix(remote, "ssh://")
+	case strings.Contains(remote, "://"):
+		return ""
+	default:
+		// The scp form separates the host from the path with a colon.
+		host, path, ok := strings.Cut(remote, ":")
+		if !ok || path == "" {
+			return ""
+		}
+		remote = host + "/" + path
+	}
+
+	if _, address, ok := strings.Cut(remote, "@"); ok {
+		remote = address
+	}
+	if !strings.Contains(remote, "/") {
+		return ""
+	}
+	return "https://" + remote
+}
+
 func getGitHubIssues(dir string) []components.Issue {
 	data, err := cachedGHIssueList(dir)
 	if err != nil {

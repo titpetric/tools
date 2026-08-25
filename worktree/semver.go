@@ -204,19 +204,37 @@ func SortVersions(versions []Version) {
 	})
 }
 
-// LatestRelease returns the highest release version among the tags,
-// ignoring prereleases and tags that aren't semantic versions. It reports
-// false when the tags hold no release.
-func LatestRelease(tags []string) (Version, bool) {
+// Releases returns the release versions among the tags in ascending order,
+// ignoring prereleases and tags that aren't semantic versions.
+func Releases(tags []string) []Version {
 	var releases []Version
 	for _, v := range ParseVersions(tags) {
 		if v.IsRelease() {
 			releases = append(releases, v)
 		}
 	}
+	SortVersions(releases)
+	return releases
+}
+
+// LatestRelease returns the highest release version among the tags,
+// ignoring prereleases and tags that aren't semantic versions. It reports
+// false when the tags hold no release.
+func LatestRelease(tags []string) (Version, bool) {
+	releases := Releases(tags)
 	if len(releases) == 0 {
 		return Version{}, false
 	}
-	SortVersions(releases)
 	return releases[len(releases)-1], true
+}
+
+// PreviousRelease returns the release before the latest one, which is the
+// release the latest one is measured against. It reports false when the tags
+// hold fewer than two releases.
+func PreviousRelease(tags []string) (Version, bool) {
+	releases := Releases(tags)
+	if len(releases) < 2 {
+		return Version{}, false
+	}
+	return releases[len(releases)-2], true
 }

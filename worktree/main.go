@@ -160,6 +160,22 @@ func main() {
 		return
 	}
 
+	// The verdict is a report on one repository, the one the current
+	// directory is in unless another was named, so it does not scan the
+	// workspace either.
+	if opts.Verdict {
+		dir := opts.FilterPath
+		if dir == "" {
+			dir = "."
+		}
+		v, err := readVerdict(dir, opts.From, opts.To)
+		if err != nil {
+			log.Fatalf("failed to read the release verdict: %v", err)
+		}
+		renderVerdict(os.Stdout, v, supportsANSI(os.Stdout))
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("failed to load configuration: %v", err)
