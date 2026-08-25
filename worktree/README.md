@@ -40,7 +40,138 @@ The output is written to stdout so it can be reviewed and then piped into a shel
 worktree patch | sh -x
 ```
 
-The `v` prefix of the latest tag is preserved. If the repository has no release tags yet, the version starts at `v0.0.0`, so `patch` proposes `v0.0.1` and `minor` proposes `v0.1.0`, with a shell comment noting it.
+The `v` prefix of the latest tag is preserved. If the repository has no release tags yet, the version starts at `v0.0.0`, so `patch` proposes `v0.0.1` and `minor` proposes `v0.1.0`, with a shell comment noting it. A go module nested in a larger repository is released as `<subdir>/vX.Y.Z`, which is how the go tool tells the releases of one module in a repository from another's, so the proposed tag carries that prefix.
+
+## Resolving a release chain
+
+`worktree resolve` walks the selected modules from their outside dependencies inward and works out what it takes to release each of them:
+
+```bash
+worktree resolve            # render the plan
+worktree resolve --apply    # perform it
+worktree resolve ./tools    # only the modules under a path
+```
+
+Without `--apply` nothing is run and nothing is written. The plan is not a shell script to pipe anywhere, because the run has to read the state of each repository as it reaches it:
+
+| Path    | Module                 | Release              | Resolution                                                                                                                                                                                                                                         |
+|---------|------------------------|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ./alpha | example.com/repo/alpha | v0.1.0 (+2) → v0.2.0 | go get -u ./...<br>go mod tidy<br>git add -- go.mod go.sum<br>git commit -m 'alpha: update go.mod, go.sum' -- go.mod go.sum<br>api: 1 removed, 0 changed, 2 added<br>git tag alpha/v0.2.0<br>git push --tags                                       |
+| ./beta  | example.com/repo/beta  | v0.2.0 → v0.2.1      | go get -u ./...<br>go get example.com/repo/alpha@v0.2.0<br>go mod tidy<br>git add -- go.mod go.sum<br>git commit -m 'beta: update go.mod, go.sum' -- go.mod go.sum<br>api: 0 removed, 0 changed, 0 added<br>git tag beta/v0.2.1<br>git push --tags |
+
+The `Release` column reads as the version the module is at, the commits it has taken since, and the version it moves to, coloured green for a patch and amber for a minor. No step changes the working directory: every command is run in the module it belongs to, which is the directory the `Path` column names.
+
+Every go module carrying a release tag is offered the update, even one with no commits of its own and nothing in the workspace to move: its dependencies outside the workspace can still have moved, and `go get -u ./...` is the only way to find out. Such a module is released only if the update rewrites `go.mod` or `go.sum`, which the plan says outright and `--apply` finds out for itself. Modules with nothing to do at all, which is anything untagged and any repository that is not a go module, are left out; `--all` asks for them, as it does everywhere else in the tool.
+
+Each `go get` is tidied straight after it rather than once at the end, so the requirement it replaced is out of `go.mod` and its checksums are out of `go.sum` before the next one is asked for.
+
+### Aligning the go version
+
+Every selected module is brought up to the highest `go` directive among them, so a workspace resolved together stays on one language version rather than drifting a release apart:
+
+```
+go mod edit -go=1.27
+go get -u ./...
+go mod tidy
+```
+
+A `toolchain` directive older than the new version would leave `go.mod` invalid, so it is dropped first with `go mod edit -toolchain=none`; `go get` and `go mod tidy` add a newer one back when they need it.
+
+Moving to another go release series costs a **minor**, whether the directive was raised by hand since the tag or is being raised by this run: the module stops building for anyone on the older toolchain, which is as breaking as a symbol going away. A point release of the same series, `1.27` to `1.27.1`, changes nothing for a consumer and stays a patch.
+
+The order is a topological sort of the dependencies among the selected modules, so a module is never released before something it requires. A dependency outside the selection keeps the tag it already carries and is never bumped. Modules left in a dependency cycle are reported and skipped.
+
+Each module is pinned to the version its dependency ends up at, which is the tag this run creates for it rather than the tag that exists now: `beta` above requires `alpha@v0.2.0`, a tag the step before it creates. That is the reason for the ordering, and the reason a run that stops does not carry on: every module after the stop would pin a version that never gets created.
+
+`--apply` runs each step and marks it `ok` or `failed`, and a failure stops the run with a non-zero exit status. It performs the release as well, running the same `git tag` and `git push --tags` that `worktree patch` and `worktree minor` print. A repository with no `go.mod` is resolved on its git state alone, without the go steps.
+
+### Choosing between a patch and a minor
+
+The release is a minor when it costs a consumer something, and a patch otherwise. The API side of that is decided by comparing the exported symbols of the working tree against the latest tag with [`go-fsck diff`](https://github.com/titpetric/exp/tree/main/cmd/go-fsck):
+
+- a removed exported symbol, or one whose signature changed, is breaking, and earns a minor,
+- so does moving to another go release series, see [Aligning the go version](#aligning-the-go-version),
+- added symbols, a dependency update that only rewrites `go.mod` and `go.sum`, and everything else earn a patch.
+
+The tagged revision is unpacked into a temporary directory rather than checked out, so the working tree is left alone. Parameter names are not part of a signature, so renaming one is not a change; changing its type is. Test packages, commands and internal packages are left out, since none of them are API another module can depend on. `-v` lists the symbols behind the count.
+
+Anything that stops the comparison from running - no release tag, no `go-fsck` installed, or a `go-fsck` without the `diff` command - is reported in place and read as non breaking, so a missing tool costs a minor release rather than stopping the run. Note that `go-fsck` skips files carrying build constraints, so symbols behind a `//go:build` line are invisible to both sides of the comparison.
+
+### Stopping on a dirty repository
+
+`go.mod` and `go.sum` are committed by resolve itself. They are staged first, since a `go.sum` the update creates is not yet tracked and a pathspec would not match it, and then committed by pathspec, which leaves every other change in the working tree out of the commit. Only the files that exist are named. Anything else left in the working tree afterwards stops the run:
+
+| Path       | Module         | Release              | Resolution                                                                                                 |
+|------------|----------------|----------------------|------------------------------------------------------------------------------------------------------------|
+| ./worktree | tools/worktree | v0.3.1 (+1) → v0.3.2 | ...<br>api: 0 removed, 0 changed, 4 added<br>M main.go<br>?? resolve.go<br>Stopped: working tree is dirty. |
+
+Releasing a module in that state would tag work nobody reviewed. Under `--apply` the check reads the working tree at the moment it gets there; without it, the state after the commit is predicted from the working tree as it stands now, with `go.mod` and `go.sum` left out of the reckoning. Every module after the stop is reported as not reached, since each would pin a version that never gets created.
+
+## Reporting a release
+
+`worktree verdict` writes the report of a single repository: which version it is at or moving to, why, the commits behind it, and what became of its exported API.
+
+```bash
+worktree verdict                            # the repository of the current directory
+worktree verdict ./tools/lessgo             # a repository elsewhere
+worktree verdict > NOTES.md                 # markdown, for a release note
+worktree verdict --from v0.4.4 --to v0.5.5  # a range of your choosing
+```
+
+It draws a table on a terminal and writes markdown when its output goes anywhere else, so the redirected form pastes into GitHub release notes with the commit hashes already linked.
+
+What it reports depends on where the repository stands:
+
+- **behind its latest tag**, it proposes the next release, comparing the tag against the working tree,
+- **level with its latest tag**, it describes the release that was made, comparing the tag before it against it. This is the release-note case: tag first, then ask what went into it,
+- **with no release tag**, it proposes a first release and has nothing to compare against.
+
+`--from` and `--to` name the two revisions outright, for a report over a range the repository is no longer standing on. A bare version is resolved to the tag the repository carries for it, including the `<subdir>/` prefix of a nested module, and anything else is passed to git as it stands, so a commit or a branch can be named just as well. Given only `--to`, the range starts at the release below it; given only `--from`, it ends at the working tree. A `--to` naming a release is reported as that release, and anything else as a proposal, since there is no tag to call it by.
+
+The go directive is compared along with the API, so a release that moves to another go release series is a minor and says so, the same rule [resolve](#aligning-the-go-version) applies.
+
+```
+# github.com/go-bridget/mig v0.6.0
+
+Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since v0.5.5.
+
+## Commits v0.5.5..v0.6.0
+
+| Commit | Subject |
+| --- | --- |
+| [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) | Restructure mig to drop cmd/ |
+| [`ff1fdc2`](https://github.com/go-bridget/mig/commit/ff1fdc2) | migrate: rework api |
+
+## API v0.5.5..v0.6.0
+
+| Change | Package | Symbol |
+| --- | --- | --- |
+| Removed | cmd/mig/gen | type Column |
+|  | migrate | func Load (fsys fs.FS, project string) error |
+| Added | migrate | type Manager |
+|  | migrate | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) |
+```
+
+The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. A module holding more than one package gains the `Package` column, without which `const Name` three times over says nothing.
+
+Every type the release adds is printed in full below the tables, so a reader sees what was declared rather than only its name. The body is the declaration as it is written, with its doc comment removed:
+
+```
+<details>
+<summary><code>type Manager</code></summary>
+
+```go
+type Manager struct {
+	db      *sqlx.DB
+	fsys    fs.FS
+	project string
+}
+```
+
+</details>
+```
+
+This is read from the source go-fsck records under `--include-sources`, not rebuilt from the model's decomposed fields, which cannot represent a grouped `Major, Minor, Patch uint64`, an inline `interface{ ... }`, an array length, or a `type Version string` at all.
 
 Several flags invoke tool functionality:
 
@@ -51,7 +182,8 @@ Several flags invoke tool functionality:
 - `--pull` pulls new changes for every Git repository in the workspace and displays each repository's path, first remote, branch, and `git pull` output as a table,
 - `-t` outputs a dependency matrix, with a green `▲` for current and yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)` for commits ahead and a dark-orange `*` for local Git changes; empty rows and columns are omitted, except that projects with local changes are always shown. A footer summarizes these workspace states,
 - `-puml` will render a plantuml representation of the workspace,
-- `-d2` will render a d2 representation of the workspace.
+- `-d2` will render a d2 representation of the workspace,
+- `--apply` makes `worktree resolve` perform the plan it would otherwise only render; see [Resolving a release chain](#resolving-a-release-chain).
 
 Table output uses the rounded, colored terminal format when stdout is an ANSI terminal and falls back to Markdown when redirected or piped.
 
@@ -73,12 +205,12 @@ Arrow keys move between rows. A flag is toggled where it stands with `←`, `→
 
 The settings are:
 
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `scan.enable_gitignore` | `true` | Honour `.gitignore` files while walking. |
-| `scan.enable_git_repos` | `true` | List Git repositories that are not also Go modules. |
-| `scan.ignore_paths` | empty | Directory names never descended into, whether or not a `.gitignore` mentions them. Matched against the directory name alone, at any depth. |
-| `scan.root_markers` | `go.work`, `go.mod`, `.git` | Files marking the workspace root. The nearest parent directory holding one of them becomes the scan root; with no markers the current directory is used. |
+| Key                     | Default                     | Meaning                                                                                                                                                  |
+|-------------------------|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `scan.enable_gitignore` | `true`                      | Honour `.gitignore` files while walking.                                                                                                                 |
+| `scan.enable_git_repos` | `true`                      | List Git repositories that are not also Go modules.                                                                                                      |
+| `scan.ignore_paths`     | empty                       | Directory names never descended into, whether or not a `.gitignore` mentions them. Matched against the directory name alone, at any depth.               |
+| `scan.root_markers`     | `go.work`, `go.mod`, `.git` | Files marking the workspace root. The nearest parent directory holding one of them becomes the scan root; with no markers the current directory is used. |
 
 Turn `enable_gitignore` off when a repository consolidates further Git checkouts below it and gitignores those folders to keep them out of its own index. With the setting on, those checkouts are never descended into, so they do not appear at all:
 
