@@ -5,6 +5,7 @@ import (
 	"go/version"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -91,6 +92,61 @@ func setGoWorkVersion(path, goVersion string) (string, error) {
 	}
 	work.Cleanup()
 	return before, writeModFile(path, work.Syntax)
+}
+
+// goSeries returns the release series of a go directive, which is its major
+// and minor number. Go names 1.26 and 1.27 major releases and 1.27.1 a point
+// release of one, so the series is what tells a language version from a
+// patched toolchain.
+func goSeries(directive string) (string, bool) {
+	v, ok := ParseGoDirective(directive)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%d.%d", v.Major, v.Minor), true
+}
+
+// goSeriesChanged reports whether two go directives name different release
+// series. A directive that cannot be read, on either side, is not a change.
+func goSeriesChanged(before, after string) bool {
+	from, ok := goSeries(before)
+	if !ok {
+		return false
+	}
+	to, ok := goSeries(after)
+	if !ok {
+		return false
+	}
+	return from != to
+}
+
+// goVersionAt returns the go directive of the module in dir as it stood at a
+// git revision. An empty ref reads the working tree.
+func goVersionAt(dir, ref string) string {
+	if ref == "" {
+		return readGoVersion(dir)
+	}
+
+	root, rel, err := repoPaths(dir)
+	if err != nil {
+		return ""
+	}
+	path := "go.mod"
+	if rel != "." {
+		path = rel + "/go.mod"
+	}
+
+	cmd := exec.Command("git", "show", ref+":"+path)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	mod, err := modfile.Parse("go.mod", out, nil)
+	if err != nil || mod.Go == nil {
+		return ""
+	}
+	return mod.Go.Version
 }
 
 // staleToolchain reports whether a toolchain directive is older than

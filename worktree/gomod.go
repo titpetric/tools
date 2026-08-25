@@ -68,6 +68,22 @@ func isGoModule(dir string) bool {
 	return err == nil
 }
 
+// readToolchain returns the toolchain directive of the go.mod in dir, or ""
+// when the file declares none.
+func readToolchain(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return ""
+	}
+
+	mod, err := modfile.Parse("go.mod", data, nil)
+	if err != nil || mod.Toolchain == nil {
+		return ""
+	}
+
+	return mod.Toolchain.Name
+}
+
 func readReadmeTitle(dir string) string {
 	f, err := os.Open(filepath.Join(dir, "README.md"))
 	if err != nil {

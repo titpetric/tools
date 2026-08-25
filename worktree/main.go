@@ -350,6 +350,16 @@ func main() {
 		modules = append(modules, info)
 	}
 
+	if opts.Resolve {
+		// The reason a run stopped has already been rendered in place, so
+		// only the exit status is left to set.
+		if err := resolve(os.Stdout, modules, versionRefs, opts, supportsANSI(os.Stdout)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if opts.Update || opts.GoVersion != "" {
 		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
