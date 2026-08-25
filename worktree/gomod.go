@@ -62,6 +62,12 @@ func readGoVersion(dir string) string {
 	return mod.Go.Version
 }
 
+// isGoModule reports whether dir holds a go.mod.
+func isGoModule(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "go.mod"))
+	return err == nil
+}
+
 func readReadmeTitle(dir string) string {
 	f, err := os.Open(filepath.Join(dir, "README.md"))
 	if err != nil {

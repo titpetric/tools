@@ -146,11 +146,11 @@ func main() {
 	// Release subcommands work on the git repository of the current
 	// directory, not on the workspace scan root.
 	if opts.Release != "" {
-		tags, err := gitTags(".")
+		tags, prefix, err := moduleTags(".")
 		if err != nil {
 			log.Fatalf("failed to list git tags: %v", err)
 		}
-		lines, err := releaseCommands(tags, opts.Release)
+		lines, err := releaseCommands(tags, opts.Release, prefix)
 		if err != nil {
 			log.Fatal(err)
 		}

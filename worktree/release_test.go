@@ -49,7 +49,7 @@ func TestReleaseCommands(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := releaseCommands(test.tags, test.kind)
+			got, err := releaseCommands(test.tags, test.kind, "")
 			if err != nil {
 				t.Fatalf("releaseCommands() error: %v", err)
 			}
@@ -61,7 +61,7 @@ func TestReleaseCommands(t *testing.T) {
 }
 
 func TestReleaseCommandsUnknownKind(t *testing.T) {
-	if _, err := releaseCommands([]string{"v1.0.0"}, "major"); err == nil {
+	if _, err := releaseCommands([]string{"v1.0.0"}, "major", ""); err == nil {
 		t.Fatal("releaseCommands() accepted an unknown release kind")
 	}
 }
@@ -105,7 +105,7 @@ func TestGitTags(t *testing.T) {
 		t.Fatalf("gitTags() = %v, want %v", tags, want)
 	}
 
-	got, err := releaseCommands(tags, releaseMinor)
+	got, err := releaseCommands(tags, releaseMinor, "")
 	if err != nil {
 		t.Fatalf("releaseCommands() error: %v", err)
 	}

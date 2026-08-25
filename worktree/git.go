@@ -234,6 +234,32 @@ func commitMessagesSinceTag(dir, tag string) []string {
 	return msgs
 }
 
+// repoPaths returns the root of the git repository holding dir and the path of
+// dir below it, which is "." when dir is the root itself.
+//
+// Commands taking a path are run from the root with that path, never from the
+// directory itself: git reads a pathspec, and the tree of "<rev>:<path>", as
+// relative to the current directory, so running them a level down would look
+// for the path twice over.
+func repoPaths(dir string) (root, rel string, err error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", "", err
+	}
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = abs
+	out, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("not a git repository: %s", dir)
+	}
+	root = strings.TrimSpace(string(out))
+	rel, err = filepath.Rel(root, abs)
+	if err != nil {
+		return "", "", err
+	}
+	return root, filepath.ToSlash(rel), nil
+}
+
 func getGitHubIssues(dir string) []components.Issue {
 	data, err := cachedGHIssueList(dir)
 	if err != nil {
