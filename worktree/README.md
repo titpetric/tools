@@ -56,8 +56,8 @@ Without `--apply` nothing is run and nothing is written. The plan is not a shell
 
 | Path    | Module                 | Release              | Resolution                                                                                                                                                                                                                                         |
 |---------|------------------------|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ./alpha | example.com/repo/alpha | v0.1.0 (+2) → v0.2.0 | go get -u ./...<br>go mod tidy<br>git add -- go.mod go.sum<br>git commit -m 'alpha: update go.mod, go.sum' -- go.mod go.sum<br>api: 1 removed, 0 changed, 2 added<br>git tag alpha/v0.2.0<br>git push --tags                                       |
-| ./beta  | example.com/repo/beta  | v0.2.0 → v0.2.1      | go get -u ./...<br>go get example.com/repo/alpha@v0.2.0<br>go mod tidy<br>git add -- go.mod go.sum<br>git commit -m 'beta: update go.mod, go.sum' -- go.mod go.sum<br>api: 0 removed, 0 changed, 0 added<br>git tag beta/v0.2.1<br>git push --tags |
+| ./alpha | example.com/repo/alpha | v0.1.0 (+2) → v0.2.0 | go get -u ./...<br>go mod tidy<br>git add -- go.mod go.sum<br>git commit -m 'alpha: update go.mod, go.sum' -- go.mod go.sum<br>api: 2 added, 0 changed, 1 removed<br>git tag alpha/v0.2.0<br>git push --tags                                       |
+| ./beta  | example.com/repo/beta  | v0.2.0 → v0.2.1      | go get -u ./...<br>go get example.com/repo/alpha@v0.2.0<br>go mod tidy<br>git add -- go.mod go.sum<br>git commit -m 'beta: update go.mod, go.sum' -- go.mod go.sum<br>api: 0 added, 0 changed, 0 removed<br>git tag beta/v0.2.1<br>git push --tags |
 
 The `Release` column reads as the version the module is at, the commits it has taken since, and the version it moves to, coloured green for a patch and amber for a minor. No step changes the working directory: every command is run in the module it belongs to, which is the directory the `Path` column names.
 
@@ -90,12 +90,13 @@ Each module is pinned to the version its dependency ends up at, which is the tag
 The release is a minor when it costs a consumer something, and a patch otherwise. The API side of that is decided by comparing the exported symbols of the working tree against the latest tag with [`go-fsck diff`](https://github.com/titpetric/exp/tree/main/cmd/go-fsck):
 
 - a removed exported symbol, or one whose signature changed, is breaking, and earns a minor,
+- so does an exported field a type loses or reshapes, and a method an interface gains, see [Data model changes](#data-model-changes),
 - so does moving to another go release series, see [Aligning the go version](#aligning-the-go-version),
 - added symbols, a dependency update that only rewrites `go.mod` and `go.sum`, and everything else earn a patch.
 
 The tagged revision is unpacked into a temporary directory rather than checked out, so the working tree is left alone. Parameter names are not part of a signature, so renaming one is not a change; changing its type is. Test packages, commands and internal packages are left out, since none of them are API another module can depend on. `-v` lists the symbols behind the count.
 
-Anything that stops the comparison from running - no release tag, no `go-fsck` installed, or a `go-fsck` without the `diff` command - is reported in place and read as non breaking, so a missing tool costs a minor release rather than stopping the run. Note that `go-fsck` skips files carrying build constraints, so symbols behind a `//go:build` line are invisible to both sides of the comparison.
+Anything that stops the comparison from running - no `go-fsck` installed, a `go-fsck` without the `diff` command, or a revision that cannot be read - is reported in place and read as non breaking, so a missing tool costs a patch release rather than stopping the run. Note that `go-fsck` skips files carrying build constraints, so symbols behind a `//go:build` line are invisible to both sides of the comparison.
 
 ### Stopping on a dirty repository
 
@@ -103,7 +104,7 @@ Anything that stops the comparison from running - no release tag, no `go-fsck` i
 
 | Path       | Module         | Release              | Resolution                                                                                                 |
 |------------|----------------|----------------------|------------------------------------------------------------------------------------------------------------|
-| ./worktree | tools/worktree | v0.3.1 (+1) → v0.3.2 | ...<br>api: 0 removed, 0 changed, 4 added<br>M main.go<br>?? resolve.go<br>Stopped: working tree is dirty. |
+| ./worktree | tools/worktree | v0.3.1 (+1) → v0.3.2 | ...<br>api: 4 added, 0 changed, 0 removed<br>M main.go<br>?? resolve.go<br>Stopped: working tree is dirty. |
 
 Releasing a module in that state would tag work nobody reviewed. Under `--apply` the check reads the working tree at the moment it gets there; without it, the state after the commit is predicted from the working tree as it stands now, with `go.mod` and `go.sum` left out of the reckoning. Every module after the stop is reported as not reached, since each would pin a version that never gets created.
 
@@ -116,22 +117,49 @@ worktree verdict                            # the repository of the current dire
 worktree verdict ./tools/lessgo             # a repository elsewhere
 worktree verdict > NOTES.md                 # markdown, for a release note
 worktree verdict --from v0.4.4 --to v0.5.5  # a range of your choosing
+worktree verdict --all                      # every release the repository has made
 ```
 
 It draws a table on a terminal and writes markdown when its output goes anywhere else, so the redirected form pastes into GitHub release notes with the commit hashes already linked.
+
+On a terminal each section is a heading with its table directly beneath it, and a blank line after the table. The heading is written in bold yellow, a colour no table is drawn in, so it is not read as another column heading. A report of several releases separates one from the next by two blank lines, so a release stands further from the release below it than its own tables stand from each other.
 
 What it reports depends on where the repository stands:
 
 - **behind its latest tag**, it proposes the next release, comparing the tag against the working tree,
 - **level with its latest tag**, it describes the release that was made, comparing the tag before it against it. This is the release-note case: tag first, then ask what went into it,
-- **with no release tag**, it proposes a first release and has nothing to compare against.
+- **with no release tag**, it proposes a first release, measured from the start of history.
+
+A release with nothing before it is compared against a module holding no packages at all, so everything it exports is listed as added and nothing is listed as removed. That is the same report every other release gets, taken from an empty starting point rather than skipped for want of a tag to compare against.
 
 `--from` and `--to` name the two revisions outright, for a report over a range the repository is no longer standing on. A bare version is resolved to the tag the repository carries for it, including the `<subdir>/` prefix of a nested module, and anything else is passed to git as it stands, so a commit or a branch can be named just as well. Given only `--to`, the range starts at the release below it; given only `--from`, it ends at the working tree. A `--to` naming a release is reported as that release, and anything else as a proposal, since there is no tag to call it by.
 
 The go directive is compared along with the API, so a release that moves to another go release series is a minor and says so, the same rule [resolve](#aligning-the-go-version) applies.
 
+### Every release at once
+
+`worktree verdict --all` reports the whole release chain rather than one range: every tag is read, and one report is written per release bump, newest first. `--from=all`, `--from=0` and `--from=HEAD` all say the same thing.
+
+The chain is drawn between `major.minor` series, not between every tag, so a repository with forty patch releases does not produce forty reports. Given the tags `v0.0.1 v0.0.2 v0.1.0 v0.1.1 v0.2.0 v0.2.1 v0.2.2` and commits on top of the last one, the report holds:
+
+| Range            | What it covers                                                 |
+|------------------|----------------------------------------------------------------|
+| `since v0.2.2`   | the working tree, and the release it has earned                |
+| `v0.2.0..v0.2.2` | the latest release, against the release that opened its series |
+| `v0.1.0..v0.2.0` | the move from the 0.1 series to the 0.2 series                 |
+| `v0.0.1..v0.1.0` | the move from the 0.0 series to the 0.1 series                 |
+| `v0.0.1`         | the first release, measured from the first commit              |
+
+A series is compared against the release that opened the one below it, so `v0.2.0` is measured from `v0.1.0` and not from `v0.1.1`. The opener is the lowest release of the series, which is its `.0` unless that was never tagged. The patch releases in between get no report of their own; their commits are still there, inside the section spanning them. The latest release earns one anyway when it is not the opener of its own series, since nothing else covers it.
+
+Add `-v` to report every tag instead, each against the one before it, which is the same history at the granularity it was tagged at.
+
+`--from` and `--to` bound the chain at either end, naming the releases it runs between. `worktree verdict --all --to v0.5.0` stops at `v0.5.0` and reports nothing after it, including the working tree, which is past its end. `worktree verdict --all --from v0.3.0` starts there rather than at the first commit. A range holding no release at all is an error rather than an empty report.
+
+Each revision is unpacked and modelled once for the whole run, so a release ending one section and opening the next is read once rather than twice.
+
 ```
-# github.com/go-bridget/mig v0.6.0
+# github.com/go-bridget/mig @ v0.6.0
 
 Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since v0.5.5.
 
@@ -146,32 +174,71 @@ Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since
 
 | Change | Package | Symbol |
 | --- | --- | --- |
+| Added | migrate | type Manager |
+|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) |
 | Removed | cmd/mig/gen | type Column |
 |  | migrate | func Load (fsys fs.FS, project string) error |
-| Added | migrate | type Manager |
-|  | migrate | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) |
 ```
 
-The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. A module holding more than one package gains the `Package` column, without which `const Name` three times over says nothing.
+The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. A module holding more than one package gains the `Package` column, without which `const Name` three times over says nothing. The symbols of a package are gathered together within their category and only the first of them names it, the same way the data model table reads. Everywhere counts and categories are listed, the order is what the release added, what it reshaped, what it took away.
 
-Every type the release adds is printed in full below the tables, so a reader sees what was declared rather than only its name. The body is the declaration as it is written, with its doc comment removed:
+### Data model changes
+
+The exported fields of a type are a promise to a consumer as much as a func signature is, so the report covers them too, under a **Data model** section. It is one table for every type the release touched, built the way the API table above it is built: `Change | Package | Type | Field`, grouped by what the release did, with the cells that repeat the row above them left empty.
 
 ```
-<details>
-<summary><code>type Manager</code></summary>
+## Data model v0.0.1..v0.1.0
 
-```go
-type Manager struct {
-	db      *sqlx.DB
-	fsys    fs.FS
-	project string
-}
+| Change | Package | Type | Field |
+| --- | --- | --- | --- |
+| Added | commands/docs | DocMeta ▲ | Layout string `yaml:"layout"` |
+|  |  |  | Title string `yaml:"title"` |
+|  |  | Tab ▲ | IsCode bool |
+|  | tour | Lesson | FileOptions map[string][]string |
+|  |  | Module | FS fs.FS |
+| Changed | config | Config | Addr string `yaml:"addr"` -> []string `yaml:"addr"` |
+| Removed | tour | Chapter | Slug string |
 ```
 
-</details>
+The `▲` marks a type the release introduces, the same mark the [dependency matrix](#information-summarized) uses for something that is there now. Its rows are the shape it declares, so a reader sees what it is rather than only that it exists; unexported fields are left out, since nothing outside the module can reach them. A type without the mark was already there and is written as the fields that moved on it, rather than as the whole declaration again.
+
+The category opens a group and the package and type are restated under it, however far the group above them reached. Within a group the rows read by package, then type, then field.
+
+The `Field` column carries the name and the shape, since the name has no column of its own. A field that moved is written once under its name with the shape on either side of the move, the way the API table writes a changed signature. An interface needs no treatment of its own: its methods sit in the same column, so the type and the field together read as `store.Store.Put`.
+
+What a data model change costs depends on the shape:
+
+| Shape     | field added  | field reshaped | field removed |
+|-----------|--------------|----------------|---------------|
+| struct    | not breaking | breaking       | breaking      |
+| interface | breaking     | breaking       | breaking      |
+
+Adding a method to an interface stops every implementor compiling, where adding a field to a struct costs a consumer nothing. A struct tag is compared along with the field type and counts as a reshape: it is what a document decodes through, so renaming a `json` or `yaml` key breaks every document already written even though the code reading it still compiles. An embedded field is reached by the last identifier of the type it embeds, and counts because it promotes that type's method set.
+
+A breaking data model change earns a minor the same way a removed symbol does, and the verdict says which: `Minor release: v0.2.0, because 1 exported field moved since v0.1.0.`
+
+This needs a [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) that reports the field comparison. An older one reports only the symbols, and the section is left out.
+
+### Counts alone
+
+`--stats` collapses the analysis to one table, a row per release, which is the shape to read a long chain in:
+
+```bash
+worktree verdict --all --stats
 ```
 
-This is read from the source go-fsck records under `--include-sources`, not rebuilt from the model's decomposed fields, which cannot represent a grouped `Major, Minor, Patch uint64`, an inline `interface{ ... }`, an array length, or a `type Version string` at all.
+```
+# github.com/titpetric/vuego-cli
+
+| Version | Since | Commits | Symbols + | Symbols ~ | Symbols - | Fields + | Fields ~ | Fields - |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v0.3.0 | v0.2.0 | 11 | 1 | 0 | 0 | 0 | 0 | 0 |
+| v0.2.0 | v0.1.0 | 5 | 34 | 0 | 0 | 0 | 0 | 0 |
+| v0.1.0 | v0.0.1 | 87 | 26 | 2 | 2 | 2 | 0 | 1 |
+| v0.0.1 |  | 9 | 43 | 0 | 0 | 0 | 0 | 0 |
+```
+
+The module is named once, without a version, since the table holds them. It works on a single verdict too, where it is a table of one row. On a terminal a zero is greyed, so the releases that did something stand out from the ones that did not.
 
 Several flags invoke tool functionality:
 

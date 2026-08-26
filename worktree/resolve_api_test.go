@@ -115,8 +115,36 @@ func TestFirstLine(t *testing.T) {
 }
 
 func TestApiDiffSinceTagSkipsWhatItCannotCompare(t *testing.T) {
-	if got := apiDiffSinceTag(t.TempDir(), ""); got.Skipped == "" || got.Breaking {
-		t.Fatalf("apiDiffSinceTag() without a tag = %#v, want a skipped, non breaking result", got)
+	requireGoFsck(t)
+
+	if got := apiDiffSinceTag(t.TempDir(), "v9.9.9"); got.Skipped == "" || got.Breaking {
+		t.Fatalf("apiDiffSinceTag() against a tag that does not exist = %#v, want a skipped, non breaking result", got)
+	}
+}
+
+// A comparison measured from the start of history has no revision to read on
+// the old side, and reports everything the module exports as added.
+func TestApiDiffFromTheStartOfHistory(t *testing.T) {
+	requireGoFsck(t)
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n\n// Bye parts.\nfunc Bye(name string) string { return name }\n")
+
+	got := apiDiffBetween(alpha, "", "")
+	if got.Skipped != "" {
+		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
+	}
+	if got.Breaking || len(got.Removed) != 0 {
+		t.Errorf("apiDiffBetween() = %#v, want nothing removed: there was nothing to remove", got)
+	}
+
+	var names []string
+	for _, symbol := range got.Added {
+		names = append(names, symbol.Name)
+	}
+	if want := []string{"Bye", "Greet"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("apiDiffBetween() Added = %v, want %v", names, want)
 	}
 }
 
@@ -170,24 +198,99 @@ func TestApiDiffSinceTagReadsRemovedAndAddedSymbols(t *testing.T) {
 	}
 }
 
+func TestApiModelsReadsEachRevisionOnce(t *testing.T) {
+	requireGoFsck(t)
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
+	runGit(t, root, "tag", "alpha/v0.1.0")
+
+	models, err := newAPIModels()
+	if err != nil {
+		t.Fatalf("newAPIModels() error: %v", err)
+	}
+	t.Cleanup(func() { _ = models.Close() })
+
+	first, err := models.model(alpha, "alpha/v0.1.0")
+	if err != nil {
+		t.Fatalf("model() error: %v", err)
+	}
+	second, err := models.model(alpha, "alpha/v0.1.0")
+	if err != nil {
+		t.Fatalf("model() error: %v", err)
+	}
+	if first != second {
+		t.Errorf("model() read the same revision twice: %q then %q", first, second)
+	}
+
+	// The working tree is the one revision that can change under a run, so it
+	// is read where it stands every time.
+	tree, err := models.model(alpha, "")
+	if err != nil {
+		t.Fatalf("model() error: %v", err)
+	}
+	again, err := models.model(alpha, "")
+	if err != nil {
+		t.Fatalf("model() error: %v", err)
+	}
+	if tree == again {
+		t.Error("model() cached the working tree, which can change under a run")
+	}
+
+	// A revision the repository does not carry fails, and stays failed.
+	if _, err := models.model(alpha, "alpha/v9.9.9"); err == nil {
+		t.Error("model() accepted a tag the repository does not carry")
+	}
+	if _, err := models.model(alpha, "alpha/v9.9.9"); err == nil {
+		t.Error("model() accepted a tag it had already refused")
+	}
+
+	if err := models.Close(); err != nil {
+		t.Fatalf("Close() error: %v", err)
+	}
+	if _, err := os.Stat(models.work); !os.IsNotExist(err) {
+		t.Errorf("Close() left %s behind", models.work)
+	}
+}
+
 func TestApiDiffSummaryAndSymbols(t *testing.T) {
 	diff := apiDiff{
 		Removed: []apiSymbol{{Key: "example.com/x.Gone", Name: "Gone", Kind: "type"}},
 		Added:   []apiSymbol{{Key: "example.com/x.New", Name: "New", Kind: "func", Signature: "func New () *Client"}},
 		Changed: []apiChange{{Key: "example.com/x.Moved", Old: "Moved ()", New: "Moved (int)"}},
 	}
-	if want := "api: 1 removed, 1 changed, 1 added"; diff.Summary() != want {
+	if want := "api: 1 added, 1 changed, 1 removed"; diff.Summary() != want {
 		t.Errorf("Summary() = %q, want %q", diff.Summary(), want)
 	}
 	want := []string{
-		"- example.com/x.Gone",
+		"+ example.com/x.New",
 		"~ example.com/x.Moved",
 		"    Moved ()",
 		"    Moved (int)",
-		"+ example.com/x.New",
+		"- example.com/x.Gone",
 	}
 	if got := diff.Symbols(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Symbols() = %#v, want %#v", got, want)
+	}
+
+	// The fields a release moves are counted alongside the symbols, and are
+	// left out of the line when it moved none.
+	diff.Types = []apiTypeChange{{
+		Name: "Config", Underlying: "struct",
+		Fields: []apiFieldChange{
+			{Name: "Addr", Change: fieldChanged},
+			{Name: "Retries", Change: fieldRemoved},
+			{Name: "Timeout", Change: fieldAdded},
+			{Name: "Tries", Change: fieldAdded},
+		},
+	}}
+	if want := "api: 1 added, 1 changed, 1 removed; fields: 2 added, 1 changed, 1 removed"; diff.Summary() != want {
+		t.Errorf("Summary() = %q, want %q", diff.Summary(), want)
+	}
+	if added, changed, removed := diff.FieldCounts(); added != 2 || changed != 1 || removed != 1 {
+		t.Errorf("FieldCounts() = %d, %d, %d, want 2, 1, 1", added, changed, removed)
 	}
 
 	skipped := apiDiff{Skipped: "not a go module"}

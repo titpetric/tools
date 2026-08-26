@@ -168,11 +168,28 @@ func main() {
 		if dir == "" {
 			dir = "."
 		}
-		v, err := readVerdict(dir, opts.From, opts.To)
-		if err != nil {
-			log.Fatalf("failed to read the release verdict: %v", err)
+		// A chain reports on every release; a single verdict is the one range
+		// it was asked for, which the stats table takes as a run of one.
+		var verdicts []verdict
+		if opts.Chain {
+			chain, err := readVerdicts(dir, opts.Verbose, opts.From, opts.To)
+			if err != nil {
+				log.Fatalf("failed to read the release chain: %v", err)
+			}
+			verdicts = chain
+		} else {
+			v, err := readVerdict(dir, opts.From, opts.To)
+			if err != nil {
+				log.Fatalf("failed to read the release verdict: %v", err)
+			}
+			verdicts = []verdict{v}
 		}
-		renderVerdict(os.Stdout, v, supportsANSI(os.Stdout))
+
+		if opts.Stats {
+			renderVerdictStats(os.Stdout, verdicts, supportsANSI(os.Stdout))
+			return
+		}
+		renderVerdicts(os.Stdout, verdicts, supportsANSI(os.Stdout))
 		return
 	}
 

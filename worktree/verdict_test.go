@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/titpetric/tools/worktree/components"
 )
 
 func TestBrowsableRemote(t *testing.T) {
@@ -136,26 +138,44 @@ func TestReadVerdictProposesAReleaseWhenBehind(t *testing.T) {
 	}
 }
 
-func TestReadVerdictWithOneTagHasNothingToCompare(t *testing.T) {
+// The first release has no earlier one to be compared against, so everything it
+// exports is reported as added.
+func TestReadVerdictWithOneTagAddsEverythingItExports(t *testing.T) {
+	requireGoFsck(t)
+
 	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
-	got, err := readVerdict(filepath.Join(root, "alpha"), "", "")
+	got, err := readVerdict(alpha, "", "")
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
-	if !got.Released || got.Version != "v0.1.0" {
-		t.Errorf("readVerdict() = {Released: %v, Version: %q}, want {true, v0.1.0}", got.Released, got.Version)
+	if !got.Released || got.Version != "v0.1.0" || got.Since != "" {
+		t.Errorf("readVerdict() = {Released: %v, Version: %q, Since: %q}, want {true, v0.1.0, \"\"}", got.Released, got.Version, got.Since)
 	}
-	if !strings.Contains(got.API.Skipped, "no earlier release") {
-		t.Errorf("readVerdict() API.Skipped = %q, want it to say there is no earlier release", got.API.Skipped)
+	if got.API.Skipped != "" {
+		t.Fatalf("readVerdict() API.Skipped = %q, want the API read against nothing", got.API.Skipped)
+	}
+	if len(got.API.Added) != 1 || got.API.Added[0].Name != "Greet" {
+		t.Errorf("readVerdict() API.Added = %#v, want Greet", got.API.Added)
+	}
+	if got.API.Breaking {
+		t.Error("readVerdict() called a first release breaking")
 	}
 }
 
 func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
-	root := testRepo(t, "alpha")
+	requireGoFsck(t)
 
-	got, err := readVerdict(filepath.Join(root, "alpha"), "", "")
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n\n// Tag is a release tag.\ntype Tag struct {\n\tName string\n}\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
+
+	got, err := readVerdict(alpha, "", "")
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -164,6 +184,25 @@ func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
 	}
 	if len(got.Commits) == 0 {
 		t.Error("readVerdict() without a tag reported no commits, want the whole history")
+	}
+
+	// Everything the working tree exports is an addition, since the release is
+	// measured against a module holding nothing at all.
+	var names []string
+	for _, symbol := range got.API.Added {
+		names = append(names, symbol.Name)
+	}
+	if want := []string{"Greet", "Tag"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("readVerdict() API.Added = %v, want %v", names, want)
+	}
+	if got.Release != releasePatch {
+		t.Errorf("readVerdict() Release = %q, want a patch: a first release takes nothing away", got.Release)
+	}
+
+	// The fields of an added type are read as additions of their own, so the
+	// first release states the shape it declares.
+	if fields := len(dataModelEntries(got)); fields != 1 {
+		t.Errorf("dataModelEntries() = %d entries, want the one field of Tag", fields)
 	}
 }
 
@@ -174,7 +213,7 @@ func TestApiDiffBetweenReadsTwoTagsAndNotTheWorkingTree(t *testing.T) {
 	// A working tree that would swamp the answer if it were being read.
 	writeTestFile(t, filepath.Join(alpha, "stray.go"), "package alpha\n\n// Stray is uncommitted.\nfunc Stray() {}\n")
 
-	got := apiDiffBetween(alpha, "alpha/v0.1.0", "alpha/v0.2.0", false)
+	got := apiDiffBetween(alpha, "alpha/v0.1.0", "alpha/v0.2.0")
 	if got.Skipped != "" {
 		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
 	}
@@ -186,19 +225,19 @@ func TestApiDiffBetweenReadsTwoTagsAndNotTheWorkingTree(t *testing.T) {
 	}
 }
 
-func TestApiDiffBetweenReadsTypeBodiesWithSources(t *testing.T) {
+func TestApiDiffBetweenReadsTheExportedShapeOfAnAddedType(t *testing.T) {
 	requireGoFsck(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
-	// Grouped field names are the case that reading the body from the source
-	// rather than from the decomposed fields is for.
+	// Grouped names declare a field each, and an unexported one is nobody's
+	// promise to keep.
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"),
-		"package alpha\n\n// Tag is a release tag.\ntype Tag struct {\n\tName string\n\n\tMajor, Minor, Patch uint64\n}\n")
+		"package alpha\n\n// Tag is a release tag.\ntype Tag struct {\n\tName string `json:\"name\"`\n\n\tMajor, Minor, Patch uint64\n\n\traw string\n}\n")
 
-	got := apiDiffBetween(alpha, "alpha/v0.1.0", "", true)
+	got := apiDiffBetween(alpha, "alpha/v0.1.0", "")
 	if got.Skipped != "" {
 		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
 	}
@@ -206,24 +245,66 @@ func TestApiDiffBetweenReadsTypeBodiesWithSources(t *testing.T) {
 		t.Fatalf("apiDiffBetween() Added = %#v, want Tag alone", got.Added)
 	}
 
-	body := got.Added[0].Definition
-	if strings.Contains(body, "// Tag is a release tag.") {
-		t.Errorf("the doc comment was kept:\n%s", body)
-	}
-	// The body is printed as go-fsck formats it, which aligns fields with
-	// tabs, so the names are what is asserted rather than the spacing.
-	for _, name := range []string{"Name", "Major, Minor, Patch"} {
-		if !strings.Contains(body, name) {
-			t.Errorf("the body lost %q:\n%s", name, body)
-		}
-	}
-	if !strings.HasPrefix(body, "type Tag struct {") {
-		t.Errorf("the body does not open on the declaration:\n%s", body)
+	tag := got.Added[0]
+	if tag.Underlying != "struct" {
+		t.Errorf("Tag.Underlying = %q, want struct", tag.Underlying)
 	}
 
-	// Without sources there is no body to print.
-	if plain := apiDiffBetween(alpha, "alpha/v0.1.0", "", false); plain.Added[0].Definition != "" {
-		t.Errorf("apiDiffBetween() without sources carried a body: %q", plain.Added[0].Definition)
+	var names []string
+	for _, field := range tag.Fields {
+		names = append(names, field.Name)
+	}
+	want := []string{"Major", "Minor", "Name", "Patch"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("Tag.Fields = %#v, want %#v", names, want)
+	}
+
+	for _, field := range tag.Fields {
+		if field.Name == "Name" && field.Tag != `json:"name"` {
+			t.Errorf("Name lost its tag: %#v", field)
+		}
+	}
+}
+
+func TestApiDiffBetweenReportsAFieldThatMoved(t *testing.T) {
+	requireGoFsck(t)
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"),
+		"package alpha\n\n// Config configures.\ntype Config struct {\n\tAddr string `yaml:\"addr\"`\n\tRetries int\n}\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Config")
+	runGit(t, root, "tag", "alpha/v0.1.0")
+
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"),
+		"package alpha\n\n// Config configures.\ntype Config struct {\n\tAddr []string `yaml:\"addr\"`\n\tTimeout int\n}\n")
+
+	got := apiDiffBetween(alpha, "alpha/v0.1.0", "")
+	if got.Skipped != "" {
+		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
+	}
+	if len(got.Types) != 1 {
+		t.Fatalf("apiDiffBetween() Types = %#v, want Config alone", got.Types)
+	}
+
+	change := got.Types[0]
+	if change.Name != "Config" || change.Underlying != "struct" {
+		t.Errorf("Types[0] = {Name: %q, Underlying: %q}, want {Config, struct}", change.Name, change.Underlying)
+	}
+
+	moved := make(map[string]string)
+	for _, field := range change.Fields {
+		moved[field.Name] = field.Change
+	}
+	want := map[string]string{"Addr": fieldChanged, "Retries": fieldRemoved, "Timeout": fieldAdded}
+	if !reflect.DeepEqual(moved, want) {
+		t.Errorf("Config fields = %#v, want %#v", moved, want)
+	}
+
+	// Taking a field away costs a consumer something, so the release is a
+	// minor even though no symbol went away.
+	if !got.Breaking {
+		t.Error("apiDiffBetween() did not call a removed field breaking")
 	}
 }
 
@@ -235,8 +316,16 @@ func TestVerdictSummary(t *testing.T) {
 	}{
 		{
 			name: "first release",
-			in:   verdict{Version: "v0.0.1"},
-			want: "First release: v0.0.1, with no earlier release to compare against.",
+			in: verdict{
+				Version: "v0.0.1",
+				API:     apiDiff{Added: []apiSymbol{{Key: "x.A"}, {Key: "x.B"}}},
+			},
+			want: "First release: v0.0.1, 2 exported symbols are added.",
+		},
+		{
+			name: "first release, the API was not read",
+			in:   verdict{Version: "v0.0.1", API: apiDiff{Skipped: "go-fsck is not installed"}},
+			want: "First release: v0.0.1, the API was not read, go-fsck is not installed.",
 		},
 		{
 			name: "patch",
@@ -288,9 +377,9 @@ func TestVerdictSummary(t *testing.T) {
 			name: "a release with nothing before it",
 			in: verdict{
 				Version: "v1.0.0", Released: true,
-				API: apiDiff{Skipped: "no earlier release to compare against"},
+				API: apiDiff{Added: []apiSymbol{{Key: "x.A"}}},
 			},
-			want: "Released v1.0.0, no earlier release to compare against.",
+			want: "Released v1.0.0: the first release, 1 exported symbol is added.",
 		},
 	}
 
@@ -320,16 +409,44 @@ func sampleVerdict() verdict {
 			}},
 			Added: []apiSymbol{{
 				Key: "example.com/x.Client", Package: "example.com/x",
-				Name: "Client", Kind: "type",
-				Definition: "type Client struct {\n\tName string\n}",
+				Name: "Client", Kind: "type", Underlying: "struct",
+				Fields: []apiField{{Name: "Name", Type: "string", Tag: `json:"name"`}},
 			}},
 			Changed: []apiChange{{
 				Key: "example.com/x.Open", Package: "example.com/x",
 				Name: "Open", Old: "Open ()", New: "Open (string)",
 			}},
+			Types: []apiTypeChange{{
+				Key: "example.com/x.Config", Package: "example.com/x",
+				Name: "Config", Underlying: "struct", Breaking: true,
+				Fields: []apiFieldChange{
+					{
+						Name: "Addr", Change: fieldChanged,
+						Old: &apiField{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},
+						New: &apiField{Name: "Addr", Type: "[]string", Tag: `yaml:"addr"`},
+					},
+					{Name: "Timeout", Change: fieldAdded, New: &apiField{Name: "Timeout", Type: "int"}},
+					{Name: "Retries", Change: fieldRemoved, Old: &apiField{Name: "Retries", Type: "int"}},
+				},
+			}},
 			Breaking: true,
 		},
 	}
+}
+
+// sampleInterfaceChange is a verdict whose data model change is to an
+// interface, whose fields read as a method set.
+func sampleInterfaceChange() verdict {
+	v := sampleVerdict()
+	v.API.Added = nil
+	v.API.Types = []apiTypeChange{{
+		Key: "example.com/x/store.Store", Package: "example.com/x/store",
+		Name: "Store", Underlying: "interface", Breaking: true,
+		Fields: []apiFieldChange{
+			{Name: "Put", Change: fieldAdded, New: &apiField{Name: "Put", Type: "Put (key string) error"}},
+		},
+	}}
+	return v
 }
 
 func TestRenderVerdictMarkdown(t *testing.T) {
@@ -338,18 +455,26 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 
 	got := out.String()
 	for _, want := range []string{
-		"# example.com/x v1.1.0",
-		"Minor release: v1.1.0, because 1 exported symbol was removed and 1 signature changed since v1.0.0.",
+		"# example.com/x @ v1.1.0",
+		"Minor release: v1.1.0, because 1 exported symbol was removed and 1 signature changed and 2 exported fields moved since v1.0.0.",
 		"## Commits since v1.0.0",
 		"| [`abc1234`](https://github.com/example/x/commit/abc1234) | feat: add Client |",
 		"## API since v1.0.0",
 		"| Change | Symbol |",
-		"| Removed | func Legacy () error |",
-		"| Changed | Open () -> Open (string) |",
 		"| Added | type Client |",
-		"<details>\n<summary><code>type Client</code></summary>",
-		"```go\ntype Client struct {\n\tName string\n}\n```",
-		"</details>",
+		"| Changed | Open () -> Open (string) |",
+		"| Removed | func Legacy () error |",
+		// One table, whatever the release did to however many types.
+		"## Data model since v1.0.0",
+		"| Change | Package | Type | Field |",
+		// A type the release adds is written as the shape it declares, and
+		// carries the mark that says the type itself is new.
+		"| Added | x | Client ▲ | Name string `json:\"name\"` |",
+		// A type that was already there is written as what moved on it, and
+		// the cells repeating the row above are left empty.
+		"|  |  | Config | Timeout int |",
+		"| Changed | x | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
+		"| Removed | x | Config | Retries int |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
@@ -359,8 +484,10 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 	if strings.Contains(got, "\033") {
 		t.Error("renderVerdict() wrote escape codes into markdown")
 	}
-	// A module with one package has nothing to disambiguate.
-	if strings.Contains(got, "| Package |") {
+	// A module with one package has nothing for the API table to disambiguate.
+	// The data model table names the package either way, since it has a type
+	// column to keep it apart from.
+	if strings.Contains(got, "| Change | Package | Symbol |") {
 		t.Errorf("renderVerdict() added a package column for a single package:\n%s", got)
 	}
 }
@@ -381,12 +508,14 @@ func TestRenderVerdictANSI(t *testing.T) {
 
 	plain := ansi.Strip(got)
 	for _, want := range []string{
-		"example.com/x v1.1.0",
+		"example.com/x @ v1.1.0",
 		"Commits since v1.0.0",
 		"abc1234",
 		"Removed",
 		"func Legacy () error",
-		"type Client struct {",
+		"Data model since v1.0.0",
+		"Client ▲",
+		"Name string `json:\"name\"`",
 	} {
 		if !strings.Contains(plain, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, plain)
@@ -394,6 +523,24 @@ func TestRenderVerdictANSI(t *testing.T) {
 	}
 	if !strings.Contains(plain, "╭") {
 		t.Errorf("renderVerdict() drew no table:\n%s", plain)
+	}
+
+	// A heading sits directly on top of the table it names, and the blank line
+	// falls after the table, so the two read as one block.
+	if !strings.Contains(plain, "Commits since v1.0.0\n╭") {
+		t.Errorf("renderVerdict() parted a heading from its table:\n%s", plain)
+	}
+	if !strings.Contains(plain, "╯\n\nAPI since v1.0.0") {
+		t.Errorf("renderVerdict() left no blank line between two tables:\n%s", plain)
+	}
+	if !strings.HasSuffix(plain, "╯\n\n") {
+		t.Errorf("renderVerdict() did not end on a blank line:\n%s", plain)
+	}
+
+	// The heading is not written in the colour the columns of the table are, or
+	// it would read as another one of them.
+	if !strings.Contains(got, components.ColorSection+"API since v1.0.0") {
+		t.Errorf("renderVerdict() wrote a heading in another colour:\n%q", got)
 	}
 }
 
@@ -407,10 +554,47 @@ func TestRenderVerdictNamesThePackageWhenSymbolsSpanMoreThanOne(t *testing.T) {
 	renderVerdict(&out, v, false)
 
 	got := out.String()
-	for _, want := range []string{"| Change | Package | Symbol |", "| inner | const Name |", "|  | type Client |"} {
+	for _, want := range []string{"| Change | Package | Symbol |", "| inner | const Name |", "| x | type Client |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
+	v := sampleVerdict()
+	v.API.Added = append(v.API.Added,
+		apiSymbol{
+			Key: "example.com/x/inner.Name", Package: "example.com/x/inner", Name: "Name", Kind: "const",
+		},
+		apiSymbol{
+			Key: "example.com/x.Dial", Package: "example.com/x", Name: "Dial", Kind: "func", Signature: "func Dial () error",
+		},
+		apiSymbol{
+			Key: "example.com/x/inner.Other", Package: "example.com/x/inner", Name: "Other", Kind: "const",
+		},
+	)
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+
+	got := out.String()
+	// The symbols of a package are gathered together, and only the first of
+	// them names it. The removal below opens a group of its own, so the package
+	// is named again there.
+	for _, want := range []string{
+		"| Added | inner | const Name |",
+		"|  |  | const Other |",
+		"|  | x | type Client |",
+		"|  |  | func Dial () error |",
+		"| Removed | x | func Legacy () error |",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+		}
+	}
+	if n := strings.Count(got, "| inner |"); n != 1 {
+		t.Errorf("renderVerdict() named the package %d times, want once:\n%s", n, got)
 	}
 }
 
@@ -623,5 +807,239 @@ func TestParseOptionsVerdictRange(t *testing.T) {
 	}
 	if opts.From != "v0.1.0" || opts.To != "v0.2.0" {
 		t.Errorf("= {From: %q, To: %q}, want {v0.1.0, v0.2.0}", opts.From, opts.To)
+	}
+}
+
+func TestShortPackage(t *testing.T) {
+	tests := []struct {
+		module, pkg string
+		want        string
+	}{
+		// A package at the root of the module is named by the last segment of
+		// the module path, which is what it is imported as.
+		{module: "example.com/x", pkg: "example.com/x", want: "x"},
+		{module: "github.com/titpetric/vuego-cli", pkg: "github.com/titpetric/vuego-cli/config", want: "config"},
+		// A package nested below the module keeps its whole path, so two
+		// packages sharing a name stay apart.
+		{module: "example.com/x", pkg: "example.com/x/commands/host", want: "commands/host"},
+		// A package outside the module, which the model should not hold, is
+		// named as it stands rather than mangled.
+		{module: "example.com/x", pkg: "example.com/other", want: "example.com/other"},
+	}
+
+	for _, test := range tests {
+		if got := shortPackage(test.module, test.pkg); got != test.want {
+			t.Errorf("shortPackage(%q, %q) = %q, want %q", test.module, test.pkg, got, test.want)
+		}
+	}
+}
+
+func TestRenderVerdictNamesInterfaceMethods(t *testing.T) {
+	var out bytes.Buffer
+	renderVerdict(&out, sampleInterfaceChange(), false)
+
+	got := out.String()
+	// A method needs no treatment of its own: the type column names the
+	// interface and the field column carries the signature, so the row reads as
+	// store.Store.Put.
+	if want := "| Added | store | Store | Put (key string) error |"; !strings.Contains(got, want) {
+		t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+	}
+}
+
+func TestRenderVerdictOmitsTheDataModelWhenNothingMoved(t *testing.T) {
+	v := sampleVerdict()
+	v.API.Added, v.API.Types = nil, nil
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+
+	if got := out.String(); strings.Contains(got, "Data model") {
+		t.Errorf("renderVerdict() wrote a data model section with nothing in it:\n%s", got)
+	}
+}
+
+func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
+	v := sampleVerdict()
+	// A func type declares no field, so its row in the API table says all
+	// there is to say about it.
+	v.API.Added = []apiSymbol{{
+		Key: "example.com/x.Option", Package: "example.com/x",
+		Name: "Option", Kind: "type", Underlying: "func(*Client)",
+	}}
+	v.API.Types = nil
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+
+	// The API table says the type is there; there is no shape to write for it,
+	// so the section is left out entirely.
+	got := out.String()
+	if !strings.Contains(got, "| Added | type Option |") {
+		t.Errorf("renderVerdict() lost the type from the API table:\n%s", got)
+	}
+	if strings.Contains(got, "Data model") {
+		t.Errorf("renderVerdict() wrote a data model section for a type declaring no field:\n%s", got)
+	}
+}
+
+func TestRenderVerdictDataModelIsOneTable(t *testing.T) {
+	v := sampleVerdict()
+	// A second package, so the table has something to keep apart.
+	v.API.Types = append(v.API.Types, apiTypeChange{
+		Key: "example.com/x/inner.Store", Package: "example.com/x/inner",
+		Name: "Store", Underlying: "struct", Breaking: true,
+		Fields: []apiFieldChange{
+			{Name: "Bucket", Change: fieldAdded, New: &apiField{Name: "Bucket", Type: "string"}},
+			{Name: "Region", Change: fieldRemoved, Old: &apiField{Name: "Region", Type: "string"}},
+		},
+	})
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+	got := out.String()
+
+	// One table for every type the release touched, and no heading per type.
+	if n := strings.Count(got, "| Change | Package | Type | Field |"); n != 1 {
+		t.Errorf("renderVerdict() wrote %d data model tables, want 1:\n%s", n, got)
+	}
+	if strings.Contains(got, "###") {
+		t.Errorf("renderVerdict() wrote a heading per type:\n%s", got)
+	}
+
+	// The rows the table holds, in order: added first, taken away last, and
+	// within a category by package, then type, then field.
+	// The category names only the first row of its group, as it does in the API
+	// table above.
+	want := []string{
+		"| Added | inner | Store | Bucket string |",
+		"|  | x | Client ▲ | Name string `json:\"name\"` |",
+		"|  |  | Config | Timeout int |",
+		"| Changed | x | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
+		"| Removed | inner | Store | Region string |",
+		"|  | x | Config | Retries int |",
+	}
+	at := -1
+	for _, row := range want {
+		next := strings.Index(got, row)
+		if next < 0 {
+			t.Fatalf("renderVerdict() output missing %q:\n%s", row, got)
+		}
+		if next < at {
+			t.Errorf("renderVerdict() wrote %q out of order:\n%s", row, got)
+		}
+		at = next
+	}
+
+	// A category opens a group, and restates the package and type under it
+	// however far the group above them reached.
+	if strings.Contains(got, "| Removed |  |") {
+		t.Errorf("renderVerdict() opened a category on an empty package cell:\n%s", got)
+	}
+	// Only the type the release adds carries the mark, and only once.
+	if n := strings.Count(got, newTypeMark); n != 1 {
+		t.Errorf("renderVerdict() wrote the new type mark %d times, want 1:\n%s", n, got)
+	}
+}
+
+func TestFieldText(t *testing.T) {
+	tests := []struct {
+		title  string
+		change apiFieldChange
+		want   string
+	}{{
+		title:  "a field that was added has the shape it arrived with",
+		change: apiFieldChange{Name: "Retries", Change: fieldAdded, New: &apiField{Name: "Retries", Type: "int"}},
+		want:   "Retries int",
+	}, {
+		title:  "a field that was removed has the shape it left with",
+		change: apiFieldChange{Name: "Retries", Change: fieldRemoved, Old: &apiField{Name: "Retries", Type: "int"}},
+		want:   "Retries int",
+	}, {
+		// The name is written once: a field is matched to the one it was by
+		// name, so the name is the one thing that cannot have changed.
+		title: "a field that moved has both shapes under one name",
+		change: apiFieldChange{
+			Name: "Addr", Change: fieldChanged,
+			Old: &apiField{Name: "Addr", Type: "string"},
+			New: &apiField{Name: "Addr", Type: "[]string"},
+		},
+		want: "Addr string -> []string",
+	}, {
+		title: "a tag is part of the shape, since a document decodes through it",
+		change: apiFieldChange{
+			Name: "Addr", Change: fieldChanged,
+			Old: &apiField{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},
+			New: &apiField{Name: "Addr", Type: "string", Tag: `yaml:"address"`},
+		},
+		want: "Addr string `yaml:\"addr\"` -> string `yaml:\"address\"`",
+	}, {
+		// An interface method carries its name in the signature it is recorded
+		// under, so the name is not written in front of it twice.
+		title: "an interface method is not named twice",
+		change: apiFieldChange{
+			Name: "Put", Change: fieldAdded,
+			New: &apiField{Name: "Put", Type: "Put (key string) error"},
+		},
+		want: "Put (key string) error",
+	}, {
+		// A field typed after itself is not a name written twice, so it keeps
+		// both: the parameter list is what tells a method signature apart.
+		title: "a field typed after itself keeps its name",
+		change: apiFieldChange{
+			Name: "Mode", Change: fieldAdded,
+			New: &apiField{Name: "Mode", Type: "Mode", Tag: `yaml:"mode"`},
+		},
+		want: "Mode Mode `yaml:\"mode\"`",
+	}}
+
+	for _, test := range tests {
+		if got := fieldText(test.change); got != test.want {
+			t.Errorf("%s: fieldText() = %q, want %q", test.title, got, test.want)
+		}
+	}
+}
+
+func TestVerdictBreakageNamesTheDataModel(t *testing.T) {
+	tests := []struct {
+		title string
+		types []apiTypeChange
+		want  string
+	}{{
+		title: "a field a struct lost costs a consumer something",
+		types: []apiTypeChange{{
+			Name: "Config", Underlying: "struct", Breaking: true,
+			Fields: []apiFieldChange{{Name: "Addr", Change: fieldRemoved}},
+		}},
+		want: "Minor release: v1.1.0, because 1 exported field moved since v1.0.0.",
+	}, {
+		title: "a field a struct gained costs nothing",
+		types: []apiTypeChange{{
+			Name: "Config", Underlying: "struct",
+			Fields: []apiFieldChange{{Name: "Addr", Change: fieldAdded}},
+		}},
+		want: "Patch release: v1.1.0, no exported symbols were removed since v1.0.0.",
+	}, {
+		title: "a method an interface gained stops every implementor compiling",
+		types: []apiTypeChange{{
+			Name: "Store", Underlying: "interface", Breaking: true,
+			Fields: []apiFieldChange{{Name: "Put", Change: fieldAdded}},
+		}},
+		want: "Minor release: v1.1.0, because 1 exported field moved since v1.0.0.",
+	}}
+
+	for _, test := range tests {
+		v := verdict{Version: "v1.1.0", Since: "v1.0.0", Release: releasePatch}
+		v.API.Types = test.types
+		for _, change := range test.types {
+			v.API.Breaking = v.API.Breaking || change.Breaking
+		}
+		if v.API.Breaking {
+			v.Release = releaseMinor
+		}
+
+		if got := v.Summary(); got != test.want {
+			t.Errorf("%s: Summary() = %q, want %q", test.title, got, test.want)
+		}
 	}
 }

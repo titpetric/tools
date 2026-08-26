@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -28,9 +29,69 @@ type apiSymbol struct {
 	// kind.
 	Signature string `json:"signature,omitempty"`
 
-	// Definition is a type as it is declared, without its doc comment, and is
-	// only read when the comparison asked for sources.
-	Definition string `json:"definition,omitempty"`
+	// Underlying is the shape a type is declared with: "struct", "interface",
+	// or the type it is defined as. It is empty for every other kind.
+	Underlying string `json:"underlying,omitempty"`
+
+	// Fields are the exported fields of a struct, or the methods of an
+	// interface, in name order.
+	Fields []apiField `json:"fields,omitempty"`
+}
+
+// apiField is one exported field of a struct, or one method of an interface.
+// The exported fields of a type are as much a promise to a consumer as a func
+// signature is, so a release is reported on them too.
+type apiField struct {
+	// Name is the field name, and for an embedded field the name it is
+	// reached by.
+	Name string `json:"name"`
+
+	// Type is the field type, and for an interface method its signature.
+	Type string `json:"type"`
+
+	// Tag is the struct tag, unmodified, and is empty when there is none.
+	Tag string `json:"tag,omitempty"`
+
+	// Embedded reports a field declared without a name of its own.
+	Embedded bool `json:"embedded,omitempty"`
+}
+
+// The changes a field of a type undergoes between two revisions.
+const (
+	fieldAdded   = "added"
+	fieldChanged = "changed"
+	fieldRemoved = "removed"
+)
+
+// apiFieldChange is one exported field a release adds to, drops from, or
+// reshapes on a type both revisions carry.
+type apiFieldChange struct {
+	Name   string `json:"name"`
+	Change string `json:"change"`
+
+	// Old and New are the field on either side. Old is absent for a field that
+	// was added, and New for one that was removed.
+	Old *apiField `json:"old,omitempty"`
+	New *apiField `json:"new,omitempty"`
+}
+
+// apiTypeChange is a type both revisions carry whose exported fields moved.
+type apiTypeChange struct {
+	Key     string `json:"key"`
+	Package string `json:"package"`
+	Name    string `json:"name"`
+
+	// Underlying is the shape the type keeps across both revisions.
+	Underlying string `json:"underlying"`
+
+	Fields   []apiFieldChange `json:"fields"`
+	Breaking bool             `json:"breaking"`
+}
+
+// IsInterface reports whether the type is an interface, whose fields are read
+// as a method set rather than as data.
+func (c apiTypeChange) IsInterface() bool {
+	return c.Underlying == "interface"
 }
 
 // String renders the declaration the way it reads in source.
@@ -56,10 +117,16 @@ type apiChange struct {
 // apiDiff is the exported symbol difference between a release tag and the
 // working tree of a module, as reported by "go-fsck diff".
 type apiDiff struct {
-	Removed  []apiSymbol `json:"removed"`
-	Added    []apiSymbol `json:"added"`
-	Changed  []apiChange `json:"changed"`
-	Breaking bool        `json:"breaking"`
+	Removed []apiSymbol `json:"removed"`
+	Added   []apiSymbol `json:"added"`
+	Changed []apiChange `json:"changed"`
+
+	// Types are the types both revisions carry whose exported fields moved,
+	// which is the data model the release changes. An older go-fsck reports
+	// none, and the report leaves the section out.
+	Types []apiTypeChange `json:"types"`
+
+	Breaking bool `json:"breaking"`
 
 	// Skipped records why the comparison did not run and is empty when it
 	// did. A comparison that could not run is never breaking, so a module
@@ -72,21 +139,61 @@ func (d apiDiff) Summary() string {
 	if d.Skipped != "" {
 		return "api: not compared, " + d.Skipped
 	}
-	return fmt.Sprintf("api: %d removed, %d changed, %d added", len(d.Removed), len(d.Changed), len(d.Added))
+
+	added, changed, removed := d.FieldCounts()
+	summary := fmt.Sprintf("api: %d added, %d changed, %d removed", len(d.Added), len(d.Changed), len(d.Removed))
+	if added+changed+removed > 0 {
+		summary += fmt.Sprintf("; fields: %d added, %d changed, %d removed", added, changed, removed)
+	}
+	return summary
 }
 
-// Symbols returns the symbols behind the summary, one per line, removals and
-// signature changes first.
+// BreakingFields returns how many exported fields moved in a way that costs a
+// consumer something. That is every field a type loses or reshapes, and on an
+// interface the methods it gains as well, since each of those stops an
+// implementor compiling.
+func (d apiDiff) BreakingFields() int {
+	count := 0
+	for _, change := range d.Types {
+		for _, field := range change.Fields {
+			if field.Change != fieldAdded || change.IsInterface() {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// FieldCounts returns how many exported fields the release adds, reshapes and
+// takes away, across every type it touches.
+func (d apiDiff) FieldCounts() (added, changed, removed int) {
+	for _, change := range d.Types {
+		for _, field := range change.Fields {
+			switch field.Change {
+			case fieldAdded:
+				added++
+			case fieldChanged:
+				changed++
+			case fieldRemoved:
+				removed++
+			}
+		}
+	}
+	return added, changed, removed
+}
+
+// Symbols returns the symbols behind the summary, one per line, in the order
+// the report lists them: what the release adds first, what it takes away last.
 func (d apiDiff) Symbols() []string {
 	var lines []string
-	for _, symbol := range d.Removed {
-		lines = append(lines, "- "+symbol.Key)
+	for _, symbol := range d.Added {
+		lines = append(lines, "+ "+symbol.Key)
 	}
 	for _, change := range d.Changed {
 		lines = append(lines, "~ "+change.Key, "    "+change.Old, "    "+change.New)
 	}
-	for _, symbol := range d.Added {
-		lines = append(lines, "+ "+symbol.Key)
+	for _, symbol := range d.Removed {
+		lines = append(lines, "- "+symbol.Key)
 	}
 	return lines
 }
@@ -94,44 +201,139 @@ func (d apiDiff) Symbols() []string {
 // apiDiffSinceTag compares the exported API of the working tree in dir against
 // the same module at tag.
 func apiDiffSinceTag(dir, tag string) apiDiff {
-	return apiDiffBetween(dir, tag, "", false)
+	return apiDiffBetween(dir, tag, "")
 }
 
-// apiDiffBetween compares the exported API of two revisions of the module in
-// dir. An empty ref is the working tree; a named one is unpacked into a
-// temporary directory rather than checked out, so the working tree is left
-// alone either way.
+// apiModels holds the model of every revision a run has read, so a chain of
+// comparisons reads each revision once. A release is the new side of one
+// comparison and the old side of the next, which without this is two unpacked
+// archives and two extractions for the same tag.
 //
-// Sources are extracted only when the caller means to print the body of a
-// type: they carry every function body with them and multiply the size of the
-// model.
-//
-// Every reason the comparison cannot run comes back as a Skipped result rather
-// than an error: an unreadable API is treated as non breaking and said to be,
-// so a missing tool does not stop a run.
-func apiDiffBetween(dir, oldRef, newRef string, sources bool) apiDiff {
-	if oldRef == "" {
-		return apiDiff{Skipped: "no release tag to compare against"}
+// The models live below one temporary directory, which Close removes.
+type apiModels struct {
+	work   string
+	models map[string]string
+	errs   map[string]error
+	next   int
+
+	// empty is the model of a revision that does not exist, written the first
+	// time a comparison is measured from the start of history.
+	empty string
+}
+
+// newAPIModels opens a cache. The caller closes it once the comparisons that
+// share it are done.
+func newAPIModels() (*apiModels, error) {
+	work, err := os.MkdirTemp("", "worktree-api-")
+	if err != nil {
+		return nil, err
 	}
+	return &apiModels{work: work, models: map[string]string{}, errs: map[string]error{}}, nil
+}
+
+// Close removes the models the cache holds.
+func (m *apiModels) Close() error {
+	return os.RemoveAll(m.work)
+}
+
+// model returns the path of the model of one revision of the module in dir,
+// reading it the first time it is asked for. A revision that could not be read
+// stays failed, so a tag missing from the repository is reported once and not
+// unpacked again for every range naming it.
+func (m *apiModels) model(dir, ref string) (string, error) {
+	// The working tree is not cached: it is read where it stands, and it is
+	// the one revision that can change under a run.
+	if ref == "" {
+		return extractRef(dir, "", filepath.Join(m.work, m.name()))
+	}
+
+	key := dir + "\x00" + ref
+	if model, ok := m.models[key]; ok {
+		return model, nil
+	}
+	if err, ok := m.errs[key]; ok {
+		return "", err
+	}
+
+	model, err := extractRef(dir, ref, filepath.Join(m.work, m.name()))
+	if err != nil {
+		m.errs[key] = err
+		return "", err
+	}
+	m.models[key] = model
+	return model, nil
+}
+
+// name returns a directory name no other revision in the cache is using.
+func (m *apiModels) name() string {
+	m.next++
+	return strconv.Itoa(m.next)
+}
+
+// base returns the model of the revision a comparison is measured from. An
+// empty ref is the start of history, which is not a revision anyone can read
+// and is modelled as a module holding no packages, so a first release reports
+// everything it exports as added rather than reporting nothing at all.
+func (m *apiModels) base(dir, ref string) (string, error) {
+	if ref != "" {
+		return m.model(dir, ref)
+	}
+	if m.empty != "" {
+		return m.empty, nil
+	}
+
+	// A go-fsck model is the list of packages of a revision, so a revision
+	// that holds none of them is the empty list.
+	path := filepath.Join(m.work, "empty.json")
+	if err := os.WriteFile(path, []byte("[]\n"), 0o644); err != nil {
+		return "", err
+	}
+	m.empty = path
+	return path, nil
+}
+
+// diff compares the exported API of two revisions of the module in dir, reading
+// each through the cache. It is apiDiffBetween with the revisions remembered.
+func (m *apiModels) diff(dir, oldRef, newRef string) apiDiff {
 	if _, err := exec.LookPath("go-fsck"); err != nil {
 		return apiDiff{Skipped: "go-fsck is not installed"}
 	}
 
-	work, err := os.MkdirTemp("", "worktree-api-")
+	oldModel, err := m.base(dir, oldRef)
 	if err != nil {
-		return apiDiff{Skipped: err.Error()}
+		return apiDiff{Skipped: fmt.Sprintf("read %s: %v", baseName(oldRef), err)}
 	}
-	defer func() { _ = os.RemoveAll(work) }()
-
-	oldModel, err := extractRef(dir, oldRef, filepath.Join(work, "old"), sources)
-	if err != nil {
-		return apiDiff{Skipped: fmt.Sprintf("read %s: %v", oldRef, err)}
-	}
-	newModel, err := extractRef(dir, newRef, filepath.Join(work, "new"), sources)
+	newModel, err := m.model(dir, newRef)
 	if err != nil {
 		return apiDiff{Skipped: fmt.Sprintf("read %s: %v", revName(newRef), err)}
 	}
+	return diffModels(oldModel, newModel)
+}
 
+// apiDiffBetween compares the exported API of two revisions of the module in
+// dir. An empty oldRef is the start of history and an empty newRef is the
+// working tree; a named revision is unpacked into a temporary directory rather
+// than checked out, so the working tree is left alone either way.
+//
+// Every reason the comparison cannot run comes back as a Skipped result rather
+// than an error: an unreadable API is treated as non breaking and said to be,
+// so a missing tool does not stop a run.
+func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
+	if _, err := exec.LookPath("go-fsck"); err != nil {
+		return apiDiff{Skipped: "go-fsck is not installed"}
+	}
+
+	models, err := newAPIModels()
+	if err != nil {
+		return apiDiff{Skipped: err.Error()}
+	}
+	defer func() { _ = models.Close() }()
+
+	return models.diff(dir, oldRef, newRef)
+}
+
+// diffModels compares two models that have already been extracted.
+func diffModels(oldModel, newModel string) apiDiff {
 	out, err := exec.Command("go-fsck", "diff", "--old", oldModel, "--new", newModel, "--json").CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(out), "Unknown command") {
@@ -150,7 +352,7 @@ func apiDiffBetween(dir, oldRef, newRef string, sources bool) apiDiff {
 // extractRef writes the model of one revision of the module in dir, unpacking
 // it below work first when it is a named one, and returns the model path. An
 // empty ref is the working tree, which is read where it stands.
-func extractRef(dir, ref, work string, sources bool) (string, error) {
+func extractRef(dir, ref, work string) (string, error) {
 	source := dir
 	if ref != "" {
 		source = work
@@ -160,7 +362,7 @@ func extractRef(dir, ref, work string, sources bool) (string, error) {
 	}
 
 	model := work + ".json"
-	if err := goFsckExtract(source, model, sources); err != nil {
+	if err := goFsckExtract(source, model); err != nil {
 		return "", err
 	}
 	return model, nil
@@ -175,18 +377,27 @@ func revName(ref string) string {
 	return ref
 }
 
+// baseName names the revision a comparison is measured from, where an empty ref
+// is the start of history rather than the working tree.
+func baseName(ref string) string {
+	if ref == "" {
+		return "the start of history"
+	}
+	return ref
+}
+
 // goFsckExtract writes the model of the module in dir to out.
 //
 // The model is read from the syntax tree and package load errors are
 // discarded, so this works on a source tree that was never built, which is
 // what the unpacked tag is. The environment says so: with no module cache to
 // find the requirements in, the go tool would otherwise try to download them.
-func goFsckExtract(dir, out string, sources bool) error {
-	args := []string{"extract", "-i", dir, "-r", "-o", out}
-	if sources {
-		args = append(args, "--include-sources")
-	}
-	cmd := exec.Command("go-fsck", args...)
+//
+// Sources are not asked for. They carry every function body with them and
+// multiply the size of the model, and the fields a report is written from are
+// recorded either way.
+func goFsckExtract(dir, out string) error {
+	cmd := exec.Command("go-fsck", "extract", "-i", dir, "-r", "-o", out)
 	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOFLAGS=-mod=mod", "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%s", firstLine(string(output)))

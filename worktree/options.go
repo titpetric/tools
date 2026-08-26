@@ -21,6 +21,8 @@ type Options struct {
 	Configure  bool
 	Resolve    bool
 	Verdict    bool
+	Chain      bool
+	Stats      bool
 	Apply      bool
 	GoVersion  string
 	Release    string
@@ -68,13 +70,14 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.Update, "u", false, "update the workspace dependencies that are behind their latest tag, and tidy")
 	flag.BoolVar(&opts.UpdateAll, "U", false, "update every dependency with go get -u ./..., including ones outside the workspace")
 	flag.BoolVar(&opts.Pull, "pull", false, "pull new changes for each git repository")
-	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes)")
+	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes); with verdict, report every release in the chain")
 	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
 	flag.BoolVar(&opts.D2, "d2", false, "output D2 dependency diagram to stdout")
 	flag.BoolVar(&opts.Matrix, "t", false, "output dependency matrix to stdout")
 	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details and commands run during updates")
 	flag.BoolVar(&opts.Apply, "apply", false, "perform the resolution instead of rendering it")
-	flag.StringVar(&opts.From, "from", "", "the revision worktree verdict measures from, a tag by default")
+	flag.BoolVar(&opts.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
+	flag.StringVar(&opts.From, "from", "", "the revision worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
 	flag.StringVar(&opts.To, "to", "", "the revision worktree verdict measures to, the working tree by default")
 	flag.StringVar(&opts.GoVersion, "go", "", "set the go directive of every go.mod and go.work to this version, then update dependencies")
 	flag.Parse()
@@ -108,6 +111,7 @@ func ParseOptions() *Options {
 			return opts
 		case commandVerdict:
 			opts.Verdict = true
+			opts.setChain()
 			opts.setFilter(flag.Arg(1))
 			return opts
 		case commandResolve:
@@ -118,6 +122,30 @@ func ParseOptions() *Options {
 
 	opts.setFilter(flag.Arg(filter))
 	return opts
+}
+
+// chainKeywords are the values of --from that ask for every release rather than
+// name one revision. They all say the same thing, which is "start at the
+// beginning": a version below every tag, or the whole history the repository
+// standing at HEAD has behind it.
+var chainKeywords = map[string]bool{"all": true, "0": true, "0.0.0": true, "v0.0.0": true, "head": true}
+
+// chainKeyword reports whether a --from value asks for the whole release chain.
+func chainKeyword(from string) bool {
+	return chainKeywords[strings.ToLower(strings.TrimSpace(from))]
+}
+
+// setChain records that the verdict covers every release rather than one range,
+// which --all asks for outright and --from asks for with a keyword. The keyword
+// is cleared once it is read, so nothing downstream is handed a version that
+// names no revision.
+func (o *Options) setChain() {
+	if chainKeyword(o.From) {
+		o.Chain, o.From = true, ""
+	}
+	if o.All {
+		o.Chain = true
+	}
 }
 
 // setFilter records the optional path filter, which selects the modules a
