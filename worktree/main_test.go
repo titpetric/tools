@@ -74,6 +74,25 @@ func TestParseOptionsVerbose(t *testing.T) {
 	}
 }
 
+// TestParseOptionsVerboseLongFlag checks that the spelled out --verbose is
+// accepted, since that is how the flag reads in the documentation.
+func TestParseOptionsVerboseLongFlag(t *testing.T) {
+	originalArgs := os.Args
+	originalFlags := flag.CommandLine
+	t.Cleanup(func() {
+		os.Args = originalArgs
+		flag.CommandLine = originalFlags
+	})
+
+	os.Args = []string{"worktree", "--verbose"}
+	flag.CommandLine = flag.NewFlagSet("worktree", flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)
+
+	if opts := ParseOptions(); !opts.Verbose {
+		t.Fatal("ParseOptions(--verbose) did not enable verbose output")
+	}
+}
+
 // TestParseOptionsConfigure checks the config subcommand opens the setup
 // screen and is not mistaken for a path filter.
 func TestParseOptionsConfigure(t *testing.T) {

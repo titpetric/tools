@@ -371,7 +371,7 @@ func main() {
 		if g.Ahead > 0 {
 			g.Msgs = commitMessagesSinceTag(dir, info.Latest)
 		}
-		g.UntrackedFiles = getUntrackedFiles(dir)
+		g.UntrackedFiles = getUntrackedFiles(dir, opts.Verbose || opts.All)
 		if opts.Verbose {
 			g.Issues = getGitHubIssues(dir)
 		}
