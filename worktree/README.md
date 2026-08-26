@@ -242,7 +242,7 @@ The module is named once, without a version, since the table holds them. It work
 
 Several flags invoke tool functionality:
 
-- `-v` gives a detailed verbose view with extra data; with `-u`, the update status also lists each `go get` and `go mod tidy` command that ran and marks successful commands with a green check,
+- `-v`, or `--verbose`, gives a detailed verbose view with extra data, and names every untracked file instead of the folder standing in for it, as `--all` also does; with `-u`, the update status also lists each `go get` and `go mod tidy` command that ran and marks successful commands with a green check,
 - `-u` updates the dependencies of each selected Go module that are known to be stale, meaning the workspace modules it requires at a version below their latest tag, with `go get <module>@<tag>`, and then runs `go mod tidy`. Dependencies outside the workspace and workspace modules already at their latest tag are left alone; a module with nothing stale is reported as `Already up to date.` without running the go tool. It displays each module's path, module name, and the resulting `go.mod` changes (`dep v1.0.0 → v1.1.0`, `+ dep`, `- dep`, or `Already up to date.`). Results print line by line as each module finishes, so progress is visible while the remaining modules are still updating; the path and module name of the module being worked on appear before its results. Version changes to an existing requirement are orange, new requirements green, dropped ones grey, and failing commands are reported in red. Use `worktree -u ./...` to update every Go module under the workspace root,
 - `-U` updates every dependency of each selected Go module with `go get -u ./...`, including ones outside the workspace, before applying the workspace tag updates and `go mod tidy` that `-u` performs. It implies `-u`,
 - `--go=<version>` sets the `go` directive of every `go.mod` and `go.work` in the workspace to that version and then performs the same update as `-u`. The version is given as `1.27`, `1.27.1` or `go1.27`. A `toolchain` directive older than the new version is dropped, since it would leave the file invalid; `go get` and `go mod tidy` add a newer one back when they need it. Changed `go.work` files are reported before the update table, each module's go directive change (`go 1.25 → 1.27`) appears in its update status. A module whose `go.mod` already declares the version is reported as `Already up to date.` and skipped without running the go tool, so a repeated run over an updated workspace returns immediately. Combine it with `-u` to update the stale dependencies of every module regardless of its go directive,
@@ -253,6 +253,8 @@ Several flags invoke tool functionality:
 - `--apply` makes `worktree resolve` perform the plan it would otherwise only render; see [Resolving a release chain](#resolving-a-release-chain).
 
 Table output uses the rounded, colored terminal format when stdout is an ANSI terminal and falls back to Markdown when redirected or piped.
+
+The `Git State` column lists the untracked paths of a module. A folder holding nothing tracked stands in for everything below it, named in orange with what it holds, `demos/common/ +17 dirs, +91 files, +7921 SLOC`, so a new subtree costs one line rather than one per file. A new file in a folder that is otherwise tracked is still named, with the lines it adds. `-v` and `--all` name every file instead.
 
 The `Go` column holds each module's go directive. The versions are compared as semantic versions, where a missing patch reads as `.0` and a release candidate such as `1.27rc1` sorts below `1.27`. Every module below the highest version the workspace declares is colored orange, the rest teal. Module import paths lose their `github.com/` prefix, so the module column stays narrow.
 
@@ -323,7 +325,7 @@ The tool scans and displays information about:
 - Git branch in source tree
 - Unpushed git commits
 - Local changes to source tree
-- Untracked changes to source tree
+- Untracked changes to source tree, collapsed to a folder
 - GitHub issues (gh issue list)
 
 It's focused on summarizing of Go workspaces, or git checkouts of standalone Go modules. Git support may be extended to better account for custom remotes and checkouts that aren't a go module source tree.
