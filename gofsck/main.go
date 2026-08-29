@@ -24,6 +24,8 @@ var (
 	outputFile = flag.String("output", "", "Write report to file (empty = stdout)")
 	format     = flag.String("format", "text", "Output format: text, json, or yaml")
 	useChecker = flag.Bool("checker", false, "Use singlechecker mode (for linter integration)")
+
+	skipGenerated = flag.Bool("skip-generated", false, "Skip generated files (// Code generated ... DO NOT EDIT.)")
 )
 
 func main() {
@@ -52,6 +54,10 @@ func main() {
 	pkgs, err := packages.Load(cfg, pkgPaths...)
 	if err != nil {
 		log.Fatalf("failed to load packages: %s", err)
+	}
+
+	if *skipGenerated {
+		skipGeneratedFiles(pkgs)
 	}
 
 	_ = &model.Config{} // config is reserved for future use

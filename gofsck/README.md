@@ -49,6 +49,14 @@ go install github.com/titpetric/tools/gofsck@latest
 ./gofsck -format text -output report.txt ./...
 ```
 
+### Skip Generated Files
+
+`-skip-generated` drops files carrying the conventional `// Code generated ... DO NOT EDIT.` line before any analyzer runs, so templ, protoc and go:generate output stops tripping grouping, pairing and coverage expectations. Generated files are not hand-organized, which is what those checks measure.
+
+```bash
+./gofsck -skip-generated ./...
+```
+
 ### Linter Integration
 
 For golangci-lint integration, use the grouping analyzer via singlechecker:
