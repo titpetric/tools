@@ -869,11 +869,18 @@ func dataModelRow(entry fieldEntry, category string, styled bool, width int) []s
 		name += " " + colorLines(newTypeMark, components.ColorGreen, styled)
 	}
 
+	// A field added to a type that already existed carries the mark itself;
+	// on a new type the mark on the type name already covers every field.
+	text := entry.text
+	if entry.category == fieldAdded && !entry.newType {
+		text += " " + colorLines(newTypeMark, components.ColorGreen, styled)
+	}
+
 	return []string{
 		category,
 		colorLines(entry.pkg, components.ColorSeparator, styled),
 		name,
-		fold(entry.text, width),
+		fold(text, width),
 	}
 }
 

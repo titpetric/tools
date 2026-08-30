@@ -472,7 +472,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| Added | / | Client ▲ | Name string `json:\"name\"` |",
 		// A type that was already there is written as what moved on it, and
 		// the cells repeating the row above are left empty.
-		"|  |  | Config | Timeout int |",
+		"|  |  | Config | Timeout int ▲ |",
 		"| Changed | / | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
 		"| Removed | / | Config | Retries int |",
 	} {
@@ -843,7 +843,7 @@ func TestRenderVerdictNamesInterfaceMethods(t *testing.T) {
 	// A method needs no treatment of its own: the type column names the
 	// interface and the field column carries the signature, so the row reads as
 	// store.Store.Put.
-	if want := "| Added | /store | Store | Put (key string) error |"; !strings.Contains(got, want) {
+	if want := "| Added | /store | Store | Put (key string) error ▲ |"; !strings.Contains(got, want) {
 		t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 	}
 }
@@ -914,8 +914,8 @@ func TestRenderVerdictDataModelIsOneTable(t *testing.T) {
 	// table above.
 	want := []string{
 		"| Added | / | Client ▲ | Name string `json:\"name\"` |",
-		"|  |  | Config | Timeout int |",
-		"|  | /inner | Store | Bucket string |",
+		"|  |  | Config | Timeout int ▲ |",
+		"|  | /inner | Store | Bucket string ▲ |",
 		"| Changed | / | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
 		"| Removed | / | Config | Retries int |",
 		"|  | /inner | Store | Region string |",
@@ -937,9 +937,11 @@ func TestRenderVerdictDataModelIsOneTable(t *testing.T) {
 	if strings.Contains(got, "| Removed |  |") {
 		t.Errorf("renderVerdict() opened a category on an empty package cell:\n%s", got)
 	}
-	// Only the type the release adds carries the mark, and only once.
-	if n := strings.Count(got, newTypeMark); n != 1 {
-		t.Errorf("renderVerdict() wrote the new type mark %d times, want 1:\n%s", n, got)
+	// The added type carries the mark once, and each field added to a type
+	// that already existed carries it on the field; fields of the new type
+	// do not repeat it.
+	if n := strings.Count(got, newTypeMark); n != 3 {
+		t.Errorf("renderVerdict() wrote the mark %d times, want 3:\n%s", n, got)
 	}
 }
 
