@@ -1291,6 +1291,12 @@ func TestFieldReadsEmbedded(t *testing.T) {
 	if got := fieldReads(embedded); got != "embeds *UnimplementedStorage" {
 		t.Errorf("fieldReads(embedded) = %q", got)
 	}
+	// An embed is read as the type it is declared with, pointer and all: the
+	// name go-fsck reaches it by drops the star and says less.
+	value := apiField{Name: "Base", Type: "platform.Base", Embedded: true}
+	if got := fieldReads(value); got != "embeds platform.Base" {
+		t.Errorf("fieldReads(value embed) = %q", got)
+	}
 	named := apiField{Name: "Addr", Type: "string"}
 	if got := fieldReads(named); got != "Addr string" {
 		t.Errorf("fieldReads(named) = %q", got)
