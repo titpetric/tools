@@ -92,7 +92,7 @@ func verdictRepo(t *testing.T) string {
 func TestReadVerdictReportsTheLastReleaseWhenLevelWithItsTag(t *testing.T) {
 	requireGoFsck(t)
 
-	got, err := readVerdict(verdictRepo(t), "", "")
+	got, err := readVerdict(verdictRepo(t), "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestReadVerdictProposesAReleaseWhenBehind(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Bye parts.\nfunc Bye(name string) string { return name }\n\n// Hi greets.\nfunc Hi() string { return \"hi\" }\n")
 	runGit(t, filepath.Dir(alpha), "commit", "--quiet", "-am", "alpha: add Hi")
 
-	got, err := readVerdict(alpha, "", "")
+	got, err := readVerdict(alpha, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestReadVerdictWithOneTagAddsEverythingItExports(t *testing.T) {
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
-	got, err := readVerdict(alpha, "", "")
+	got, err := readVerdict(alpha, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n\n// Tag is a release tag.\ntype Tag struct {\n\tName string\n}\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
 
-	got, err := readVerdict(alpha, "", "")
+	got, err := readVerdict(alpha, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -469,12 +469,12 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| Change | Package | Type | Field |",
 		// A type the release adds is written as the shape it declares, and
 		// carries the mark that says the type itself is new.
-		"| Added | x | Client ▲ | Name string `json:\"name\"` |",
+		"| Added | / | Client ▲ | Name string `json:\"name\"` |",
 		// A type that was already there is written as what moved on it, and
 		// the cells repeating the row above are left empty.
 		"|  |  | Config | Timeout int |",
-		"| Changed | x | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
-		"| Removed | x | Config | Retries int |",
+		"| Changed | / | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
+		"| Removed | / | Config | Retries int |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
@@ -554,7 +554,7 @@ func TestRenderVerdictNamesThePackageWhenSymbolsSpanMoreThanOne(t *testing.T) {
 	renderVerdict(&out, v, false)
 
 	got := out.String()
-	for _, want := range []string{"| Change | Package | Symbol |", "| inner | const Name |", "| x | type Client |"} {
+	for _, want := range []string{"| Change | Package | Symbol |", "| /inner | const Name |", "| / | type Client |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}
@@ -583,17 +583,17 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	// them names it. The removal below opens a group of its own, so the package
 	// is named again there.
 	for _, want := range []string{
-		"| Added | inner | const Name |",
-		"|  |  | const Other |",
-		"|  | x | type Client |",
+		"| Added | / | type Client |",
 		"|  |  | func Dial () error |",
-		"| Removed | x | func Legacy () error |",
+		"|  | /inner | const Name |",
+		"|  |  | const Other |",
+		"| Removed | / | func Legacy () error |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}
 	}
-	if n := strings.Count(got, "| inner |"); n != 1 {
+	if n := strings.Count(got, "| /inner |"); n != 1 {
 		t.Errorf("renderVerdict() named the package %d times, want once:\n%s", n, got)
 	}
 }
@@ -694,7 +694,7 @@ func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "go.mod"), "module example.com/alpha\n\ngo 1.27\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: move to go 1.27")
 
-	got, err := readVerdict(alpha, "", "")
+	got, err := readVerdict(alpha, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -714,7 +714,7 @@ func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "go.mod"), "module example.com/alpha\n\ngo 1.27.3\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: move to go 1.27.3")
 
-	got, err = readVerdict(alpha, "", "")
+	got, err = readVerdict(alpha, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -730,7 +730,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	// A working tree the report must not read, since a range was named.
 	writeTestFile(t, filepath.Join(alpha, "stray.go"), "package alpha\n\n// Stray is uncommitted.\nfunc Stray() {}\n")
 
-	got, err := readVerdict(alpha, "v0.1.0", "v0.2.0")
+	got, err := readVerdict(alpha, "v0.1.0", "v0.2.0", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -747,7 +747,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	}
 
 	// Naming only the newer revision measures from the release below it.
-	got, err = readVerdict(alpha, "", "v0.2.0")
+	got, err = readVerdict(alpha, "", "v0.2.0", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -756,7 +756,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	}
 
 	// Naming only the older one measures to the working tree, where Stray is.
-	got, err = readVerdict(alpha, "v0.1.0", "")
+	got, err = readVerdict(alpha, "v0.1.0", "", false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -815,13 +815,14 @@ func TestShortPackage(t *testing.T) {
 		module, pkg string
 		want        string
 	}{
-		// A package at the root of the module is named by the last segment of
-		// the module path, which is what it is imported as.
-		{module: "example.com/x", pkg: "example.com/x", want: "x"},
-		{module: "github.com/titpetric/vuego-cli", pkg: "github.com/titpetric/vuego-cli/config", want: "config"},
-		// A package nested below the module keeps its whole path, so two
-		// packages sharing a name stay apart.
-		{module: "example.com/x", pkg: "example.com/x/commands/host", want: "commands/host"},
+		// The package at the root of the module is the module root, which is
+		// what the leading slash names.
+		{module: "example.com/x", pkg: "example.com/x", want: "/"},
+		{module: "github.com/titpetric/vuego-cli", pkg: "github.com/titpetric/vuego-cli/config", want: "/config"},
+		// A package below the module keeps its whole path under the root, so
+		// two packages sharing a name stay apart.
+		{module: "example.com/x", pkg: "example.com/x/commands/host", want: "/commands/host"},
+		{module: "example.com/x", pkg: "example.com/x/frontend/model", want: "/frontend/model"},
 		// A package outside the module, which the model should not hold, is
 		// named as it stands rather than mangled.
 		{module: "example.com/x", pkg: "example.com/other", want: "example.com/other"},
@@ -842,7 +843,7 @@ func TestRenderVerdictNamesInterfaceMethods(t *testing.T) {
 	// A method needs no treatment of its own: the type column names the
 	// interface and the field column carries the signature, so the row reads as
 	// store.Store.Put.
-	if want := "| Added | store | Store | Put (key string) error |"; !strings.Contains(got, want) {
+	if want := "| Added | /store | Store | Put (key string) error |"; !strings.Contains(got, want) {
 		t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 	}
 }
@@ -912,12 +913,12 @@ func TestRenderVerdictDataModelIsOneTable(t *testing.T) {
 	// The category names only the first row of its group, as it does in the API
 	// table above.
 	want := []string{
-		"| Added | inner | Store | Bucket string |",
-		"|  | x | Client ▲ | Name string `json:\"name\"` |",
+		"| Added | / | Client ▲ | Name string `json:\"name\"` |",
 		"|  |  | Config | Timeout int |",
-		"| Changed | x | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
-		"| Removed | inner | Store | Region string |",
-		"|  | x | Config | Retries int |",
+		"|  | /inner | Store | Bucket string |",
+		"| Changed | / | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
+		"| Removed | / | Config | Retries int |",
+		"|  | /inner | Store | Region string |",
 	}
 	at := -1
 	for _, row := range want {
@@ -1040,6 +1041,222 @@ func TestVerdictBreakageNamesTheDataModel(t *testing.T) {
 
 		if got := v.Summary(); got != test.want {
 			t.Errorf("%s: Summary() = %q, want %q", test.title, got, test.want)
+		}
+	}
+}
+
+// commitScanRepo builds a module whose history holds one commit of each kind
+// the commit table has a cell for: one that adds an exported func, one that
+// only touches the docs, and one that reshapes the func added before it.
+func commitScanRepo(t *testing.T) string {
+	t.Helper()
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	runGit(t, root, "tag", "alpha/v0.1.0")
+
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
+
+	writeTestFile(t, filepath.Join(alpha, "README.md"), "# alpha\n")
+	runGit(t, root, "add", "-A")
+	runGit(t, root, "commit", "--quiet", "-m", "alpha: document the package")
+
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string, times int) string { return name }\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: greet a number of times")
+
+	return alpha
+}
+
+func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
+	requireGoFsck(t)
+
+	got, err := readVerdict(commitScanRepo(t), "", "", false)
+	if err != nil {
+		t.Fatalf("readVerdict() error: %v", err)
+	}
+	if len(got.Commits) != 3 {
+		t.Fatalf("readVerdict() Commits = %#v, want the three commits since the tag", got.Commits)
+	}
+
+	// The commits are newest first, so the range reads bottom up: Greet is
+	// added, the docs are written, and the signature moves.
+	want := []string{"+0/~1/-0", "", "+1/~0/-0"}
+	for i, commit := range got.Commits {
+		diff, ok := got.CommitAPI[commit.Hash]
+		if !ok {
+			t.Fatalf("readVerdict() scanned no API for %s %q", commit.Hash, commit.Subject)
+		}
+		if diff.Skipped != "" {
+			t.Fatalf("readVerdict() skipped %s: %s", commit.Hash, diff.Skipped)
+		}
+
+		counts := ""
+		if len(diff.Added)+len(diff.Changed)+len(diff.Removed) > 0 {
+			counts = symbolCounts(diff, false)
+		}
+		if counts != want[i] {
+			t.Errorf("readVerdict() %q = %q, want %q", commit.Subject, counts, want[i])
+		}
+	}
+}
+
+func TestRenderVerdictWritesTheAPIColumnOfEachCommit(t *testing.T) {
+	requireGoFsck(t)
+
+	v, err := readVerdict(commitScanRepo(t), "", "", false)
+	if err != nil {
+		t.Fatalf("readVerdict() error: %v", err)
+	}
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+	got := out.String()
+
+	for _, want := range []string{
+		"| Commit | API | Subject |",
+		"| +1/~0/-0 | alpha: add Greet |",
+		// A commit that moved nothing exported leaves the cell empty rather
+		// than writing three zeroes.
+		"|  | alpha: document the package |",
+		"| +0/~1/-0 | alpha: greet a number of times |",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderVerdictNamesTheCommitsBehindASymbol(t *testing.T) {
+	requireGoFsck(t)
+
+	alpha := commitScanRepo(t)
+	v, err := readVerdict(alpha, "", "", false)
+	if err != nil {
+		t.Fatalf("readVerdict() error: %v", err)
+	}
+
+	// Greet was added by the first commit of the range and reshaped by the
+	// last, so the row naming it names both, in the order they were made.
+	added, changed := v.Commits[2].Hash, v.Commits[0].Hash
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+	got := out.String()
+
+	if !strings.Contains(got, "| Change | Symbol | Commits |") {
+		t.Fatalf("renderVerdict() wrote no commits column:\n%s", got)
+	}
+	if want := "`" + added + "`, `" + changed + "`"; !strings.Contains(got, want) {
+		t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+	}
+}
+
+func TestRenderVerdictLinksTheCommitsBehindASymbol(t *testing.T) {
+	v := sampleVerdict()
+	v.CommitAPI = map[string]apiDiff{
+		"abc1234": {Added: []apiSymbol{{Key: "example.com/x.Client"}}},
+		"def5678": {Removed: []apiSymbol{{Key: "example.com/x.Legacy"}}},
+	}
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+	got := out.String()
+
+	// A commit is linked in the API table the way the commit table links it.
+	for _, want := range []string{
+		"[`abc1234`](https://github.com/example/x/commit/abc1234) |",
+		"[`def5678`](https://github.com/example/x/commit/def5678) |",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// twoModelsRepo builds a module holding two packages named model, one below
+// the root and one below the front end, which is what the package column has
+// to tell apart.
+func twoModelsRepo(t *testing.T) string {
+	t.Helper()
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+
+	writeTestFile(t, filepath.Join(alpha, "model", "model.go"), "package model\n\n// Trace is a recorded trace.\ntype Trace struct{ ID string }\n")
+	writeTestFile(t, filepath.Join(alpha, "frontend", "model", "model.go"), "package model\n\n// Page is a rendered page.\ntype Page struct{ Title string }\n")
+	runGit(t, root, "add", "-A")
+	runGit(t, root, "commit", "--quiet", "-m", "alpha: add the two models")
+
+	return alpha
+}
+
+func TestRenderVerdictNamesAPackageByItsPathBelowTheModule(t *testing.T) {
+	requireGoFsck(t)
+
+	v, err := readVerdict(twoModelsRepo(t), "", "", false)
+	if err != nil {
+		t.Fatalf("readVerdict() error: %v", err)
+	}
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+	got := out.String()
+
+	// Two packages named model, kept apart by the path they sit at rather than
+	// by the name they share.
+	for _, want := range []string{"| /model | type Trace |", "| /frontend/model | type Page |"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "| model | type") {
+		t.Errorf("renderVerdict() named a package by its name alone:\n%s", got)
+	}
+}
+
+func TestRenderVerdictNamesTheCommitsBehindAField(t *testing.T) {
+	v := sampleVerdict()
+	v.CommitAPI = map[string]apiDiff{
+		// The commit that added Client carries every field it declares, and
+		// the one that reshaped Config carries the field it moved.
+		"abc1234": {Added: []apiSymbol{{
+			Key: "example.com/x.Client", Name: "Client", Kind: "type", Underlying: "struct",
+			Fields: []apiField{{Name: "Name", Type: "string"}},
+		}}},
+		"def5678": {Types: []apiTypeChange{{
+			Key:    "example.com/x.Config",
+			Fields: []apiFieldChange{{Name: "Addr", Change: fieldChanged}},
+		}}},
+	}
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+	got := out.String()
+
+	if !strings.Contains(got, "| Change | Package | Type | Field | Commits |") {
+		t.Fatalf("renderVerdict() wrote no commits column on the data model:\n%s", got)
+	}
+	for _, want := range []string{
+		"| Name string `json:\"name\"` | [`abc1234`](https://github.com/example/x/commit/abc1234) |",
+		"`yaml:\"addr\"` | [`def5678`](https://github.com/example/x/commit/def5678) |",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderVerdictLeavesTheCommitColumnsOutWhenNothingWasScanned(t *testing.T) {
+	var out bytes.Buffer
+	renderVerdict(&out, sampleVerdict(), false)
+	got := out.String()
+
+	// A range read as one comparison has no commit to attribute a symbol to,
+	// and gets no column of empty cells.
+	for _, unwanted := range []string{"| Commits |", "| Commit | API | Subject |"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("renderVerdict() wrote %q for a range that was not scanned:\n%s", unwanted, got)
 		}
 	}
 }

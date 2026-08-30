@@ -219,16 +219,24 @@ type apiModels struct {
 	// empty is the model of a revision that does not exist, written the first
 	// time a comparison is measured from the start of history.
 	empty string
+
+	// disk is the cache the models of commits outlive the run in.
+	disk *verdictCache
 }
 
-// newAPIModels opens a cache. The caller closes it once the comparisons that
-// share it are done.
-func newAPIModels() (*apiModels, error) {
+// newAPIModels opens a cache, backed by the one on disk unless it was turned
+// off. The caller closes it once the comparisons that share it are done.
+func newAPIModels(cached bool) (*apiModels, error) {
 	work, err := os.MkdirTemp("", "worktree-api-")
 	if err != nil {
 		return nil, err
 	}
-	return &apiModels{work: work, models: map[string]string{}, errs: map[string]error{}}, nil
+	return &apiModels{
+		work:   work,
+		models: map[string]string{},
+		errs:   map[string]error{},
+		disk:   openVerdictCache(cached),
+	}, nil
 }
 
 // Close removes the models the cache holds.
@@ -255,11 +263,22 @@ func (m *apiModels) model(dir, ref string) (string, error) {
 		return "", err
 	}
 
-	model, err := extractRef(dir, ref, filepath.Join(m.work, m.name()))
+	// A commit read on an earlier run is read back rather than unpacked and
+	// modelled again, which is what keeps a report over the whole history from
+	// scanning the whole history twice.
+	work := filepath.Join(m.work, m.name())
+	entry := m.disk.path(dir, ref)
+	if model := work + ".json"; m.disk.load(entry, model) {
+		m.models[key] = model
+		return model, nil
+	}
+
+	model, err := extractRef(dir, ref, work)
 	if err != nil {
 		m.errs[key] = err
 		return "", err
 	}
+	m.disk.store(entry, model)
 	m.models[key] = model
 	return model, nil
 }
@@ -323,7 +342,7 @@ func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 		return apiDiff{Skipped: "go-fsck is not installed"}
 	}
 
-	models, err := newAPIModels()
+	models, err := newAPIModels(true)
 	if err != nil {
 		return apiDiff{Skipped: err.Error()}
 	}

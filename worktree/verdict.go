@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"path"
+	"maps"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -43,6 +45,11 @@ type verdict struct {
 	// API is the exported symbol difference between the two.
 	API apiDiff
 
+	// CommitAPI is what each of the commits did to the exported API on its
+	// own, keyed on its short hash. It is nil for a range that was not read
+	// commit by commit, which is one the tool could not scan.
+	CommitAPI map[string]apiDiff
+
 	// GoBefore and GoAfter are the go directive at each of the two
 	// revisions. Moving to another release series costs a minor.
 	GoBefore string
@@ -65,7 +72,10 @@ type verdict struct {
 // as added.
 // The two revisions can be named outright with --from and --to, which is how a
 // report is asked for over a range the repository is no longer standing on.
-func readVerdict(dir, from, to string) (verdict, error) {
+//
+// The cached flag is whether the models of the commits it reads are kept
+// between runs, which --no-cache turns off.
+func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 	tags, prefix, err := moduleTags(dir)
 	if err != nil {
 		return verdict{}, err
@@ -73,17 +83,25 @@ func readVerdict(dir, from, to string) (verdict, error) {
 
 	v := verdict{Module: moduleName(dir), RepoURL: repoURL(dir)}
 
+	// One cache holds the range and every commit inside it, so a commit that
+	// ends one step and starts the next is modelled once.
+	models, err := newAPIModels(cached)
+	if err != nil {
+		return verdict{}, err
+	}
+	defer func() { _ = models.Close() }()
+
 	if from != "" || to != "" {
-		return v.between(dir, tags, prefix, from, to)
+		return v.between(dir, tags, prefix, from, to, models)
 	}
 
 	latest, found := LatestRelease(tags)
 	if !found {
-		return v.report(dir, tags, prefix, "", "", nil)
+		return v.report(dir, tags, prefix, "", "", models)
 	}
 
 	if ahead := commitsSinceTag(dir, prefix+latest.String()); ahead > 0 {
-		return v.report(dir, tags, prefix, latest.String(), "", nil)
+		return v.report(dir, tags, prefix, latest.String(), "", models)
 	}
 
 	// Level with the tag: the release to report on is the one that was made,
@@ -92,13 +110,13 @@ func readVerdict(dir, from, to string) (verdict, error) {
 	if previous, ok := PreviousRelease(tags); ok {
 		from = previous.String()
 	}
-	return v.report(dir, tags, prefix, from, latest.String(), nil)
+	return v.report(dir, tags, prefix, from, latest.String(), models)
 }
 
 // between reports on the range the caller named. An empty from falls back to
 // the release before the one named by to, and an empty to is the working tree.
 // The range it settles on is reported by report.
-func (v verdict) between(dir string, tags []string, prefix, from, to string) (verdict, error) {
+func (v verdict) between(dir string, tags []string, prefix, from, to string, models *apiModels) (verdict, error) {
 	if from == "" {
 		// Measure from whatever came before the revision asked for, which is
 		// the release below it when it names one.
@@ -114,7 +132,7 @@ func (v verdict) between(dir string, tags []string, prefix, from, to string) (ve
 		}
 	}
 
-	return v.report(dir, tags, prefix, from, to, nil)
+	return v.report(dir, tags, prefix, from, to, models)
 }
 
 // report fills in the verdict for a range whose two ends are already settled,
@@ -137,6 +155,7 @@ func (v verdict) report(dir string, tags []string, prefix, from, to string, mode
 	v.Since = from
 	v.Commits = commitLogBetween(dir, fromRef, toRef)
 	v.API = compareRefs(dir, fromRef, toRef, models)
+	v.CommitAPI = scanCommits(dir, fromRef, v.Commits, models)
 	v.GoBefore, v.GoAfter = goVersionAt(dir, fromRef), goVersionAt(dir, toRef)
 
 	if version, ok := ParseVersion(to); ok {
@@ -197,6 +216,105 @@ func compareRefs(dir, oldRef, newRef string, models *apiModels) apiDiff {
 		return apiDiffBetween(dir, oldRef, newRef)
 	}
 	return models.diff(dir, oldRef, newRef)
+}
+
+// scanCommits reads what each commit of a range did to the exported API on its
+// own, by comparing it against the commit under it.
+//
+// The commits are walked oldest first, each measured from the one before it,
+// so the scans of a range add up to the difference across it: what one commit
+// adds and the next takes away is an addition and a removal here, and neither
+// there. The commit under the oldest one is the revision the range is measured
+// from, which for the start of history is a module holding no packages, the
+// same base the range itself is read against.
+//
+// The commits are those that touched the module, so a commit elsewhere in the
+// repository is neither listed nor read. It cannot have moved the API: the
+// model is extracted from the module subtree alone.
+func scanCommits(dir, fromRef string, commits []commitLog, models *apiModels) map[string]apiDiff {
+	if models == nil || len(commits) == 0 || !isGoModule(dir) {
+		return nil
+	}
+
+	scans := make(map[string]apiDiff, len(commits))
+	base := fromRef
+	for i := len(commits) - 1; i >= 0; i-- {
+		hash := commits[i].Hash
+		scans[hash] = models.diff(dir, base, hash)
+		base = hash
+	}
+	return scans
+}
+
+// eachCommit calls fn for every commit of the range that was scanned, oldest
+// first, which is the order the commits behind a symbol are named in.
+func (v verdict) eachCommit(fn func(hash string, diff apiDiff)) {
+	for i := len(v.Commits) - 1; i >= 0; i-- {
+		hash := v.Commits[i].Hash
+		if diff, ok := v.CommitAPI[hash]; ok && diff.Skipped == "" {
+			fn(hash, diff)
+		}
+	}
+}
+
+// commitsBySymbol returns the commits that touched each exported symbol,
+// oldest first, keyed on the key the comparison reports the symbol under. A
+// commit touches a symbol when it introduces it, reshapes it or takes it away.
+func (v verdict) commitsBySymbol() map[string][]string {
+	touched := make(map[string][]string)
+	v.eachCommit(func(hash string, diff apiDiff) {
+		for _, symbol := range diff.Added {
+			touched[symbol.Key] = appendCommit(touched[symbol.Key], hash)
+		}
+		for _, change := range diff.Changed {
+			touched[change.Key] = appendCommit(touched[change.Key], hash)
+		}
+		for _, symbol := range diff.Removed {
+			touched[symbol.Key] = appendCommit(touched[symbol.Key], hash)
+		}
+	})
+	return touched
+}
+
+// commitsByField returns the commits that touched each exported field, oldest
+// first, keyed on the type it belongs to and its name.
+//
+// A commit that adds a type carries every field the type declares with it, the
+// same way the data model table reads the fields of a new type as additions of
+// their own.
+func (v verdict) commitsByField() map[string][]string {
+	touched := make(map[string][]string)
+	v.eachCommit(func(hash string, diff apiDiff) {
+		for _, symbol := range addedTypes(diff) {
+			for _, field := range symbol.Fields {
+				key := fieldKey(symbol.Key, field.Name)
+				touched[key] = appendCommit(touched[key], hash)
+			}
+		}
+		for _, change := range diff.Types {
+			for _, field := range change.Fields {
+				key := fieldKey(change.Key, field.Name)
+				touched[key] = appendCommit(touched[key], hash)
+			}
+		}
+	})
+	return touched
+}
+
+// fieldKey names one exported field of one type, which is what the data model
+// table lists a row per.
+func fieldKey(typeKey, field string) string {
+	return typeKey + "." + field
+}
+
+// appendCommit adds a commit to the ones behind a symbol, unless it is the one
+// already there: a symbol that a single commit both reshapes and moves is that
+// commit's work once.
+func appendCommit(commits []string, hash string) []string {
+	if len(commits) > 0 && commits[len(commits)-1] == hash {
+		return commits
+	}
+	return append(commits, hash)
 }
 
 // moduleName returns the go module path of dir, falling back to the name of
@@ -355,20 +473,99 @@ func writeGap(w io.Writer, styled bool) {
 
 // writeCommits writes the commit table. The hash links into the repository in
 // markdown, and stands on its own in a terminal, where a URL is only noise.
+//
+// A commit that moved the exported API says so in the counts the stats table
+// reads the whole release in, so the one commit behind a removal can be picked
+// out of a run of twenty. A commit that moved nothing exported leaves the cell
+// empty rather than writing three zeroes, since a table of "+0/~0/-0" hides
+// the rows that matter.
 func writeCommits(w io.Writer, v verdict, styled bool, wrap int) {
-	subject := cellWidth(wrap, []int{shortHashWidth(v.Commits), 0})
+	counts := commitCounts(v, styled)
+
+	headers := []string{"Commit", "Subject"}
+	widths := []int{shortHashWidth(v.Commits), 0}
+	if counts != nil {
+		headers = []string{"Commit", "API", "Subject"}
+		widths = []int{shortHashWidth(v.Commits), columnWidth("API", slices.Collect(maps.Values(counts))), 0}
+	}
+	subject := cellWidth(wrap, widths)
 
 	rows := make([][]string, 0, len(v.Commits))
 	for _, commit := range v.Commits {
-		hash := "`" + commit.Hash + "`"
-		if styled {
-			hash = colorLines(commit.Hash, components.ColorTeal, true)
-		} else if v.RepoURL != "" {
-			hash = fmt.Sprintf("[`%s`](%s/commit/%s)", commit.Hash, v.RepoURL, commit.Hash)
+		row := []string{commitLink(v, commit.Hash, styled)}
+		if counts != nil {
+			row = append(row, counts[commit.Hash])
 		}
-		rows = append(rows, []string{hash, fold(commit.Subject, subject)})
+		rows = append(rows, append(row, fold(commit.Subject, subject)))
 	}
-	writeSimpleTable(w, []string{"Commit", "Subject"}, rows, styled)
+	writeSimpleTable(w, headers, rows, styled)
+}
+
+// commitCounts renders the API column of the commit table, keyed on the short
+// hash, and returns nil when no commit of the range moved the exported API:
+// there is nothing a column of empty cells adds.
+func commitCounts(v verdict, styled bool) map[string]string {
+	counts := make(map[string]string, len(v.Commits))
+	for _, commit := range v.Commits {
+		diff, ok := v.CommitAPI[commit.Hash]
+		if !ok || diff.Skipped != "" {
+			continue
+		}
+		if len(diff.Added)+len(diff.Changed)+len(diff.Removed) == 0 {
+			continue
+		}
+		counts[commit.Hash] = symbolCounts(diff, styled)
+	}
+	if len(counts) == 0 {
+		return nil
+	}
+	return counts
+}
+
+// symbolCounts renders what a commit did to the exported API as the triple the
+// stats table counts a release in: what it added, what it reshaped, what it
+// took away.
+func symbolCounts(diff apiDiff, styled bool) string {
+	return colorLines("+"+strconv.Itoa(len(diff.Added)), components.ColorGreen, styled) +
+		"/" + colorLines("~"+strconv.Itoa(len(diff.Changed)), components.ColorAmber, styled) +
+		"/" + colorLines("-"+strconv.Itoa(len(diff.Removed)), components.ColorRed, styled)
+}
+
+// commitLink renders a commit hash the way the tables name it: a link into the
+// repository in markdown, and a coloured hash on a terminal.
+func commitLink(v verdict, hash string, styled bool) string {
+	if styled {
+		return colorLines(hash, components.ColorTeal, true)
+	}
+	if v.RepoURL == "" {
+		return "`" + hash + "`"
+	}
+	return fmt.Sprintf("[`%s`](%s/commit/%s)", hash, v.RepoURL, hash)
+}
+
+// commitLinks names every commit behind one row, in the order they were made.
+func commitLinks(v verdict, hashes []string, styled bool) string {
+	links := make([]string, 0, len(hashes))
+	for _, hash := range hashes {
+		links = append(links, commitLink(v, hash, styled))
+	}
+	return strings.Join(links, ", ")
+}
+
+// commitCells renders the commits behind each row of a table, and returns nil
+// when there are none to name: a range nothing was attributed in gets no
+// column rather than an empty one.
+func commitCells(v verdict, rows [][]string, styled bool) []string {
+	cells := make([]string, len(rows))
+	named := false
+	for i, hashes := range rows {
+		cells[i] = commitLinks(v, hashes, styled)
+		named = named || cells[i] != ""
+	}
+	if !named {
+		return nil
+	}
+	return cells
 }
 
 // shortHashWidth returns the width of the hash column.
@@ -380,11 +577,26 @@ func shortHashWidth(commits []commitLog) int {
 	return width
 }
 
+// columnWidth returns the width a column of rendered cells takes, which is the
+// widest of them and the header naming it. The colours a terminal cell carries
+// are not part of what it takes up.
+func columnWidth(header string, cells []string) int {
+	width := ansi.StringWidth(header)
+	for _, cell := range cells {
+		width = max(width, ansi.StringWidth(cell))
+	}
+	return width
+}
+
 // symbolEntry is one symbol as a row of the API table.
 type symbolEntry struct {
 	category string
 	pkg      string
 	text     string
+
+	// commits are the short hashes of the commits that introduced or moved
+	// the symbol, oldest first.
+	commits []string
 }
 
 // symbolRows returns one row per symbol, in the order the report reads the
@@ -398,16 +610,21 @@ type symbolEntry struct {
 // symbol belongs to, without which "const Name" three times over says nothing.
 // The symbols of a package are gathered together and only the first of them
 // names it, the same way the data model table reads.
+//
+// A range read commit by commit gains a column naming the commits behind each
+// symbol, which is what turns a removal into something to go and read.
 func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
+	touched := v.commitsBySymbol()
+
 	var entries []symbolEntry
 	for _, symbol := range v.API.Added {
-		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String()})
+		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String(), touched[symbol.Key]})
 	}
 	for _, change := range v.API.Changed {
-		entries = append(entries, symbolEntry{"Changed", change.Package, change.Old + " -> " + change.New})
+		entries = append(entries, symbolEntry{"Changed", change.Package, change.Old + " -> " + change.New, touched[change.Key]})
 	}
 	for _, symbol := range v.API.Removed {
-		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String()})
+		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), touched[symbol.Key]})
 	}
 	if len(entries) == 0 {
 		return nil, nil
@@ -425,13 +642,23 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		widths = append(widths, width)
 		groupByPackage(entries)
 	}
+
+	hashes := make([][]string, 0, len(entries))
+	for _, entry := range entries {
+		hashes = append(hashes, entry.commits)
+	}
+	commits := commitCells(v, hashes, styled)
+	if commits != nil {
+		headers = append(headers, "Commits")
+		widths = append(widths, columnWidth("Commits", commits))
+	}
 	symbolWidth := cellWidth(wrap, append(widths, 0))
 
 	var (
 		rows                  [][]string
 		lastCategory, lastPkg string
 	)
-	for _, entry := range entries {
+	for i, entry := range entries {
 		// A new category opens a group and names itself. The package is written
 		// again under it, since a group opening on an empty cell says nothing.
 		category := ""
@@ -449,7 +676,11 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 			lastPkg = entry.pkg
 			row = append(row, colorLines(pkg, components.ColorSeparator, styled))
 		}
-		rows = append(rows, append(row, fold(entry.text, symbolWidth)))
+		row = append(row, fold(entry.text, symbolWidth))
+		if commits != nil {
+			row = append(row, commits[i])
+		}
+		rows = append(rows, row)
 	}
 	return headers, rows
 }
@@ -480,16 +711,25 @@ func packageColumn(v verdict, entries []symbolEntry) bool {
 	return len(seen) > 1
 }
 
-// shortPackage names a package the way the tables refer to it, as its path
-// below the module. A package at the root of the module has no path below it
-// and is named by the last segment of the module path, which is what it is
-// imported as.
+// shortPackage names a package the way the tables refer to it, as its import
+// path below the module, written from the module root down: "/model" is the
+// model package of this module and not some other one, and the package at the
+// root of the module is "/".
+//
+// The name alone is not enough to go on. A module holding a model package
+// under two directories has two of them, both named "model", and a column
+// saying so twice tells a reader nothing about which is which.
+//
+// A package that is not below the module is named by its import path, which is
+// the only name it has here.
 func shortPackage(module, pkg string) string {
-	rel := strings.TrimPrefix(strings.TrimPrefix(pkg, module), "/")
-	if rel == "" {
-		return path.Base(module)
+	if pkg == module {
+		return "/"
 	}
-	return rel
+	if rel := strings.TrimPrefix(pkg, module+"/"); rel != pkg {
+		return "/" + rel
+	}
+	return pkg
 }
 
 // fold breaks a line to a width, and leaves it alone when there is no width to
@@ -530,6 +770,10 @@ type fieldEntry struct {
 	newType bool
 
 	text string
+
+	// commits are the short hashes of the commits that introduced or moved
+	// the field, oldest first.
+	commits []string
 }
 
 // writeDataModel writes what became of the exported fields of every type the
@@ -559,10 +803,21 @@ func dataModelRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		return nil, nil
 	}
 
+	headers := []string{"Change", "Package", "Type", "Field"}
 	widths := []int{len("Removed"), len("Package"), len("Type")}
 	for _, entry := range entries {
 		widths[1] = max(widths[1], len(entry.pkg))
 		widths[2] = max(widths[2], len(entry.typeName)+len(" "+newTypeMark))
+	}
+
+	hashes := make([][]string, 0, len(entries))
+	for _, entry := range entries {
+		hashes = append(hashes, entry.commits)
+	}
+	commits := commitCells(v, hashes, styled)
+	if commits != nil {
+		headers = append(headers, "Commits")
+		widths = append(widths, columnWidth("Commits", commits))
 	}
 	fieldWidth := cellWidth(wrap, append(widths, 0))
 
@@ -570,7 +825,7 @@ func dataModelRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		rows                            [][]string
 		lastCategory, lastPkg, lastType string
 	)
-	for _, entry := range entries {
+	for i, entry := range entries {
 		// A new category opens a group, and names itself. The package and type
 		// are written again under it, however far the group above them reached,
 		// since a group opening on empty cells says nothing.
@@ -587,11 +842,14 @@ func dataModelRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 				row[2] = ""
 			}
 		}
+		if commits != nil {
+			row = append(row, commits[i])
+		}
 
 		lastPkg, lastType = entry.pkg, entry.typeName
 		rows = append(rows, row)
 	}
-	return []string{"Change", "Package", "Type", "Field"}, rows
+	return headers, rows
 }
 
 // dataModelRow renders one field as the cells of a row, with the category named
@@ -621,20 +879,23 @@ func dataModelRow(entry fieldEntry, category string, styled bool, width int) []s
 // a reader sees the shape it declares rather than only that it exists. The
 // unexported members are not there to see: they are nobody's promise to keep.
 func dataModelEntries(v verdict) []fieldEntry {
+	touched := v.commitsByField()
+
 	var entries []fieldEntry
-	add := func(pkg, typeName string, newType bool, change apiFieldChange) {
+	add := func(key, pkg, typeName string, newType bool, change apiFieldChange) {
 		entries = append(entries, fieldEntry{
 			category: change.Change,
 			pkg:      shortPackage(v.Module, pkg),
 			typeName: typeName,
 			newType:  newType,
 			text:     fieldText(change),
+			commits:  touched[fieldKey(key, change.Name)],
 		})
 	}
 
 	for _, symbol := range addedTypes(v.API) {
 		for _, field := range symbol.Fields {
-			add(symbol.Package, symbol.Name, true, apiFieldChange{
+			add(symbol.Key, symbol.Package, symbol.Name, true, apiFieldChange{
 				Name: field.Name, Change: fieldAdded, New: &field,
 			})
 		}
@@ -643,7 +904,7 @@ func dataModelEntries(v verdict) []fieldEntry {
 		for _, change := range v.API.Types {
 			for _, field := range change.Fields {
 				if field.Change == want {
-					add(change.Package, change.Name, false, field)
+					add(change.Key, change.Package, change.Name, false, field)
 				}
 			}
 		}

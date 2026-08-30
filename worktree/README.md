@@ -118,6 +118,7 @@ worktree verdict ./tools/lessgo             # a repository elsewhere
 worktree verdict > NOTES.md                 # markdown, for a release note
 worktree verdict --from v0.4.4 --to v0.5.5  # a range of your choosing
 worktree verdict --all                      # every release the repository has made
+worktree verdict --no-cache                 # read every commit again, cache nothing
 ```
 
 It draws a table on a terminal and writes markdown when its output goes anywhere else, so the redirected form pastes into GitHub release notes with the commit hashes already linked.
@@ -165,39 +166,57 @@ Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since
 
 ## Commits v0.5.5..v0.6.0
 
-| Commit | Subject |
-| --- | --- |
-| [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) | Restructure mig to drop cmd/ |
-| [`ff1fdc2`](https://github.com/go-bridget/mig/commit/ff1fdc2) | migrate: rework api |
+| Commit | API | Subject |
+| --- | --- | --- |
+| [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) | +2/~0/-33 | Restructure mig to drop cmd/ |
+| [`ff1fdc2`](https://github.com/go-bridget/mig/commit/ff1fdc2) | +0/~2/-0 | migrate: rework api |
 
 ## API v0.5.5..v0.6.0
 
-| Change | Package | Symbol |
-| --- | --- | --- |
-| Added | migrate | type Manager |
-|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) |
-| Removed | cmd/mig/gen | type Column |
-|  | migrate | func Load (fsys fs.FS, project string) error |
+| Change | Package | Symbol | Commits |
+| --- | --- | --- | --- |
+| Added | /migrate | type Manager | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+| Removed | /cmd/mig/gen | type Column | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  | /migrate | func Load (fsys fs.FS, project string) error | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
 ```
 
 The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. A module holding more than one package gains the `Package` column, without which `const Name` three times over says nothing. The symbols of a package are gathered together within their category and only the first of them names it, the same way the data model table reads. Everywhere counts and categories are listed, the order is what the release added, what it reshaped, what it took away.
 
+The `Package` column is the import path below the module, written from the module root down: `/model` is the model package of this module and `/frontend/model` is the other one, where a bare `model` twice over says nothing about which is which. The package at the root of the module is `/`.
+
+The `API` column of the commit table counts what one commit did on its own, in the order the rest of the report reads: what it added, what it reshaped, what it took away. Each commit is compared against the one under it, so a range of twenty commits is twenty comparisons and the commit behind a removal can be picked out of them. A commit that moved nothing exported leaves the cell empty rather than writing three zeroes, and a commit that touched no file of the module is not listed at all.
+
+The `Commits` column of the API table names the commits behind each symbol, oldest first, linked the way the commit table links them. A symbol added by one commit and reshaped by another lists both. The data model table carries the same column, for the commits behind each field.
+
+### Reading history once
+
+Reading a range commit by commit means modelling every commit in it, and on a repository with a few hundred of them that is minutes rather than seconds. A commit cannot change, and neither can the model of one, so the models are kept on disk and every later run reads them back:
+
+```
+~/.cache/worktree/verdict-<key>.json
+```
+
+The directory is the one `os.UserCacheDir` names, which is `$XDG_CACHE_HOME/worktree` or `~/.cache/worktree` on Linux and `~/Library/Caches/worktree` on macOS. The key is the module, the commit the revision resolves to, the go-fsck binary that read it, and the layout of the entry. A tag is resolved to its commit before it is looked up, so moving a tag to another commit reads another entry rather than the one it used to name. Installing another go-fsck does the same. The working tree is never kept: it is the one revision that can change under a run.
+
+`--no-cache` reads every commit again and writes nothing, which is the flag to reach for when go-fsck itself is what changed. A cache directory that cannot be made, or an entry that cannot be written, is a slower run and not a failed one.
+
 ### Data model changes
 
-The exported fields of a type are a promise to a consumer as much as a func signature is, so the report covers them too, under a **Data model** section. It is one table for every type the release touched, built the way the API table above it is built: `Change | Package | Type | Field`, grouped by what the release did, with the cells that repeat the row above them left empty.
+The exported fields of a type are a promise to a consumer as much as a func signature is, so the report covers them too, under a **Data model** section. It is one table for every type the release touched, built the way the API table above it is built: `Change | Package | Type | Field | Commits`, grouped by what the release did, with the cells that repeat the row above them left empty.
 
 ```
 ## Data model v0.0.1..v0.1.0
 
-| Change | Package | Type | Field |
-| --- | --- | --- | --- |
-| Added | commands/docs | DocMeta ▲ | Layout string `yaml:"layout"` |
-|  |  |  | Title string `yaml:"title"` |
-|  |  | Tab ▲ | IsCode bool |
-|  | tour | Lesson | FileOptions map[string][]string |
-|  |  | Module | FS fs.FS |
-| Changed | config | Config | Addr string `yaml:"addr"` -> []string `yaml:"addr"` |
-| Removed | tour | Chapter | Slug string |
+| Change | Package | Type | Field | Commits |
+| --- | --- | --- | --- | --- |
+| Added | /commands/docs | DocMeta ▲ | Layout string `yaml:"layout"` | [`4b1c0aa`](https://example.com/commit/4b1c0aa) |
+|  |  |  | Title string `yaml:"title"` | [`4b1c0aa`](https://example.com/commit/4b1c0aa) |
+|  |  | Tab ▲ | IsCode bool | [`9d70e31`](https://example.com/commit/9d70e31) |
+|  | /tour | Lesson | FileOptions map[string][]string | [`0f21c8e`](https://example.com/commit/0f21c8e) |
+|  |  | Module | FS fs.FS | [`0f21c8e`](https://example.com/commit/0f21c8e) |
+| Changed | /config | Config | Addr string `yaml:"addr"` -> []string `yaml:"addr"` | [`c4a55d2`](https://example.com/commit/c4a55d2) |
+| Removed | /tour | Chapter | Slug string | [`0f21c8e`](https://example.com/commit/0f21c8e) |
 ```
 
 The `▲` marks a type the release introduces, the same mark the [dependency matrix](#information-summarized) uses for something that is there now. Its rows are the shape it declares, so a reader sees what it is rather than only that it exists; unexported fields are left out, since nothing outside the module can reach them. A type without the mark was already there and is written as the fields that moved on it, rather than as the whole declaration again.

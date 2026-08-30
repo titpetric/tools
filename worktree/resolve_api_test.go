@@ -207,9 +207,9 @@ func TestApiModelsReadsEachRevisionOnce(t *testing.T) {
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
-	models, err := newAPIModels()
+	models, err := newAPIModels(false)
 	if err != nil {
-		t.Fatalf("newAPIModels() error: %v", err)
+		t.Fatalf("newAPIModels(false) error: %v", err)
 	}
 	t.Cleanup(func() { _ = models.Close() })
 

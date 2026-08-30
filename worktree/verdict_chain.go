@@ -161,7 +161,9 @@ func reversed(ranges []versionRange) []versionRange {
 //
 // Every revision is read through one model cache, so a release that ends one
 // section and starts the next is unpacked and modelled once rather than twice.
-func readVerdicts(dir string, verbose bool, from, upTo string) ([]verdict, error) {
+// The cached flag is whether that cache is backed by the one on disk, which
+// carries the commits of a run into the next one, and --no-cache turns off.
+func readVerdicts(dir string, verbose bool, from, upTo string, cached bool) ([]verdict, error) {
 	tags, prefix, err := moduleTags(dir)
 	if err != nil {
 		return nil, err
@@ -177,7 +179,7 @@ func readVerdicts(dir string, verbose bool, from, upTo string) ([]verdict, error
 		return nil, fmt.Errorf("no release falls in the range asked for")
 	}
 
-	models, err := newAPIModels()
+	models, err := newAPIModels(cached)
 	if err != nil {
 		return nil, err
 	}

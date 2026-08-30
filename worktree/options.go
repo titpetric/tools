@@ -24,6 +24,7 @@ type Options struct {
 	Chain      bool
 	Stats      bool
 	Apply      bool
+	NoCache    bool
 	GoVersion  string
 	Release    string
 	From       string
@@ -78,6 +79,7 @@ func ParseOptions() *Options {
 	flag.BoolVar(&opts.Verbose, "verbose", false, "alias of -v")
 	flag.BoolVar(&opts.Apply, "apply", false, "perform the resolution instead of rendering it")
 	flag.BoolVar(&opts.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
+	flag.BoolVar(&opts.NoCache, "no-cache", false, "read every commit again instead of the models kept under the user cache directory")
 	flag.StringVar(&opts.From, "from", "", "the revision worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
 	flag.StringVar(&opts.To, "to", "", "the revision worktree verdict measures to, the working tree by default")
 	flag.StringVar(&opts.GoVersion, "go", "", "set the go directive of every go.mod and go.work to this version, then update dependencies")

@@ -172,13 +172,13 @@ func main() {
 		// it was asked for, which the stats table takes as a run of one.
 		var verdicts []verdict
 		if opts.Chain {
-			chain, err := readVerdicts(dir, opts.Verbose, opts.From, opts.To)
+			chain, err := readVerdicts(dir, opts.Verbose, opts.From, opts.To, !opts.NoCache)
 			if err != nil {
 				log.Fatalf("failed to read the release chain: %v", err)
 			}
 			verdicts = chain
 		} else {
-			v, err := readVerdict(dir, opts.From, opts.To)
+			v, err := readVerdict(dir, opts.From, opts.To, !opts.NoCache)
 			if err != nil {
 				log.Fatalf("failed to read the release verdict: %v", err)
 			}

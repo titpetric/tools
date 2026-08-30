@@ -251,7 +251,7 @@ func TestReadVerdictsCoversEveryRelease(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Bye parts.\nfunc Bye(name string) string { return name }\n\n// Hi greets.\nfunc Hi() string { return \"hi\" }\n\n// Extra is pending.\nfunc Extra() {}\n")
 	runGit(t, filepath.Dir(alpha), "commit", "--quiet", "-am", "alpha: add Extra")
 
-	got, err := readVerdicts(alpha, false, "", "")
+	got, err := readVerdicts(alpha, false, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdicts() error: %v", err)
 	}
@@ -313,7 +313,7 @@ func chainVersions(verdicts []verdict) []string {
 func TestReadVerdictsComparesTheAPIOfEveryRelease(t *testing.T) {
 	requireGoFsck(t)
 
-	got, err := readVerdicts(chainRepo(t), false, "", "")
+	got, err := readVerdicts(chainRepo(t), false, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdicts() error: %v", err)
 	}
@@ -335,7 +335,7 @@ func TestReadVerdictsComparesTheAPIOfEveryRelease(t *testing.T) {
 }
 
 func TestReadVerdictsVerboseReportsEveryTag(t *testing.T) {
-	got, err := readVerdicts(chainRepo(t), true, "", "")
+	got, err := readVerdicts(chainRepo(t), true, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdicts() error: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestReadVerdictsVerboseReportsEveryTag(t *testing.T) {
 }
 
 func TestReadVerdictsBoundedByTo(t *testing.T) {
-	got, err := readVerdicts(chainRepo(t), false, "", "v0.1.0")
+	got, err := readVerdicts(chainRepo(t), false, "", "v0.1.0", false)
 	if err != nil {
 		t.Fatalf("readVerdicts() error: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestReadVerdictsBoundedByTo(t *testing.T) {
 }
 
 func TestReadVerdictsBoundedByFrom(t *testing.T) {
-	got, err := readVerdicts(chainRepo(t), false, "v0.1.0", "")
+	got, err := readVerdicts(chainRepo(t), false, "v0.1.0", "", false)
 	if err != nil {
 		t.Fatalf("readVerdicts() error: %v", err)
 	}
@@ -369,7 +369,7 @@ func TestReadVerdictsBoundedByFrom(t *testing.T) {
 }
 
 func TestReadVerdictsWithNoReleaseInTheRange(t *testing.T) {
-	if _, err := readVerdicts(chainRepo(t), false, "v9.0.0", ""); err == nil {
+	if _, err := readVerdicts(chainRepo(t), false, "v9.0.0", "", false); err == nil {
 		t.Error("readVerdicts() reported on a range holding no release")
 	}
 }
@@ -377,7 +377,7 @@ func TestReadVerdictsWithNoReleaseInTheRange(t *testing.T) {
 func TestReadVerdictsWithoutAReleaseTag(t *testing.T) {
 	root := testRepo(t, "alpha")
 
-	got, err := readVerdicts(filepath.Join(root, "alpha"), false, "", "")
+	got, err := readVerdicts(filepath.Join(root, "alpha"), false, "", "", false)
 	if err != nil {
 		t.Fatalf("readVerdicts() error: %v", err)
 	}
