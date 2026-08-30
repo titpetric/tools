@@ -624,7 +624,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		for _, field := range symbol.Fields {
 			text := symbol.Name + "." + tidySignature(fieldReads(field))
 			if field.Embedded {
-				text = symbol.Name + " " + tidySignature(fieldReads(field))
+				text = tidySignature(fieldReads(field))
 			}
 			entries = append(entries, symbolEntry{"Added", symbol.Package, text, touched[symbol.Key]})
 		}
