@@ -622,7 +622,11 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		// An added type arrives with its exported fields and interface
 		// methods; unlike a removal, what came along is worth reading.
 		for _, field := range symbol.Fields {
-			entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.Name + "." + tidySignature(fieldLabel(field.Name, fieldShape(field))), touched[symbol.Key]})
+			text := symbol.Name + "." + tidySignature(fieldReads(field))
+			if field.Embedded {
+				text = symbol.Name + " " + tidySignature(fieldReads(field))
+			}
+			entries = append(entries, symbolEntry{"Added", symbol.Package, text, touched[symbol.Key]})
 		}
 	}
 	for _, change := range v.API.Changed {
@@ -988,13 +992,25 @@ func addedTypes(diff apiDiff) []apiSymbol {
 func fieldText(change apiFieldChange) string {
 	switch {
 	case change.Old != nil && change.New != nil:
+		if change.Old.Embedded {
+			return "embeds " + change.Old.Type + " -> " + change.New.Type
+		}
 		return tidySignature(fieldLabel(change.Name, fieldShape(*change.Old)) + " -> " + fieldShape(*change.New))
 	case change.New != nil:
-		return tidySignature(fieldLabel(change.Name, fieldShape(*change.New)))
+		return tidySignature(fieldReads(*change.New))
 	case change.Old != nil:
-		return tidySignature(fieldLabel(change.Name, fieldShape(*change.Old)))
+		return tidySignature(fieldReads(*change.Old))
 	}
 	return change.Name
+}
+
+// fieldReads renders one field the way the table shows it: an embedded field
+// says so instead of repeating its type as a name.
+func fieldReads(field apiField) string {
+	if field.Embedded {
+		return "embeds " + field.Type
+	}
+	return fieldLabel(field.Name, fieldShape(field))
 }
 
 // fieldLabel writes the name in front of a shape, unless the shape opens on it

@@ -1285,3 +1285,14 @@ func TestCollapseRemovedMethods(t *testing.T) {
 		}
 	}
 }
+
+func TestFieldReadsEmbedded(t *testing.T) {
+	embedded := apiField{Name: "UnimplementedStorage", Type: "*UnimplementedStorage", Embedded: true}
+	if got := fieldReads(embedded); got != "embeds *UnimplementedStorage" {
+		t.Errorf("fieldReads(embedded) = %q", got)
+	}
+	named := apiField{Name: "Addr", Type: "string"}
+	if got := fieldReads(named); got != "Addr string" {
+		t.Errorf("fieldReads(named) = %q", got)
+	}
+}
