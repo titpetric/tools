@@ -461,7 +461,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| [`abc1234`](https://github.com/example/x/commit/abc1234) | feat: add Client |",
 		"## API since v1.0.0",
 		"| Change | Symbol |",
-		"| Added | type Client |",
+		"| Added | type Client struct |",
 		"| Changed | Before: Open ()<br>After: Open (string) |",
 		"| Removed | func Legacy () error |",
 		// One table, whatever the release did to however many types.
@@ -469,12 +469,12 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| Change | Package | Type | Field |",
 		// A type the release adds is written as the shape it declares, and
 		// carries the mark that says the type itself is new.
-		"| Added | / | Client ▲ | Name string `json:\"name\"` |",
+		"| Added | / | type Client struct ▲ | Name string `json:\"name\"` |",
 		// A type that was already there is written as what moved on it, and
 		// the cells repeating the row above are left empty.
-		"|  |  | Config | Timeout int ▲ |",
-		"| Changed | / | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
-		"| Removed | / | Config | Retries int |",
+		"|  |  | type Config struct | Timeout int ▲ |",
+		"| Changed | / | type Config struct | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
+		"| Removed | / | type Config struct | Retries int |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
@@ -514,7 +514,7 @@ func TestRenderVerdictANSI(t *testing.T) {
 		"Removed",
 		"func Legacy () error",
 		"Data model since v1.0.0",
-		"Client ▲",
+		"type Client struct ▲",
 		"Name string `json:\"name\"`",
 	} {
 		if !strings.Contains(plain, want) {
@@ -554,7 +554,7 @@ func TestRenderVerdictNamesThePackageWhenSymbolsSpanMoreThanOne(t *testing.T) {
 	renderVerdict(&out, v, false)
 
 	got := out.String()
-	for _, want := range []string{"| Change | Package | Symbol |", "| /inner | const Name |", "| / | type Client |"} {
+	for _, want := range []string{"| Change | Package | Symbol |", "| /inner | const Name |", "| / | type Client struct |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}
@@ -583,7 +583,7 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	// them names it. The removal below opens a group of its own, so the package
 	// is named again there.
 	for _, want := range []string{
-		"| Added | / | type Client |",
+		"| Added | / | type Client struct |",
 		"|  |  | func Dial () error |",
 		"|  | /inner | const Name |",
 		"|  |  | const Other |",
@@ -843,7 +843,7 @@ func TestRenderVerdictNamesInterfaceMethods(t *testing.T) {
 	// A method needs no treatment of its own: the type column names the
 	// interface and the field column carries the signature, so the row reads as
 	// store.Store.Put.
-	if want := "| Added | /store | Store | Put (key string) error ▲ |"; !strings.Contains(got, want) {
+	if want := "| Added | /store | type Store interface | Put (key string) error ▲ |"; !strings.Contains(got, want) {
 		t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 	}
 }
@@ -876,7 +876,7 @@ func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
 	// The API table says the type is there; there is no shape to write for it,
 	// so the section is left out entirely.
 	got := out.String()
-	if !strings.Contains(got, "| Added | type Option |") {
+	if !strings.Contains(got, "| Added | type Option func(*Client) |") {
 		t.Errorf("renderVerdict() lost the type from the API table:\n%s", got)
 	}
 	if strings.Contains(got, "Data model") {
@@ -913,12 +913,12 @@ func TestRenderVerdictDataModelIsOneTable(t *testing.T) {
 	// The category names only the first row of its group, as it does in the API
 	// table above.
 	want := []string{
-		"| Added | / | Client ▲ | Name string `json:\"name\"` |",
-		"|  |  | Config | Timeout int ▲ |",
-		"|  | /inner | Store | Bucket string ▲ |",
-		"| Changed | / | Config | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
-		"| Removed | / | Config | Retries int |",
-		"|  | /inner | Store | Region string |",
+		"| Added | / | type Client struct ▲ | Name string `json:\"name\"` |",
+		"|  |  | type Config struct | Timeout int ▲ |",
+		"|  | /inner | type Store struct | Bucket string ▲ |",
+		"| Changed | / | type Config struct | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
+		"| Removed | / | type Config struct | Retries int |",
+		"|  | /inner | type Store struct | Region string |",
 	}
 	at := -1
 	for _, row := range want {
@@ -1207,7 +1207,7 @@ func TestRenderVerdictNamesAPackageByItsPathBelowTheModule(t *testing.T) {
 
 	// Two packages named model, kept apart by the path they sit at rather than
 	// by the name they share.
-	for _, want := range []string{"| /model | type Trace |", "| /frontend/model | type Page |"} {
+	for _, want := range []string{"| /model | type Trace struct |", "| /frontend/model | type Page struct |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}

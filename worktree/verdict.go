@@ -612,7 +612,7 @@ type symbolEntry struct {
 // names it, the same way the data model table reads.
 //
 // A range read commit by commit gains a column naming the commits behind each
-// symbol, which is what turns a removal into something to go and read.
+// symbol, which is what points a removal at the change behind it.
 func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	touched := v.commitsBySymbol()
 
@@ -892,8 +892,8 @@ func dataModelRow(entry fieldEntry, category string, styled bool, width int) []s
 // and within a category ordered by package, type and name.
 //
 // The fields of a type the release adds are read as additions of their own, so
-// a reader sees the shape it declares rather than only that it exists. The
-// unexported members are not there to see: they are nobody's promise to keep.
+// the report carries the shape it declares rather than only that it exists.
+// Unexported members are left out: they are not part of the API.
 func dataModelEntries(v verdict) []fieldEntry {
 	touched := v.commitsByField()
 
@@ -911,7 +911,7 @@ func dataModelEntries(v verdict) []fieldEntry {
 
 	for _, symbol := range addedTypes(v.API) {
 		for _, field := range symbol.Fields {
-			add(symbol.Key, symbol.Package, symbol.Name, true, apiFieldChange{
+			add(symbol.Key, symbol.Package, typeReads(symbol.Name, symbol.Underlying), true, apiFieldChange{
 				Name: field.Name, Change: fieldAdded, New: &field,
 			})
 		}
@@ -920,7 +920,7 @@ func dataModelEntries(v verdict) []fieldEntry {
 		for _, change := range v.API.Types {
 			for _, field := range change.Fields {
 				if field.Change == want {
-					add(change.Key, change.Package, change.Name, false, field)
+					add(change.Key, change.Package, typeReads(change.Name, change.Underlying), false, field)
 				}
 			}
 		}
@@ -940,6 +940,14 @@ func dataModelEntries(v verdict) []fieldEntry {
 		return a.text < b.text
 	})
 	return entries
+}
+
+// typeReads names a type with the shape it is declared with.
+func typeReads(name, underlying string) string {
+	if underlying == "" {
+		return "type " + name
+	}
+	return "type " + name + " " + underlying
 }
 
 // categoryOrder ranks the categories the way the report reads them, which is
@@ -1004,8 +1012,7 @@ func fieldText(change apiFieldChange) string {
 	return change.Name
 }
 
-// fieldReads renders one field the way the table shows it: an embedded field
-// says so instead of repeating its type as a name.
+// fieldReads renders one field, an embed as the type it embeds.
 func fieldReads(field apiField) string {
 	if field.Embedded {
 		return "embeds " + field.Type

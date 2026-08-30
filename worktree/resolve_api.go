@@ -94,10 +94,13 @@ func (c apiTypeChange) IsInterface() bool {
 	return c.Underlying == "interface"
 }
 
-// String renders the declaration the way it reads in source.
+// String renders the declaration as it reads in source, a type with its shape.
 func (s apiSymbol) String() string {
 	if s.Signature != "" {
 		return tidySignature(s.Signature)
+	}
+	if s.Underlying != "" {
+		return s.Kind + " " + s.Name + " " + s.Underlying
 	}
 	return s.Kind + " " + s.Name
 }
