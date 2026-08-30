@@ -1260,3 +1260,26 @@ func TestRenderVerdictLeavesTheCommitColumnsOutWhenNothingWasScanned(t *testing.
 		}
 	}
 }
+
+func TestCollapseRemovedMethods(t *testing.T) {
+	symbols := []apiSymbol{
+		{Key: "m.Disk", Package: "m", Name: "Disk", Kind: "type"},
+		{Key: "m.Disk.Save", Package: "m", Name: "Disk.Save", Kind: "func"},
+		{Key: "m.Disk.Len", Package: "m", Name: "Disk.Len", Kind: "func"},
+		{Key: "m.Orphan.Close", Package: "m", Name: "Orphan.Close", Kind: "func"},
+		{Key: "m.ValidID", Package: "m", Name: "ValidID", Kind: "func"},
+		{Key: "other.Disk.Save", Package: "other", Name: "Disk.Save", Kind: "func"},
+	}
+
+	kept := collapseRemovedMethods(symbols)
+
+	want := []string{"Disk", "Orphan.Close", "ValidID", "Disk.Save"}
+	if len(kept) != len(want) {
+		t.Fatalf("kept %d symbols, want %d: %+v", len(kept), len(want), kept)
+	}
+	for i, name := range want {
+		if kept[i].Name != name {
+			t.Fatalf("kept[%d] = %q, want %q", i, kept[i].Name, name)
+		}
+	}
+}

@@ -623,7 +623,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	for _, change := range v.API.Changed {
 		entries = append(entries, symbolEntry{"Changed", change.Package, change.Old + " -> " + change.New, touched[change.Key]})
 	}
-	for _, symbol := range v.API.Removed {
+	for _, symbol := range collapseRemovedMethods(v.API.Removed) {
 		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), touched[symbol.Key]})
 	}
 	if len(entries) == 0 {
@@ -1007,4 +1007,34 @@ func fieldShape(field apiField) string {
 		return field.Type
 	}
 	return field.Type + " `" + field.Tag + "`"
+}
+
+// collapseRemovedMethods drops the methods and receiver-bound declarations of
+// a type that is itself removed: the type row already says everything its
+// methods would, since a type cannot go away and leave them behind.
+func collapseRemovedMethods(symbols []apiSymbol) []apiSymbol {
+	types := make(map[string]bool)
+	for _, symbol := range symbols {
+		if symbol.Kind == "type" {
+			types[symbol.Package+"\x00"+symbol.Name] = true
+		}
+	}
+	kept := make([]apiSymbol, 0, len(symbols))
+	for _, symbol := range symbols {
+		if receiver := receiverType(symbol.Name); receiver != "" && types[symbol.Package+"\x00"+receiver] {
+			continue
+		}
+		kept = append(kept, symbol)
+	}
+	return kept
+}
+
+// receiverType returns the type a qualified name hangs off ("Disk.Save" is
+// hung off "Disk"), or an empty string for a package level name.
+func receiverType(name string) string {
+	receiver, _, found := strings.Cut(name, ".")
+	if !found {
+		return ""
+	}
+	return receiver
 }
