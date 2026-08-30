@@ -462,7 +462,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"## API since v1.0.0",
 		"| Change | Symbol |",
 		"| Added | type Client |",
-		"| Changed | Open () -> Open (string) |",
+		"| Changed | Before: Open ()<br>After: Open (string) |",
 		"| Removed | func Legacy () error |",
 		// One table, whatever the release did to however many types.
 		"## Data model since v1.0.0",

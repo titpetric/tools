@@ -621,7 +621,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String(), touched[symbol.Key]})
 	}
 	for _, change := range v.API.Changed {
-		entries = append(entries, symbolEntry{"Changed", change.Package, change.Old + " -> " + change.New, touched[change.Key]})
+		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + change.Old + "\nAfter: " + change.New, touched[change.Key]})
 	}
 	for _, symbol := range collapseRemovedMethods(v.API.Removed) {
 		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), touched[symbol.Key]})
