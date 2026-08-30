@@ -97,9 +97,18 @@ func (c apiTypeChange) IsInterface() bool {
 // String renders the declaration the way it reads in source.
 func (s apiSymbol) String() string {
 	if s.Signature != "" {
-		return s.Signature
+		return tidySignature(s.Signature)
 	}
 	return s.Kind + " " + s.Name
+}
+
+// tidySignature drops the one parameter name that never carries information:
+// "ctx context.Context" reads as "context.Context", since the type says
+// everything the conventional name repeats. Every other name/type pair stays
+// as declared.
+func tidySignature(signature string) string {
+	signature = strings.ReplaceAll(signature, "(ctx context.Context", "(context.Context")
+	return strings.ReplaceAll(signature, ", ctx context.Context", ", context.Context")
 }
 
 // apiChange is an exported symbol whose signature moved between two revisions.

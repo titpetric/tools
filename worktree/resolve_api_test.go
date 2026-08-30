@@ -298,3 +298,17 @@ func TestApiDiffSummaryAndSymbols(t *testing.T) {
 		t.Errorf("Summary() = %q, want %q", skipped.Summary(), want)
 	}
 }
+
+func TestTidySignature(t *testing.T) {
+	for in, want := range map[string]string{
+		"Save (ctx context.Context, trace Trace) error":      "Save (context.Context, trace Trace) error",
+		"List (ctx context.Context, limit int) ([]T, error)": "List (context.Context, limit int) ([]T, error)",
+		"Do (name string, ctx context.Context) error":        "Do (name string, context.Context) error",
+		"Watch (myctx context.Context) error":                "Watch (myctx context.Context) error",
+		"Cap () int":                                         "Cap () int",
+	} {
+		if got := tidySignature(in); got != want {
+			t.Errorf("tidySignature(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

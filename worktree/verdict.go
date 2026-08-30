@@ -619,9 +619,14 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	var entries []symbolEntry
 	for _, symbol := range v.API.Added {
 		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String(), touched[symbol.Key]})
+		// An added type arrives with its exported fields and interface
+		// methods; unlike a removal, what came along is worth reading.
+		for _, field := range symbol.Fields {
+			entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.Name + "." + tidySignature(fieldLabel(field.Name, fieldShape(field))), touched[symbol.Key]})
+		}
 	}
 	for _, change := range v.API.Changed {
-		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + change.Old + "\nAfter: " + change.New, touched[change.Key]})
+		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + tidySignature(change.Old) + "\nAfter: " + tidySignature(change.New), touched[change.Key]})
 	}
 	for _, symbol := range collapseRemovedMethods(v.API.Removed) {
 		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), touched[symbol.Key]})
@@ -976,11 +981,11 @@ func addedTypes(diff apiDiff) []apiSymbol {
 func fieldText(change apiFieldChange) string {
 	switch {
 	case change.Old != nil && change.New != nil:
-		return fieldLabel(change.Name, fieldShape(*change.Old)) + " -> " + fieldShape(*change.New)
+		return tidySignature(fieldLabel(change.Name, fieldShape(*change.Old)) + " -> " + fieldShape(*change.New))
 	case change.New != nil:
-		return fieldLabel(change.Name, fieldShape(*change.New))
+		return tidySignature(fieldLabel(change.Name, fieldShape(*change.New)))
 	case change.Old != nil:
-		return fieldLabel(change.Name, fieldShape(*change.Old))
+		return tidySignature(fieldLabel(change.Name, fieldShape(*change.Old)))
 	}
 	return change.Name
 }
