@@ -19,8 +19,9 @@ const (
 	maxInternalFuncs = 5
 
 	// maxInternalRatio is the share of package code the internal funcs may
-	// occupy, as a percentage.
-	maxInternalRatio = 20.0
+	// occupy, as a percentage. A quarter of a package being private plumbing
+	// passes; more than that is what the warning is for.
+	maxInternalRatio = 25.0
 )
 
 // Analyzer counts the exported and the internal half of every package.

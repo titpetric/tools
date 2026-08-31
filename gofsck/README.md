@@ -226,7 +226,7 @@ left out.
 
 **Warnings:**
 - more than 5 internal funcs in a package
-- internal code over 20% of package code
+- internal code over 25% of package code
 
 **Example:**
 ```
@@ -234,7 +234,7 @@ left out.
 OK   storage: types 3 exported, 1 internal; funcs 22 exported, 3 internal; 8.4% internal SLOC
 WARN (root): types 9 exported, 1 internal; funcs 43 exported, 37 internal; 44.8% internal SLOC
        37 internal funcs, over 5
-       44.8% internal code, over 20%
+       44.8% internal code, over 25%
 ```
 
 The module root reports as `(root)`; every other package reports the path it
