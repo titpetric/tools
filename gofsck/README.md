@@ -226,16 +226,19 @@ whatever it exports.
 - `internal SLOC` - the code inside internal func bodies over the code of the
   package, blank lines and comments left out of both
 
-**Warnings:**
-- more than 5 internal funcs in a package
-- internal code over 25% of package code
+**Warning:** internal code over 25% of package code. The counts are reported
+either way: a package with six internal funcs holding a tenth of its code is
+not carrying too much.
 
 **Example:**
 ```
 === visibility ===
+Packages: 2
+Passing:  1
+Warnings: 1
+
 OK   storage: types 3 exported, 1 internal; funcs 22 exported, 3 internal; 8.4% internal SLOC
 WARN (root): types 9 exported, 1 internal; funcs 43 exported, 37 internal; 44.8% internal SLOC
-       37 internal funcs, over 5
        44.8% internal code, over 25%
 ```
 

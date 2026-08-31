@@ -12,17 +12,12 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// The thresholds a package is reported against.
-const (
-	// maxInternalFuncs is how many internal funcs a package carries before
-	// the composition space is the better home for them.
-	maxInternalFuncs = 5
-
-	// maxInternalRatio is the share of package code the internal funcs may
-	// occupy, as a percentage. A quarter of a package being private plumbing
-	// passes; more than that is what the warning is for.
-	maxInternalRatio = 25.0
-)
+// maxInternalRatio is the share of package code the internal funcs may occupy,
+// as a percentage, and the one threshold a package is judged on. A quarter of a
+// package being private plumbing passes; more than that is what the warning is
+// for. The counts are in the row either way: a package with six internal funcs
+// holding a tenth of its code is not carrying too much.
+const maxInternalRatio = 25.0
 
 // Analyzer counts the exported and the internal half of every package.
 type Analyzer struct{}
@@ -69,6 +64,13 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 		}
 		report.Warnings = warningsFor(*report)
 		out.Packages = append(out.Packages, *report)
+
+		out.Total++
+		if report.OK() {
+			out.Passing++
+			continue
+		}
+		out.Warnings++
 	}
 	sort.Slice(out.Packages, func(i, j int) bool { return out.Packages[i].Package < out.Packages[j].Package })
 	return out, nil
@@ -154,14 +156,10 @@ func blankLines(name string) map[int]bool {
 
 // warningsFor returns the thresholds a package crossed.
 func warningsFor(report PackageReport) []string {
-	var warnings []string
-	if report.InternalFuncs > maxInternalFuncs {
-		warnings = append(warnings, fmt.Sprintf("%d internal funcs, over %d", report.InternalFuncs, maxInternalFuncs))
-	}
 	if report.InternalRatio > maxInternalRatio {
-		warnings = append(warnings, fmt.Sprintf("%.1f%% internal code, over %.0f%%", report.InternalRatio, maxInternalRatio))
+		return []string{fmt.Sprintf("%.1f%% internal code, over %.0f%%", report.InternalRatio, maxInternalRatio)}
 	}
-	return warnings
+	return nil
 }
 
 // skipPackage reports whether a package is one the count would distort:

@@ -3,6 +3,12 @@ package visibility
 // Report contains the exported and internal symbol counts of every package
 // analyzed.
 type Report struct {
+	// Total is how many packages were measured, Passing how many crossed no
+	// threshold, and Warnings the rest.
+	Total    int `json:"total"`
+	Passing  int `json:"passing"`
+	Warnings int `json:"warnings"`
+
 	Packages []PackageReport `json:"packages"`
 }
 

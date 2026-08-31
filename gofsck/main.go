@@ -329,7 +329,7 @@ func formatGroupingReport(gr *grouping.Report) string {
 // formatVisibilityReport renders one row per package: what it exports, what it
 // keeps to itself, and how much of its code the internal half occupies.
 func formatVisibilityReport(vr *visibility.Report) string {
-	var output string
+	output := fmt.Sprintf("Packages: %d\nPassing:  %d\nWarnings: %d\n\n", vr.Total, vr.Passing, vr.Warnings)
 	for _, p := range vr.Packages {
 		status := "OK  "
 		if !p.OK() {
