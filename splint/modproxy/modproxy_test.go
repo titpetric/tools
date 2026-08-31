@@ -3,9 +3,12 @@ package modproxy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,6 +32,9 @@ func proxy(t *testing.T, calls *int) *httptest.Server {
 
 		case r.URL.Path == "/example.com/x/@latest":
 			json.NewEncoder(w).Encode(map[string]any{"Version": "v1.4.0", "Time": latest})
+
+		case strings.HasSuffix(r.URL.Path, ".mod"):
+			fmt.Fprint(w, "module example.com/x\n\nrequire (\n\texample.com/b v1.1.0\n\texample.com/a v0.2.0 // indirect\n)\n")
 
 		default:
 			json.NewEncoder(w).Encode(map[string]any{"Version": "v1.2.0", "Time": published})
@@ -55,6 +61,11 @@ func TestClient_Lookup(t *testing.T) {
 	}
 	if got.Published.Year() != 2025 {
 		t.Errorf("Published = %v", got.Published)
+	}
+	// The requirements come from the version's own go.mod, in path order, and
+	// an indirect one is a module the build carries the same as any other.
+	if want := []string{"example.com/a", "example.com/b"}; !reflect.DeepEqual(got.Requires, want) {
+		t.Errorf("Requires = %v, want %v", got.Requires, want)
 	}
 	if got.Age(time.Date(2026, 8, 26, 0, 0, 0, 0, time.UTC)) <= 0 {
 		t.Error("Age() of a published version is not positive")

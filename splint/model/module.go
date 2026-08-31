@@ -28,4 +28,8 @@ type Module struct {
 
 	// Replaces are the replace directives.
 	Replaces []Replace `json:"Replaces,omitempty" yaml:"Replaces,omitempty"`
+
+	// Sums are the versions go.sum records, which is every version the module
+	// graph offered rather than the one requirement each was resolved to.
+	Sums []Sum `json:"Sums,omitempty" yaml:"Sums,omitempty"`
 }

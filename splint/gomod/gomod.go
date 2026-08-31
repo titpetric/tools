@@ -32,7 +32,13 @@ func Read(filename string) (*model.Module, error) {
 		return nil, err
 	}
 
-	return moduleFrom(parsed), nil
+	module := moduleFrom(parsed)
+
+	// The go.sum beside it is read when there is one. A module that has never
+	// been built has none, and a module is worth reporting on either way.
+	module.Sums, _ = ReadSum(filepath.Join(filepath.Dir(filename), "go.sum"))
+
+	return module, nil
 }
 
 // Find returns the module governing dir, found by walking up from it

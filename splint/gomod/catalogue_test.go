@@ -1,6 +1,7 @@
 package gomod_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/titpetric/tools/splint/gomod"
@@ -103,6 +104,30 @@ func TestCatalogue_Owns(t *testing.T) {
 	}
 	if c.Owns("example.com/x") {
 		t.Error("Owns() claimed a dependency")
+	}
+}
+
+// TestCatalogue_Sums covers a version two modules of the tree both record.
+// They resolve against one module cache, so it is one version, and the hash of
+// the source on either side says the build downloads it.
+func TestCatalogue_Sums(t *testing.T) {
+	doc := document()
+	doc.Modules[0].Sums = []model.Sum{
+		{Path: "example.com/x", Version: "v1.2.0"},
+		{Path: "example.com/deep", Version: "v0.4.0", Zip: true},
+	}
+	doc.Modules[1].Sums = []model.Sum{
+		{Path: "example.com/x", Version: "v1.2.0", Zip: true},
+	}
+
+	got := gomod.NewCatalogue(doc).Sums()
+
+	want := []model.Sum{
+		{Path: "example.com/deep", Version: "v0.4.0", Zip: true},
+		{Path: "example.com/x", Version: "v1.2.0", Zip: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Sums() = %#v, want %#v", got, want)
 	}
 }
 

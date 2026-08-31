@@ -1,10 +1,10 @@
 // Package modproxy asks the Go module proxy what a dependency is.
 //
-// It answers three things a document cannot: how big the module is, when the
-// version in use was published, and what the latest one is. All three come
-// from the proxy protocol without downloading anything: the size is the
-// Content-Length of a HEAD on the zip, and the rest is one small JSON document
-// each.
+// It answers four things a document cannot: how big the module is, when the
+// version in use was published, what the latest one is, and what that version
+// itself requires. All four come from the proxy protocol without downloading
+// anything: the size is the Content-Length of a HEAD on the zip, and the rest
+// is one small document each.
 //
 // Nothing here is required for a report. A machine with no network answers
 // nothing and says so, and the caller reports what the document told it.
@@ -18,10 +18,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/mod/modfile"
 )
 
 // DefaultProxy is where a module is asked about when GOPROXY says nothing.
@@ -47,6 +50,11 @@ type Info struct {
 	// LatestPublished is when that newest version was tagged, which is what
 	// says whether a dependency is behind or simply finished.
 	LatestPublished time.Time `json:"LatestPublished,omitzero"`
+
+	// Requires are the module paths this version's own go.mod requires, in
+	// order. A go.mod names what a build resolved to and not who asked for it,
+	// so this is the only place the shape of the graph is written down.
+	Requires []string `json:"Requires,omitempty"`
 
 	// Err is why the proxy could not answer, and is empty when it did.
 	Err string `json:"Err,omitempty"`
@@ -187,7 +195,43 @@ func (c *Client) ask(ctx context.Context, path, version string) Info {
 		info.LatestPublished = published
 	}
 
+	if requires, err := c.requires(ctx, escaped, version); err == nil {
+		info.Requires = requires
+	}
+
 	return info
+}
+
+// requires reads the go.mod of a version and returns what it requires.
+//
+// It is the one document that says who asked for what. The go.mod of the
+// module being reported names every module its build resolves to and nothing
+// about which dependency dragged which one in, so the reach of a dependency is
+// only knowable by asking each of them what it requires.
+func (c *Client) requires(ctx context.Context, escaped, version string) ([]string, error) {
+	response, err := c.do(ctx, http.MethodGet, fmt.Sprintf("%s/%s/@v/%s.mod", c.Proxy, escaped, version))
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return nil, err
+	}
+
+	parsed, err := modfile.Parse("go.mod", body, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]string, 0, len(parsed.Require))
+	for _, require := range parsed.Require {
+		out = append(out, require.Mod.Path)
+	}
+	sort.Strings(out)
+
+	return out, nil
 }
 
 // size is the module zip in bytes, read from the header of a HEAD request. The

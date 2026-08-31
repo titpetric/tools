@@ -44,6 +44,7 @@ const budget = 0.001
 // in the document it turns up: "Complexity.Cognitive" covers the complexity of
 // a func, of a type and of a package alike.
 var allowed = map[string]string{
+	"Module.Sums":          "go-fsck reads the go.mod and not the go.sum beside it, so its documents record no versions",
 	"Complexity.Cognitive": "gocognit weights a branch by how deeply it nests in the syntax tree, which a line scan has none of",
 	"Complexity.Cyclomatic": "gocyclo counts the branch nodes of a tree, and a line scan counts the keywords " +
 		"that produce them, which part company inside a composite literal",
@@ -244,7 +245,23 @@ func normalise(path string, a, b any) (any, any) {
 		return alignment(a), alignment(b)
 	}
 
+	if strings.HasPrefix(path, "Imports.") {
+		// go-fsck drops the underscore in front of a blank import and splint
+		// keeps it, because a rule about side effects has to be able to tell
+		// one. Both name the same import, so the alias is dropped here.
+		return unblank(a), unblank(b)
+	}
+
 	return a, b
+}
+
+// unblank removes the alias of a blank import from a literal.
+func unblank(value any) any {
+	literal, ok := value.(string)
+	if !ok {
+		return value
+	}
+	return strings.TrimPrefix(literal, "_ ")
 }
 
 // alignment collapses the column padding inside every line of a value.

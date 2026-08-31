@@ -97,6 +97,37 @@ func (c *Catalogue) Requires() []model.Require {
 	return out
 }
 
+// Sums returns every version go.sum records, in path and version order.
+//
+// A version two of the modules read both record is one version: they resolve
+// against one module cache, and a report of what the build carries counts it
+// once.
+func (c *Catalogue) Sums() []model.Sum {
+	var out []model.Sum
+	at := map[string]int{}
+
+	for _, module := range c.Modules() {
+		for _, sum := range module.Sums {
+			key := sum.Path + "@" + sum.Version
+			if index, seen := at[key]; seen {
+				out[index].Zip = out[index].Zip || sum.Zip
+				continue
+			}
+			at[key] = len(out)
+			out = append(out, sum)
+		}
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Path != out[j].Path {
+			return out[i].Path < out[j].Path
+		}
+		return out[i].Version < out[j].Version
+	})
+
+	return out
+}
+
 // Replaces returns every replace directive, in path order.
 func (c *Catalogue) Replaces() []model.Replace {
 	out := make([]model.Replace, 0, len(c.replaces))
