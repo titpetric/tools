@@ -219,8 +219,8 @@ internal by the case of its own name: a method counts as a func, and
 left out.
 
 **Output, one row per package:**
-- `exported` - declared types and funcs whose name is exported
-- `internal` - the rest of the declared types and funcs
+- `types` - declared types, split by the case of their name
+- `funcs` - declared funcs and methods, split the same way
 - `internal SLOC` - the code inside internal func bodies over the code of the
   package, blank lines and comments left out of both
 
@@ -231,9 +231,9 @@ left out.
 **Example:**
 ```
 === visibility ===
-OK   storage: 25 exported, 3 internal, 8.4% internal SLOC
-WARN (root): 52 exported, 38 internal, 44.8% internal SLOC
-       35 internal funcs, over 5
+OK   storage: types 3 exported, 1 internal; funcs 22 exported, 3 internal; 8.4% internal SLOC
+WARN (root): types 9 exported, 1 internal; funcs 43 exported, 37 internal; 44.8% internal SLOC
+       37 internal funcs, over 5
        44.8% internal code, over 20%
 ```
 

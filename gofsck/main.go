@@ -335,8 +335,11 @@ func formatVisibilityReport(vr *visibility.Report) string {
 		if !p.OK() {
 			status = "WARN"
 		}
-		output += fmt.Sprintf("%s %s: %d exported, %d internal, %.1f%% internal SLOC\n",
-			status, p.Package, p.Exported(), p.Internal(), p.InternalRatio)
+		output += fmt.Sprintf("%s %s: types %d exported, %d internal; funcs %d exported, %d internal; %.1f%% internal SLOC\n",
+			status, p.Package,
+			p.ExportedTypes, p.InternalTypes,
+			p.ExportedFuncs, p.InternalFuncs,
+			p.InternalRatio)
 		for _, warning := range p.Warnings {
 			output += fmt.Sprintf("       %s\n", warning)
 		}
