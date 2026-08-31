@@ -210,6 +210,38 @@ See [pkg/filecheck/README.md](pkg/filecheck/README.md) for cognitive level table
 
 **Package:** `pkg/filecheck/`
 
+### 6. Visibility Analyzer
+
+Counts what a package exports against what it keeps to itself, so plumbing that
+outgrew the package it sits in is visible as a number. A symbol is exported or
+internal by the case of its own name: a method counts as a func, and
+`(*Tracer).serveHTTP` is internal the way a free function is. Test files are
+left out.
+
+**Output, one row per package:**
+- `exported` - declared types and funcs whose name is exported
+- `internal` - the rest of the declared types and funcs
+- `internal SLOC` - the code inside internal func bodies over the code of the
+  package, blank lines and comments left out of both
+
+**Warnings:**
+- more than 5 internal funcs in a package
+- internal code over 20% of package code
+
+**Example:**
+```
+=== visibility ===
+OK   storage: 25 exported, 3 internal, 8.4% internal SLOC
+WARN (root): 52 exported, 38 internal, 44.8% internal SLOC
+       35 internal funcs, over 5
+       44.8% internal code, over 20%
+```
+
+The module root reports as `(root)`; every other package reports the path it
+sits at below the module.
+
+**Package:** `pkg/visibility/`
+
 ## Development
 
 There is a Taskfile.yml provided with typical development tasks.

@@ -17,6 +17,7 @@ import (
 	"github.com/titpetric/tools/gofsck/pkg/filecheck"
 	"github.com/titpetric/tools/gofsck/pkg/grouping"
 	"github.com/titpetric/tools/gofsck/pkg/pairing"
+	"github.com/titpetric/tools/gofsck/pkg/visibility"
 	"github.com/titpetric/tools/gofsck/pkg/wraphandler"
 )
 
@@ -47,7 +48,8 @@ func main() {
 
 	// Load packages
 	cfg := &packages.Config{
-		Mode:  packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedImports | packages.NeedTypes | packages.NeedTypesSizes,
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedImports |
+			packages.NeedTypes | packages.NeedTypesSizes | packages.NeedModule,
 		Tests: true,
 	}
 
@@ -195,6 +197,19 @@ func NewReport(pkgs []*packages.Package) *model.AggregatedReport {
 		})
 	}
 
+	// Run visibility analyzer
+	visibilityAnalyzer := visibility.New()
+	visibilityResult, err := visibilityAnalyzer.Analyze(pkgs)
+	if err != nil {
+		report.Errors = append(report.Errors, fmt.Sprintf("visibility: %v", err))
+	} else {
+		report.Analyzers = append(report.Analyzers, &model.AnalyzerReport{
+			Name: "visibility",
+			Type: "visibility",
+			Data: visibilityResult,
+		})
+	}
+
 	// Run grouping analyzer
 	groupingAnalyzer := grouping.New()
 	groupingResult, err := groupingAnalyzer.Analyze(pkgs)
@@ -234,6 +249,10 @@ func formatTextReport(report *model.AggregatedReport) string {
 		case "filecheck":
 			if fr, ok := analyzer.Data.(*filecheck.Report); ok {
 				output += formatFilecheckReport(fr)
+			}
+		case "visibility":
+			if vr, ok := analyzer.Data.(*visibility.Report); ok {
+				output += formatVisibilityReport(vr)
 			}
 		case "grouping":
 			if gr, ok := analyzer.Data.(*grouping.Report); ok {
@@ -304,6 +323,24 @@ func formatGroupingReport(gr *grouping.Report) string {
 		}
 	}
 
+	return output
+}
+
+// formatVisibilityReport renders one row per package: what it exports, what it
+// keeps to itself, and how much of its code the internal half occupies.
+func formatVisibilityReport(vr *visibility.Report) string {
+	var output string
+	for _, p := range vr.Packages {
+		status := "OK  "
+		if !p.OK() {
+			status = "WARN"
+		}
+		output += fmt.Sprintf("%s %s: %d exported, %d internal, %.1f%% internal SLOC\n",
+			status, p.Package, p.Exported(), p.Internal(), p.InternalRatio)
+		for _, warning := range p.Warnings {
+			output += fmt.Sprintf("       %s\n", warning)
+		}
+	}
 	return output
 }
 
