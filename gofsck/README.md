@@ -2,13 +2,14 @@
 
 A Go filesystem check tool with modular analyzers for package structure validation.
 
-Gofsck provides five independent analyzers that can be run in multiple modes:
+Gofsck provides six independent analyzers that can be run in multiple modes:
 
 1. **Pairing Analyzer** - Validates file-test relationships (e.g., `file.go` with `file_test.go`)
 2. **Coverage Analyzer** - Analyzes symbol-test coverage and naming patterns
 3. **Grouping Analyzer** - Ensures exported symbols are in appropriate files
 4. **Wraphandler Analyzer** - Ensures exported HTTP handlers have corresponding unexported error-returning wrappers
 5. **Filecheck Analyzer** - Gauges complexity by file size distribution and cognitive load ratings
+6. **Visibility Analyzer** - Counts exported against internal symbols per package, and how much of the package the internal bodies occupy
 
 ## Installation
 
@@ -216,7 +217,8 @@ Counts what a package exports against what it keeps to itself, so plumbing that
 outgrew the package it sits in is visible as a number. A symbol is exported or
 internal by the case of its own name: a method counts as a func, and
 `(*Tracer).serveHTTP` is internal the way a free function is. Test files are
-left out.
+left out, and so is the `internal` tree: Go scopes it to the module already,
+whatever it exports.
 
 **Output, one row per package:**
 - `types` - declared types, split by the case of their name

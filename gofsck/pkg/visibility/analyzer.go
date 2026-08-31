@@ -165,12 +165,25 @@ func warningsFor(report PackageReport) []string {
 }
 
 // skipPackage reports whether a package is one the count would distort:
-// commands, the synthetic test packages, and anything loaded without syntax.
+// commands, the synthetic test packages, anything loaded without syntax, and
+// the internal tree, which is scoped to the module whatever it exports.
 func skipPackage(pkg *packages.Package) bool {
 	return pkg.Name == "main" ||
 		strings.HasSuffix(pkg.Name, "_test") ||
 		strings.HasSuffix(pkg.PkgPath, ".test") ||
+		internalPath(pkg.PkgPath) ||
 		len(pkg.Syntax) == 0
+}
+
+// internalPath reports whether a package sits in an internal tree, which Go
+// closes to importers outside the module that declares it.
+func internalPath(pkgPath string) bool {
+	for _, element := range strings.Split(pkgPath, "/") {
+		if element == "internal" {
+			return true
+		}
+	}
+	return false
 }
 
 // packageLabel is the package path relative to its module, with the module

@@ -12,13 +12,14 @@ go install github.com/titpetric/tools/worktree@main
 
 ### [gofsck](gofsck/)
 
-A Go filesystem check tool with modular analyzers for package structure validation. Provides five analyzers:
+A Go filesystem check tool with modular analyzers for package structure validation. Provides six analyzers:
 
 1. **Pairing** - Validates that source files have corresponding test files
 2. **Coverage** - Analyzes symbol-test coverage using naming conventions
 3. **Grouping** - Ensures exported symbols are in appropriately named files (also available as a golangci-lint plugin)
 4. **Wraphandler** - Ensures exported HTTP handlers have corresponding unexported error-returning wrappers
 5. **Filecheck** - Gauges complexity by file size distribution and cognitive load ratings
+6. **Visibility** - Counts exported against internal types and funcs per package, and the share of package code the internal bodies occupy
 
 ```
 go install github.com/titpetric/tools/gofsck@latest

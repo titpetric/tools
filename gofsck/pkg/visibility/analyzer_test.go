@@ -130,5 +130,10 @@ func TestSkipPackage(t *testing.T) {
 	assert.True(t, skipPackage(&packages.Package{Name: "p_test", Syntax: syntax}))
 	assert.True(t, skipPackage(&packages.Package{Name: "p", PkgPath: "example.com/x.test", Syntax: syntax}))
 	assert.True(t, skipPackage(&packages.Package{Name: "p"}), "a package loaded without syntax is not measurable")
+	assert.True(t, skipPackage(&packages.Package{Name: "internal", PkgPath: "example.com/x/internal", Syntax: syntax}),
+		"an internal tree is scoped to the module whatever it exports")
+	assert.True(t, skipPackage(&packages.Package{Name: "env", PkgPath: "example.com/x/internal/env", Syntax: syntax}))
 	assert.False(t, skipPackage(&packages.Package{Name: "p", PkgPath: "example.com/x", Syntax: syntax}))
+	assert.False(t, skipPackage(&packages.Package{Name: "p", PkgPath: "example.com/internalish", Syntax: syntax}),
+		"the element has to be internal, not start with it")
 }
