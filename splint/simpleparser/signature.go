@@ -38,6 +38,23 @@ func splitTop(list string, sep byte) []string {
 	return parts
 }
 
+// matchBracket returns the index of the bracket closing the one at open.
+func matchBracket(text string, open int) int {
+	depth := 0
+	for i := open; i < len(text); i++ {
+		switch text[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 // matchParen returns the index of the paren closing the one at open, and -1
 // when the line does not close it.
 func matchParen(line string, open int) int {
@@ -69,6 +86,12 @@ func paramGroups(list string) []paramGroup {
 	}
 
 	items := splitTop(list, ',')
+	// A list written one parameter per line ends on a trailing comma, which
+	// leaves an empty item behind; it is not a parameter and must not be the
+	// one that decides whether the list is named.
+	for len(items) > 0 && strings.TrimSpace(items[len(items)-1]) == "" {
+		items = items[:len(items)-1]
+	}
 	if len(items) == 0 {
 		return nil
 	}
@@ -277,22 +300,43 @@ func signature(name string, params, results []paramGroup) string {
 	return name + " (" + strings.Join(written, ", ") + ")"
 }
 
-// symbolType normalises a type the way the ast collector renders it. An
-// anonymous interface is written as "any", whatever it declares: the collector
-// reduces every interface type to that.
+// symbolType renders a type the way the ast collector does.
+//
+// The collector walks a type expression and writes each layer back: a pointer,
+// a slice, an ellipsis and a map are rebuilt from what they hold, and an
+// interface is written "any" whatever it declares. Anything it has no case
+// for, a func type or a struct written out in place, it prints as it was
+// written, which is why "func(interface{}) error" keeps its interface and
+// "map[string]interface{}" does not.
 func symbolType(typ string) string {
 	typ = strings.TrimSpace(typ)
-	if strings.HasPrefix(typ, "interface{") || typ == "interface {}" || typ == "interface{}" {
-		return "any"
-	}
 
-	// An array is written as a slice of its element: the collector prints "[]"
-	// and what follows, so "[16]byte" and "[]byte" are the same to it.
-	if strings.HasPrefix(typ, "[") {
-		if close := strings.Index(typ, "]"); close > 1 && !strings.HasPrefix(typ, "[]") {
-			if inner := strings.TrimSpace(typ[1:close]); !strings.Contains(inner, "]") {
-				return "[]" + symbolType(typ[close+1:])
-			}
+	switch {
+	case typ == "":
+		return ""
+
+	case strings.HasPrefix(typ, "interface{"), strings.HasPrefix(typ, "interface {"):
+		return "any"
+
+	case strings.HasPrefix(typ, "*"):
+		return "*" + symbolType(typ[1:])
+
+	case strings.HasPrefix(typ, "..."):
+		return "..." + symbolType(typ[3:])
+
+	case strings.HasPrefix(typ, "[]"):
+		return "[]" + symbolType(typ[2:])
+
+	case strings.HasPrefix(typ, "map["):
+		if close := matchBracket(typ, 3); close > 0 {
+			return "map[" + symbolType(typ[4:close]) + "]" + symbolType(typ[close+1:])
+		}
+
+	case strings.HasPrefix(typ, "["):
+		// An array is written as a slice of its element: the collector prints
+		// "[]" and what follows, so "[16]byte" and "[]byte" are the same.
+		if close := matchBracket(typ, 0); close > 0 && indexTop(typ[1:close], ' ') < 0 {
+			return "[]" + symbolType(typ[close+1:])
 		}
 	}
 

@@ -24,14 +24,22 @@ func structFields(src *source, open, close int) model.FieldList {
 
 		// A field body of its own, an anonymous struct or interface, is read
 		// as the one type it is and its inside is skipped.
-		skip := i
+		// A field with a body of its own, an anonymous struct or interface, is
+		// read as the whole of what it declares: the type is every line of it,
+		// and the tag sits on the line that closes it.
+		skip, nested := i, false
 		if strings.HasSuffix(code, "{") {
-			skip = blockEnd(src, i, '}')
-			code = strings.TrimSpace(code + " " + strings.TrimSpace(src.codeLine(skip)))
+			skip = bodyEnd(src, i)
+			nested = skip > i
 		}
 
 		written, comment := src.split(i)
 		name, typ, tag := splitField(code, written)
+		if nested {
+			name, typ = nestedField(src, i, skip)
+			tagged, _ := src.split(skip)
+			tag = fieldTag(tagged)
+		}
 		if typ == "" {
 			i = skip
 			continue
@@ -185,4 +193,38 @@ func jsonName(tag, name string) string {
 		return ""
 	}
 	return value
+}
+
+// nestedField reads a field whose type is written out in place, and returns
+// the name it declares and every line of what it is.
+//
+// The collector prints the type through go/printer, which writes it back as it
+// was written, so what the model records is the declaration itself rather than
+// a summary of it.
+func nestedField(src *source, open, close int) (name, typ string) {
+	written, _ := src.split(open)
+	head := strings.TrimSpace(written)
+
+	space := indexTop(head, ' ')
+	if space < 0 {
+		return "", strings.TrimSpace(src.text(open, close))
+	}
+	if candidate := strings.TrimSpace(head[:space]); isIdentifier(candidate) {
+		name = candidate
+		head = strings.TrimSpace(head[space+1:])
+	}
+
+	lines := []string{head}
+	for i := open + 1; i <= close; i++ {
+		line, _ := src.split(i)
+		lines = append(lines, strings.TrimRight(line, " \t"))
+	}
+
+	// The closing line carries the tag, which is not part of the type.
+	last := lines[len(lines)-1]
+	if tick := strings.Index(last, "`"); tick >= 0 {
+		lines[len(lines)-1] = strings.TrimRight(last[:tick], " \t")
+	}
+
+	return name, strings.Join(lines, "\n")
 }

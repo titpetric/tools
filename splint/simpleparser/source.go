@@ -31,6 +31,10 @@ type source struct {
 	// carrying none. A backtick inside a comment is not a struct tag, and the
 	// stripped view cannot say so: it blanks the comment and the tag alike.
 	commentAt []int
+
+	// raw reports which lines left a raw string open, which is what tells a
+	// declaration that has not ended from one that reads as though it has.
+	raw []bool
 }
 
 // newSource reads a file into the two views.
@@ -43,14 +47,16 @@ func newSource(name string, data []byte) *source {
 		code:      make([]string, len(lines)),
 		comment:   make([]bool, len(lines)),
 		commentAt: make([]int, len(lines)),
+		raw:       make([]bool, len(lines)),
 	}
 
-	inBlockComment := false
+	var open openState
 	for i, line := range lines {
-		src.code[i], src.commentAt[i], inBlockComment = strip(line, inBlockComment)
+		src.code[i], src.commentAt[i], open = strip(line, open)
+		src.raw[i] = open.raw
 		trimmed := strings.TrimSpace(line)
-		src.comment[i] = strings.TrimSpace(src.code[i]) == "" &&
-			(strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || inBlockComment || strings.HasSuffix(trimmed, "*/"))
+		src.comment[i] = strings.TrimSpace(src.code[i]) == "" && !open.raw &&
+			(strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || open.comment || strings.HasSuffix(trimmed, "*/"))
 	}
 
 	return src
@@ -75,6 +81,12 @@ func (s *source) codeLine(i int) string {
 		return ""
 	}
 	return s.code[i]
+}
+
+// rawOpen reports whether a line left a raw string open, which is a
+// declaration that has not ended however its code reads.
+func (s *source) rawOpen(i int) bool {
+	return i >= 0 && i < len(s.raw) && s.raw[i]
 }
 
 // isComment reports whether a line is wholly a comment.
@@ -115,18 +127,17 @@ func (s *source) text(from, to int) string {
 // string, a raw string, a rune, and a comment. The blanks are spaces, so every
 // column of the stripped line lines up with the column it came from.
 //
-// It returns the line, where the comment on it begins, and whether a block
-// comment is still open at the end of it, which is what the next line has to
-// be read under.
-func strip(line string, inBlockComment bool) (string, int, bool) {
+// It returns the line, where the comment on it begins, and what is still open
+// at the end of it, which is what the next line has to be read under.
+func strip(line string, open openState) (string, int, openState) {
 	out := []byte(line)
 	comment := -1
 
 	var (
 		inString bool
-		inRaw    bool
 		inRune   bool
 	)
+	inBlockComment, inRaw := open.comment, open.raw
 
 	for i := 0; i < len(out); i++ {
 		c := out[i]
@@ -177,7 +188,7 @@ func strip(line string, inBlockComment bool) (string, int, bool) {
 				for ; i < len(out); i++ {
 					out[i] = ' '
 				}
-				return string(out), comment, false
+				return string(out), comment, openState{}
 			case c == '/' && i+1 < len(out) && out[i+1] == '*':
 				if comment < 0 {
 					comment = i
@@ -199,6 +210,17 @@ func strip(line string, inBlockComment bool) (string, int, bool) {
 	}
 
 	// A string or a rune does not survive a line break in Go; a raw string and
-	// a block comment do.
-	return string(out), comment, inBlockComment
+	// a block comment do, so both are carried to the next line.
+	return string(out), comment, openState{comment: inBlockComment, raw: inRaw}
+}
+
+// openState is what a line left unfinished for the next one to read under.
+type openState struct {
+	// comment is a block comment the line opened and did not close.
+	comment bool
+
+	// raw is a raw string the line opened and did not close. A brace or a
+	// keyword inside one is text, and a scan that read it as code would close
+	// a declaration in the middle of a template.
+	raw bool
 }

@@ -14,20 +14,13 @@ import (
 	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/simpleparser"
+	"github.com/titpetric/tools/splint/tests"
 )
 
 // workspace is where the projects the harness reads are checked out, which
 // SPLINT_WORKSPACE overrides. A project that is not there is skipped, so the
 // harness reads whatever the machine has rather than requiring all of them.
 var workspace = envOr("SPLINT_WORKSPACE", "/root/workspace/github")
-
-// envOr reads an environment variable, falling back to a default.
-func envOr(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-	return fallback
-}
 
 // projects are the trees to compare on. They are real repositories rather than
 // fixtures because the point is the shapes nobody thought to write a fixture
@@ -38,33 +31,49 @@ var projects = []string{
 	"vuego", "vuego-cli",
 }
 
-// budget is the share of declarations that may differ on a field nobody has
-// explained yet. It is a ratchet: the number below is what the harness reports
-// today, and lowering it as the differences are chased is the point of having
-// it. Raising it is a decision somebody has to make on purpose.
-const budget = 0.025
+// budget is the share of compared values that may differ on a path nobody has
+// explained. It is a ratchet: the number is what the harness reports today,
+// and lowering it as the differences are chased is the point of having it.
+// Raising it is a decision somebody has to make on purpose.
+const budget = 0.001
 
-// allowed are the fields the two parsers are not expected to agree on, and
-// why. A field not named here has to match, and the summary says so.
+// allowed are the paths the two parsers are not expected to agree on, and why.
+// A path not named here has to match, and the summary says so.
+//
+// An entry is matched on the end of a path, so one covers the field wherever
+// in the document it turns up: "Complexity.Cognitive" covers the complexity of
+// a func, of a type and of a package alike.
 var allowed = map[string]string{
-	"Complexity.Cognitive": "gocognit weights a branch by how deeply it nests in the tree, which a line scan has no tree to read",
+	"Complexity.Cognitive": "gocognit weights a branch by how deeply it nests in the syntax tree, which a line scan has none of",
 	"Complexity.Cyclomatic": "gocyclo counts the branch nodes of a tree, and a line scan counts the keywords " +
 		"that produce them, which part company inside a composite literal",
 }
 
-// TestParity runs the simple parser over every project and compares what it
-// produced against what "go-fsck extract" produced for the same tree.
+// explained returns why a path is allowed to differ, and whether it is.
+func explained(path string) (string, bool) {
+	for suffix, note := range allowed {
+		if path == suffix || strings.HasSuffix(path, "."+suffix) {
+			return note, true
+		}
+	}
+	return "", false
+}
+
+// TestParity compares the simple parser against "go-fsck extract", value by
+// value, over every project.
 //
-// go-fsck is the reference rather than the ast parser in this module, because
-// go-fsck is what the model has to stay compatible with: a document the two
-// agree on is one every tool already reading go-fsck output can read.
+// The comparison is a deep walk of the encoded documents rather than a list of
+// fields somebody remembered to check: every key either side carries is
+// visited, a key only one of them has is a difference, and a key added to the
+// model tomorrow is covered without anyone adding it here.
 func TestParity(t *testing.T) {
 	if _, err := exec.LookPath("go-fsck"); err != nil {
 		t.Skip("go-fsck is not installed")
 	}
 
 	totals := map[string]int{}
-	var declarations, matched int
+	examples := map[string]string{}
+	var compared, differing int
 
 	for _, project := range projects {
 		root := filepath.Join(workspace, project)
@@ -74,42 +83,63 @@ func TestParity(t *testing.T) {
 		}
 
 		t.Run(project, func(t *testing.T) {
-			counts, seen, agreed := compare(t, root)
-			for field, count := range counts {
-				totals[field] += count
+			out := compare(t, root)
+			for path, count := range out.counts {
+				totals[path] += count
+				if _, seen := examples[path]; !seen {
+					examples[path] = out.examples[path]
+				}
 			}
-			declarations += seen
-			matched += agreed
+			compared += out.compared
+			differing += out.differing
 		})
 	}
 
-	if declarations == 0 {
+	if compared == 0 {
 		t.Skip("no project was read")
 	}
 
-	t.Logf("total: %d declarations, %d matched (%.1f%%)", declarations, matched, percent(matched, declarations))
+	t.Logf("total: %d values compared, %d differ (%.4f%%)", compared, differing, percent(differing, compared))
 
 	unexplained := 0
-	for _, field := range sortedKeys(totals) {
-		note, ok := allowed[field]
+	for _, path := range sortedKeys(totals) {
+		note, ok := explained(path)
 		if !ok {
 			note = "unexplained"
-			unexplained += totals[field]
+			unexplained += totals[path]
 		}
-		t.Logf("  %-22s %6d  %s", field, totals[field], note)
+		t.Logf("  %-30s %7d  %s", path, totals[path], note)
+		if !ok && examples[path] != "" {
+			t.Logf("      %s", examples[path])
+		}
 	}
 
-	share := float64(unexplained) / float64(declarations)
-	t.Logf("unexplained: %d differences over %d declarations, %.2f%% of budget %.2f%%",
-		unexplained, declarations, share*100, budget*100)
+	share := float64(unexplained) / float64(compared)
+	t.Logf("unexplained: %d of %d values, %.4f%%, budget %.4f%%",
+		unexplained, compared, share*100, budget*100)
 	if share > budget {
-		t.Errorf("the parsers differ on %.2f%% of declarations, over the budget of %.2f%%", share*100, budget*100)
+		t.Errorf("the parsers differ on %.4f%% of values, over the budget of %.4f%%", share*100, budget*100)
 	}
 }
 
-// compare reads one project with both, and returns the per field difference
-// counts, how many declarations there were and how many matched entirely.
-func compare(t *testing.T, root string) (map[string]int, int, int) {
+// result is what one project's comparison found.
+type result struct {
+	counts    map[string]int
+	examples  map[string]string
+	compared  int
+	differing int
+}
+
+// note keeps the first example of each difference, which is what turns a count
+// into something a reader can chase.
+func (r result) note(path, example string) {
+	if _, seen := r.examples[path]; !seen {
+		r.examples[path] = example
+	}
+}
+
+// compare reads one project with both and reports where they differ.
+func compare(t *testing.T, root string) result {
 	t.Helper()
 
 	reference, err := extract(t, root)
@@ -124,57 +154,48 @@ func compare(t *testing.T, root string) (map[string]int, int, int) {
 	}
 
 	left, right := index(reference), index(parsed)
+	out := result{counts: map[string]int{}, examples: map[string]string{}}
 
-	var (
-		matched    int
-		counts     = map[string]int{}
-		onlyRef    []string
-		onlyParsed []string
-	)
+	for _, key := range union(left, right) {
+		a, inLeft := left[key]
+		b, inRight := right[key]
 
-	for key, a := range left {
-		b, ok := right[key]
-		if !ok {
-			onlyRef = append(onlyRef, key)
+		switch {
+		case !inRight:
+			out.counts["_onlyInGoFsck"]++
+			out.differing++
+			out.note("_onlyInGoFsck", key)
+			continue
+		case !inLeft:
+			out.counts["_onlyInSimple"]++
+			out.differing++
+			out.note("_onlyInSimple", key)
 			continue
 		}
-		fields := diff(a, b)
-		if len(fields) == 0 {
-			matched++
-			continue
-		}
-		for _, field := range fields {
-			counts[field]++
-		}
-	}
-	for key := range right {
-		if _, ok := left[key]; !ok {
-			onlyParsed = append(onlyParsed, key)
+
+		out.compared += values(a)
+		for _, difference := range tests.Diff(tests.Canonical(a), tests.Canonical(b), normalise) {
+			path := tests.Field(difference.Path)
+			out.counts[path]++
+			out.differing++
+			out.note(path, key+" "+difference.String())
 		}
 	}
 
-	sort.Strings(onlyRef)
-	sort.Strings(onlyParsed)
-
-	t.Logf("%d declarations, %d matched (%.1f%%), %d only in go-fsck, %d only in simple",
-		len(left), matched, percent(matched, len(left)), len(onlyRef), len(onlyParsed))
-	for _, field := range sortedKeys(counts) {
-		note, ok := allowed[field]
+	t.Logf("%d packages, %d values compared, %d differ (%.4f%%)",
+		len(left), out.compared, out.differing, percent(out.differing, out.compared))
+	for _, path := range sortedKeys(out.counts) {
+		note, ok := explained(path)
 		if !ok {
 			note = "unexplained"
 		}
-		t.Logf("  %-22s %6d  %s", field, counts[field], note)
-	}
-	for _, key := range head(onlyRef, 3) {
-		t.Logf("  only in go-fsck: %s", key)
-	}
-	for _, key := range head(onlyParsed, 3) {
-		t.Logf("  only in simple:  %s", key)
+		t.Logf("  %-30s %7d  %s", path, out.counts[path], note)
+		if !ok {
+			t.Logf("      %s", out.examples[path])
+		}
 	}
 
-	counts["_onlyReference"] = len(onlyRef)
-	counts["_onlyParsed"] = len(onlyParsed)
-	return counts, len(left), matched
+	return out
 }
 
 // extract runs "go-fsck extract" over a tree and reads the document back.
@@ -195,82 +216,44 @@ func extract(t *testing.T, root string) (*model.DocumentRoot, error) {
 	return loader.Load(out)
 }
 
-// index keys every declaration by package, kind, symbol and file, so two
-// documents of the same tree compare entry by entry.
-func index(doc *model.DocumentRoot) map[string]*model.Declaration {
-	out := map[string]*model.Declaration{}
+// index keys every package of a document, so two documents of the same tree
+// compare package by package whatever order they list them in.
+func index(doc *model.DocumentRoot) map[string]*model.Definition {
+	out := map[string]*model.Definition{}
 
 	for _, def := range doc.Packages {
-		if def.TestPackage {
-			continue
+		key := def.Package.Path + "|" + def.Package.ImportPath
+		if def.Package.TestPackage {
+			key += "|test"
 		}
-		for _, decl := range def.DeclarationList() {
-			key := fmt.Sprintf("%s|%s|%s|%s", def.Package.Path, decl.Kind, decl.Symbol(), decl.File)
-			out[key] = decl
-		}
+		out[key] = def
 	}
 
 	return out
 }
 
-// diff names the fields two declarations disagree on.
-func diff(a, b *model.Declaration) []string {
-	var fields []string
-
-	compareString := func(name, left, right string) {
-		if strings.TrimSpace(left) != strings.TrimSpace(right) {
-			fields = append(fields, name)
-		}
-	}
-	compareList := func(name string, left, right []string) {
-		if strings.Join(left, "\x00") != strings.Join(right, "\x00") {
-			fields = append(fields, name)
-		}
+// normalise takes the differences that are known and explained out of the
+// comparison, without taking the field they are in out of it.
+func normalise(path string, a, b any) (any, any) {
+	if strings.HasSuffix(path, "Source") {
+		// go-fsck renders a declaration through go/printer, which writes the
+		// padding that lines up a run of struct fields as tabs. The file on
+		// disk carries what gofmt wrote there, which is spaces. The two say
+		// the same thing, so the padding inside a line is collapsed; the
+		// indentation opening a line is code structure and is left alone.
+		return alignment(a), alignment(b)
 	}
 
-	compareString("Type", a.Type, b.Type)
-	compareString("Receiver", a.Receiver, b.Receiver)
-	compareString("Signature", a.Signature, b.Signature)
-	compareString("Doc", a.Doc, b.Doc)
-	if alignment(a.Source) != alignment(b.Source) {
-		fields = append(fields, "Source")
-	}
-	compareList("Arguments", a.Arguments, b.Arguments)
-	compareList("Returns", a.Returns, b.Returns)
-	compareList("Names", a.Names, b.Names)
-	compareList("References", flatten(a.References), flatten(b.References))
-	compareList("Fields", fieldStrings(a), fieldStrings(b))
-
-	if a.Line != b.Line {
-		fields = append(fields, "Line")
-	}
-	if a.SelfContained != b.SelfContained {
-		fields = append(fields, "SelfContained")
-	}
-	if a.Complexity != nil && b.Complexity != nil {
-		if a.Complexity.Cognitive != b.Complexity.Cognitive {
-			fields = append(fields, "Complexity.Cognitive")
-		}
-		if a.Complexity.Cyclomatic != b.Complexity.Cyclomatic {
-			fields = append(fields, "Complexity.Cyclomatic")
-		}
-		if a.Complexity.Lines != b.Complexity.Lines {
-			fields = append(fields, "Complexity.Lines")
-		}
-	}
-
-	return fields
+	return a, b
 }
 
-// alignment normalises the column padding out of a source listing.
-//
-// go-fsck renders a declaration through go/printer, which writes the padding
-// that lines up a run of struct fields or const values as tabs. The file on
-// disk carries what gofmt wrote there, which is spaces. The two say the same
-// thing and a comparison of the bytes does not, so the padding inside a line
-// is collapsed before they are compared; the indentation that opens a line is
-// left alone, since that is code structure and not alignment.
-func alignment(source string) string {
+// alignment collapses the column padding inside every line of a value.
+func alignment(value any) any {
+	source, ok := value.(string)
+	if !ok {
+		return value
+	}
+
 	lines := strings.Split(source, "\n")
 	for i, line := range lines {
 		indent := len(line) - len(strings.TrimLeft(line, " \t"))
@@ -299,25 +282,29 @@ func collapse(text string) string {
 	return out.String()
 }
 
-// flatten renders a reference set as a sorted list, so two of them compare.
-func flatten(set model.StringSet) []string {
-	var out []string
-	for _, key := range set.Keys() {
-		for _, value := range set[key] {
-			out = append(out, key+"."+value)
-		}
-	}
-	sort.Strings(out)
-	return out
+// values counts the scalars a package encodes to, which is what a difference
+// is counted against: a rate over declarations says nothing about a field only
+// some declarations carry.
+func values(def *model.Definition) int {
+	return tests.Scalars(tests.Canonical(def))
 }
 
-// fieldStrings renders the fields of a declaration as a comparable list.
-func fieldStrings(decl *model.Declaration) []string {
-	out := make([]string, 0, len(decl.Fields))
-	for _, field := range decl.Fields {
-		out = append(out, fmt.Sprintf("%s %s `%s` json=%s", field.Name, field.Type, field.Tag, field.JSONName))
+// union returns every key either side carries, in order.
+func union(left, right map[string]*model.Definition) []string {
+	seen := map[string]bool{}
+	var keys []string
+
+	for _, side := range []map[string]*model.Definition{left, right} {
+		for key := range side {
+			if !seen[key] {
+				seen[key] = true
+				keys = append(keys, key)
+			}
+		}
 	}
-	return out
+
+	sort.Strings(keys)
+	return keys
 }
 
 func sortedKeys(counts map[string]int) []string {
@@ -327,13 +314,6 @@ func sortedKeys(counts map[string]int) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-func head(list []string, n int) []string {
-	if len(list) <= n {
-		return list
-	}
-	return list[:n]
 }
 
 func percent(part, whole int) float64 {
@@ -346,4 +326,11 @@ func percent(part, whole int) float64 {
 func firstLine(output string) string {
 	line, _, _ := strings.Cut(strings.TrimSpace(output), "\n")
 	return line
+}
+
+func envOr(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }

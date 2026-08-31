@@ -12,8 +12,9 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// ParserName is what a document says produced it.
-const ParserName = "simple"
+// ParserName is what a document says produced it, and what --parser takes to
+// select it.
+const ParserName = "simpleparser"
 
 // Parser reads Go source without building a syntax tree.
 //
@@ -53,12 +54,18 @@ func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 			return nil, err
 		}
 
-		defs, err := p.readDir(root, modules.dirOf(dir), dir)
+		module := modules.of(dir)
+		modulePath := ""
+		if module != nil {
+			modulePath = module.Path
+		}
+
+		defs, err := p.readDir(root, modules.dirOf(dir), modulePath, dir)
 		if err != nil {
 			return nil, err
 		}
 		for _, def := range defs {
-			if module := modules.of(dir); module != nil {
+			if module != nil {
 				def.Module = module
 				doc.AddModule(module)
 			}

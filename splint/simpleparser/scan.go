@@ -30,14 +30,16 @@ type file struct {
 	// type from another file of the same package does not count.
 	declared map[string]bool
 
+	// names are every name the file declares at the top level, types and
+	// values and funcs alike. A selector reaching one of them reaches
+	// something written here rather than a package.
+	names map[string]bool
+
 	// Types, Consts, Vars and Funcs are what the file declares.
 	Types  model.DeclarationList
 	Consts model.DeclarationList
 	Vars   model.DeclarationList
 	Funcs  model.DeclarationList
-
-	// InitCount is how many init functions the file declares.
-	InitCount int
 }
 
 // scan reads one file.
@@ -48,7 +50,7 @@ type file struct {
 // construct is found by where it starts and ends rather than by balancing what
 // is inside it.
 func scan(src *source) *file {
-	out := &file{aliases: map[string]bool{}, declared: declaredTypes(src)}
+	out := &file{aliases: map[string]bool{}, declared: declaredTypes(src), names: declaredNames(src)}
 
 	for i := 0; i < src.len(); i++ {
 		code := src.codeLine(i)
@@ -238,4 +240,103 @@ func declaredTypes(src *source) map[string]bool {
 func typeName(spec string) string {
 	name, _, _ := strings.Cut(strings.TrimSpace(spec), " ")
 	return trimTypeParams(strings.TrimSpace(name))
+}
+
+// declaredNames collects every name a file declares at the top level.
+//
+// go/parser resolves an identifier against the file it is written in, so a
+// name declared here is a local to the collector and a name declared in
+// another file of the same package is not. That is the line this draws, and
+// it is why a package level var used across two files turns up in Globals.
+func declaredNames(src *source) map[string]bool {
+	names := map[string]bool{}
+
+	for i := 0; i < src.len(); i++ {
+		code := src.codeLine(i)
+		if code == "" || code[0] == ' ' || code[0] == '\t' {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(code, "func "), strings.HasPrefix(code, "func("):
+			if decl := parseFuncHeader(joinHeader(src, i)); decl != nil && decl.Receiver == "" {
+				names[decl.Name] = true
+			}
+
+		case strings.HasPrefix(code, "type"), strings.HasPrefix(code, "const"), strings.HasPrefix(code, "var"):
+			keyword, _, _ := strings.Cut(strings.TrimSpace(code), " ")
+			for _, spec := range specsOf(src, i, keyword) {
+				for _, name := range specNames(spec, keyword) {
+					names[name] = true
+				}
+			}
+		}
+	}
+
+	return names
+}
+
+// joinHeader is the signature of the func opening on a line, joined into one
+// string.
+func joinHeader(src *source, line int) string {
+	header, _ := funcHeader(src, line)
+	return header
+}
+
+// specsOf returns the specs of a declaration, one for a single form and one
+// per entry for a parenthesised block.
+func specsOf(src *source, line int, keyword string) []string {
+	code := strings.TrimSpace(src.codeLine(line))
+
+	if strings.TrimSpace(strings.TrimSuffix(code, "(")) != keyword || !strings.HasSuffix(code, "(") {
+		return []string{strings.TrimSpace(strings.TrimPrefix(code, keyword))}
+	}
+
+	var specs []string
+	end := blockEnd(src, line, ')')
+	for i := line + 1; i < end; i++ {
+		if entry := strings.TrimSpace(src.codeLine(i)); entry != "" {
+			specs = append(specs, entry)
+			i = entryEnd(src, i)
+		}
+	}
+	return specs
+}
+
+// specNames returns the names one spec declares.
+func specNames(spec, keyword string) []string {
+	if spec == "" {
+		return nil
+	}
+	if keyword == "type" {
+		name, _, _ := cutTypeName(spec)
+		if name = trimTypeParams(name); name != "" {
+			return []string{name}
+		}
+		return nil
+	}
+	return readValue(spec)
+}
+
+// bodyEnd returns the line closing a brace opened on line from, matched by
+// depth rather than by column.
+//
+// blockEnd anchors on column zero, which is where gofmt puts the brace closing
+// a top level declaration and nowhere else. A body nested inside one, an
+// anonymous struct declared as the type of a field, closes at whatever
+// indentation it was opened at, so its extent has to be counted.
+func bodyEnd(src *source, from int) int {
+	depth := 0
+
+	for i := from; i < src.len(); i++ {
+		code := src.codeLine(i)
+		depth += strings.Count(code, "{") - strings.Count(code, "}")
+		if i > from || strings.Contains(code, "{") {
+			if depth <= 0 {
+				return i
+			}
+		}
+	}
+
+	return src.len() - 1
 }

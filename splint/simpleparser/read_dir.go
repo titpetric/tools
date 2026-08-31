@@ -14,7 +14,7 @@ import (
 // A directory holds one package and, when it has tests, the test half of it.
 // The two are separate definitions because they are separate scopes: what a
 // test declares is not part of what the package ships.
-func (p *Parser) readDir(root, moduleDir, dir string) (model.DefinitionList, error) {
+func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.DefinitionList, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -52,18 +52,22 @@ func (p *Parser) readDir(root, moduleDir, dir string) (model.DefinitionList, err
 		if parsed.Package == "" {
 			continue
 		}
-		if len(BuildTags(data)) > 0 {
-			// A file behind a build tag was written for constraints this parse
-			// is not reading under.
+		if !Included(name, data) {
+			// A file behind a build constraint this build does not satisfy is
+			// one the toolchain never compiles, so it is not part of the
+			// package a reader would see.
 			continue
 		}
 
 		isTest := strings.HasSuffix(name, "_test.go")
 		def := scopes[isTest]
 		if def == nil {
+			importPath := importPath(modulePath, moduleDir, dir)
 			def = &model.Definition{
 				Package: model.Package{
+					ID:          importPath,
 					Package:     strings.TrimSuffix(parsed.Package, "_test"),
+					ImportPath:  importPath,
 					Path:        packagePath(root, moduleDir, dir),
 					TestPackage: isTest,
 				},
@@ -81,8 +85,13 @@ func (p *Parser) readDir(root, moduleDir, dir string) (model.DefinitionList, err
 		if !ok {
 			continue
 		}
+		splitGlobals(def)
 		if isTest {
+			// A white box test compiles into the package it tests, so the
+			// listing names it the same. It is a different scope and is named
+			// as one, which is what the ast parser records too.
 			def.Package.Package += "_test"
+			def.Package.ImportPath += "_test"
 		}
 		def.Sort()
 		defs = append(defs, def)
@@ -94,14 +103,16 @@ func (p *Parser) readDir(root, moduleDir, dir string) (model.DefinitionList, err
 // merge folds one parsed file into the definition of its package, dropping
 // what the package has already recorded under the same name.
 func merge(def *model.Definition, parsed *file, name string, seen map[string]bool) {
-	if def.Doc == "" {
+	// A package comment on more than one file leaves the last of them
+	// standing, which is what the collector records: it assigns the doc of
+	// every file it walks, so the last one to have one wins.
+	if parsed.Doc != "" {
 		def.Doc = parsed.Doc
 	}
 	for _, literal := range parsed.Imports {
 		def.Imports.Add(name, literal)
 	}
 
-	def.InitCount += parsed.InitCount
 	def.Types = append(def.Types, unseen(parsed.Types, seen, "decl")...)
 	def.Consts = append(def.Consts, unseen(parsed.Consts, seen, "decl")...)
 	def.Vars = append(def.Vars, unseen(parsed.Vars, seen, "decl")...)
@@ -128,6 +139,23 @@ func unseen(decls model.DeclarationList, seen map[string]bool, scope string) mod
 	}
 
 	return kept
+}
+
+// importPath is the path a package is imported under, which is the module
+// path plus the directory below the module root.
+//
+// A tree with no go.mod has no import path to give, since nothing can import
+// what is not in a module.
+func importPath(modulePath, moduleDir, dir string) string {
+	if modulePath == "" {
+		return ""
+	}
+
+	rel, err := filepath.Rel(moduleDir, dir)
+	if err != nil || rel == "." {
+		return modulePath
+	}
+	return modulePath + "/" + filepath.ToSlash(rel)
 }
 
 // packagePath names a directory the way the model names a package path.
@@ -158,4 +186,30 @@ func packagePath(root, moduleDir, dir string) string {
 	}
 
 	return "." + filepath.ToSlash(filepath.Join(moduleRel, packageRel))
+}
+
+// splitGlobals moves every reference the package does not import into Globals.
+//
+// The collector asks the same question the same way: a name that the package
+// import table does not answer for is not a package, whatever it looked like
+// in the body. The table is package wide, so the split cannot be made until
+// every file of the package has been read.
+func splitGlobals(def *model.Definition) {
+	imports, _ := def.Imports.Map(def.Imports.All())
+
+	for _, decl := range def.Funcs {
+		for name, symbols := range decl.References {
+			if _, ok := imports[name]; ok {
+				continue
+			}
+			if decl.Globals == nil {
+				decl.Globals = model.NewStringSet()
+			}
+			decl.Globals.Add(name, symbols...)
+			delete(decl.References, name)
+		}
+		if len(decl.References) == 0 {
+			decl.References = nil
+		}
+	}
 }

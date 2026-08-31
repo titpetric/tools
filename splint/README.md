@@ -16,13 +16,14 @@ go install github.com/titpetric/tools/splint/cmd/splint@latest
 ## Use
 
 ```bash
-splint ./...                         # lint everything below here
-splint -i ../oida ./...              # lint another tree
-splint --parser=simple ./...         # read it without building a syntax tree
-splint --linters godoc,imports ./... # run two of the four
-splint --output model.json ./...     # keep the document the linters read
-splint --input model.json            # lint a document read back from a file
-splint --format github ./...         # one line per issue, for a CI log
+splint ./...                          # lint everything below here
+splint -i ../oida ./...               # lint another tree
+splint --parser=simpleparser ./...    # read it without building a syntax tree
+splint --linters godoc,imports ./...  # run two of the four
+splint --output model.json ./...      # keep the document the linters read
+splint --input model.json             # lint a document read back from a file
+splint --format github ./...          # one line per issue, for a CI log
+splint --schema ./...                 # write the tree as a JSON Schema
 ```
 
 It exits 1 when a linter found something and 2 when the run itself failed, so a
@@ -56,12 +57,15 @@ Both are constructed as `New(splint.Options)` and both return a
 `*model.DocumentRoot`, so which one a program uses is an import and nothing
 more.
 
-| | `analyzer` | `simpleparser` |
+| | `astparser` | `simpleparser` |
 |---|---|---|
 | Reads through | `go/ast` and `x/tools` | bytes |
 | Exact | yes, the toolchain resolves it | to within a rounding error, see below |
 | Source that does not compile | depends on the toolchain | reads it regardless |
-| oida, 135 files | 628 ms | 35 ms |
+| Default | yes | on request |
+
+`astparser` is the default and stays it: it is the exact reading, and the quick
+one is something a caller asks for on purpose.
 
 `simpleparser` finds a declaration by where it starts and where it ends. gofmt
 puts every top level declaration at column zero and the brace or paren that
@@ -73,26 +77,53 @@ It is the reason the model has to be free of `go/ast`: a parser that never
 builds a tree cannot fill a schema that names one. It is also what makes
 another language possible later, since nothing in the model is Go specific.
 
-### How close the two are
+### How fast
 
-`tests/` runs the simple parser over sixteen repositories and compares what it
-produced against what `go-fsck extract` produced for the same tree, declaration
-by declaration. `task parity` prints the numbers.
+`task bench` times both parsers by running the command over every project,
+which is what a caller of it experiences rather than what a benchmark inside
+the process measures.
 
 ```
-total: 9684 declarations, 8182 matched (84.5%)
-  Complexity.Cognitive     1400  gocognit weights a branch by how deeply it nests in the tree
-  References                 56  unexplained
-  Fields                     29  unexplained
+project           files  astparser     simple    ratio
+cli                   6      137ms        6ms    23.9x
+oida                132      508ms       39ms    13.0x
+platform-app        186     2.057s       97ms    21.1x
+phpscript           318     3.673s      153ms    24.0x
+total                      16.685s      788ms    21.2x
+```
+
+Sixteen repositories, 1,778 Go files, and the whole sweep goes from seventeen
+seconds to eight hundred milliseconds.
+
+### How close the two are
+
+`task parity` runs the simple parser over sixteen repositories and compares
+what it produced against what `go-fsck extract` produced for the same tree.
+
+The comparison is exhaustive by construction. It walks the encoded documents
+value by value rather than checking a list of fields somebody remembered: every
+key either side carries is visited, a key only one of them has is a difference,
+and a key added to the model tomorrow is covered without anyone adding it here.
+The declaration lists are keyed on the symbol before the walk, so one extra
+declaration is one difference rather than a shift that misreports every
+declaration after it.
+
+```
+total: 192091 values compared, 1533 differ (0.7981%)
+  Funcs[].Complexity.Cognitive   1400  gocognit weights a branch by how deeply it nests
+  Funcs[].Globals                   2  unexplained
+      ./renderer Funcs[renderer.go.Renderer.renderBlock].Globals: <absent> != {"decl":["Key"]}
   ...
+unexplained: 133 of 192091 values, 0.0692%, budget 0.1000%
 ```
 
 Cognitive complexity is the one field the two are not expected to agree on, and
-it accounts for nearly all of the gap: `gocognit` weights a branch by how deeply
-it nests in the syntax tree, and a line scan has no tree to read the nesting
-from. Everything else comes to under 2% of declarations, which the harness
-asserts as a budget: a change that pushes it higher fails the test rather than
-quietly widening the gap.
+it is nearly all of the gap: `gocognit` weights a branch by how deeply it nests
+in the syntax tree, and a line scan has no tree to read the nesting from.
+Everything else comes to **133 values in 192,091**, and the harness asserts that
+as a budget: a change that pushes it higher fails the test rather than quietly
+widening the gap. Each difference prints an example, so a number in the summary
+is something a reader can go and look at.
 
 Two differences are structural and are normalised rather than chased:
 
@@ -116,6 +147,7 @@ Two differences are structural and are normalised rather than chased:
 | `gomod/` | reads a go.mod into the model, which both parsers need |
 | `loader/` | reads a document back from `.json` or `.yml` |
 | `linters/` | the registry, one subpackage per linter |
+| `schema/` | renders a document as a JSON Schema |
 | `report/` | rendering: terminal, markdown, GitHub |
 | `cmd/splint` | the command |
 | `tests/` | the parity harness and the benchmark |
@@ -204,7 +236,30 @@ growing a field per rule.
 pair is unambiguous; for three or more the expected order is a heuristic sort,
 and a heuristic reports too much to be worth reading.
 
+## Schemas
+
+`--schema` writes the types of a tree as a JSON Schema draft-07 document rather
+than linting it. It reads a source tree or a document already written for one,
+which is the same thing said twice:
+
+```shell
+splint --schema ./... > schema.json
+splint --schema --input go-fsck.json > schema.json
+splint --schema --strip-prefix example.com/ ./...
+```
+
+This was `go-fsck jsonschema` and reads better for the move: it renders every
+package of a tree rather than the first one it was handed, and a type name two
+packages both declare is qualified with the package, since a schema has one
+namespace and two `Config` types are not the same thing. An interface and a
+test package describe no shape and are left out.
+
 ## Development
 
 `task` builds and tests everything. `task parity` prints how far the two
-parsers are apart, and `task bench` how far apart they are in time.
+parsers are apart, value by value, and `task bench` how far apart they are in
+time.
+
+`SPLINT_WORKSPACE` points the harness at where the projects it reads are
+checked out. A project that is not there is skipped, so it reads whatever the
+machine has.

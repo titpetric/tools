@@ -11,16 +11,23 @@ import (
 // references reads the package symbols a body reaches, which is every
 // "pkg.Symbol" where pkg is a name the file imports and Symbol is exported.
 //
-// The ast collector asks the same question a weaker way: it takes every
-// selector whose left side is an identifier the parser did not resolve to a
-// local. Reading the import table answers it outright, since a name that is
-// not imported is not a package however it is written.
+// A selector reaches a package when nothing in scope answers to the name: not
+// a parameter, not a local of the body, and not something the file declares at
+// the top level. That is the rule go/parser applies, and it is file scoped,
+// which is why a package level var shared between two files is a reference in
+// the file that does not declare it.
+//
+// What the file cannot decide is which of these are imports and which are the
+// package's own, since that is settled against the import table of the whole
+// package. splitGlobals does it once every file has been read.
 //
 // The shadowed names are the parameters and the receiver, which are locals
 // whatever else they are called: "func Run(config config.Config)" reaches its
 // argument in the body and not the package it is named after.
 func (f *file) references(src *source, from, column, to int, shadowed []string) model.StringSet {
 	var refs model.StringSet
+
+	locals := bodyLocals(src, from, to)
 
 	for i := from; i <= to && i < src.len(); i++ {
 		// The body of a one line func starts partway along the line it is
@@ -32,10 +39,12 @@ func (f *file) references(src *source, from, column, to int, shadowed []string) 
 		}
 
 		for _, ref := range selectors(code) {
-			if ref.pkg == "internal" || !f.aliases[ref.pkg] || !exported(ref.symbol) {
+			if ref.pkg == "internal" || !exported(ref.symbol) {
 				continue
 			}
-			if slices.Contains(shadowed, ref.pkg) {
+			// A name this file declares, or one the signature binds, is
+			// something written here rather than a package reached from here.
+			if f.names[ref.pkg] || locals[ref.pkg] || slices.Contains(shadowed, ref.pkg) {
 				continue
 			}
 			if refs == nil {
@@ -157,4 +166,124 @@ func trimTypeParams(name string) string {
 		return strings.TrimSpace(name[:bracket])
 	}
 	return name
+}
+
+// bodyLocals are the names a function body binds, which shadow whatever else
+// they are called.
+//
+// It reads the two forms a body declares with, "x :=" and "var x", and the
+// range clause, which is enough for the names that turn up on the left of a
+// selector. A name it misses becomes a reference and then a global, which is
+// where an unresolved name belongs.
+func bodyLocals(src *source, from, to int) map[string]bool {
+	locals := map[string]bool{}
+	block := false
+
+	for i := from; i <= to && i < src.len(); i++ {
+		code := src.codeLine(i)
+		trimmedLine := strings.TrimSpace(code)
+
+		// A var or const block inside a body binds one name per line.
+		switch {
+		case trimmedLine == "var (", trimmedLine == "const (":
+			block = true
+			continue
+		case block && strings.HasPrefix(trimmedLine, ")"):
+			block = false
+			continue
+		case block:
+			spec := trimmedLine
+			if eq := indexTop(spec, '='); eq >= 0 {
+				spec = spec[:eq]
+			}
+			for _, part := range splitTop(spec, ',') {
+				if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
+					locals[fields[0]] = true
+				}
+			}
+			continue
+		}
+
+		// "switch x := y.(type)" binds x in every case of the switch, which
+		// reads as an assignment and is one.
+		if assign := indexTop(code, ':'); assign >= 0 && assign+1 < len(code) && code[assign+1] == '=' {
+			for _, name := range splitTop(strings.TrimSpace(code[:assign]), ',') {
+				addLocal(locals, name)
+			}
+		}
+
+		// A func literal binds its parameters for the length of its body,
+		// which is where a callback's arguments come from.
+		for _, open := range literalParams(code) {
+			for _, group := range paramGroups(open) {
+				for _, name := range group.Names {
+					locals[name] = true
+				}
+			}
+		}
+
+		for _, keyword := range []string{"var ", "const "} {
+			if !strings.HasPrefix(trimmedLine, keyword) {
+				continue
+			}
+			spec := strings.TrimPrefix(trimmedLine, keyword)
+			if eq := indexTop(spec, '='); eq >= 0 {
+				spec = spec[:eq]
+			}
+			// A declaration writes the type after the names, so the first
+			// word of each part is the name and the rest is what it is.
+			for _, part := range splitTop(spec, ',') {
+				if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
+					locals[fields[0]] = true
+				}
+			}
+		}
+	}
+
+	return locals
+}
+
+// addLocal records one bound name.
+//
+// The name is the last word of what precedes the binding, since a statement
+// binding one is often introduced by a keyword: "if info, err := os.Stat(x)"
+// binds info and err, and "if" is not a name. A declaration writes the type
+// after the name instead, "var out io.Writer", which the caller trims first.
+func addLocal(locals map[string]bool, name string) {
+	fields := strings.Fields(strings.TrimSpace(name))
+	if len(fields) == 0 {
+		return
+	}
+	if word := fields[len(fields)-1]; isIdentifier(word) {
+		locals[word] = true
+	}
+}
+
+// literalParams returns the parameter lists of every func literal on a line.
+func literalParams(code string) []string {
+	var lists []string
+
+	for i := 0; i+5 <= len(code); i++ {
+		if code[i:i+4] != "func" {
+			continue
+		}
+		if i > 0 && isIdentifierByte(code[i-1]) {
+			continue
+		}
+		open := i + 4
+		for open < len(code) && code[open] == ' ' {
+			open++
+		}
+		if open >= len(code) || code[open] != '(' {
+			continue
+		}
+		close := matchParen(code, open)
+		if close < 0 {
+			continue
+		}
+		lists = append(lists, code[open+1:close])
+		i = close
+	}
+
+	return lists
 }

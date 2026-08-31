@@ -26,7 +26,7 @@ func TestStrip(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, _, _ := strip(test.line, false)
+		got, _, _ := strip(test.line, openState{})
 
 		if len(got) != len(test.line) {
 			t.Errorf("strip(%q) returned %d bytes for %d, which breaks the column mapping",
@@ -43,20 +43,67 @@ func TestStrip(t *testing.T) {
 }
 
 func TestStripBlockCommentAcrossLines(t *testing.T) {
-	first, _, open := strip("code /* start", false)
-	if !open {
+	first, _, open := strip("code /* start", openState{})
+	if !open.comment {
 		t.Error("strip() closed a block comment that was left open")
 	}
 	if strings.TrimSpace(first) != "code" {
 		t.Errorf("strip() = %q, want the code before the comment", first)
 	}
 
-	second, _, open := strip("still comment */ code", true)
-	if open {
+	second, _, open := strip("still comment */ code", openState{comment: true})
+	if open.comment {
 		t.Error("strip() left a block comment open past its end")
 	}
 	if strings.TrimSpace(second) != "code" {
 		t.Errorf("strip() = %q, want the code after the comment", second)
+	}
+}
+
+// TestStripRawStringAcrossLines covers a template written as a raw string: a
+// brace or a keyword inside one is text, and reading it as code would close a
+// declaration in the middle of the template.
+func TestStripRawStringAcrossLines(t *testing.T) {
+	first, _, open := strip("const header = `stateDiagram-v2", openState{})
+	if !open.raw {
+		t.Error("strip() closed a raw string that was left open")
+	}
+	if strings.TrimSpace(first) != "const header =" {
+		t.Errorf("strip() = %q", first)
+	}
+
+	middle, _, open := strip("    state workflow {", open)
+	if !open.raw {
+		t.Error("strip() closed a raw string on a line that did not close it")
+	}
+	if strings.TrimSpace(middle) != "" {
+		t.Errorf("strip() left %q of a raw string as code", middle)
+	}
+
+	last, _, open := strip("`", open)
+	if open.raw {
+		t.Error("strip() left a raw string open past its end")
+	}
+	if strings.TrimSpace(last) != "" {
+		t.Errorf("strip() = %q", last)
+	}
+}
+
+// TestSourceInsideARawString covers the same through the source view, which is
+// what the scanner reads.
+func TestSourceInsideARawString(t *testing.T) {
+	src := newSource("x.go", []byte("var t = `\nfunc notAFunc() {\n}\n`\n\nfunc Real() {\n}\n"))
+
+	// The line inside the raw string holds no code, so nothing on it opens or
+	// closes a declaration.
+	if got := strings.TrimSpace(src.codeLine(1)); got != "" {
+		t.Errorf("codeLine(1) = %q, want the raw string blanked", got)
+	}
+	if got := strings.TrimSpace(src.codeLine(2)); got != "" {
+		t.Errorf("codeLine(2) = %q, want the raw string blanked", got)
+	}
+	if got := strings.TrimSpace(src.codeLine(5)); got != "func Real() {" {
+		t.Errorf("codeLine(5) = %q", got)
 	}
 }
 

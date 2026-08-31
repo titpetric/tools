@@ -45,9 +45,6 @@ func (f *file) scanFunc(src *source, line int) int {
 	}
 	decl.Complexity = complexity(src, end+1, body, decl.Source)
 
-	if decl.Name == "init" && decl.Receiver == "" {
-		f.InitCount++
-	}
 	f.Funcs = append(f.Funcs, decl)
 
 	return body

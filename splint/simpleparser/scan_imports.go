@@ -41,9 +41,12 @@ func (f *file) addImport(entry string) {
 	switch alias {
 	case "", name:
 		// No alias, or one that repeats what the path already says.
-	case "_", ".":
-		// A blank or dot import is reached by no name, and the collector
-		// records the path alone.
+	case "_":
+		// A blank import is reached by no name at all.
+	case ".":
+		// A dot import puts the package's names in this file's scope, which
+		// is a thing worth recording even though no name reaches it.
+		literal = ". " + quoted
 	default:
 		literal = alias + " " + quoted
 		name = alias

@@ -16,17 +16,11 @@ func NewStringSet() StringSet {
 	return make(StringSet)
 }
 
+// Keys returns the keys of the set, in order.
 func (i *StringSet) Keys() []string {
 	keys := make([]string, 0, len(*i))
 	for key := range *i {
 		keys = append(keys, key)
-	}
-
-	var m = *i
-
-	for k, v := range m {
-		sort.Strings(v)
-		m[k] = v
 	}
 
 	sort.Strings(keys)
@@ -53,12 +47,22 @@ func (i *StringSet) Add(key string, lits ...string) {
 	*i = data
 }
 
+// Get returns the values under a key, in order.
+//
+// The copy is the point: sorting the stored slice would reorder the document
+// that carries it, so reading a model back from a file would not give the
+// model that was written. A reader wanting them in order gets them; the
+// document keeps the order it was written in.
 func (i StringSet) Get(key string) []string {
-	val, _ := i[key]
-	if val != nil {
-		sort.Strings(val)
+	values, ok := i[key]
+	if !ok || values == nil {
+		return nil
 	}
-	return val
+
+	sorted := make([]string, len(values))
+	copy(sorted, values)
+	sort.Strings(sorted)
+	return sorted
 }
 
 func (i StringSet) All() []string {

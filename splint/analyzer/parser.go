@@ -10,8 +10,9 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// ParserName is what a document says produced it.
-const ParserName = "ast"
+// ParserName is what a document says produced it, and what --parser takes to
+// select it.
+const ParserName = "astparser"
 
 // Parser reads Go source through go/ast and x/tools, which is the exact
 // reading: the toolchain resolves the packages, so what comes out is what the

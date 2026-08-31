@@ -42,7 +42,7 @@ func f() {
 }
 `))
 
-	file := &file{aliases: map[string]bool{"fmt": true, "os": true}}
+	file := &file{aliases: map[string]bool{"fmt": true, "os": true}, names: map[string]bool{"local": true}}
 	got := file.references(src, 3, 0, 6, nil)
 
 	want := map[string][]string{"fmt": {"Println"}, "os": {"Args"}}
@@ -61,7 +61,7 @@ func Run(config config.Config) {
 }
 `))
 
-	file := &file{aliases: map[string]bool{"config": true, "fmt": true}}
+	file := &file{aliases: map[string]bool{"config": true, "fmt": true}, names: map[string]bool{}}
 	got := file.references(src, 3, 0, 4, []string{"config"})
 
 	want := map[string][]string{"fmt": {"Println"}}

@@ -34,7 +34,9 @@ import (
 		// One that repeats the base name says nothing and is dropped.
 		`"strings"`,
 		`"embed"`,
-		`"errors"`,
+		// A dot import puts the package's names in this file's scope, which
+		// the literal records even though no name reaches it.
+		`. "errors"`,
 		`alias "example.com/other"`,
 	}
 	if !reflect.DeepEqual(file.Imports, want) {

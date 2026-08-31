@@ -40,11 +40,11 @@ tasks:
       - rm -f splint go-fsck.json splint.json
 
   parity:
-    desc: "Compare the two parsers against go-fsck extract, per project"
+    desc: "Compare the two parsers against go-fsck extract, value by value"
     cmds:
       - go test ./tests/ -run TestParity -v -timeout 30m
 
   bench:
-    desc: "Benchmark the two parsers against each other"
+    desc: "Time the two parsers, by running the command over every project"
     cmds:
-      - go test ./tests/ -run XXX -bench BenchmarkParsers -benchtime 5x
+      - go test ./tests/ -run TestParserTiming -v -timeout 30m

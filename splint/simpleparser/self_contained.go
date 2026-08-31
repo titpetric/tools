@@ -28,6 +28,13 @@ func (f *file) selfContained(kind model.DeclarationKind, entries []entry) bool {
 			if f.reachesOtherTypes(valueType(in.code)) {
 				return false
 			}
+			// A value declared as a struct or an interface written out in
+			// place is checked on what its body names, the same as a type.
+			for _, field := range in.fieldTypes {
+				if f.reachesOtherTypes(field) {
+					return false
+				}
+			}
 		}
 		return true
 	}
@@ -53,6 +60,25 @@ func (f *file) selfContainedType(in entry) bool {
 		}
 	}
 	return true
+}
+
+// generic reports whether a type is an instantiation, "Registry[T]".
+//
+// The collector's check does not handle one: its walk covers pointers,
+// slices, maps, channels, funcs, structs and interfaces, and an index
+// expression falls through to the default and reports nothing reached. This
+// reports the same, because a document that disagreed with it would be a
+// document nobody could compare.
+func generic(typ string) bool {
+	typ = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(typ), "*"))
+
+	open := strings.Index(typ, "[")
+	if open <= 0 || !strings.HasSuffix(typ, "]") {
+		return false
+	}
+	// A slice or an array opens on the bracket; an instantiation has the name
+	// in front of it.
+	return indexTop(typ[:open], ' ') < 0
 }
 
 // valueType is the type a const or var spec declares, and is empty for one
@@ -83,6 +109,10 @@ func valueType(code string) string {
 // written in, so that is the scope the model was built against.
 func (f *file) reachesOtherTypes(typ string) bool {
 	if typ == "" {
+		return false
+	}
+
+	if generic(typ) {
 		return false
 	}
 

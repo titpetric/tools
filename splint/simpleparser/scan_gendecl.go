@@ -115,7 +115,15 @@ func entryEnd(src *source, line int) int {
 	case strings.HasSuffix(code, "("):
 		return blockEnd(src, line, ')')
 	}
-	return line
+
+	// A value written as a raw string runs to wherever the string closes,
+	// which the code on the line says nothing about: every brace and keyword
+	// inside it is text.
+	end := line
+	for src.rawOpen(end) && end < src.len()-1 {
+		end++
+	}
+	return end
 }
 
 // readType reads one type spec into the declaration and returns the name it
@@ -125,7 +133,7 @@ func entryEnd(src *source, line int) int {
 // accumulate and the type of the last spec is the one recorded. That is what
 // the ast collector does with the same input.
 func (f *file) readType(decl *model.Declaration, src *source, in entry) []string {
-	name, rest, found := strings.Cut(in.code, " ")
+	name, rest, found := cutTypeName(in.code)
 	decl.Arguments = append(decl.Arguments, typeParams(name)...)
 	name = trimTypeParams(strings.TrimSpace(name))
 	if name == "" {
@@ -204,6 +212,26 @@ func bodyTypes(src *source, open, close int) []string {
 		}
 	}
 	return types
+}
+
+// cutTypeName splits a type spec into the name it declares and what it is
+// declared as.
+//
+// A generic type carries its parameters between the two, "List[T any] []T",
+// and the space inside them is not the space that separates the halves.
+func cutTypeName(spec string) (name, rest string, found bool) {
+	spec = strings.TrimSpace(spec)
+
+	if open := strings.Index(spec, "["); open > 0 && indexTop(spec[:open], ' ') < 0 {
+		if close := matchBracket(spec, open); close > 0 {
+			name = spec[:close+1]
+			rest = strings.TrimSpace(spec[close+1:])
+			return name, rest, rest != ""
+		}
+	}
+
+	name, rest, found = strings.Cut(spec, " ")
+	return name, strings.TrimSpace(rest), found
 }
 
 // typeParams reads the type parameters of a generic declaration, each as the
