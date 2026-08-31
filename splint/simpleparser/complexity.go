@@ -18,11 +18,14 @@ import (
 // neither survives without a tree, so what is counted here is the branching
 // with the nesting weight and no more. It is the one field of the model the two
 // parsers are not expected to agree on.
-func complexity(src *source, from, to int, text string) *model.Complexity {
-	lines := strings.Count(text, "\n")
-	if len(text) > 0 && !strings.HasSuffix(text, "\n") {
-		lines++
-	}
+//
+// The open line is where the declaration starts and from is where its body
+// does: the branching is counted over the body, and the length over the whole
+// block.
+func complexity(src *source, open, from, to int) *model.Complexity {
+	// Lines is the function block, from the func keyword to the brace that
+	// closes it. The doc comment above it is not part of the function.
+	lines := to - open + 1
 
 	cyclomatic, cognitive := 1, 0
 	depth := 0

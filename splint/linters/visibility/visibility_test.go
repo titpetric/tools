@@ -95,8 +95,11 @@ func TestLinter(t *testing.T) {
 		InternalTypes: 1,
 		ExportedFuncs: 2,
 		InternalFuncs: 2,
+		// The code behind every func the package ships: New at 5, Serve at 7,
+		// serveHTTP at 11 and helper at 9. The generated and test funcs are
+		// not what the package ships.
 		InternalLines: 20,
-		Lines:         100,
+		Lines:         32,
 	}
 	if metric != want {
 		t.Errorf("metric = %+v, want %+v", metric, want)
@@ -177,7 +180,7 @@ func TestLinter_Statistics(t *testing.T) {
 
 	want := [][]string{
 		{"example.com/a", "1 / 0", "0 / 0", "0.0%"},
-		{"example.com/b", "0 / 0", "1 / 1", "30.0%"},
+		{"example.com/b", "0 / 0", "1 / 1", "60.0%"},
 	}
 	if len(table.Rows) != len(want) {
 		t.Fatalf("Rows = %d, want %d", len(table.Rows), len(want))

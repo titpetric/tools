@@ -325,7 +325,7 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 		Signature:  v.functionDef(decl),
 		References: collectFuncReferences(decl),
 		Source:     source,
-		Complexity: complexity(decl, source),
+		Complexity: complexity(v.fset, decl),
 	}
 
 	if decl.Recv != nil {

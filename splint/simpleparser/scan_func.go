@@ -43,7 +43,7 @@ func (f *file) scanFunc(src *source, line int) int {
 	} else {
 		decl.References = f.references(src, end+1, 0, body, shadowed)
 	}
-	decl.Complexity = complexity(src, end+1, body, decl.Source)
+	decl.Complexity = complexity(src, line, end+1, body)
 
 	f.Funcs = append(f.Funcs, decl)
 

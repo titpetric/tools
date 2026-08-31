@@ -88,7 +88,6 @@ func internalPath(path string) bool {
 // files are left out of both halves of the ratio: counting a generated file
 // would say a package is private because a tool wrote a lot of it.
 func count(metric *Metric, def *model.Definition) {
-	metric.Lines += def.Files.Filter(measured).Lines()
 
 	for _, decl := range def.Types {
 		if !shipped(def, decl) {
@@ -105,37 +104,25 @@ func count(metric *Metric, def *model.Definition) {
 		if !shipped(def, decl) {
 			continue
 		}
+		lines := bodyLines(decl)
+		metric.Lines += lines
+
 		if decl.IsExported() {
 			metric.ExportedFuncs++
 			continue
 		}
 		metric.InternalFuncs++
-		metric.InternalLines += bodyLines(decl)
+		metric.InternalLines += lines
 	}
 }
 
-// bodyLines is the code one func occupies.
-//
-// The model measures a declaration by the lines of its source, and the source
-// of a declaration opens on the comment above it, so the doc comes off before
-// the lines are counted. What is left still holds the blank lines and the
-// comments inside the body, which the package total does not, so the share
-// reads high, and a package that explains itself inside its funcs can read
-// past a hundred percent. It reads high the same way for every package, which
-// is what keeps two of them comparable.
+// bodyLines is the code one func occupies, which the model measures as the
+// block from the func keyword to the brace that closes it.
 func bodyLines(decl *model.Declaration) int {
 	if decl.Complexity == nil {
 		return 0
 	}
-
-	lines := decl.Complexity.Lines
-	if doc := strings.TrimSpace(decl.Doc); doc != "" {
-		lines -= strings.Count(doc, "\n") + 1
-	}
-	if lines < 0 {
-		return 0
-	}
-	return lines
+	return decl.Complexity.Lines
 }
 
 // measured reports a file whose code the package is judged by.
