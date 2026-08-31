@@ -1,0 +1,60 @@
+package funcargs
+
+import (
+	"iter"
+	"strings"
+
+	"github.com/titpetric/tools/splint/model"
+)
+
+// Result is one argument order finding, in the terms this linter thinks in.
+type Result struct {
+	// Rule is which of the argument rules the finding is under.
+	Rule string
+
+	// Symbol is the function, receiver and name, and Arguments are the types
+	// it takes, in the order it takes them.
+	Symbol    string
+	Arguments []string
+
+	// Position is where it is, and Message says what is wrong.
+	Position model.Position
+	Message  string
+}
+
+// Issue renders the finding as the framework reads it.
+func (r Result) Issue() model.Issue {
+	return model.Issue{
+		Linter:   Name,
+		Rule:     r.Rule,
+		Severity: model.SeverityWarn,
+		Position: r.Position,
+		Symbol:   r.Symbol,
+		Message:  r.Message,
+		Attrs:    map[string]string{"arguments": strings.Join(r.Arguments, ", ")},
+	}
+}
+
+// Results is what the linter found, and is what the framework ranges over.
+type Results []Result
+
+// Linter names the linter the report came from.
+func (r Results) Linter() string {
+	return Name
+}
+
+// Len is how many findings there are.
+func (r Results) Len() int {
+	return len(r)
+}
+
+// All yields every finding as an issue.
+func (r Results) All() iter.Seq[model.Issue] {
+	return func(yield func(model.Issue) bool) {
+		for _, result := range r {
+			if !yield(result.Issue()) {
+				return
+			}
+		}
+	}
+}
