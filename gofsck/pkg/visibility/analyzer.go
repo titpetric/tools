@@ -1,7 +1,6 @@
 package visibility
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
@@ -11,13 +10,6 @@ import (
 
 	"golang.org/x/tools/go/packages"
 )
-
-// MaxInternalRatio is the share of package code the internal funcs may occupy,
-// as a percentage, and the one threshold a package is judged on. A quarter of a
-// package being private plumbing passes; more than that is what the warning is
-// for. The counts are in the row either way: a package with six internal funcs
-// holding a tenth of its code is not carrying too much.
-const MaxInternalRatio = 25.0
 
 // Analyzer counts the exported and the internal half of every package.
 type Analyzer struct{}
@@ -33,6 +25,10 @@ func New() *Analyzer {
 // counts as a func and (*Tracer).serveHTTP counts as internal the way a free
 // function does. Test files and their packages are left out: a package is
 // measured by what it ships.
+//
+// The counts are reported and not judged. There is no share of internal code a
+// package ought to carry: a parser is mostly private and a data model mostly
+// not, and both are as they should be.
 func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 	reports := make(map[string]*PackageReport)
 	seen := make(map[string]bool)
@@ -62,15 +58,8 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 		if report.Lines > 0 {
 			report.InternalRatio = float64(report.InternalLines) / float64(report.Lines) * 100
 		}
-		report.Warnings = warningsFor(*report)
 		out.Packages = append(out.Packages, *report)
-
 		out.Total++
-		if report.OK() {
-			out.Passing++
-			continue
-		}
-		out.Warnings++
 	}
 	sort.Slice(out.Packages, func(i, j int) bool { return out.Packages[i].Package < out.Packages[j].Package })
 	return out, nil
@@ -152,14 +141,6 @@ func blankLines(name string) map[int]bool {
 		}
 	}
 	return blank
-}
-
-// warningsFor returns the thresholds a package crossed.
-func warningsFor(report PackageReport) []string {
-	if report.InternalRatio > MaxInternalRatio {
-		return []string{fmt.Sprintf("%.1f%% internal code, over %.0f%%", report.InternalRatio, MaxInternalRatio)}
-	}
-	return nil
 }
 
 // skipPackage reports whether a package is one the count would distort:

@@ -45,6 +45,11 @@ type verdict struct {
 	// API is the exported symbol difference between the two.
 	API apiDiff
 
+	// Visibility is what each package of the working tree declares, split
+	// exported against internal. It describes the tree as it stands rather
+	// than the range, and is empty when it could not be read.
+	Visibility visibilityReport
+
 	// CommitAPI is what each of the commits did to the exported API on its
 	// own, keyed on its short hash. It is nil for a range that was not read
 	// commit by commit, which is one the tool could not scan.
@@ -157,6 +162,7 @@ func (v verdict) report(dir string, tags []string, prefix, from, to string, mode
 	v.API = compareRefs(dir, fromRef, toRef, models)
 	v.CommitAPI = scanCommits(dir, fromRef, v.Commits, models)
 	v.GoBefore, v.GoAfter = goVersionAt(dir, fromRef), goVersionAt(dir, toRef)
+	v.Visibility = readVisibility(dir)
 
 	if version, ok := ParseVersion(to); ok {
 		v.Version = version.String()
@@ -436,6 +442,36 @@ func renderVerdict(w io.Writer, v verdict, styled bool) {
 		writeGap(w, styled)
 	}
 	writeDataModel(w, v, styled, wrap)
+	writeVisibility(w, v, styled)
+}
+
+// writeVisibility writes what each package declares and how much of it is
+// private, one row per package.
+//
+// The counts are reported and not judged. There is no share of internal code a
+// package ought to carry: a parser is mostly private and a data model mostly
+// not, and both are as they should be. What the table is for is reading one
+// package against another, and against what the same package was a release
+// ago.
+func writeVisibility(w io.Writer, v verdict, styled bool) {
+	if len(v.Visibility.Packages) == 0 {
+		return
+	}
+
+	headers := []string{"Package", "Types", "Funcs", "Ratio"}
+	rows := make([][]string, 0, len(v.Visibility.Packages))
+	for _, pkg := range v.Visibility.Packages {
+		rows = append(rows, []string{
+			colorLines(pkg.Package, components.ColorSeparator, styled),
+			fmt.Sprintf("%d / %d", pkg.ExportedTypes, pkg.InternalTypes),
+			fmt.Sprintf("%d / %d", pkg.ExportedFuncs, pkg.InternalFuncs),
+			fmt.Sprintf("%.1f%%", pkg.InternalRatio),
+		})
+	}
+
+	writeHeading(w, "Visibility, the working tree", styled)
+	writeSimpleTable(w, headers, rows, styled)
+	writeGap(w, styled)
 }
 
 // writeTitle writes the line the report opens on, which names the module and

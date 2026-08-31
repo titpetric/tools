@@ -431,6 +431,10 @@ func sampleVerdict() verdict {
 			}},
 			Breaking: true,
 		},
+		Visibility: visibilityReport{Packages: []visibilityPackage{
+			{Package: "./", ExportedTypes: 9, InternalTypes: 1, ExportedFuncs: 43, InternalFuncs: 37, InternalRatio: 44.8},
+			{Package: "./storage", ExportedTypes: 3, InternalTypes: 1, ExportedFuncs: 22, InternalFuncs: 3, InternalRatio: 8.4},
+		}},
 	}
 }
 
@@ -475,6 +479,12 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"|  |  | type Config struct | Timeout int ▲ |",
 		"| Changed | / | type Config struct | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
 		"| Removed | / | type Config struct | Retries int |",
+		// The working tree stands on its own: one row per package, counted
+		// and not judged.
+		"## Visibility, the working tree",
+		"| Package | Types | Funcs | Ratio |",
+		"| ./ | 9 / 1 | 43 / 37 | 44.8% |",
+		"| ./storage | 3 / 1 | 22 / 3 | 8.4% |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)

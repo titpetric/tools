@@ -28,7 +28,6 @@ func TestAnalyzer_Analyze(t *testing.T) {
 	assert.Len(t, report.Packages, 1, "the test package is counted with the package it tests")
 
 	assert.Equal(t, 1, report.Total)
-	assert.Equal(t, report.Total, report.Passing+report.Warnings, "every package is one or the other")
 
 	got := report.Packages[0]
 	assert.Equal(t, "./pkg/visibility", got.Package)
@@ -97,17 +96,6 @@ func helper() int {
 	// adds the package clause to them.
 	assert.Equal(t, 3, got.InternalLines)
 	assert.Equal(t, 4, got.Lines)
-}
-
-func TestWarningsForThresholds(t *testing.T) {
-	assert.Empty(t, warningsFor(PackageReport{InternalRatio: MaxInternalRatio}),
-		"a package sitting on the threshold is not over it")
-	assert.Empty(t, warningsFor(PackageReport{InternalFuncs: 40, InternalRatio: 1}),
-		"the count of internal funcs is reported, not judged")
-
-	got := warningsFor(PackageReport{InternalRatio: MaxInternalRatio + 0.1})
-	assert.Len(t, got, 1)
-	assert.Contains(t, got[0], "internal code")
 }
 
 func TestPackageLabel(t *testing.T) {

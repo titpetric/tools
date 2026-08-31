@@ -110,7 +110,7 @@ Releasing a module in that state would tag work nobody reviewed. Under `--apply`
 
 ## Reporting a release
 
-`worktree verdict` writes the report of a single repository: which version it is at or moving to, why, the commits behind it, and what became of its exported API.
+`worktree verdict` writes the report of a single repository: which version it is at or moving to, why, the commits behind it, what became of its exported API, and how the packages of the working tree are split between what they export and what they keep.
 
 ```bash
 worktree verdict                            # the repository of the current directory
@@ -166,26 +166,29 @@ Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since
 
 ## Commits v0.5.5..v0.6.0
 
-| Commit | API | Subject |
-| --- | --- | --- |
-| [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) | +2/~0/-33 | Restructure mig to drop cmd/ |
-| [`ff1fdc2`](https://github.com/go-bridget/mig/commit/ff1fdc2) | +0/~2/-0 | migrate: rework api |
+| Commit | External | Internal | Subject |
+| --- | --- | --- | --- |
+| [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) | +2/~0/-33 | +4/~0/-9 | Restructure mig to drop cmd/ |
+| [`ff1fdc2`](https://github.com/go-bridget/mig/commit/ff1fdc2) | +0/~2/-0 |  | migrate: rework api |
 
 ## API v0.5.5..v0.6.0
 
-| Change | Package | Symbol | Commits |
-| --- | --- | --- | --- |
-| Added | /migrate | type Manager | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-| Removed | /cmd/mig/gen | type Column | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-|  | /migrate | func Load (fsys fs.FS, project string) error | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+| Change | Package | Exported | Unexported | Commits |
+| --- | --- | --- | --- | --- |
+| Added | /migrate | type Manager |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  |  |  | type loader | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+| Removed | /cmd/mig/gen | type Column |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  | /migrate | func Load (fsys fs.FS, project string) error |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
 ```
 
 The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. A module holding more than one package gains the `Package` column, without which `const Name` three times over says nothing. The symbols of a package are gathered together within their category and only the first of them names it, the same way the data model table reads. Everywhere counts and categories are listed, the order is what the release added, what it reshaped, what it took away.
 
 The `Package` column is the import path below the module, written from the module root down: `/model` is the model package of this module and `/frontend/model` is the other one, where a bare `model` twice over says nothing about which is which. The package at the root of the module is `/`.
 
-The `API` column of the commit table counts what one commit did on its own, in the order the rest of the report reads: what it added, what it reshaped, what it took away. Each commit is compared against the one under it, so a range of twenty commits is twenty comparisons and the commit behind a removal can be picked out of them. A commit that moved nothing exported leaves the cell empty rather than writing three zeroes, and a commit that touched no file of the module is not listed at all.
+A symbol is written in the `Exported` column when a consumer can reach it and in `Unexported` when it cannot, so a reader after what the release costs reads one column and a reader after what the refactor moved reads the other. A release that only moved private code fills one column and leaves the other empty.
+
+The `External` and `Internal` columns of the commit table count what one commit did on its own, in the order the rest of the report reads: what it added, what it reshaped, what it took away. External is what a consumer can see and Internal what it cannot, which is what tells a release from a refactor. Each commit is compared against the one under it, so a range of twenty commits is twenty comparisons and the commit behind a removal can be picked out of them. A commit that moved neither half leaves the cells empty rather than writing three zeroes, and a commit that touched no file of the module is not listed at all.
 
 The `Commits` column of the API table names the commits behind each symbol, oldest first, linked the way the commit table links them. A symbol added by one commit and reshaped by another lists both. The data model table carries the same column, for the commits behind each field.
 
@@ -237,6 +240,26 @@ Adding a method to an interface stops every implementor compiling, where adding 
 A breaking data model change earns a minor the same way a removed symbol does, and the verdict says which: `Minor release: v0.2.0, because 1 exported field moved since v0.1.0.`
 
 This needs a [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) that reports the field comparison. An older one reports only the symbols, and the section is left out.
+
+### Visibility
+
+The report ends on what each package of the working tree declares, split into the half a consumer can reach and the half it cannot. It answers a different question from the tables above it: not what the release moved, but where the module keeps its weight as it stands.
+
+```
+## Visibility, the working tree
+
+| Package | Types | Funcs | Ratio |
+| --- | --- | --- | --- |
+| ./ | 14 / 0 | 30 / 6 | 15.1% |
+| ./frontend | 0 / 4 | 14 / 20 | 80.6% |
+| ./model | 23 / 2 | 70 / 32 | 21.4% |
+```
+
+`Types` and `Funcs` read exported over internal, counted by the case of the declared name: a method counts as a func, and `(*Tracer).serveHTTP` is internal the way a free function is. `Ratio` is the code inside internal func bodies over the code of the package, blank lines and comments left out of both. Test files are left out, and so is the `internal` tree: Go scopes it to the module already, whatever it exports.
+
+The counts are reported and not judged. There is no share of internal code a package ought to carry: a parser is mostly private and a data model mostly not, and both are as they should be. What the table is for is reading one package against another, and against what the same package was a release ago.
+
+This needs [gofsck](https://github.com/titpetric/tools/tree/main/gofsck) on the path. Without it the section is left out, the way an unreadable API leaves out the tables above.
 
 ### Counts alone
 

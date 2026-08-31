@@ -3,11 +3,8 @@ package visibility
 // Report contains the exported and internal symbol counts of every package
 // analyzed.
 type Report struct {
-	// Total is how many packages were measured, Passing how many crossed no
-	// threshold, and Warnings the rest.
-	Total    int `json:"total"`
-	Passing  int `json:"passing"`
-	Warnings int `json:"warnings"`
+	// Total is how many packages were measured.
+	Total int `json:"total"`
 
 	Packages []PackageReport `json:"packages"`
 }
@@ -37,9 +34,6 @@ type PackageReport struct {
 
 	// InternalRatio is InternalLines over Lines, as a percentage.
 	InternalRatio float64 `json:"internal_ratio"`
-
-	// Warnings are the thresholds this package crossed.
-	Warnings []string `json:"warnings,omitempty"`
 }
 
 // Exported returns the exported symbols of the package, types and funcs
@@ -51,9 +45,4 @@ func (p PackageReport) Exported() int {
 // Internal returns the symbols the package keeps to itself.
 func (p PackageReport) Internal() int {
 	return p.InternalTypes + p.InternalFuncs
-}
-
-// OK reports whether the package crossed no threshold.
-func (p PackageReport) OK() bool {
-	return len(p.Warnings) == 0
 }

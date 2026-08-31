@@ -225,21 +225,21 @@ whatever it exports.
   declared name
 - `Ratio` is the code inside internal func bodies over the code of the package,
   blank lines and comments left out of both
-- `Status` is OK or WARN
 
-**Warning:** internal code over 25% of package code. The counts are reported
-either way: a package with six internal funcs holding a tenth of its code is
-not carrying too much.
+The counts are reported and not judged. There is no share of internal code a
+package ought to carry: a parser is mostly private and a data model mostly not,
+and both are as they should be. What the table is for is reading one package
+against another, and against what the same package was a release ago.
 
 **Example:**
 ```
 === visibility ===
-Packages: 2, passing: 1, warnings: 1. Types and funcs read exported / internal, and the ratio is internal code over package code, warning over 25%.
+Packages: 2. Types and funcs read exported / internal, and the ratio is internal code over package code.
 
-| Package   | Types  | Funcs   | Ratio | Status |
-| --------- | ------ | ------- | ----- | ------ |
-| ./storage | 3 / 1  | 22 / 3  | 8.4%  | OK     |
-| ./        | 9 / 1  | 43 / 37 | 44.8% | WARN   |
+| Package   | Types | Funcs   | Ratio |
+| --------- | ----- | ------- | ----- |
+| ./        | 9 / 1 | 43 / 37 | 44.8% |
+| ./storage | 3 / 1 | 22 / 3  | 8.4%  |
 ```
 
 A package reports the path it is passed on the command line: `./` for the

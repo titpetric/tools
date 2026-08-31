@@ -331,19 +331,14 @@ func formatGroupingReport(gr *grouping.Report) string {
 // row per package: what it declares, split exported against internal, and the
 // share of its code the internal bodies occupy.
 func formatVisibilityReport(vr *visibility.Report) string {
-	header := []string{"Package", "Types", "Funcs", "Ratio", "Status"}
+	header := []string{"Package", "Types", "Funcs", "Ratio"}
 	rows := make([][]string, 0, len(vr.Packages))
 	for _, p := range vr.Packages {
-		status := "OK"
-		if !p.OK() {
-			status = "WARN"
-		}
 		rows = append(rows, []string{
 			p.Package,
 			fmt.Sprintf("%d / %d", p.ExportedTypes, p.InternalTypes),
 			fmt.Sprintf("%d / %d", p.ExportedFuncs, p.InternalFuncs),
 			fmt.Sprintf("%.1f%%", p.InternalRatio),
-			status,
 		})
 	}
 
@@ -357,8 +352,7 @@ func formatVisibilityReport(vr *visibility.Report) string {
 		}
 	}
 
-	output := fmt.Sprintf("Packages: %d, passing: %d, warnings: %d. Types and funcs read exported / internal, and the ratio is internal code over package code, warning over %.0f%%.\n\n",
-		vr.Total, vr.Passing, vr.Warnings, visibility.MaxInternalRatio)
+	output := fmt.Sprintf("Packages: %d. Types and funcs read exported / internal, and the ratio is internal code over package code.\n\n", vr.Total)
 	output += tableRow(header, widths)
 	rule := make([]string, len(header))
 	for i := range rule {
