@@ -16,9 +16,18 @@ import (
 	"github.com/titpetric/tools/splint/simpleparser"
 )
 
-// workspace is where the projects the harness reads are checked out. Each is a
-// tree the parsers are run over side by side.
-const workspace = "/root/workspace/github"
+// workspace is where the projects the harness reads are checked out, which
+// SPLINT_WORKSPACE overrides. A project that is not there is skipped, so the
+// harness reads whatever the machine has rather than requiring all of them.
+var workspace = envOr("SPLINT_WORKSPACE", "/root/workspace/github")
+
+// envOr reads an environment variable, falling back to a default.
+func envOr(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
+}
 
 // projects are the trees to compare on. They are real repositories rather than
 // fixtures because the point is the shapes nobody thought to write a fixture
