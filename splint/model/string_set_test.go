@@ -50,3 +50,20 @@ func TestStringSetKeysDoesNotReorderTheSet(t *testing.T) {
 		t.Errorf("Keys() reordered a value slice to %v", set["b.go"])
 	}
 }
+
+// TestStringSetAllIsOrdered covers what a reader of All decides with it. The
+// import collision message names which of two paths was seen first, and a map
+// walked at random answers that differently every run.
+func TestStringSetAllIsOrdered(t *testing.T) {
+	set := NewStringSet()
+	set.Add("c.go", `"three"`)
+	set.Add("a.go", `"one"`)
+	set.Add("b.go", `"two"`)
+
+	want := `"one","two","three"`
+	for range 20 {
+		if got := strings.Join(set.All(), ","); got != want {
+			t.Fatalf("All() = %q, want %q", got, want)
+		}
+	}
+}

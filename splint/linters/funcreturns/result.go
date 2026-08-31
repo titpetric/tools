@@ -107,8 +107,8 @@ func (r Results) Statistics() []model.Statistics {
 		[]string{"Package", "Funcs", "Considered", "Passing", "Share"},
 		rows,
 		model.HeaderText(HeaderLine),
-		model.FooterText(fmt.Sprintf("%d of %d funcs considered, %d passing, %s, %d issues.",
-			considered, funcs, passing, percent(passing, considered), len(r.findings))),
+		model.FooterText(fmt.Sprintf("%d of %d funcs considered, %d passing, %s, %s.",
+			considered, funcs, passing, percent(passing, considered), plural(len(r.findings), "issue", "issues"))),
 	)}
 }
 
@@ -142,6 +142,14 @@ func (r *Results) add(metric *Metric, result Result) {
 // pass records a func that was considered and had nothing wrong with it.
 func (r *Results) pass(metric *Metric, count int) {
 	metric.Passing += count
+}
+
+// plural writes a count with the word for it.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+	return fmt.Sprintf("%d %s", n, many)
 }
 
 // percent renders a share, and reads as nothing when there was nothing to

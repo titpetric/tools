@@ -73,10 +73,16 @@ func (i StringSet) Get(key string) []string {
 	return sorted
 }
 
+// All returns every value of the set, its keys walked in order.
+//
+// The order is the point. A map is walked at random, and a reader of this is
+// deciding something: which of two imports a colliding name was seen under
+// first, for one. A run that answered differently each time would be reporting
+// the same collision two ways.
 func (i StringSet) All() []string {
 	result := []string{}
-	for _, set := range i {
-		result = append(result, set...)
+	for _, key := range i.Keys() {
+		result = append(result, i[key]...)
 	}
 	return result
 }

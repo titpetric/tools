@@ -104,8 +104,8 @@ func (r Results) Statistics() []model.Statistics {
 		[]string{"Package", "Exported", "Documented", "Share", "Missing", "Format", "Verbose"},
 		rows,
 		model.HeaderText("Documentation of every exported symbol, by package."),
-		model.FooterText(fmt.Sprintf("%d of %d exported symbols documented, %s, %d issues.",
-			documented, exported, percent(documented, exported), len(r.findings))),
+		model.FooterText(fmt.Sprintf("%d of %d exported symbols documented, %s, %s.",
+			documented, exported, percent(documented, exported), plural(len(r.findings), "issue", "issues"))),
 	)}
 }
 
@@ -142,6 +142,14 @@ func (r *Results) add(metric *Metric, result Result) {
 	case RuleVerbose:
 		metric.Verbose++
 	}
+}
+
+// plural writes a count with the word for it.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+	return fmt.Sprintf("%d %s", n, many)
 }
 
 // percent renders a share, and reads as nothing when there was nothing to

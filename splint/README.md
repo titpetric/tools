@@ -24,6 +24,7 @@ splint --output model.json ./...      # keep the document the linters read
 splint --input model.json             # lint a document read back from a file
 splint --format github ./...          # one line per issue, for a CI log
 splint --schema ./...                 # write the tree as a JSON Schema
+splint -stats ./...                   # what the linters measured, not what they found
 ```
 
 It exits 1 when a linter found something and 2 when the run itself failed, so a
@@ -168,13 +169,19 @@ Two differences are structural and are normalised rather than chased:
 | `loader/` | reads a document back from `.json` or `.yml` |
 | `linters/` | the registry, one subpackage per linter |
 | `schema/` | renders a document as a JSON Schema |
-| `report/` | rendering: terminal, markdown, GitHub |
+| `report/` | what was found: the issues, sorted and counted |
+| `render/` | how it looks: drawn tables, markdown, GitHub lines |
 | `cmd/splint` | the command |
 | `tests/` | the parity harness and the benchmark |
 
 The dependency runs one way. `model` imports nothing of its own; `splint`
 imports `model`; the parsers import `splint` and `model`; the linters import
 `model` alone; `cmd` imports all of it.
+
+`report` holds what was found and `render` holds how it looks, so there is one
+package to open when the output is wrong. The drawn tables are worktree's,
+ported rather than imported: worktree draws them in `package main`, and splint
+has no business depending on a CLI tool's module.
 
 ## The model
 
@@ -214,11 +221,16 @@ type Result struct {
 
 func (r Result) Issue() model.Issue { ... }
 
-type Results []Result
+type Results struct {
+	findings []Result
+	packages map[string]*Metric   // what it counted, per package
+}
 
-func (r Results) Linter() string           { return Name }
-func (r Results) Len() int                 { return len(r) }
-func (r Results) All() iter.Seq[model.Issue] { ... }
+func (r Results) Linter() string                 { return Name }
+func (r Results) Len() int                       { return len(r.findings) }
+func (r Results) All() iter.Seq[model.Issue]     { ... }
+func (r Results) Metrics() model.LintMetrics     { ... }
+func (r Results) Statistics() []model.Statistics { ... }
 
 type Linter struct{}
 
@@ -243,18 +255,92 @@ An issue carries an `slog.Level` for its severity, a position that reads
 for whatever else the rule has to say. The map is what keeps the schema from
 growing a field per rule.
 
+`Statistics` is one table: labels, rows, and two options for the line above and
+the line below.
+
+```go
+model.NewStatistics(
+	[]string{"Package", "Exported", "Documented"},
+	rows,
+	model.HeaderText("Documentation of every exported symbol, by package."),
+	model.FooterText("14 of 18 exported symbols documented, 77.8%, 4 issues."),
+)
+```
+
+A linter that measures nothing returns the zero `LintMetrics` and no tables,
+and the renderer leaves it out rather than drawing an empty box under a
+heading.
+
+## The fixture
+
+`testdata/` is a module of its own holding code that fails every check on
+purpose: a file with no test beside it, an exported symbol with no doc, a
+handler with no wrapper, symbols in files not named for them, two files
+reaching different modules as `model`, a function taking `(time.Duration,
+string)` and one returning `(error, *User)`.
+
+Every parser skips `testdata`, `vendor`, `node_modules` and anything opening on
+a dot or an underscore, so nothing reads it by accident. It is reached by being
+pointed at:
+
+```shell
+splint -i testdata ./...
+splint -stats -i testdata ./...
+```
+
+The root is read whatever it is called, which is what makes that work: a walk
+that skipped the directory it was handed would read nothing at all.
+
 ## The linters
 
-| Name | What it reports |
-|---|---|
-| `godoc` | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, and one long enough to say the symbol does too much |
-| `imports` | two files of one package reaching different modules under the same short name, which compiles and reads as though they agree |
-| `func-args` | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct |
-| `func-returns` | a function returning an error or a bool before the value it qualifies |
+Ten of them. Four were written here; six came from gofsck, reimplemented
+against the model rather than translated from its AST walk.
+
+| Name | What it reports | What it measures |
+|---|---|---|
+| `godoc` | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, and one long enough to say the symbol does too much | documented against exported, per package |
+| `imports` | two files of one package reaching different modules under the same short name, which compiles and reads as though they agree | import names and collisions, per package |
+| `func-args` | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct | funcs considered against passing |
+| `func-returns` | a function returning an error or a bool before the value it qualifies | funcs considered against passing |
+| `pairing` | a file with no test named after it | files, tests, paired and standalone, per package |
+| `coverage` | an exported symbol no test is named for | covered against exported, and the constructors, per package |
+| `grouping` | an exported symbol in a file not named for it | symbols passing, per package |
+| `wraphandler` | an exported HTTP handler with no unexported function behind it, so only a server can call it | handlers wrapped, per package |
+| `filecheck` | a file long enough to be doing more than one thing | line counts and their spread, **per file** |
+| `visibility` | nothing | exported against internal, and the share of a package its private half occupies |
 
 `func-args` considers a function taking exactly two arguments. The order of one
 pair is unambiguous; for three or more the expected order is a heuristic sort,
 and a heuristic reports too much to be worth reading.
+
+`visibility` reports no issues at all, which the interface allows: an empty
+report and a table. The counts are reported and not judged, because there is no
+share of internal code a package ought to carry. A parser is mostly private and
+a data model mostly not, and both are as they should be.
+
+## Statistics
+
+Every linter reports what it measured as well as what it found, because a check
+that counts what it looked at has the count in hand by the time it knows what
+to report. `-stats` prints those and nothing else, one table per linter, a
+blank line apart, each with a line above saying what it is and a line below
+summarising it.
+
+```
+Documentation of every exported symbol, by package.
+
+| Package                            | Exported | Documented | Share  | Missing | Format | Verbose |
+|------------------------------------|----------|------------|--------|---------|--------|---------|
+| example.com/fixture                | 5        | 2          | 40.0%  | 1       | 2      | 0       |
+| example.com/fixture/handler        | 2        | 2          | 100.0% | 0       | 0      | 0       |
+
+14 of 18 exported symbols documented, 77.8%, 4 issues.
+```
+
+A linter picks its own columns, because what is worth a column is what it
+measured. The numbers behind them are `model.LintMetrics`, keyed by package or
+by file, holding the linter's own metric type: `filecheck` measures files and
+everything else measures packages.
 
 ## Schemas
 
