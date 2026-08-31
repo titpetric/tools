@@ -12,12 +12,12 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// maxInternalRatio is the share of package code the internal funcs may occupy,
+// MaxInternalRatio is the share of package code the internal funcs may occupy,
 // as a percentage, and the one threshold a package is judged on. A quarter of a
 // package being private plumbing passes; more than that is what the warning is
 // for. The counts are in the row either way: a package with six internal funcs
 // holding a tenth of its code is not carrying too much.
-const maxInternalRatio = 25.0
+const MaxInternalRatio = 25.0
 
 // Analyzer counts the exported and the internal half of every package.
 type Analyzer struct{}
@@ -156,8 +156,8 @@ func blankLines(name string) map[int]bool {
 
 // warningsFor returns the thresholds a package crossed.
 func warningsFor(report PackageReport) []string {
-	if report.InternalRatio > maxInternalRatio {
-		return []string{fmt.Sprintf("%.1f%% internal code, over %.0f%%", report.InternalRatio, maxInternalRatio)}
+	if report.InternalRatio > MaxInternalRatio {
+		return []string{fmt.Sprintf("%.1f%% internal code, over %.0f%%", report.InternalRatio, MaxInternalRatio)}
 	}
 	return nil
 }

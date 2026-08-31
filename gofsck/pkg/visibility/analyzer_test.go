@@ -100,12 +100,12 @@ func helper() int {
 }
 
 func TestWarningsForThresholds(t *testing.T) {
-	assert.Empty(t, warningsFor(PackageReport{InternalRatio: maxInternalRatio}),
+	assert.Empty(t, warningsFor(PackageReport{InternalRatio: MaxInternalRatio}),
 		"a package sitting on the threshold is not over it")
 	assert.Empty(t, warningsFor(PackageReport{InternalFuncs: 40, InternalRatio: 1}),
 		"the count of internal funcs is reported, not judged")
 
-	got := warningsFor(PackageReport{InternalRatio: maxInternalRatio + 0.1})
+	got := warningsFor(PackageReport{InternalRatio: MaxInternalRatio + 0.1})
 	assert.Len(t, got, 1)
 	assert.Contains(t, got[0], "internal code")
 }
