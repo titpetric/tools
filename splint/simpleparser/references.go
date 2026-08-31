@@ -38,22 +38,22 @@ func (f *file) references(src *source, from, column, to int, shadowed []string) 
 			code = strings.Repeat(" ", column) + code[column:]
 		}
 
-		for _, ref := range selectors(code) {
-			if ref.pkg == "internal" || !exported(ref.symbol) {
-				continue
+		eachSelector(code, func(pkg, symbol string) {
+			if pkg == "internal" || !exported(symbol) {
+				return
 			}
 			// A name this file declares, or one the signature binds, is
 			// something written here rather than a package reached from here.
-			if f.names[ref.pkg] || locals[ref.pkg] || slices.Contains(shadowed, ref.pkg) {
-				continue
+			if f.names[pkg] || locals[pkg] || slices.Contains(shadowed, pkg) {
+				return
 			}
 			if refs == nil {
 				refs = model.NewStringSet()
 			}
-			if !slices.Contains(refs[ref.pkg], ref.symbol) {
-				refs.Add(ref.pkg, ref.symbol)
+			if !slices.Contains(refs[pkg], symbol) {
+				refs.Add(pkg, symbol)
 			}
-		}
+		})
 	}
 
 	return refs
@@ -65,19 +65,12 @@ type selector struct {
 	symbol string
 }
 
-// selectors returns every "left.Right" on a line, where both sides are plain
-// identifiers, in the order they were written.
+// eachSelector calls fn for every "left.Right" on a line.
 //
-// A line reaching one package twice reports both: "http.Error(w, msg,
-// http.StatusNotFound)" names two symbols of one package, and a set keyed on
-// the package would keep one of them.
-//
-// A chained selector reports only its first pair: "a.B.C" reaches package a
-// through B, and B.C is a field of whatever B returned rather than a second
-// package.
-func selectors(line string) []selector {
-	var found []selector
-
+// It yields rather than returning a list: the caller consumes each one and
+// keeps none, so a slice per line of every body is a slice per line thrown
+// away.
+func eachSelector(line string, fn func(pkg, symbol string)) {
 	for i := 0; i < len(line); i++ {
 		if line[i] != '.' {
 			continue
@@ -98,9 +91,27 @@ func selectors(line string) []selector {
 			continue
 		}
 
-		found = append(found, selector{pkg: left, symbol: right})
+		fn(left, right)
 		i = end
 	}
+}
+
+// selectors returns every "left.Right" on a line, where both sides are plain
+// identifiers, in the order they were written.
+//
+// A line reaching one package twice reports both: "http.Error(w, msg,
+// http.StatusNotFound)" names two symbols of one package, and a set keyed on
+// the package would keep one of them.
+//
+// A chained selector reports only its first pair: "a.B.C" reaches package a
+// through B, and B.C is a field of whatever B returned rather than a second
+// package.
+func selectors(line string) []selector {
+	var found []selector
+
+	eachSelector(line, func(pkg, symbol string) {
+		found = append(found, selector{pkg: pkg, symbol: symbol})
+	})
 
 	return found
 }

@@ -38,6 +38,7 @@ tasks:
     desc: "Clean build artifacts"
     cmds:
       - rm -f splint go-fsck.json splint.json
+      - rm -rf .profile
 
   parity:
     desc: "Compare the two parsers against go-fsck extract, value by value"
@@ -48,3 +49,24 @@ tasks:
     desc: "Time the two parsers, by running the command over every project"
     cmds:
       - go test ./tests/ -run TestParserTiming -v -timeout 30m
+
+  profile:
+    desc: "Profile the simple parser: 10s of parsing, cpu and memory"
+    cmds:
+      - mkdir -p .profile
+      - >-
+        go test ./tests/ -run XXX -bench BenchmarkSimpleParser -benchtime 10s
+        -cpuprofile .profile/cpu.out -memprofile .profile/mem.out -o .profile/tests.bin
+      - echo "--- cpu ---"
+      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/cpu.out
+      - echo "--- allocations ---"
+      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem.out
+
+  profile:ast:
+    desc: "The same for the ast parser, to compare against"
+    cmds:
+      - mkdir -p .profile
+      - >-
+        go test ./tests/ -run XXX -bench BenchmarkASTParser -benchtime 10s
+        -cpuprofile .profile/cpu-ast.out -memprofile .profile/mem-ast.out -o .profile/tests.bin
+      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem-ast.out

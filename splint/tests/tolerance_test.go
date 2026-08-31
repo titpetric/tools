@@ -86,33 +86,6 @@ func TestSimpleParserReadsSourceThatDoesNotCompile(t *testing.T) {
 	}
 }
 
-// BenchmarkParsers is the other claim: reading text is quicker than building a
-// tree. Both are run over the same real tree.
-func BenchmarkParsers(b *testing.B) {
-	root := filepath.Join(workspace, "oida")
-	if _, err := os.Stat(root); err != nil {
-		b.Skip("oida is not checked out")
-	}
-
-	options := splint.Options{SourcePath: root, Pattern: "./...", IncludeSources: true}
-
-	b.Run("simple", func(b *testing.B) {
-		for b.Loop() {
-			if _, err := simpleparser.New(options).Parse(context.Background()); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-
-	b.Run("ast", func(b *testing.B) {
-		for b.Loop() {
-			if _, err := analyzer.New(options).Parse(context.Background()); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-}
-
 // write puts a file on disk for a test to read back.
 func write(t *testing.T, path, content string) {
 	t.Helper()

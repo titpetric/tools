@@ -63,48 +63,56 @@ func complexity(src *source, from, to int, text string) *model.Complexity {
 	}
 }
 
-// branchKeywords are the keywords that decide something, which is what a
-// decision point is.
-var branchKeywords = []string{"if", "for", "case", "range", "select"}
-
 // branchCount is how many decisions one line makes.
+//
+// The line is walked once and every word on it is looked up, rather than the
+// line being walked once per keyword: a decision is a word, and finding the
+// words costs the same whether one is being looked for or six.
 func branchCount(code string) int {
-	count := 0
+	var (
+		count  int
+		fors   int
+		ranges int
+	)
 
-	for _, keyword := range branchKeywords {
-		count += keywordCount(code, keyword)
+	for i := 0; i < len(code); i++ {
+		c := code[i]
+
+		// A boolean operator between two conditions is another decision,
+		// since either side can be what decided it.
+		if (c == '&' || c == '|') && i+1 < len(code) && code[i+1] == c {
+			count++
+			i++
+			continue
+		}
+
+		if !isIdentifierByte(c) {
+			continue
+		}
+		start := i
+		for i < len(code) && isIdentifierByte(code[i]) {
+			i++
+		}
+		if start > 0 && (isIdentifierByte(code[start-1]) || code[start-1] == '.') {
+			continue
+		}
+
+		switch code[start:i] {
+		case "if", "case":
+			count++
+		case "for":
+			count++
+			fors++
+		case "range":
+			count++
+			ranges++
+		}
+		i--
 	}
-	// A boolean operator between two conditions is another decision, since
-	// either side can be what decided it.
-	count += strings.Count(code, "&&") + strings.Count(code, "||")
 
 	// A range clause sits inside a for, and the two are one decision.
-	if keywordCount(code, "for") > 0 && keywordCount(code, "range") > 0 {
-		count -= keywordCount(code, "range")
-	}
-	// "select" itself decides nothing; its cases do, and they are counted.
-	count -= keywordCount(code, "select")
-
-	return count
-}
-
-// keywordCount is how many times a word appears on a line as a word, rather
-// than as part of a longer identifier.
-func keywordCount(code, keyword string) int {
-	count := 0
-
-	for i := 0; i+len(keyword) <= len(code); i++ {
-		if code[i:i+len(keyword)] != keyword {
-			continue
-		}
-		if i > 0 && isIdentifierByte(code[i-1]) {
-			continue
-		}
-		if end := i + len(keyword); end < len(code) && isIdentifierByte(code[end]) {
-			continue
-		}
-		count++
-		i += len(keyword) - 1
+	if fors > 0 {
+		count -= min(fors, ranges)
 	}
 
 	return count

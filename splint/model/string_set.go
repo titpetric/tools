@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+// majorVersion matches the major version a module path ends in, which is not
+// part of the name the package is reached by: "example.com/thing/v2" is
+// imported as "thing".
+//
+// It is compiled once. Compiling it inside the loop, which is where it was,
+// costs more than everything else the loop does.
+var majorVersion = regexp.MustCompile(`/v[0-9]+$`)
+
 // StringSet provides a key based unique string slice.
 type StringSet map[string][]string
 
@@ -112,9 +120,8 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 		}
 
 		// trim imported semver link
-		re := regexp.MustCompile(`/v[0-9]+$`)
-		if re.MatchString(long) {
-			short = path.Base(re.ReplaceAllString(long, ""))
+		if majorVersion.MatchString(long) {
+			short = path.Base(majorVersion.ReplaceAllString(long, ""))
 		}
 
 		if strings.HasSuffix(short, "_test") {

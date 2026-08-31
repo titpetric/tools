@@ -57,6 +57,13 @@ func (f *file) scanFunc(src *source, line int) int {
 // brace or in the result type. Reading it as one string is what lets the
 // splitting be done once rather than per line.
 func funcHeader(src *source, line int) (string, int) {
+	// A signature that opens and closes on one line is that line. Most of them
+	// are, and building a new string for each is most of what reading a func
+	// costs.
+	if code := src.codeLine(line); balanced(code) {
+		return strings.TrimSpace(code), line
+	}
+
 	var (
 		header strings.Builder
 		depth  int
@@ -282,4 +289,25 @@ func localNames(header string) []string {
 	}
 
 	return names
+}
+
+// balanced reports whether a line opens and closes every paren on it, which is
+// a signature that needs no joining.
+func balanced(code string) bool {
+	depth, seen := 0, false
+
+	for i := 0; i < len(code); i++ {
+		switch code[i] {
+		case '(':
+			depth++
+			seen = true
+		case ')':
+			depth--
+			if depth < 0 {
+				return false
+			}
+		}
+	}
+
+	return seen && depth == 0
 }

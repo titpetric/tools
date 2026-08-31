@@ -19,47 +19,71 @@ type source struct {
 	// lines is the file as it was written, one entry per line.
 	lines []string
 
-	// code is lines with the strings and comments blanked out, so a scan for
-	// a brace or a keyword reads only code.
-	code []string
+	// read is what the scan knows about each line, one entry per line.
+	//
+	// The four facts are one slice rather than four, which is one allocation
+	// per file rather than four and one cache line rather than four: a scan
+	// asks about a line, and it asks about all of it.
+	read []lineInfo
+}
 
-	// comment reports which lines are wholly a comment, which is how a doc
-	// comment is found above a declaration.
-	comment []bool
+// lineInfo is what stripping one line established about it.
+type lineInfo struct {
+	// code is the line with the strings and comments blanked out, so a scan
+	// for a brace or a keyword reads only code.
+	code string
 
-	// commentAt is where the comment on a line begins, and is -1 for a line
+	// commentAt is where the comment on the line begins, and is -1 for a line
 	// carrying none. A backtick inside a comment is not a struct tag, and the
 	// stripped view cannot say so: it blanks the comment and the tag alike.
-	commentAt []int
+	commentAt int32
 
-	// raw reports which lines left a raw string open, which is what tells a
+	// comment reports a line that is wholly a comment, which is how a doc
+	// comment is found above a declaration.
+	comment bool
+
+	// raw reports a line that left a raw string open, which is what tells a
 	// declaration that has not ended from one that reads as though it has.
-	raw []bool
+	raw bool
 }
 
 // newSource reads a file into the two views.
 func newSource(name string, data []byte) *source {
-	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	text := strings.ReplaceAll(string(data), "\r\n", "\n")
+	lines := strings.Split(text, "\n")
 
 	src := &source{
-		name:      name,
-		lines:     lines,
-		code:      make([]string, len(lines)),
-		comment:   make([]bool, len(lines)),
-		commentAt: make([]int, len(lines)),
-		raw:       make([]bool, len(lines)),
+		name:  name,
+		lines: lines,
+		read:  make([]lineInfo, len(lines)),
 	}
 
 	var open openState
 	for i, line := range lines {
-		src.code[i], src.commentAt[i], open = strip(line, open)
-		src.raw[i] = open.raw
-		trimmed := strings.TrimSpace(line)
-		src.comment[i] = strings.TrimSpace(src.code[i]) == "" && !open.raw &&
-			(strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || open.comment || strings.HasSuffix(trimmed, "*/"))
+		code, at, next := strip(line, open)
+
+		src.read[i] = lineInfo{
+			code:      code,
+			commentAt: int32(at),
+			raw:       next.raw,
+			comment:   wholeComment(line, code, open, next),
+		}
+		open = next
 	}
 
 	return src
+}
+
+// wholeComment reports a line that is nothing but a comment, which is how a
+// doc comment is found above a declaration.
+func wholeComment(line, code string, before, after openState) bool {
+	if strings.TrimSpace(code) != "" || after.raw {
+		return false
+	}
+
+	trimmed := strings.TrimSpace(line)
+	return strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") ||
+		before.comment || strings.HasSuffix(trimmed, "*/")
 }
 
 // len is how many lines the file has.
@@ -77,21 +101,21 @@ func (s *source) line(i int) string {
 
 // codeLine returns one line with the strings and comments blanked out.
 func (s *source) codeLine(i int) string {
-	if i < 0 || i >= len(s.code) {
+	if i < 0 || i >= len(s.read) {
 		return ""
 	}
-	return s.code[i]
+	return s.read[i].code
 }
 
 // rawOpen reports whether a line left a raw string open, which is a
 // declaration that has not ended however its code reads.
 func (s *source) rawOpen(i int) bool {
-	return i >= 0 && i < len(s.raw) && s.raw[i]
+	return i >= 0 && i < len(s.read) && s.read[i].raw
 }
 
 // isComment reports whether a line is wholly a comment.
 func (s *source) isComment(i int) bool {
-	return i >= 0 && i < len(s.comment) && s.comment[i]
+	return i >= 0 && i < len(s.read) && s.read[i].comment
 }
 
 // code and comment split a line at the comment on it, which is where a struct
@@ -99,8 +123,8 @@ func (s *source) isComment(i int) bool {
 func (s *source) split(i int) (code, comment string) {
 	line := s.line(i)
 	at := -1
-	if i >= 0 && i < len(s.commentAt) {
-		at = s.commentAt[i]
+	if i >= 0 && i < len(s.read) {
+		at = int(s.read[i].commentAt)
 	}
 	if at < 0 || at > len(line) {
 		return line, ""
@@ -130,6 +154,13 @@ func (s *source) text(from, to int) string {
 // It returns the line, where the comment on it begins, and what is still open
 // at the end of it, which is what the next line has to be read under.
 func strip(line string, open openState) (string, int, openState) {
+	// Most lines hold nothing that has to be blanked, and a line that holds
+	// nothing is the line itself: looking is cheaper than blanking, and the
+	// line goes on sharing the memory of the file it came from.
+	if open == (openState{}) && !strings.ContainsAny(line, "\"`'/") {
+		return line, -1, open
+	}
+
 	out := []byte(line)
 	comment := -1
 

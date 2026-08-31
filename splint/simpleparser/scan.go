@@ -259,8 +259,11 @@ func declaredNames(src *source) map[string]bool {
 
 		switch {
 		case strings.HasPrefix(code, "func "), strings.HasPrefix(code, "func("):
-			if decl := parseFuncHeader(joinHeader(src, i)); decl != nil && decl.Receiver == "" {
-				names[decl.Name] = true
+			// Only the name is wanted, which is the word after "func" on a
+			// plain declaration. A method declares nothing at package scope,
+			// so a receiver means there is nothing to record.
+			if name := funcName(code); name != "" {
+				names[name] = true
 			}
 
 		case strings.HasPrefix(code, "type"), strings.HasPrefix(code, "const"), strings.HasPrefix(code, "var"):
@@ -276,11 +279,22 @@ func declaredNames(src *source) map[string]bool {
 	return names
 }
 
-// joinHeader is the signature of the func opening on a line, joined into one
-// string.
-func joinHeader(src *source, line int) string {
-	header, _ := funcHeader(src, line)
-	return header
+// funcName is the name a func declaration opens with, and is empty for a
+// method, which declares nothing at package scope.
+func funcName(code string) string {
+	rest := strings.TrimSpace(strings.TrimPrefix(code, "func"))
+	if rest == "" || rest[0] == '(' {
+		return ""
+	}
+
+	end := 0
+	for end < len(rest) && isIdentifierByte(rest[end]) {
+		end++
+	}
+	if name := rest[:end]; isIdentifier(name) {
+		return name
+	}
+	return ""
 }
 
 // specsOf returns the specs of a declaration, one for a single form and one

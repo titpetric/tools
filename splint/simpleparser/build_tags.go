@@ -1,6 +1,7 @@
 package simpleparser
 
 import (
+	"bytes"
 	"go/build/constraint"
 	"runtime"
 	"strings"
@@ -34,8 +35,17 @@ func Included(name string, source []byte) bool {
 func constraintOf(source []byte) constraint.Expr {
 	var plusBuild constraint.Expr
 
-	for _, line := range strings.Split(string(source), "\n") {
-		trimmed := strings.TrimSpace(line)
+	// Only the header is read. Splitting the whole file to find a line that
+	// has to be in the first few is most of the cost of reading one.
+	for rest := source; len(rest) > 0; {
+		var line []byte
+		if end := bytes.IndexByte(rest, '\n'); end >= 0 {
+			line, rest = rest[:end], rest[end+1:]
+		} else {
+			line, rest = rest, nil
+		}
+
+		trimmed := strings.TrimSpace(string(line))
 		if strings.HasPrefix(trimmed, "package ") {
 			break
 		}

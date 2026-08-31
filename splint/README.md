@@ -85,15 +85,35 @@ the process measures.
 
 ```
 project           files  astparser     simple    ratio
-cli                   6      137ms        6ms    23.9x
-oida                132      508ms       39ms    13.0x
-platform-app        186     2.057s       97ms    21.1x
-phpscript           318     3.673s      153ms    24.0x
-total                      16.685s      788ms    21.2x
+cli                   6      130ms        5ms    24.9x
+oida                132      488ms       24ms    20.3x
+atkins              276     1.897s       59ms    31.9x
+phpscript           318     3.543s       81ms    43.5x
+total                      14.459s      467ms    30.9x
 ```
 
-Sixteen repositories, 1,778 Go files, and the whole sweep goes from seventeen
-seconds to eight hundred milliseconds.
+Sixteen repositories, 1,778 Go files, and the whole sweep goes from fourteen
+seconds to under half a second. The ratio widens with the tree, which is what
+you would expect: the ast parser resolves a package against everything it
+imports, and a line scan does not.
+
+`task profile` takes ten seconds of parsing with a cpu and a memory profile
+and prints the top of both. What it found, in order of what it was worth:
+
+| Was | Cost |
+|---|---|
+| The branch keywords were counted with one pass over the line per keyword | 24% of cpu |
+| The build constraint split the whole file to read a line from its header | 10% of allocations |
+| `StringSet.Map` compiled its version regexp once per import | 7% of allocations |
+| `strip` copied every line out and back, and most lines have nothing to blank | 12% of allocations |
+| The line facts were four parallel slices | one allocation per file each |
+| Every signature was joined into a new string, and most are one line already | |
+| `declaredNames` parsed every signature to read the name off the front of it | |
+| `selectors` returned a slice per line of every body, and the caller kept none | |
+
+Together: **76ms to 45ms, 22.1MB to 15.3MB, and 225 thousand allocations down
+to 140 thousand**, on the same tree with the same output. The parity harness
+ran unchanged over the lot, which is what says the output is the same.
 
 ### How close the two are
 
