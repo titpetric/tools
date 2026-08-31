@@ -88,7 +88,6 @@ func internalPath(path string) bool {
 // files are left out of both halves of the ratio: counting a generated file
 // would say a package is private because a tool wrote a lot of it.
 func count(metric *Metric, def *model.Definition) {
-
 	for _, decl := range def.Types {
 		if !shipped(def, decl) {
 			continue

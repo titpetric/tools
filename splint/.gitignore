@@ -4,3 +4,5 @@
 go-fsck.json
 splint.json
 .profile/
+# The coverage profile the test job writes.
+pkg.cov

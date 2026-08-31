@@ -1,0 +1,16 @@
+#!/usr/bin/env atkins
+tasks:
+  default:
+    desc: "Format, test, install"
+    cmds:
+      - task: go:fmt
+      - task: go:test
+      - task: install
+
+  install:
+    desc: "Install splint into the environment"
+    passthru: true
+    cmds:
+      # The module root is the library; the command is under cmd/splint, which
+      # is what a PATH wants.
+      - go install ./cmd/splint
