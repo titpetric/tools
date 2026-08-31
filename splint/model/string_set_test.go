@@ -67,3 +67,34 @@ func TestStringSetAllIsOrdered(t *testing.T) {
 		}
 	}
 }
+
+// TestStringSetMapKeepsAnAlias covers the name a file actually writes. A major
+// version is not a package name, so "example.com/x/v2" is reached as x, but an
+// alias in front of it wins: that is the name in the source.
+func TestStringSetMapKeepsAnAlias(t *testing.T) {
+	set := NewStringSet()
+	set.Add("x.go",
+		`"charm.land/bubbletea/v2"`,
+		`tea "charm.land/lipgloss/v2"`,
+		`"example.com/plain"`,
+	)
+
+	got, warnings := set.Map(set.All())
+	if len(warnings) > 0 {
+		t.Errorf("Map() warned: %v", warnings)
+	}
+
+	want := map[string]string{
+		"bubbletea": "charm.land/bubbletea/v2",
+		"tea":       "charm.land/lipgloss/v2",
+		"plain":     "example.com/plain",
+	}
+	for name, path := range want {
+		if got[name] != path {
+			t.Errorf("Map()[%q] = %q, want %q (have %v)", name, got[name], path, got)
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("Map() = %v, want %v", got, want)
+	}
+}

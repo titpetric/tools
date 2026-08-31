@@ -165,7 +165,8 @@ Two differences are structural and are normalised rather than chased:
 | `model/` | the schema, and the linter interfaces over it. No third party imports |
 | `analyzer/` | the `go/ast` parser, moved from go-fsck |
 | `simpleparser/` | the parser that reads bytes |
-| `gomod/` | reads a go.mod into the model, which both parsers need |
+| `gomod/` | reads a go.mod into the model, and catalogues what it requires |
+| `modproxy/` | asks the Go module proxy what a dependency weighs and how old it is |
 | `loader/` | reads a document back from `.json` or `.yml` |
 | `linters/` | the registry, one subpackage per linter |
 | `schema/` | renders a document as a JSON Schema |
@@ -308,6 +309,7 @@ against the model rather than translated from its AST walk.
 | `wraphandler` | an exported HTTP handler with no unexported function behind it, so only a server can call it | handlers wrapped, per package |
 | `filecheck` | a file long enough to be doing more than one thing | line counts and their spread, **per file** |
 | `visibility` | nothing | exported against internal, and the share of a package its private half occupies |
+| `modcheck` | a replace directive, a requirement nothing imports, two majors of one module, a dependency reached from one file through one symbol | every dependency: size, files, packages, symbols used, direct or indirect, test only |
 
 `func-args` considers a function taking exactly two arguments. The order of one
 pair is unambiguous; for three or more the expected order is a heuristic sort,
@@ -317,6 +319,34 @@ and a heuristic reports too much to be worth reading.
 report and a table. The counts are reported and not judged, because there is no
 share of internal code a package ought to carry. A parser is mostly private and
 a data model mostly not, and both are as they should be.
+
+`modcheck` is the one linter that reaches outside the document. A size and a
+published date are properties of the artifact rather than of the source, so
+they come from the Go module proxy, and asking is the point of the check rather
+than an option on it. Nothing is downloaded: the size is the `Content-Length`
+of a `HEAD` on the module zip, and the version dates are one small JSON
+document each. A machine with no network reports the coupling and leaves the
+rest blank.
+
+Size is the shallow half of what a dependency costs. The half that decides
+whether it can be removed is how far it reaches: files importing it, packages
+they belong to, and how many of its symbols are used.
+
+```
+| Import                   | Version   | Size     | Files | Pkgs | Symbols | Kind   | Behind |
+|--------------------------|-----------|----------|-------|------|---------|--------|--------|
+| github.com/a-h/templ     | v0.3.1020 | 1.9 MB   | 25    | 1    | 23      | direct |        |
+| github.com/go-chi/chi/v5 | v5.3.2    | 130.0 KB | 4     | 3    | 5       | direct |        |
+| golang.org/x/crypto      | v0.55.0   | 2.2 MB   | 5     | 5    | 4       | direct |        |
+```
+
+Those three weigh much the same and cost nothing like the same to remove. A
+dependency with zero symbols and one file is imported for what it registers,
+which is how a database driver is meant to be imported, so it is not reported
+as thin.
+
+This replaces the audit output of
+[modcheck](https://github.com/titpetric/exp/tree/main/cmd/modcheck).
 
 ## Statistics
 

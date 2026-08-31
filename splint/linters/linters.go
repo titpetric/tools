@@ -10,6 +10,7 @@ import (
 	"github.com/titpetric/tools/splint/linters/godoc"
 	"github.com/titpetric/tools/splint/linters/grouping"
 	"github.com/titpetric/tools/splint/linters/imports"
+	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/linters/pairing"
 	"github.com/titpetric/tools/splint/linters/visibility"
 	"github.com/titpetric/tools/splint/linters/wraphandler"
@@ -29,6 +30,7 @@ func All() []model.Linter {
 		wraphandler.New(),
 		filecheck.New(),
 		visibility.New(),
+		modcheck.New(),
 	}
 }
 

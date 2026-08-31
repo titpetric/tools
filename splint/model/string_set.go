@@ -111,9 +111,10 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 	for _, imported := range imports {
 		var short, long string
 
-		// aliased package
-		// imported = strings.ReplaceAll(imported, "/go-", "/")
-		if strings.Contains(imported, " ") {
+		// An import written with a name in front of it is reached by that
+		// name, whatever the path says.
+		aliased := strings.Contains(imported, " ")
+		if aliased {
 			line := strings.Split(imported, " ")
 			short, long = line[0], strings.Trim(line[1], `"`)
 		} else {
@@ -125,8 +126,11 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 			continue
 		}
 
-		// trim imported semver link
-		if majorVersion.MatchString(long) {
+		// A major version is not a package name: "example.com/x/v2" is
+		// imported as x. An alias overrides that, because an alias is what the
+		// file actually writes: tea "charm.land/bubbletea/v2" is reached as
+		// tea and never as bubbletea.
+		if !aliased && majorVersion.MatchString(long) {
 			short = path.Base(majorVersion.ReplaceAllString(long, ""))
 		}
 
