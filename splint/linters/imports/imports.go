@@ -40,9 +40,11 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 			return nil, err
 		}
 
-		_, collisions := def.Imports.Map(def.Imports.All())
+		names, collisions := def.Imports.Map(def.Imports.All())
+		metric := results.count(def, len(names))
+
 		for _, collision := range collisions {
-			results = append(results, Result{
+			results.add(metric, Result{
 				Rule:     RuleCollision,
 				Position: model.Position{Package: def.Package.Package, File: importFile(def)},
 				Message:  collision.Error(),

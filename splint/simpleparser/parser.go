@@ -93,11 +93,10 @@ func (p *Parser) directories(root string) ([]string, error) {
 		if !entry.IsDir() {
 			return nil
 		}
-		switch name := entry.Name(); {
-		case path == root:
-		case name == "vendor", name == "testdata", name == "node_modules":
-			return filepath.SkipDir
-		case strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_"):
+		// The root is read whatever it is called: a fixture under testdata is
+		// reached by being pointed at, and skipping the thing that was asked
+		// for reads nothing at all.
+		if path != root && skipDir(entry.Name()) {
 			return filepath.SkipDir
 		}
 		if hasGoFiles(path) {
@@ -140,4 +139,17 @@ func (p *Parser) trim(defs model.DefinitionList) {
 			def.ClearNonTestFiles()
 		}
 	}
+}
+
+// skipDir reports a directory no walk should descend into.
+//
+// Version control and tooling keep their own trees under a dot, a vendor
+// directory is somebody else's code, and testdata is what the toolchain itself
+// ignores. None of them is the code a report is about.
+func skipDir(name string) bool {
+	switch name {
+	case "vendor", "testdata", "node_modules":
+		return true
+	}
+	return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
 }

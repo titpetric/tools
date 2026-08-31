@@ -255,3 +255,42 @@ type openState struct {
 	// a declaration in the middle of a template.
 	raw bool
 }
+
+// codeLines is how many lines of the file carry code, blanks and comments left
+// out, which is what a measurement of a package is made of.
+//
+// The line as written is what is counted, not the stripped one: stripping
+// blanks the inside of every string, so an import line reads as empty when the
+// literal is the only thing on it, and a table of literals would count as
+// nothing at all.
+func (s *source) codeLines() int {
+	count := 0
+
+	for i := range s.read {
+		if s.read[i].comment || strings.TrimSpace(s.line(i)) == "" {
+			continue
+		}
+		count++
+	}
+
+	return count
+}
+
+// generated reports the marker a tool writes at the top of a file it owns.
+//
+// The convention is one line matching "^// Code generated .* DO NOT EDIT\.$"
+// before the package clause, which is what every tool in the toolchain looks
+// for and what this looks for.
+func (s *source) generated() bool {
+	for i := 0; i < s.len(); i++ {
+		line := strings.TrimSpace(s.line(i))
+		if strings.HasPrefix(line, "package ") {
+			return false
+		}
+		if strings.HasPrefix(line, "// Code generated ") && strings.HasSuffix(line, " DO NOT EDIT.") {
+			return true
+		}
+	}
+
+	return false
+}

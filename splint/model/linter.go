@@ -21,12 +21,16 @@ type Linter interface {
 	Lint(ctx context.Context, root *DocumentRoot) (LintReport, error)
 }
 
-// LintReport is one linter's findings.
+// LintReport is what one linter found and what it measured.
 //
 // It is an interface rather than a slice so a linter keeps its own result type
 // and the framework ranges over it in place: a rule that carries twenty fields
 // per finding is walked without copying any of them into a common struct, and
 // only the Issue view of each is materialised.
+//
+// Findings and numbers come back together because they are found together. A
+// check that counts what it looked at has the count in hand by the time it
+// knows what to report, and asking for it twice would be running it twice.
 type LintReport interface {
 	// Linter names the linter the report came from.
 	Linter() string
@@ -36,6 +40,14 @@ type LintReport interface {
 
 	// All yields every issue, in the order the linter found them.
 	All() iter.Seq[Issue]
+
+	// Metrics is what the linter measured, keyed by file or by package. A
+	// linter that measures nothing returns the zero value.
+	Metrics() LintMetrics
+
+	// Statistics is how the metrics read, one table each. A linter that
+	// measures nothing returns none.
+	Statistics() []Statistics
 }
 
 // Issues collects a report into a slice, for a caller that needs one.

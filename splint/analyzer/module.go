@@ -45,8 +45,10 @@ func ListModules(root string, pattern string) ([]Module, error) {
 			return walkErr
 		}
 		// testdata is a module the toolchain ignores, and a fixture module
-		// under it is not the code being reported on.
-		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "vendor") {
+		// under it is not the code being reported on. The root is read
+		// whatever it is called: a fixture is reached by being pointed at,
+		// and skipping the thing that was asked for reads nothing at all.
+		if d.IsDir() && filename != absRoot && skipDir(d.Name()) {
 			return filepath.SkipDir
 		}
 		if d.Name() != "go.mod" {
@@ -105,4 +107,17 @@ func parseGoMod(filename string, rootPath string) (result Module) {
 
 	result.Valid = true
 	return
+}
+
+// skipDir reports a directory no walk should descend into.
+//
+// Version control and tooling keep their own trees under a dot, a vendor
+// directory is somebody else's code, and testdata is what the toolchain itself
+// ignores. None of them is the code a report is about.
+func skipDir(name string) bool {
+	switch name {
+	case "vendor", "testdata", "node_modules":
+		return true
+	}
+	return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
 }

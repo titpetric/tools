@@ -37,15 +37,22 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+
+		var considered model.DeclarationList
 		for _, decl := range def.Funcs {
-			if decl.IsTestScope() || len(decl.Returns) < 2 {
-				continue
+			if !decl.IsTestScope() && len(decl.Returns) >= 2 {
+				considered = append(considered, decl)
 			}
+		}
+
+		metric := results.count(def.Package, len(def.Funcs), len(considered))
+		for _, decl := range considered {
 			expected := expectedOrder(decl.Returns)
 			if sameOrder(decl.Returns, expected) {
+				results.pass(metric, 1)
 				continue
 			}
-			results = append(results, Result{
+			results.add(metric, Result{
 				Rule:     RuleOrder,
 				Symbol:   decl.Symbol(),
 				Returns:  decl.Returns,

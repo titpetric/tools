@@ -3,10 +3,16 @@
 package linters
 
 import (
+	"github.com/titpetric/tools/splint/linters/coverage"
+	"github.com/titpetric/tools/splint/linters/filecheck"
 	"github.com/titpetric/tools/splint/linters/funcargs"
 	"github.com/titpetric/tools/splint/linters/funcreturns"
 	"github.com/titpetric/tools/splint/linters/godoc"
+	"github.com/titpetric/tools/splint/linters/grouping"
 	"github.com/titpetric/tools/splint/linters/imports"
+	"github.com/titpetric/tools/splint/linters/pairing"
+	"github.com/titpetric/tools/splint/linters/visibility"
+	"github.com/titpetric/tools/splint/linters/wraphandler"
 	"github.com/titpetric/tools/splint/model"
 )
 
@@ -17,6 +23,12 @@ func All() []model.Linter {
 		imports.New(),
 		funcargs.New(),
 		funcreturns.New(),
+		pairing.New(),
+		coverage.New(),
+		grouping.New(),
+		wraphandler.New(),
+		filecheck.New(),
+		visibility.New(),
 	}
 }
 

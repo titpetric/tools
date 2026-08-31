@@ -1,6 +1,9 @@
 package model
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // Definition holds all symbols defined for a Package.
 type Definition struct {
@@ -14,6 +17,10 @@ type Definition struct {
 	// a definition that travels alone still has to say what it builds against.
 	// It is nil for a package extracted from a tree holding no go.mod.
 	Module *Module `json:"Module,omitempty" yaml:"Module,omitempty"`
+
+	// Files are the files the package is made of, in name order, whether or
+	// not they declare anything.
+	Files FileList `json:"Files,omitempty" yaml:"Files,omitempty"`
 
 	Imports   StringSet `json:"Imports,omitempty" yaml:"Imports,omitempty"`
 	InitCount int       `json:"InitCount,omitempty" yaml:"InitCount,omitempty"`
@@ -36,6 +43,7 @@ func (d *Definition) DeclarationList() DeclarationList {
 
 // Sort will sort the inner types so they have a stable order.
 func (d *Definition) Sort() {
+	sort.Slice(d.Files, func(i, j int) bool { return d.Files[i].Name < d.Files[j].Name })
 	d.Types.Sort()
 	d.Vars.Sort()
 	d.Consts.Sort()
@@ -61,11 +69,12 @@ func (d *Definition) ClearSource() {
 }
 
 func (d *Definition) ClearTestFiles() {
-	for filename, _ := range d.Imports {
+	for filename := range d.Imports {
 		if strings.HasSuffix(filename, "_test.go") {
 			delete(d.Imports, filename)
 		}
 	}
+	d.Files = d.Files.Filter(func(f File) bool { return !f.Test })
 	d.Types.ClearTestFiles()
 	d.Vars.ClearTestFiles()
 	d.Consts.ClearTestFiles()
@@ -73,11 +82,12 @@ func (d *Definition) ClearTestFiles() {
 }
 
 func (d *Definition) ClearNonTestFiles() {
-	for filename, _ := range d.Imports {
+	for filename := range d.Imports {
 		if !strings.HasSuffix(filename, "_test.go") {
 			delete(d.Imports, filename)
 		}
 	}
+	d.Files = d.Files.Filter(func(f File) bool { return f.Test })
 	d.Types.ClearNonTestFiles()
 	d.Vars.ClearNonTestFiles()
 	d.Consts.ClearNonTestFiles()
@@ -101,6 +111,12 @@ func (d *Definition) Merge(in *Definition) {
 
 	for k, v := range in.Imports {
 		d.Imports.Add(k, v...)
+	}
+
+	for _, file := range in.Files {
+		if _, known := d.Files.Find(file.Name); !known {
+			d.Files = append(d.Files, file)
+		}
 	}
 
 	d.Types.AppendUnique(in.Types...)

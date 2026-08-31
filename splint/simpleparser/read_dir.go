@@ -76,6 +76,14 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 			scopes[isTest] = def
 		}
 
+		def.Files = append(def.Files, model.File{
+			Name:      name,
+			Lines:     src.codeLines(),
+			Size:      len(data),
+			Generated: src.generated(),
+			Test:      isTest,
+		})
+
 		merge(def, parsed, name, seen[isTest])
 	}
 

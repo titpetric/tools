@@ -33,6 +33,8 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 	}
 
 	files := []*ast.File{}
+	var facts model.FileList
+
 	for _, file := range pkg.Syntax {
 		filename := path.Base(fset.Position(file.Pos()).Filename)
 		if !strings.HasSuffix(filename, ".go") {
@@ -51,6 +53,7 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 		}
 
 		files = append(files, file)
+		facts = append(facts, fileFacts(fset, file, src))
 	}
 
 	sink := collector.NewCollector(fset)
@@ -64,6 +67,7 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 	for _, def := range results {
 		def.ImportPath = in.Package.ImportPath
 		def.ID = in.Package.ID
+		def.Files = facts
 	}
 
 	return results, nil

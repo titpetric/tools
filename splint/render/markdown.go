@@ -1,4 +1,4 @@
-package report
+package render
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/report"
 )
 
 // Markdown writes the report as a padded markdown table.
@@ -15,7 +16,7 @@ import (
 // next time the docs are built. Every cell is padded to its column, and the
 // rule under the header is written the way mdox writes it, as dashes with no
 // space on either side.
-func Markdown(w io.Writer, report *Report) error {
+func Markdown(w io.Writer, report *report.Report) error {
 	if report.Len() == 0 {
 		_, err := fmt.Fprintf(w, "%s\n", empty(report))
 		return err
@@ -41,9 +42,9 @@ func Markdown(w io.Writer, report *Report) error {
 }
 
 // GitHub writes one line per issue, which is what a log is read back out of.
-func GitHub(w io.Writer, report *Report) error {
-	for _, issue := range report.Issues {
-		if _, err := fmt.Fprintln(w, Line(issue)); err != nil {
+func GitHub(w io.Writer, found *report.Report) error {
+	for _, issue := range found.Issues {
+		if _, err := fmt.Fprintln(w, report.Line(issue)); err != nil {
 			return err
 		}
 	}
@@ -107,7 +108,7 @@ func escape(cell string) string {
 }
 
 // summary states what ran and what it found, in one line above the table.
-func summary(report *Report) string {
+func summary(report *report.Report) string {
 	counts := report.Counts()
 	parts := make([]string, 0, len(report.Linters))
 	for _, linter := range report.Linters {
@@ -121,7 +122,7 @@ func summary(report *Report) string {
 
 // empty is what a clean run says, which names the linters that found nothing
 // rather than printing a blank.
-func empty(report *Report) string {
+func empty(report *report.Report) string {
 	if len(report.Linters) == 0 {
 		return "No linters ran."
 	}
@@ -139,4 +140,55 @@ func plural(n int, one, many string) string {
 // severityName is the level as a word, which is what slog calls it.
 func severityName(severity model.Severity) string {
 	return severity.String()
+}
+
+// MarkdownStats writes the statistics of every linter as padded markdown
+// tables, one per linter, a blank line apart.
+//
+// The header prints above the table and the footer below it, which is where a
+// linter writes the one line a reader takes away.
+func MarkdownStats(w io.Writer, reports []model.LintReport) error {
+	first := true
+
+	for _, one := range reports {
+		for _, stats := range statisticsOf(one) {
+			if !first {
+				if _, err := fmt.Fprintln(w); err != nil {
+					return err
+				}
+			}
+			first = false
+
+			if stats.Header != "" {
+				if _, err := fmt.Fprintf(w, "%s\n\n", stats.Header); err != nil {
+					return err
+				}
+			}
+
+			rows := make([][]string, 0, len(stats.Rows))
+			for _, cells := range stats.Rows {
+				escaped := make([]string, len(cells))
+				for i, cell := range cells {
+					escaped[i] = escape(cell)
+				}
+				rows = append(rows, escaped)
+			}
+			if _, err := io.WriteString(w, markdownTable(stats.Labels, rows)); err != nil {
+				return err
+			}
+
+			if stats.Footer != "" {
+				if _, err := fmt.Fprintf(w, "\n%s\n", stats.Footer); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if first {
+		_, err := fmt.Fprintln(w, "No linter reported any statistics.")
+		return err
+	}
+
+	return nil
 }

@@ -27,6 +27,10 @@ type Linter struct {
 	defs model.DefinitionList
 
 	results Results
+
+	// metric is the package being read, which is what a finding is counted
+	// against.
+	metric *Metric
 }
 
 // New returns the linter.
@@ -46,18 +50,32 @@ func (l *Linter) Name() string {
 // sort, and a heuristic reports too much to be worth reading.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	l.defs = root.Packages
-	l.results = nil
+	l.results = Results{}
 
 	for _, def := range root.Packages {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+
+		var considered model.DeclarationList
 		for _, decl := range def.Funcs {
-			if decl.IsTestScope() || len(decl.Arguments) != 2 {
+			if decl.IsTestScope() {
 				continue
 			}
-			l.check(def, decl)
+			if len(decl.Arguments) == 2 {
+				considered = append(considered, decl)
+			}
 		}
+
+		metric := l.results.count(def.Package, len(def.Funcs), len(considered))
+		for _, decl := range considered {
+			before := l.results.Len()
+			l.check(def, decl)
+			if l.results.Len() == before {
+				l.results.pass(metric, 1)
+			}
+		}
+		l.metric = metric
 	}
 
 	return l.results, nil
@@ -65,7 +83,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 // report records one finding.
 func (l *Linter) report(def *model.Definition, decl *model.Declaration, rule, message string) {
-	l.results = append(l.results, Result{
+	l.results.add(l.metric, Result{
 		Rule:      rule,
 		Symbol:    decl.Symbol(),
 		Arguments: decl.Arguments,
