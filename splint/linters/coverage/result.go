@@ -1,7 +1,10 @@
 package coverage
 
 import (
+	"fmt"
 	"iter"
+	"sort"
+	"strconv"
 
 	"github.com/titpetric/tools/splint/model"
 )
@@ -68,7 +71,71 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as one table.
+// Statistics is the count as one table: what each package exports, and how
+// much of it a test is named for.
 func (r Results) Statistics() []model.Statistics {
-	return nil
+	rows := make([][]string, 0, len(r.order))
+	var exported, covered, constructors int
+
+	for _, path := range r.order {
+		metric := r.packages[path]
+		exported += metric.Exported
+		covered += metric.Covered
+		constructors += metric.Constructors
+		rows = append(rows, []string{
+			path,
+			strconv.Itoa(metric.Exported),
+			strconv.Itoa(metric.Covered),
+			percent(metric.Covered, metric.Exported),
+			strconv.Itoa(metric.Constructors),
+		})
+	}
+
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
+
+	return []model.Statistics{model.NewStatistics(
+		[]string{"Package", "Exported", "Covered", "Share", "Constructors"},
+		rows,
+		model.HeaderText("Every exported symbol and the test named for it, by package."),
+		model.FooterText(fmt.Sprintf("%d of %d exported symbols have a test named for them, %s, and %d of the total are constructors.",
+			covered, exported, percent(covered, exported), constructors)),
+	)}
+}
+
+// count records what one package held, and returns what to record against.
+func (r *Results) count(pkg model.Package, exported, covered, constructors int) *Metric {
+	if r.packages == nil {
+		r.packages = map[string]*Metric{}
+	}
+
+	path := pkg.ImportPath
+	if path == "" {
+		path = pkg.Path
+	}
+
+	metric, known := r.packages[path]
+	if !known {
+		metric = &Metric{}
+		r.packages[path] = metric
+		r.order = append(r.order, path)
+	}
+	metric.Exported += exported
+	metric.Covered += covered
+	metric.Constructors += constructors
+	return metric
+}
+
+// add records one finding against the package it was found in.
+func (r *Results) add(metric *Metric, result Result) {
+	r.findings = append(r.findings, result)
+	metric.Uncovered++
+}
+
+// percent renders a share, and reads as nothing when there was nothing to take
+// a share of.
+func percent(part, whole int) string {
+	if whole == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f%%", float64(part)/float64(whole)*100)
 }
