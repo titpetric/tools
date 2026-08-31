@@ -1,7 +1,10 @@
 package wraphandler
 
 import (
+	"fmt"
 	"iter"
+	"sort"
+	"strconv"
 
 	"github.com/titpetric/tools/splint/model"
 )
@@ -68,7 +71,68 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as one table.
+// Statistics is the count as one table. Only a package that serves something
+// is in it: a package with no handlers has no share to report, and a row of
+// zeroes for every other package in the tree buries the ones that do.
 func (r Results) Statistics() []model.Statistics {
-	return nil
+	rows := make([][]string, 0, len(r.order))
+	var handlers, wrapped int
+
+	for _, path := range r.order {
+		metric := r.packages[path]
+		handlers += metric.Handlers
+		wrapped += metric.Wrapped
+		rows = append(rows, []string{
+			path,
+			strconv.Itoa(metric.Handlers),
+			strconv.Itoa(metric.Wrapped),
+			percent(metric.Wrapped, metric.Handlers),
+		})
+	}
+
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
+
+	return []model.Statistics{model.NewStatistics(
+		[]string{"Package", "Handlers", "Wrapped", "Share"},
+		rows,
+		model.HeaderText("Exported HTTP handlers and the functions behind them, by package."),
+		model.FooterText(fmt.Sprintf("%d of %d exported handlers wrapped, %s, %d testable only through a server.",
+			wrapped, handlers, percent(wrapped, handlers), len(r.findings))),
+	)}
+}
+
+// count records how many handlers one package held, and returns what to record
+// against.
+func (r *Results) count(pkg model.Package, handlers int) *Metric {
+	if r.packages == nil {
+		r.packages = map[string]*Metric{}
+	}
+
+	path := pkg.ImportPath
+	if path == "" {
+		path = pkg.Path
+	}
+
+	metric, known := r.packages[path]
+	if !known {
+		metric = &Metric{}
+		r.packages[path] = metric
+		r.order = append(r.order, path)
+	}
+	metric.Handlers += handlers
+	return metric
+}
+
+// add records one finding.
+func (r *Results) add(result Result) {
+	r.findings = append(r.findings, result)
+}
+
+// percent renders a share, and reads as nothing when there was nothing to take
+// a share of.
+func percent(part, whole int) string {
+	if whole == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f%%", float64(part)/float64(whole)*100)
 }
