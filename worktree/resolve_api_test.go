@@ -171,6 +171,7 @@ func TestApiDiffSinceTagReadsRemovedAndAddedSymbols(t *testing.T) {
 		Package:   "example.com/alpha",
 		Name:      "Bye",
 		Kind:      "func",
+		Exported:  true,
 		Signature: "func Bye (name string) string",
 	}}
 	if !reflect.DeepEqual(got.Added, want) {
@@ -191,6 +192,7 @@ func TestApiDiffSinceTagReadsRemovedAndAddedSymbols(t *testing.T) {
 		Package:   "example.com/alpha",
 		Name:      "Greet",
 		Kind:      "func",
+		Exported:  true,
 		Signature: "func Greet (name string) string",
 	}}
 	if !reflect.DeepEqual(got.Removed, want) {
@@ -258,7 +260,7 @@ func TestApiModelsReadsEachRevisionOnce(t *testing.T) {
 func TestApiDiffSummaryAndSymbols(t *testing.T) {
 	diff := apiDiff{
 		Removed: []apiSymbol{{Key: "example.com/x.Gone", Name: "Gone", Kind: "type"}},
-		Added:   []apiSymbol{{Key: "example.com/x.New", Name: "New", Kind: "func", Signature: "func New () *Client"}},
+		Added:   []apiSymbol{{Key: "example.com/x.New", Name: "New", Kind: "func", Exported: true, Signature: "func New () *Client"}},
 		Changed: []apiChange{{Key: "example.com/x.Moved", Old: "Moved ()", New: "Moved (int)"}},
 	}
 	if want := "api: 1 added, 1 changed, 1 removed"; diff.Summary() != want {

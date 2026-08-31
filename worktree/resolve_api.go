@@ -25,6 +25,11 @@ type apiSymbol struct {
 	Name    string `json:"name"`
 	Kind    string `json:"kind"`
 
+	// Exported reports whether the symbol is part of the API: an exported
+	// name in an importable package. Everything else is reported for the
+	// reader and counts towards no release.
+	Exported bool `json:"exported"`
+
 	// Signature is a func as it is declared, and is empty for every other
 	// kind.
 	Signature string `json:"signature,omitempty"`
@@ -120,6 +125,9 @@ type apiChange struct {
 	Package string `json:"package"`
 	Name    string `json:"name"`
 
+	// Exported reports whether the symbol is part of the API.
+	Exported bool `json:"exported"`
+
 	// Old and New are the signature before and after, with parameter names
 	// removed, which is what they were compared on.
 	Old string `json:"old"`
@@ -144,6 +152,25 @@ type apiDiff struct {
 	// did. A comparison that could not run is never breaking, so a module
 	// whose API cannot be read gets a patch, with the reason printed.
 	Skipped string `json:"-"`
+}
+
+// ExportedAdded returns the added symbols a consumer can see, which with
+// ExportedRemoved is what a release is measured on. Everything else is
+// reported and costs nothing.
+func (d apiDiff) ExportedAdded() []apiSymbol { return exportedOnly(d.Added) }
+
+// ExportedRemoved returns the removed symbols that were API.
+func (d apiDiff) ExportedRemoved() []apiSymbol { return exportedOnly(d.Removed) }
+
+// exportedOnly returns the symbols another module could reach.
+func exportedOnly(symbols []apiSymbol) []apiSymbol {
+	out := make([]apiSymbol, 0, len(symbols))
+	for _, symbol := range symbols {
+		if symbol.Exported {
+			out = append(out, symbol)
+		}
+	}
+	return out
 }
 
 // Summary describes the difference in one line.
@@ -365,7 +392,7 @@ func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 
 // diffModels compares two models that have already been extracted.
 func diffModels(oldModel, newModel string) apiDiff {
-	out, err := exec.Command("go-fsck", "diff", "--old", oldModel, "--new", newModel, "--json").CombinedOutput()
+	out, err := exec.Command("go-fsck", "diff", "--old", oldModel, "--new", newModel, "--json", "--include-unexported").CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(out), "Unknown command") {
 			return apiDiff{Skipped: "the installed go-fsck has no diff command"}

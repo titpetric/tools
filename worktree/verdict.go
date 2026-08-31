@@ -359,7 +359,7 @@ func (v verdict) firstRelease() string {
 	if v.API.Skipped != "" {
 		return "the API was not read, " + v.API.Skipped
 	}
-	return plural(len(v.API.Added), "exported symbol is added", "exported symbols are added")
+	return plural(len(v.API.ExportedAdded()), "exported symbol is added", "exported symbols are added")
 }
 
 // MovedGoSeries reports whether the release moves the module to another go
@@ -390,7 +390,7 @@ func (v verdict) Range() string {
 // and would otherwise be a minor with no reason given for it.
 func (v verdict) breakage() string {
 	var parts []string
-	if removed := len(v.API.Removed); removed > 0 {
+	if removed := len(v.API.ExportedRemoved()); removed > 0 {
 		parts = append(parts, plural(removed, "exported symbol was removed", "exported symbols were removed"))
 	}
 	if changed := len(v.API.Changed); changed > 0 {
@@ -594,6 +594,11 @@ type symbolEntry struct {
 	pkg      string
 	text     string
 
+	// exported reports whether the symbol is API, which is the column the
+	// text is written in: a reader looking for what a release costs reads
+	// one column, and one reading a refactor reads the other.
+	exported bool
+
 	// commits are the short hashes of the commits that introduced or moved
 	// the symbol, oldest first.
 	commits []string
@@ -618,7 +623,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 
 	var entries []symbolEntry
 	for _, symbol := range v.API.Added {
-		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String(), touched[symbol.Key]})
+		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String(), symbol.Exported, touched[symbol.Key]})
 		// An added type arrives with its exported fields and interface
 		// methods; unlike a removal, what came along is worth reading.
 		for _, field := range symbol.Fields {
@@ -626,24 +631,24 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 			if field.Embedded {
 				text = tidySignature(fieldReads(field))
 			}
-			entries = append(entries, symbolEntry{"Added", symbol.Package, text, touched[symbol.Key]})
+			entries = append(entries, symbolEntry{"Added", symbol.Package, text, symbol.Exported, touched[symbol.Key]})
 		}
 	}
 	for _, change := range v.API.Changed {
-		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + tidySignature(change.Old) + "\nAfter: " + tidySignature(change.New), touched[change.Key]})
+		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + tidySignature(change.Old) + "\nAfter: " + tidySignature(change.New), change.Exported, touched[change.Key]})
 	}
 	for _, symbol := range collapseRemovedMethods(v.API.Removed) {
-		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), touched[symbol.Key]})
+		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), symbol.Exported, touched[symbol.Key]})
 	}
 	if len(entries) == 0 {
 		return nil, nil
 	}
 
-	headers := []string{"Change", "Symbol"}
+	headers := []string{"Change", "Exported", "Unexported"}
 	widths := []int{len("Removed")}
 	packages := packageColumn(v, entries)
 	if packages {
-		headers = []string{"Change", "Package", "Symbol"}
+		headers = []string{"Change", "Package", "Exported", "Unexported"}
 		width := len("Package")
 		for _, entry := range entries {
 			width = max(width, len(entry.pkg))
@@ -661,7 +666,8 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		headers = append(headers, "Commits")
 		widths = append(widths, columnWidth("Commits", commits))
 	}
-	symbolWidth := cellWidth(wrap, append(widths, 0))
+	// Two symbol columns share what one used to have.
+	symbolWidth := cellWidth(wrap, append(widths, 0)) / 2
 
 	var (
 		rows                  [][]string
@@ -685,7 +691,12 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 			lastPkg = entry.pkg
 			row = append(row, colorLines(pkg, components.ColorSeparator, styled))
 		}
-		row = append(row, fold(entry.text, symbolWidth))
+		text := fold(entry.text, symbolWidth)
+		if entry.exported {
+			row = append(row, text, "")
+		} else {
+			row = append(row, "", text)
+		}
 		if commits != nil {
 			row = append(row, commits[i])
 		}

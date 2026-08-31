@@ -318,7 +318,7 @@ func TestVerdictSummary(t *testing.T) {
 			name: "first release",
 			in: verdict{
 				Version: "v0.0.1",
-				API:     apiDiff{Added: []apiSymbol{{Key: "x.A"}, {Key: "x.B"}}},
+				API:     apiDiff{Added: []apiSymbol{{Key: "x.A", Exported: true}, {Key: "x.B", Exported: true}}},
 			},
 			want: "First release: v0.0.1, 2 exported symbols are added.",
 		},
@@ -336,7 +336,7 @@ func TestVerdictSummary(t *testing.T) {
 			name: "minor, one removal",
 			in: verdict{
 				Version: "v1.1.0", Since: "v1.0.0", Release: releaseMinor,
-				API: apiDiff{Removed: []apiSymbol{{Key: "x.A"}}, Breaking: true},
+				API: apiDiff{Removed: []apiSymbol{{Key: "x.A", Exported: true}}, Breaking: true},
 			},
 			want: "Minor release: v1.1.0, because 1 exported symbol was removed since v1.0.0.",
 		},
@@ -345,7 +345,7 @@ func TestVerdictSummary(t *testing.T) {
 			in: verdict{
 				Version: "v1.1.0", Since: "v1.0.0", Release: releaseMinor,
 				API: apiDiff{
-					Removed:  []apiSymbol{{Key: "x.A"}, {Key: "x.B"}},
+					Removed:  []apiSymbol{{Key: "x.A", Exported: true}, {Key: "x.B", Exported: true}},
 					Changed:  []apiChange{{Key: "x.C"}},
 					Breaking: true,
 				},
@@ -369,7 +369,7 @@ func TestVerdictSummary(t *testing.T) {
 			name: "a release that was made, breaking",
 			in: verdict{
 				Version: "v1.1.0", Since: "v1.0.0", Released: true,
-				API: apiDiff{Removed: []apiSymbol{{Key: "x.A"}}, Breaking: true},
+				API: apiDiff{Removed: []apiSymbol{{Key: "x.A", Exported: true}}, Breaking: true},
 			},
 			want: "Released v1.1.0: 1 exported symbol was removed since v1.0.0.",
 		},
@@ -377,7 +377,7 @@ func TestVerdictSummary(t *testing.T) {
 			name: "a release with nothing before it",
 			in: verdict{
 				Version: "v1.0.0", Released: true,
-				API: apiDiff{Added: []apiSymbol{{Key: "x.A"}}},
+				API: apiDiff{Added: []apiSymbol{{Key: "x.A", Exported: true}}},
 			},
 			want: "Released v1.0.0: the first release, 1 exported symbol is added.",
 		},
@@ -405,16 +405,16 @@ func sampleVerdict() verdict {
 		API: apiDiff{
 			Removed: []apiSymbol{{
 				Key: "example.com/x.Legacy", Package: "example.com/x",
-				Name: "Legacy", Kind: "func", Signature: "func Legacy () error",
+				Name: "Legacy", Kind: "func", Exported: true, Signature: "func Legacy () error",
 			}},
 			Added: []apiSymbol{{
 				Key: "example.com/x.Client", Package: "example.com/x",
-				Name: "Client", Kind: "type", Underlying: "struct",
+				Name: "Client", Kind: "type", Exported: true, Underlying: "struct",
 				Fields: []apiField{{Name: "Name", Type: "string", Tag: `json:"name"`}},
 			}},
 			Changed: []apiChange{{
 				Key: "example.com/x.Open", Package: "example.com/x",
-				Name: "Open", Old: "Open ()", New: "Open (string)",
+				Name: "Open", Exported: true, Old: "Open ()", New: "Open (string)",
 			}},
 			Types: []apiTypeChange{{
 				Key: "example.com/x.Config", Package: "example.com/x",
@@ -460,10 +460,10 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"## Commits since v1.0.0",
 		"| [`abc1234`](https://github.com/example/x/commit/abc1234) | feat: add Client |",
 		"## API since v1.0.0",
-		"| Change | Symbol |",
-		"| Added | type Client struct |",
+		"| Change | Exported | Unexported |",
+		"| Added | type Client struct |  |",
 		"| Changed | Before: Open ()<br>After: Open (string) |",
-		"| Removed | func Legacy () error |",
+		"| Removed | func Legacy () error |  |",
 		// One table, whatever the release did to however many types.
 		"## Data model since v1.0.0",
 		"| Change | Package | Type | Field |",
@@ -487,7 +487,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 	// A module with one package has nothing for the API table to disambiguate.
 	// The data model table names the package either way, since it has a type
 	// column to keep it apart from.
-	if strings.Contains(got, "| Change | Package | Symbol |") {
+	if strings.Contains(got, "| Change | Package | Exported | Unexported |") {
 		t.Errorf("renderVerdict() added a package column for a single package:\n%s", got)
 	}
 }
@@ -547,14 +547,14 @@ func TestRenderVerdictANSI(t *testing.T) {
 func TestRenderVerdictNamesThePackageWhenSymbolsSpanMoreThanOne(t *testing.T) {
 	v := sampleVerdict()
 	v.API.Added = append(v.API.Added, apiSymbol{
-		Key: "example.com/x/inner.Name", Package: "example.com/x/inner", Name: "Name", Kind: "const",
+		Key: "example.com/x/inner.Name", Package: "example.com/x/inner", Name: "Name", Kind: "const", Exported: true,
 	})
 
 	var out bytes.Buffer
 	renderVerdict(&out, v, false)
 
 	got := out.String()
-	for _, want := range []string{"| Change | Package | Symbol |", "| /inner | const Name |", "| / | type Client struct |"} {
+	for _, want := range []string{"| Change | Package | Exported | Unexported |", "| /inner | const Name |  |", "| / | type Client struct |  |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}
@@ -565,7 +565,7 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	v := sampleVerdict()
 	v.API.Added = append(v.API.Added,
 		apiSymbol{
-			Key: "example.com/x/inner.Name", Package: "example.com/x/inner", Name: "Name", Kind: "const",
+			Key: "example.com/x/inner.Name", Package: "example.com/x/inner", Name: "Name", Kind: "const", Exported: true,
 		},
 		apiSymbol{
 			Key: "example.com/x.Dial", Package: "example.com/x", Name: "Dial", Kind: "func", Signature: "func Dial () error",
@@ -583,7 +583,7 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	// them names it. The removal below opens a group of its own, so the package
 	// is named again there.
 	for _, want := range []string{
-		"| Added | / | type Client struct |",
+		"| Added | / | type Client struct |  |",
 		"|  |  | func Dial () error |",
 		"|  | /inner | const Name |",
 		"|  |  | const Other |",
@@ -866,7 +866,7 @@ func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
 	// there is to say about it.
 	v.API.Added = []apiSymbol{{
 		Key: "example.com/x.Option", Package: "example.com/x",
-		Name: "Option", Kind: "type", Underlying: "func(*Client)",
+		Name: "Option", Kind: "type", Exported: true, Underlying: "func(*Client)",
 	}}
 	v.API.Types = nil
 
@@ -876,7 +876,7 @@ func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
 	// The API table says the type is there; there is no shape to write for it,
 	// so the section is left out entirely.
 	got := out.String()
-	if !strings.Contains(got, "| Added | type Option func(*Client) |") {
+	if !strings.Contains(got, "| Added | type Option func(*Client) |  |") {
 		t.Errorf("renderVerdict() lost the type from the API table:\n%s", got)
 	}
 	if strings.Contains(got, "Data model") {
@@ -1146,7 +1146,7 @@ func TestRenderVerdictNamesTheCommitsBehindASymbol(t *testing.T) {
 	renderVerdict(&out, v, false)
 	got := out.String()
 
-	if !strings.Contains(got, "| Change | Symbol | Commits |") {
+	if !strings.Contains(got, "| Change | Exported | Unexported | Commits |") {
 		t.Fatalf("renderVerdict() wrote no commits column:\n%s", got)
 	}
 	if want := "`" + added + "`, `" + changed + "`"; !strings.Contains(got, want) {
@@ -1207,7 +1207,7 @@ func TestRenderVerdictNamesAPackageByItsPathBelowTheModule(t *testing.T) {
 
 	// Two packages named model, kept apart by the path they sit at rather than
 	// by the name they share.
-	for _, want := range []string{"| /model | type Trace struct |", "| /frontend/model | type Page struct |"} {
+	for _, want := range []string{"| /model | type Trace struct |  |", "| /frontend/model | type Page struct |  |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 		}
