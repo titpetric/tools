@@ -474,61 +474,95 @@ func writeGap(w io.Writer, styled bool) {
 // writeCommits writes the commit table. The hash links into the repository in
 // markdown, and stands on its own in a terminal, where a URL is only noise.
 //
-// A commit that moved the exported API says so in the counts the stats table
-// reads the whole release in, so the one commit behind a removal can be picked
-// out of a run of twenty. A commit that moved nothing exported leaves the cell
-// empty rather than writing three zeroes, since a table of "+0/~0/-0" hides
-// the rows that matter.
+// A commit that moved symbols says so in the counts the stats table reads the
+// whole release in, so the one commit behind a removal can be picked out of a
+// run of twenty. External counts what a consumer can see and Internal what it
+// cannot, which is what tells a release from a refactor. A commit that moved
+// neither leaves the cells empty rather than writing three zeroes, since a
+// table of "+0/~0/-0" hides the rows that matter.
 func writeCommits(w io.Writer, v verdict, styled bool, wrap int) {
-	counts := commitCounts(v, styled)
+	external, internal := commitCounts(v, styled)
 
 	headers := []string{"Commit", "Subject"}
 	widths := []int{shortHashWidth(v.Commits), 0}
-	if counts != nil {
-		headers = []string{"Commit", "API", "Subject"}
-		widths = []int{shortHashWidth(v.Commits), columnWidth("API", slices.Collect(maps.Values(counts))), 0}
+	counted := external != nil || internal != nil
+	if counted {
+		headers = []string{"Commit", "External", "Internal", "Subject"}
+		widths = []int{
+			shortHashWidth(v.Commits),
+			columnWidth("External", slices.Collect(maps.Values(external))),
+			columnWidth("Internal", slices.Collect(maps.Values(internal))),
+			0,
+		}
 	}
 	subject := cellWidth(wrap, widths)
 
 	rows := make([][]string, 0, len(v.Commits))
 	for _, commit := range v.Commits {
 		row := []string{commitLink(v, commit.Hash, styled)}
-		if counts != nil {
-			row = append(row, counts[commit.Hash])
+		if counted {
+			row = append(row, external[commit.Hash], internal[commit.Hash])
 		}
 		rows = append(rows, append(row, fold(commit.Subject, subject)))
 	}
 	writeSimpleTable(w, headers, rows, styled)
 }
 
-// commitCounts renders the API column of the commit table, keyed on the short
-// hash, and returns nil when no commit of the range moved the exported API:
-// there is nothing a column of empty cells adds.
-func commitCounts(v verdict, styled bool) map[string]string {
-	counts := make(map[string]string, len(v.Commits))
+// commitCounts renders the two count columns of the commit table, keyed on the
+// short hash: what a commit did to the API, and what it did to everything a
+// consumer cannot reach. Either map is nil when no commit of the range moved
+// that half, since a column of empty cells adds nothing.
+func commitCounts(v verdict, styled bool) (external, internal map[string]string) {
+	external = make(map[string]string, len(v.Commits))
+	internal = make(map[string]string, len(v.Commits))
+
 	for _, commit := range v.Commits {
 		diff, ok := v.CommitAPI[commit.Hash]
 		if !ok || diff.Skipped != "" {
 			continue
 		}
-		if len(diff.Added)+len(diff.Changed)+len(diff.Removed) == 0 {
-			continue
+		if counts := symbolCounts(diff, true, styled); counts != "" {
+			external[commit.Hash] = counts
 		}
-		counts[commit.Hash] = symbolCounts(diff, styled)
+		if counts := symbolCounts(diff, false, styled); counts != "" {
+			internal[commit.Hash] = counts
+		}
 	}
-	if len(counts) == 0 {
-		return nil
+	if len(external) == 0 {
+		external = nil
 	}
-	return counts
+	if len(internal) == 0 {
+		internal = nil
+	}
+	return external, internal
 }
 
-// symbolCounts renders what a commit did to the exported API as the triple the
-// stats table counts a release in: what it added, what it reshaped, what it
-// took away.
-func symbolCounts(diff apiDiff, styled bool) string {
-	return colorLines("+"+strconv.Itoa(len(diff.Added)), components.ColorGreen, styled) +
-		"/" + colorLines("~"+strconv.Itoa(len(diff.Changed)), components.ColorAmber, styled) +
-		"/" + colorLines("-"+strconv.Itoa(len(diff.Removed)), components.ColorRed, styled)
+// symbolCounts renders one half of what a commit moved as the triple the stats
+// table counts a release in: what it added, what it reshaped, what it took
+// away. A half that moved nothing renders as nothing.
+func symbolCounts(diff apiDiff, exported bool, styled bool) string {
+	var added, changed, removed int
+	for _, symbol := range diff.Added {
+		if symbol.Exported == exported {
+			added++
+		}
+	}
+	for _, change := range diff.Changed {
+		if change.Exported == exported {
+			changed++
+		}
+	}
+	for _, symbol := range diff.Removed {
+		if symbol.Exported == exported {
+			removed++
+		}
+	}
+	if added+changed+removed == 0 {
+		return ""
+	}
+	return colorLines("+"+strconv.Itoa(added), components.ColorGreen, styled) +
+		"/" + colorLines("~"+strconv.Itoa(changed), components.ColorAmber, styled) +
+		"/" + colorLines("-"+strconv.Itoa(removed), components.ColorRed, styled)
 }
 
 // commitLink renders a commit hash the way the tables name it: a link into the

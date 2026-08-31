@@ -15,8 +15,8 @@ type Report struct {
 // PackageReport counts what one package exports against what it keeps to
 // itself, and how much of the package is the code behind the internal half.
 type PackageReport struct {
-	// Package is the package path relative to the module, with the module
-	// root reported as "(root)".
+	// Package is the package path relative to the module, spelled the way it
+	// is passed on the command line: "./" or "./frontend".
 	Package string `json:"package"`
 
 	// ExportedTypes and InternalTypes count declared types by the case of

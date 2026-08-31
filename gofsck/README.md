@@ -220,11 +220,12 @@ internal by the case of its own name: a method counts as a func, and
 left out, and so is the `internal` tree: Go scopes it to the module already,
 whatever it exports.
 
-**Output, one row per package:**
-- `types` - declared types, split by the case of their name
-- `funcs` - declared funcs and methods, split the same way
-- `internal SLOC` - the code inside internal func bodies over the code of the
-  package, blank lines and comments left out of both
+**Output**, a markdown table, one row per package:
+- `Types` and `Funcs` read exported / internal, counted by the case of the
+  declared name
+- `Ratio` is the code inside internal func bodies over the code of the package,
+  blank lines and comments left out of both
+- `Status` is OK or WARN
 
 **Warning:** internal code over 25% of package code. The counts are reported
 either way: a package with six internal funcs holding a tenth of its code is
@@ -233,16 +234,16 @@ not carrying too much.
 **Example:**
 ```
 === visibility ===
-Packages: 2
-Passing:  1
-Warnings: 1
+Packages: 2, passing: 1, warnings: 1. Types and funcs read exported / internal, and the ratio is internal code over package code, warning over 25%.
 
-OK   storage: types 3 exported, 1 internal; funcs 22 exported, 3 internal; 8.4% internal SLOC
-WARN (root): types 9 exported, 1 internal; funcs 43 exported, 37 internal; 44.8% internal SLOC (over threshold 25%)
+| Package   | Types  | Funcs   | Ratio | Status |
+| --------- | ------ | ------- | ----- | ------ |
+| ./storage | 3 / 1  | 22 / 3  | 8.4%  | OK     |
+| ./        | 9 / 1  | 43 / 37 | 44.8% | WARN   |
 ```
 
-The module root reports as `(root)`; every other package reports the path it
-sits at below the module.
+A package reports the path it is passed on the command line: `./` for the
+module root, `./frontend` for a package below it.
 
 **Package:** `pkg/visibility/`
 

@@ -31,7 +31,7 @@ func TestAnalyzer_Analyze(t *testing.T) {
 	assert.Equal(t, report.Total, report.Passing+report.Warnings, "every package is one or the other")
 
 	got := report.Packages[0]
-	assert.Equal(t, "pkg/visibility", got.Package)
+	assert.Equal(t, "./pkg/visibility", got.Package)
 	assert.Positive(t, got.Exported(), "New, Analyze and the report type are exported")
 	assert.Positive(t, got.Internal(), "countFile and its neighbours are not")
 	assert.Positive(t, got.Lines)
@@ -114,9 +114,9 @@ func TestPackageLabel(t *testing.T) {
 	module := &packages.Module{Path: "example.com/x"}
 
 	tests := map[string]string{
-		"example.com/x":            "(root)",
-		"example.com/x/pkg/inner":  "pkg/inner",
-		"example.com/other/vendor": "vendor",
+		"example.com/x":            "./",
+		"example.com/x/pkg/inner":  "./pkg/inner",
+		"example.com/other/vendor": "./vendor",
 	}
 	for pkgPath, want := range tests {
 		got := packageLabel(&packages.Package{PkgPath: pkgPath, Module: module})

@@ -1093,17 +1093,14 @@ func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
 			t.Fatalf("readVerdict() skipped %s: %s", commit.Hash, diff.Skipped)
 		}
 
-		counts := ""
-		if len(diff.Added)+len(diff.Changed)+len(diff.Removed) > 0 {
-			counts = symbolCounts(diff, false)
-		}
+		counts := symbolCounts(diff, true, false)
 		if counts != want[i] {
 			t.Errorf("readVerdict() %q = %q, want %q", commit.Subject, counts, want[i])
 		}
 	}
 }
 
-func TestRenderVerdictWritesTheAPIColumnOfEachCommit(t *testing.T) {
+func TestRenderVerdictWritesTheCountColumnsOfEachCommit(t *testing.T) {
 	requireGoFsck(t)
 
 	v, err := readVerdict(commitScanRepo(t), "", "", false)
@@ -1116,12 +1113,12 @@ func TestRenderVerdictWritesTheAPIColumnOfEachCommit(t *testing.T) {
 	got := out.String()
 
 	for _, want := range []string{
-		"| Commit | API | Subject |",
-		"| +1/~0/-0 | alpha: add Greet |",
+		"| Commit | External | Internal | Subject |",
+		"| +1/~0/-0 |  | alpha: add Greet |",
 		// A commit that moved nothing exported leaves the cell empty rather
 		// than writing three zeroes.
 		"|  | alpha: document the package |",
-		"| +0/~1/-0 | alpha: greet a number of times |",
+		"| +0/~1/-0 |  | alpha: greet a number of times |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
@@ -1256,7 +1253,7 @@ func TestRenderVerdictLeavesTheCommitColumnsOutWhenNothingWasScanned(t *testing.
 
 	// A range read as one comparison has no commit to attribute a symbol to,
 	// and gets no column of empty cells.
-	for _, unwanted := range []string{"| Commits |", "| Commit | API | Subject |"} {
+	for _, unwanted := range []string{"| Commits |", "| Commit | External | Internal | Subject |"} {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("renderVerdict() wrote %q for a range that was not scanned:\n%s", unwanted, got)
 		}

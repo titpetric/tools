@@ -184,17 +184,18 @@ func internalPath(pkgPath string) bool {
 	return false
 }
 
-// packageLabel is the package path relative to its module, with the module
-// root reported as "(root)" because its path says nothing on its own.
+// packageLabel is the package path relative to its module, spelled the way a
+// package is passed on the command line: "./" for the module root, "./frontend"
+// for a package below it.
 func packageLabel(pkg *packages.Package) string {
 	if pkg.Module == nil || pkg.Module.Path == "" {
 		return pkg.PkgPath
 	}
 	if pkg.PkgPath == pkg.Module.Path {
-		return "(root)"
+		return "./"
 	}
 	if rel := strings.TrimPrefix(pkg.PkgPath, pkg.Module.Path+"/"); rel != pkg.PkgPath {
-		return rel
+		return "./" + rel
 	}
-	return path.Base(pkg.PkgPath)
+	return "./" + path.Base(pkg.PkgPath)
 }

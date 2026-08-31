@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
@@ -326,26 +327,57 @@ func formatGroupingReport(gr *grouping.Report) string {
 	return output
 }
 
-// formatVisibilityReport renders one row per package: what it exports, what it
-// keeps to itself, and how much of its code the internal half occupies.
-// formatVisibilityReport renders one row per package: what it exports, what it
-// keeps to itself, and how much of its code the internal half occupies.
+// formatVisibilityReport renders the report as a padded markdown table, one
+// row per package: what it declares, split exported against internal, and the
+// share of its code the internal bodies occupy.
 func formatVisibilityReport(vr *visibility.Report) string {
-	output := fmt.Sprintf("Packages: %d\nPassing:  %d\nWarnings: %d\n\n", vr.Total, vr.Passing, vr.Warnings)
+	header := []string{"Package", "Types", "Funcs", "Ratio", "Status"}
+	rows := make([][]string, 0, len(vr.Packages))
 	for _, p := range vr.Packages {
-		status := "OK  "
-		over := ""
+		status := "OK"
 		if !p.OK() {
 			status = "WARN"
-			over = fmt.Sprintf(" (over threshold %.0f%%)", visibility.MaxInternalRatio)
 		}
-		output += fmt.Sprintf("%s %s: types %d exported, %d internal; funcs %d exported, %d internal; %.1f%% internal SLOC%s\n",
-			status, p.Package,
-			p.ExportedTypes, p.InternalTypes,
-			p.ExportedFuncs, p.InternalFuncs,
-			p.InternalRatio, over)
+		rows = append(rows, []string{
+			p.Package,
+			fmt.Sprintf("%d / %d", p.ExportedTypes, p.InternalTypes),
+			fmt.Sprintf("%d / %d", p.ExportedFuncs, p.InternalFuncs),
+			fmt.Sprintf("%.1f%%", p.InternalRatio),
+			status,
+		})
+	}
+
+	widths := make([]int, len(header))
+	for i, cell := range header {
+		widths[i] = len(cell)
+	}
+	for _, row := range rows {
+		for i, cell := range row {
+			widths[i] = max(widths[i], len(cell))
+		}
+	}
+
+	output := fmt.Sprintf("Packages: %d, passing: %d, warnings: %d. Types and funcs read exported / internal, and the ratio is internal code over package code, warning over %.0f%%.\n\n",
+		vr.Total, vr.Passing, vr.Warnings, visibility.MaxInternalRatio)
+	output += tableRow(header, widths)
+	rule := make([]string, len(header))
+	for i := range rule {
+		rule[i] = strings.Repeat("-", widths[i])
+	}
+	output += tableRow(rule, widths)
+	for _, row := range rows {
+		output += tableRow(row, widths)
 	}
 	return output
+}
+
+// tableRow writes one markdown row with every cell padded to its column.
+func tableRow(cells []string, widths []int) string {
+	row := "|"
+	for i, cell := range cells {
+		row += " " + cell + strings.Repeat(" ", widths[i]-len(cell)) + " |"
+	}
+	return row + "\n"
 }
 
 func formatFilecheckReport(fr *filecheck.Report) string {
