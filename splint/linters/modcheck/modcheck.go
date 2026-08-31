@@ -18,6 +18,7 @@ package modcheck
 import (
 	"context"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 
@@ -43,7 +44,15 @@ const (
 
 	// RuleThin is a dependency reached from one file through one symbol.
 	RuleThin = "thin"
+
+	// RuleBlank is a blank import outside the entry point of a program.
+	RuleBlank = "blank"
 )
+
+// entry points are the two files a blank import belongs in: main.go wires the
+// program and main_test.go wires the test binary, which is what TestMain is
+// for. Everywhere else an init runs because a package happened to be linked in.
+var entryPoints = map[string]bool{"main.go": true, "main_test.go": true}
 
 // Linter reports the dependencies of a module and what they cost it.
 type Linter struct {
@@ -71,11 +80,64 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 		return nil, err
 	}
 
-	results := Results{deps: usage, modules: len(catalogue.Modules())}
+	results := Results{deps: usage, modules: len(catalogue.Modules()), sums: catalogue.Sums()}
 	results.ask(ctx, l.Proxy, usage)
 
 	report(&results, catalogue, usage)
+	blanks(&results, root, catalogue)
 	return results, nil
+}
+
+// blanks reports a package imported for its side effect from a file that is
+// not an entry point.
+//
+// A blank import runs an init and offers nothing else, so what it does is
+// decided by which packages the binary links rather than by anything the code
+// around it says. That is a decision for the program being built, and main.go
+// and main_test.go are where a program is wired.
+//
+// A package of the tree being read is left alone. Where a project puts its own
+// registrations is its own arrangement, and there is no convention to hold it
+// to.
+func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalogue) {
+	for _, def := range root.Packages {
+		for _, file := range def.Imports.Keys() {
+			if entryPoints[file] {
+				continue
+			}
+
+			for _, literal := range def.Imports[file] {
+				if !strings.HasPrefix(literal, "_ ") {
+					continue
+				}
+
+				imported := importPath(literal)
+				if imported == "embed" || catalogue.Owns(imported) {
+					// A blank "embed" is what the compiler asks for to embed
+					// into a string, and is not a side effect at all.
+					continue
+				}
+
+				results.add(Result{
+					Rule:     RuleBlank,
+					Severity: model.SeverityWarn,
+					Symbol:   imported,
+					Position: model.Position{Package: def.Package.Package, File: where(def, file)},
+					Message: fmt.Sprintf("%s is imported for its side effect from %s, and what a binary links is decided in main.go or main_test.go",
+						imported, file),
+				})
+			}
+		}
+	}
+}
+
+// where is the root relative path of a file of a package.
+func where(def *model.Definition, file string) string {
+	dir := strings.TrimPrefix(def.Package.Path, "./")
+	if dir == "." {
+		return file
+	}
+	return path.Join(dir, file)
 }
 
 // measure reads how far each dependency reaches into the tree.

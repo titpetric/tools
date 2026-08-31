@@ -19,6 +19,17 @@ type Dependency struct {
 	Packages int `json:"Packages" yaml:"Packages"`
 	Symbols  int `json:"Symbols" yaml:"Symbols"`
 
+	// Reach is how many further modules of the build this one requires, and
+	// Weight is what it and all of them weigh together.
+	//
+	// A size on its own understates what a dependency costs: what is taken on
+	// is the module and everything it drags in behind it. The two are counted
+	// over the modules this build carries, so a dependency of a dependency is
+	// counted for each dependency that reaches it: the question each answers
+	// is what this one costs, not how the total divides.
+	Reach  int   `json:"Reach,omitempty" yaml:"Reach,omitempty"`
+	Weight int64 `json:"Weight,omitempty" yaml:"Weight,omitempty"`
+
 	// Indirect reports a dependency of a dependency, which nothing here
 	// imports and nobody here chose.
 	Indirect bool `json:"Indirect,omitempty" yaml:"Indirect,omitempty"`
@@ -36,6 +47,11 @@ type Dependency struct {
 	// so a file importing a module twice counts once.
 	packages map[string]bool
 	symbols  map[string]bool
+
+	// requires are the module paths this version's own go.mod requires, which
+	// is what the reach is walked over. It is empty when the proxy was not
+	// reached, and the reach is then nothing rather than nothing known.
+	requires []string
 
 	// testOnly reports a module no file outside the tests imports, which is a
 	// dependency a consumer of this module never links.

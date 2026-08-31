@@ -2,6 +2,10 @@ package modcheck_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -196,6 +200,122 @@ func TestLinter_LintDriverImport(t *testing.T) {
 	}
 }
 
+// blanked is a module blank importing four packages: one from the file that
+// wires the program, one from the file that wires the test binary, one from a
+// package of its own, and one from a library file.
+func blanked() *model.DocumentRoot {
+	return &model.DocumentRoot{
+		Modules: []*model.Module{{
+			Path:     "example.com/main",
+			Requires: []model.Require{{Path: "example.com/driver", Version: "v1.0.0"}},
+		}},
+		Packages: model.DefinitionList{
+			{
+				Package: model.Package{Package: "main", ImportPath: "example.com/main", Path: "."},
+				Imports: model.StringSet{
+					"main.go":      {`_ "example.com/driver"`},
+					"main_test.go": {`_ "example.com/driver"`},
+				},
+			},
+			{
+				Package: model.Package{Package: "a", ImportPath: "example.com/main/a", Path: "./a"},
+				Imports: model.StringSet{
+					"a.go": {
+						`_ "example.com/driver"`,
+						`_ "example.com/main/registry"`,
+						`_ "embed"`,
+						`"fmt"`,
+					},
+				},
+			},
+		},
+	}
+}
+
+// TestLinter_LintBlank covers where a blank import is allowed to be: a package
+// imported for its init alone decides what the binary does, and main.go and
+// main_test.go are where that is decided.
+func TestLinter_LintBlank(t *testing.T) {
+	report := lint(t, blanked())
+
+	if got := rules(report)[modcheck.RuleBlank]; got != 1 {
+		t.Fatalf("blank = %d, want 1: only the library file is reported", got)
+	}
+
+	for issue := range report.All() {
+		if issue.Rule != modcheck.RuleBlank {
+			continue
+		}
+		if issue.Severity != model.SeverityWarn {
+			t.Errorf("a blank import reports at %v, want warn", issue.Severity)
+		}
+		// The finding is in the file that writes the import, not in the go.mod
+		// the rest of this linter reports against.
+		if issue.Position.Ref() != "a/a.go" {
+			t.Errorf("position = %q, want a/a.go", issue.Position.Ref())
+		}
+		if issue.Symbol != "example.com/driver" {
+			t.Errorf("symbol = %q", issue.Symbol)
+		}
+	}
+}
+
+// fakeProxy answers the four questions a lookup asks. Every module weighs a
+// thousand bytes, and the one named deep requires thin, so the reach of a
+// dependency is something a test can count.
+func fakeProxy(t *testing.T) {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodHead:
+			w.Header().Set("Content-Length", "1000")
+			w.WriteHeader(http.StatusOK)
+
+		case strings.HasSuffix(r.URL.Path, ".mod"):
+			if strings.Contains(r.URL.Path, "/deep/") {
+				fmt.Fprint(w, "module example.com/deep\n\nrequire example.com/thin v0.2.0\n")
+				return
+			}
+			fmt.Fprint(w, "module example.com/other\n")
+
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"Version": "v1.0.0"})
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	t.Setenv("GOPROXY", server.URL)
+}
+
+// TestLinter_LintReach covers what a dependency brings in behind it. A go.mod
+// records what the build resolved to and not which requirement asked for what,
+// so the graph is read one dependency's go.mod at a time.
+func TestLinter_LintReach(t *testing.T) {
+	fakeProxy(t)
+
+	report, err := modcheck.New().Lint(context.Background(), document())
+	if err != nil {
+		t.Fatalf("Lint() error = %v", err)
+	}
+	metrics := report.Metrics()
+
+	deep := metrics.Packages["example.com/deep"].(modcheck.Dependency)
+	if deep.Size != 1000 {
+		t.Fatalf("deep = %d bytes, want the Content-Length of the zip", deep.Size)
+	}
+	if deep.Reach != 1 || deep.Weight != 2000 {
+		t.Errorf("deep reaches %d modules weighing %d, want 1 and 2000", deep.Reach, deep.Weight)
+	}
+
+	// A module requiring nothing weighs itself, and is reached by deep rather
+	// than reaching anything.
+	thin := metrics.Packages["example.com/thin"].(modcheck.Dependency)
+	if thin.Reach != 0 || thin.Weight != 1000 {
+		t.Errorf("thin reaches %d modules weighing %d, want 0 and 1000", thin.Reach, thin.Weight)
+	}
+}
+
 func TestLinter_Statistics(t *testing.T) {
 	stats := lint(t, document()).Statistics()
 	if len(stats) != 1 {
@@ -206,7 +326,7 @@ func TestLinter_Statistics(t *testing.T) {
 	if table.Header == "" || table.Footer == "" {
 		t.Errorf("table reads header %q and footer %q, want both", table.Header, table.Footer)
 	}
-	if len(table.Labels) != 8 || len(table.Rows) != 4 {
+	if len(table.Labels) != 10 || len(table.Rows) != 4 {
 		t.Fatalf("Labels = %v, Rows = %d", table.Labels, len(table.Rows))
 	}
 	// The size column reads as nothing when nobody was asked, rather than as

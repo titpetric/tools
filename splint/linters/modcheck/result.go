@@ -6,6 +6,7 @@ import (
 	"iter"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/modproxy"
@@ -23,19 +24,28 @@ type Result struct {
 	// wrong with it.
 	Symbol  string
 	Message string
+
+	// Position is the file the finding is in, and is empty for a finding about
+	// the module rather than about a line of source.
+	Position model.Position
 }
 
 // Issue renders the finding as the framework reads it.
 //
-// A module is not in a file, so the position names the go.mod it came from
-// rather than a line of source: that is where a reader goes to act on any of
-// this.
+// A module is not in a file, so a finding about one names the go.mod it came
+// from: that is where a reader goes to act on it. A finding about an import is
+// in the file that writes it, and says so.
 func (r Result) Issue() model.Issue {
+	position := r.Position
+	if position.File == "" {
+		position.File = "go.mod"
+	}
+
 	return model.Issue{
 		Linter:   Name,
 		Rule:     r.Rule,
 		Severity: r.Severity,
-		Position: model.Position{File: "go.mod"},
+		Position: position,
 		Symbol:   r.Symbol,
 		Message:  r.Message,
 	}
@@ -49,6 +59,12 @@ type Results struct {
 	// go.mod files the document was parsed from.
 	deps    map[string]*Dependency
 	modules int
+
+	// sums is every version go.sum records, which is what the versions of one
+	// module are counted from, and sizes is what the proxy answered about
+	// each, keyed "path@version".
+	sums  []model.Sum
+	sizes map[string]int64
 }
 
 // add records one finding.
@@ -70,14 +86,81 @@ func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[stri
 		}
 	}
 
+	r.sizes = map[string]int64{}
 	for path, info := range proxy.LookupAll(ctx, versions) {
+		r.sizes[path+"@"+info.Version] = info.Size
+
 		dep, known := deps[path]
 		if !known {
 			continue
 		}
 		dep.Size = info.Size
+		dep.requires = info.Requires
 		if info.Behind() {
 			dep.Latest = info.Latest
+		}
+	}
+
+	for path, info := range proxy.LookupAll(ctx, r.unasked()) {
+		r.sizes[path+"@"+info.Version] = info.Size
+	}
+
+	reach(deps)
+}
+
+// unasked is every version go.sum records the source of that the requirements
+// did not already cover, keyed by path.
+//
+// A module linked at two majors is two downloads under two paths, and neither
+// need be a requirement of the module being read: the second major can arrive
+// through a dependency. Asking about them is what puts a size on the copies.
+func (r *Results) unasked() map[string]string {
+	out := map[string]string{}
+
+	for _, sum := range r.sums {
+		if !sum.Zip {
+			continue
+		}
+		if _, known := r.sizes[sum.Path+"@"+sum.Version]; known {
+			continue
+		}
+		if _, asked := out[sum.Path]; asked {
+			continue
+		}
+		out[sum.Path] = sum.Version
+	}
+
+	return out
+}
+
+// reach walks the module graph and records what each dependency drags in
+// behind it.
+//
+// The walk stops at the modules this build carries. A dependency requires
+// things this build resolved away, and counting those would report a cost
+// nobody pays; what is worth knowing is how much of the build list is here
+// because of one requirement.
+func reach(deps map[string]*Dependency) {
+	for path, dep := range deps {
+		seen := map[string]bool{path: true}
+		queue := append([]string(nil), dep.requires...)
+
+		dep.Weight = dep.Size
+		for len(queue) > 0 {
+			next := queue[0]
+			queue = queue[1:]
+			if seen[next] {
+				continue
+			}
+			seen[next] = true
+
+			other, carried := deps[next]
+			if !carried {
+				continue
+			}
+			dep.Reach++
+			dep.Weight += other.Size
+			queue = append(queue, other.requires...)
 		}
 	}
 }
@@ -117,13 +200,23 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the dependency table, the ones a consumer links first.
+// Statistics is the dependency table and, where go.sum records more than one
+// version of a module, the table of those.
 func (r Results) Statistics() []model.Statistics {
 	deps := sorted(r.deps)
 	if len(deps) == 0 {
 		return nil
 	}
 
+	out := []model.Statistics{r.dependencies(deps)}
+	if table, ok := r.repeated(); ok {
+		out = append(out, table)
+	}
+	return out
+}
+
+// dependencies is the table of what the module depends on.
+func (r Results) dependencies(deps []*Dependency) model.Statistics {
 	rows := make([][]string, 0, len(deps))
 	var size int64
 	var shipped, unused int
@@ -141,6 +234,8 @@ func (r Results) Statistics() []model.Statistics {
 			dep.Path,
 			dep.Version,
 			bytes(dep.Size),
+			strconv.Itoa(dep.Reach),
+			bytes(dep.Weight),
 			strconv.Itoa(dep.Files),
 			strconv.Itoa(dep.Packages),
 			strconv.Itoa(dep.Symbols),
@@ -151,12 +246,57 @@ func (r Results) Statistics() []model.Statistics {
 
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
 
-	return []model.Statistics{model.NewStatistics(
-		[]string{"Import", "Version", "Size", "Files", "Pkgs", "Symbols", "Kind", "Behind"},
+	return model.NewStatistics(
+		[]string{"Import", "Version", "Size", "Deps", "Total", "Files", "Pkgs", "Symbols", "Kind", "Behind"},
 		rows,
 		model.HeaderText(header(r.modules)),
 		model.FooterText(footer(len(deps), shipped, unused, size)),
-	)}
+	)
+}
+
+// repeated is the table of modules go.sum records at more than one version,
+// and reports whether there are any.
+func (r Results) repeated() (model.Statistics, bool) {
+	found := duplicates(r.sums, r.sizes)
+	if len(found) == 0 {
+		return model.Statistics{}, false
+	}
+
+	rows := make([][]string, 0, len(found))
+	var overhead int64
+	var linked int
+
+	for _, entry := range found {
+		overhead += entry.Overhead
+		if len(entry.Linked) > 1 {
+			linked++
+		}
+
+		rows = append(rows, []string{
+			entry.Base,
+			strconv.Itoa(entry.Versions),
+			strings.Join(entry.Linked, ", "),
+			bytes(entry.Size),
+			bytes(entry.Overhead),
+		})
+	}
+
+	return model.NewStatistics(
+		[]string{"Module", "Versions", "Linked", "Size", "Overhead"},
+		rows,
+		model.HeaderText("Modules go.sum records at more than one version. A version that is not linked was read for its requirements and not downloaded."),
+		model.FooterText(repeatedFooter(len(found), linked, overhead)),
+	), true
+}
+
+// repeatedFooter counts the modules recorded more than once, and the bytes of
+// the copies past the first where there are any.
+func repeatedFooter(modules, linked int, overhead int64) string {
+	out := fmt.Sprintf("%d modules recorded at more than one version, %d linked more than once", modules, linked)
+	if overhead > 0 {
+		out += ", " + bytes(overhead) + " of it linked twice or more"
+	}
+	return out + "."
 }
 
 // footer is the one line a reader takes away. The size is left out when the

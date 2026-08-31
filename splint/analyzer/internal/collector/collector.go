@@ -114,7 +114,10 @@ func (v *collector) collectImports(filename string, decl *ast.GenDecl, def *Defi
 			case base:
 				fmt.Fprintf(os.Stderr, "WARN: removing %s alias for %s)\n", alias, importClean)
 			case "_":
-				// no warning
+				// A blank import is recorded with the underscore in front of
+				// it: it is what tells an import for its side effect from one
+				// a name reaches.
+				importLiteral = alias + " " + importLiteral
 			default:
 				// fmt.Printf("WARN: package %s is aliased to %s\n", importLiteral, alias)
 				importLiteral = alias + " " + importLiteral
@@ -167,7 +170,7 @@ func collectFuncReferences(funcDecl *ast.FuncDecl) map[string][]string {
 }
 
 func (v *collector) Visit(node ast.Node, push bool, stack []ast.Node) bool {
-	file, ok := (stack[0]).(*ast.File)
+	file, ok := stack[0].(*ast.File)
 	if !ok {
 		return true
 	}
@@ -391,7 +394,7 @@ func (p *collector) functionBindings(file *ast.File, decl *ast.FuncDecl) (args [
 }
 
 func (p *collector) functionDef(fun *ast.FuncDecl) string {
-	var fset = p.fset
+	fset := p.fset
 	name := fun.Name.Name
 	params := make([]string, 0)
 	for _, p := range fun.Type.Params.List {
@@ -440,7 +443,7 @@ func (p *collector) functionDef(fun *ast.FuncDecl) string {
 }
 
 func (p *collector) functionType(name string, fun *ast.FuncType) string {
-	var fset = p.fset
+	fset := p.fset
 	params := make([]string, 0)
 	for _, p := range fun.Params.List {
 		var typeNameBuf bytes.Buffer

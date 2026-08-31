@@ -33,7 +33,9 @@ import (
 		`rand "math/rand/v2"`,
 		// One that repeats the base name says nothing and is dropped.
 		`"strings"`,
-		`"embed"`,
+		// A blank import is reached by no name, and the underscore is what
+		// records that: it is an import for its side effect alone.
+		`_ "embed"`,
 		// A dot import puts the package's names in this file's scope, which
 		// the literal records even though no name reaches it.
 		`. "errors"`,

@@ -126,6 +126,13 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 			continue
 		}
 
+		// A blank import is reached by no name, so there is no name to map and
+		// no collision it can be part of. It is recorded as an import all the
+		// same, which is what a rule about side effects reads.
+		if short == "_" {
+			continue
+		}
+
 		// A major version is not a package name: "example.com/x/v2" is
 		// imported as x. An alias overrides that, because an alias is what the
 		// file actually writes: tea "charm.land/bubbletea/v2" is reached as

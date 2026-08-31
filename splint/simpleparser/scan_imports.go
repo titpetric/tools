@@ -42,7 +42,10 @@ func (f *file) addImport(entry string) {
 	case "", name:
 		// No alias, or one that repeats what the path already says.
 	case "_":
-		// A blank import is reached by no name at all.
+		// A blank import is reached by no name at all, and the underscore is
+		// what says so: without it the literal reads as an import like any
+		// other, and a rule about side effects has nothing to read.
+		literal = "_ " + quoted
 	case ".":
 		// A dot import puts the package's names in this file's scope, which
 		// is a thing worth recording even though no name reaches it.
