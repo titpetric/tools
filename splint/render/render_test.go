@@ -170,11 +170,13 @@ func TestTerminalDraws(t *testing.T) {
 	}
 
 	text := out.String()
-	if got := strings.Count(text, "╭"); got != 2 {
-		t.Errorf("drew %d boxes for two findings:\n%s", got, text)
+	// Nothing is drawn around a finding: a box is as wide as the longest line
+	// in it, and one long message would widen it past the terminal.
+	if strings.ContainsAny(text, "╭│╯") {
+		t.Errorf("a finding is drawn in a box:\n%s", text)
 	}
 	if strings.Contains(text, "Position") || strings.Contains(text, "Severity") {
-		t.Errorf("the boxes carry column headings:\n%s", text)
+		t.Errorf("the findings carry column headings:\n%s", text)
 	}
 
 	// The first line is the level, the file and the rule; the second is the
@@ -191,9 +193,9 @@ func TestTerminalDraws(t *testing.T) {
 		}
 	}
 
-	// A blank line between the boxes, and none after the last.
-	if !strings.Contains(plain, "╯\n\n╭") {
-		t.Errorf("the boxes are not a line apart:\n%s", plain)
+	// A blank line between the findings, and none after the last.
+	if !strings.Contains(plain, "godoc comment\n\nERROR") {
+		t.Errorf("the findings are not a line apart:\n%s", plain)
 	}
 	if strings.HasSuffix(plain, "\n\n") {
 		t.Errorf("the report ends on a blank line:\n%q", plain)
@@ -241,7 +243,7 @@ func TestTerminalWithoutASymbol(t *testing.T) {
 	if !strings.Contains(plain, "WARN frontend/handler.go (filecheck/long)") {
 		t.Errorf("the first line reads wrong:\n%s", plain)
 	}
-	if !strings.Contains(plain, "│ handler.go runs to 612 lines of code") {
+	if !strings.Contains(plain, "\nhandler.go runs to 612 lines of code\n") {
 		t.Errorf("the message is not on its own:\n%s", plain)
 	}
 }
@@ -253,8 +255,8 @@ func TestTerminalOnACleanRun(t *testing.T) {
 	}
 
 	plain := strip(out.String())
-	if strings.Contains(plain, "╭") {
-		t.Errorf("a clean run drew a box:\n%s", plain)
+	if strings.Contains(plain, "\n\n") {
+		t.Errorf("a clean run wrote more than the one line:\n%s", plain)
 	}
 	if !strings.Contains(plain, "godoc") || !strings.Contains(plain, "No issues") {
 		t.Errorf("Terminal() on a clean run = %q", plain)

@@ -40,25 +40,6 @@ func table(w io.Writer, labels []string, rows [][]string, colors []string) {
 	border(w, boxBottomLeft, boxTeeUp, boxBottomRight, widths)
 }
 
-// block draws a box around a few lines of one column, with no headings in it.
-//
-// It is what one issue is written in: the lines are written already painted,
-// because what carries colour in them is a part of a line rather than a column
-// of a table.
-func block(w io.Writer, lines []string) {
-	width := 0
-	for _, line := range lines {
-		width = max(width, ansi.StringWidth(line))
-	}
-
-	widths := []int{width}
-	border(w, boxTopLeft, boxTeeDown, boxTopRight, widths)
-	for _, line := range lines {
-		row(w, []string{line}, widths, nil)
-	}
-	border(w, boxBottomLeft, boxTeeUp, boxBottomRight, widths)
-}
-
 // columnWidths is what each column takes, which is the widest of the heading
 // and the cells under it.
 func columnWidths(labels []string, rows [][]string) []int {

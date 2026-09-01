@@ -8,7 +8,7 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// Terminal draws the issues of a report, one box each, a blank line apart.
+// Terminal writes the issues of a report, two lines each, a blank line apart.
 //
 // A finding is two lines rather than a row of a table: a message is a sentence
 // and a position is a path, and a table of both is a table as wide as the
@@ -17,6 +17,10 @@ import (
 //
 //	WARN frontend/view/page.go:42 (godoc/missing)
 //	Page - exported symbol lacks a godoc comment
+//
+// Nothing is drawn around them. A box is as wide as the longest line in it, so
+// one long message widens the frame past the terminal and every finding after
+// it wraps; the blank line between findings separates them for nothing.
 func Terminal(w io.Writer, found *report.Report) error {
 	if found.Len() == 0 {
 		_, err := fmt.Fprintln(w, paint(empty(found), colorGrey))
@@ -28,10 +32,9 @@ func Terminal(w io.Writer, found *report.Report) error {
 	}
 
 	for _, issue := range found.Issues {
-		if _, err := fmt.Fprintln(w); err != nil {
+		if _, err := fmt.Fprintf(w, "\n%s\n%s\n", where(issue), what(issue)); err != nil {
 			return err
 		}
-		block(w, []string{where(issue), what(issue)})
 	}
 
 	return nil
