@@ -49,10 +49,21 @@ const (
 	RuleBlank = "blank"
 )
 
-// entry points are the two files a blank import belongs in: main.go wires the
-// program and main_test.go wires the test binary, which is what TestMain is
-// for. Everywhere else an init runs because a package happened to be linked in.
-var entryPoints = map[string]bool{"main.go": true, "main_test.go": true}
+// wiring reports a file that decides what a binary links, which is where a
+// blank import belongs.
+//
+// A program is one: every file of package main is part of wiring it, and
+// putting the driver in main.go rather than serve.go is a preference and not a
+// rule. So is a test file: a test binary is a program too, and a test that
+// needs a driver registered registers it beside itself.
+//
+// What is left is a library, where an init runs because a package happened to
+// be linked in and every consumer of it pays for the decision.
+func wiring(def *model.Definition, file string) bool {
+	return def.Package.Package == "main" ||
+		def.Package.TestPackage ||
+		strings.HasSuffix(file, "_test.go")
+}
 
 // Linter reports the dependencies of a module and what they cost it.
 type Linter struct {
@@ -96,13 +107,13 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	return results, nil
 }
 
-// blanks reports a package imported for its side effect from a file that is
-// not an entry point.
+// blanks reports a package imported for its side effect from a file that wires
+// no binary.
 //
 // A blank import runs an init and offers nothing else, so what it does is
 // decided by which packages the binary links rather than by anything the code
-// around it says. That is a decision for the program being built, and main.go
-// and main_test.go are where a program is wired.
+// around it says. That is a decision for the program being built, and a
+// library making it makes it for every consumer.
 //
 // A package of the tree being read is left alone. Where a project puts its own
 // registrations is its own arrangement, and there is no convention to hold it
@@ -110,7 +121,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalogue) {
 	for _, def := range root.Packages {
 		for _, file := range def.Imports.Keys() {
-			if entryPoints[file] {
+			if wiring(def, file) {
 				continue
 			}
 
@@ -131,7 +142,7 @@ func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalog
 					Severity: model.SeverityWarn,
 					Symbol:   imported,
 					Position: model.Position{Package: def.Package.Package, File: where(def, file)},
-					Message: fmt.Sprintf("%s is imported for its side effect from %s, and what a binary links is decided in main.go or main_test.go",
+					Message: fmt.Sprintf("%s is imported for its side effect from %s, which wires no binary: what a program links is decided by the program",
 						imported, file),
 				})
 			}

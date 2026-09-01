@@ -228,9 +228,9 @@ func TestLinter_LintBlankImportIsNotThin(t *testing.T) {
 	}
 }
 
-// blanked is a module blank importing four packages: one from the file that
-// wires the program, one from the file that wires the test binary, one from a
-// package of its own, and one from a library file.
+// blanked is a module blank importing the driver from four places: the program
+// that wires it, a file of that program that is not main.go, a test of a
+// library, and the library itself.
 func blanked() *model.DocumentRoot {
 	return &model.DocumentRoot{
 		Modules: []*model.Module{{
@@ -241,8 +241,14 @@ func blanked() *model.DocumentRoot {
 			{
 				Package: model.Package{Package: "main", ImportPath: "example.com/main", Path: "."},
 				Imports: model.StringSet{
-					"main.go":      {`_ "example.com/driver"`},
-					"main_test.go": {`_ "example.com/driver"`},
+					"main.go":  {`_ "example.com/driver"`},
+					"serve.go": {`_ "example.com/driver"`},
+				},
+			},
+			{
+				Package: model.Package{Package: "a_test", ImportPath: "example.com/main/a_test", Path: "./a", TestPackage: true},
+				Imports: model.StringSet{
+					"manager_test.go": {`_ "example.com/driver"`},
 				},
 			},
 			{
@@ -261,8 +267,9 @@ func blanked() *model.DocumentRoot {
 }
 
 // TestLinter_LintBlank covers where a blank import is allowed to be: a package
-// imported for its init alone decides what the binary does, and main.go and
-// main_test.go are where that is decided.
+// imported for its init alone decides what a binary links, and a program and a
+// test binary are where that is decided. A library deciding it decides it for
+// every consumer.
 func TestLinter_LintBlank(t *testing.T) {
 	report := lint(t, blanked())
 
