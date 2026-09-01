@@ -191,67 +191,75 @@ func bodyLocals(src *source, from, to int) map[string]bool {
 	block := false
 
 	for i := from; i <= to && i < src.len(); i++ {
-		code := src.codeLine(i)
-		trimmedLine := strings.TrimSpace(code)
+		bindLocals(locals, src, i, &block)
+	}
 
-		// A var or const block inside a body binds one name per line.
-		switch {
-		case trimmedLine == "var (", trimmedLine == "const (":
-			block = true
-			continue
-		case block && strings.HasPrefix(trimmedLine, ")"):
-			block = false
-			continue
-		case block:
-			spec := trimmedLine
-			if eq := indexTop(spec, '='); eq >= 0 {
-				spec = spec[:eq]
-			}
-			for _, part := range splitTop(spec, ',') {
-				if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
-					locals[fields[0]] = true
-				}
-			}
-			continue
+	return locals
+}
+
+// bindLocals records what one line binds.
+//
+// The block flag carries a var or const block open across the lines it covers,
+// which is the one binding form that is not written on the line it applies to.
+func bindLocals(locals map[string]bool, src *source, i int, block *bool) {
+	code := src.codeLine(i)
+	trimmedLine := strings.TrimSpace(code)
+
+	// A var or const block inside a body binds one name per line.
+	switch {
+	case trimmedLine == "var (", trimmedLine == "const (":
+		*block = true
+		return
+	case *block && strings.HasPrefix(trimmedLine, ")"):
+		*block = false
+		return
+	case *block:
+		spec := trimmedLine
+		if eq := indexTop(spec, '='); eq >= 0 {
+			spec = spec[:eq]
 		}
-
-		// "switch x := y.(type)" binds x in every case of the switch, which
-		// reads as an assignment and is one.
-		if assign := indexTop(code, ':'); assign >= 0 && assign+1 < len(code) && code[assign+1] == '=' {
-			for _, name := range splitTop(strings.TrimSpace(code[:assign]), ',') {
-				addLocal(locals, name)
-			}
-		}
-
-		// A func literal binds its parameters for the length of its body,
-		// which is where a callback's arguments come from.
-		for _, open := range literalParams(code) {
-			for _, group := range paramGroups(open) {
-				for _, name := range group.Names {
-					locals[name] = true
-				}
+		for _, part := range splitTop(spec, ',') {
+			if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
+				locals[fields[0]] = true
 			}
 		}
+		return
+	}
 
-		for _, keyword := range []string{"var ", "const "} {
-			if !strings.HasPrefix(trimmedLine, keyword) {
-				continue
-			}
-			spec := strings.TrimPrefix(trimmedLine, keyword)
-			if eq := indexTop(spec, '='); eq >= 0 {
-				spec = spec[:eq]
-			}
-			// A declaration writes the type after the names, so the first
-			// word of each part is the name and the rest is what it is.
-			for _, part := range splitTop(spec, ',') {
-				if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
-					locals[fields[0]] = true
-				}
+	// "switch x := y.(type)" binds x in every case of the switch, which
+	// reads as an assignment and is one.
+	if assign := indexTop(code, ':'); assign >= 0 && assign+1 < len(code) && code[assign+1] == '=' {
+		for _, name := range splitTop(strings.TrimSpace(code[:assign]), ',') {
+			addLocal(locals, name)
+		}
+	}
+
+	// A func literal binds its parameters for the length of its body,
+	// which is where a callback's arguments come from.
+	for _, open := range literalParams(code) {
+		for _, group := range paramGroups(open) {
+			for _, name := range group.Names {
+				locals[name] = true
 			}
 		}
 	}
 
-	return locals
+	for _, keyword := range []string{"var ", "const "} {
+		if !strings.HasPrefix(trimmedLine, keyword) {
+			continue
+		}
+		spec := strings.TrimPrefix(trimmedLine, keyword)
+		if eq := indexTop(spec, '='); eq >= 0 {
+			spec = spec[:eq]
+		}
+		// A declaration writes the type after the names, so the first
+		// word of each part is the name and the rest is what it is.
+		for _, part := range splitTop(spec, ',') {
+			if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
+				locals[fields[0]] = true
+			}
+		}
+	}
 }
 
 // addLocal records one bound name.

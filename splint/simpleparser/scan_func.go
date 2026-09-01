@@ -43,6 +43,11 @@ func (f *file) scanFunc(src *source, line int) int {
 	} else {
 		decl.References = f.references(src, end+1, 0, body, shadowed)
 	}
+	// The globals cover the signature as well as the body: a parameter type
+	// declared in another file is as much of a reach as a call to one. The
+	// name being declared is written there too, and a method declares one the
+	// file does not record at package scope.
+	decl.Globals = f.globals(src, line, body, append(shadowed, decl.Name))
 	decl.Complexity = complexity(src, line, end+1, body)
 
 	f.Funcs = append(f.Funcs, decl)

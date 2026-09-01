@@ -42,7 +42,7 @@ func (f *file) scanGenDecl(src *source, line int, kind model.DeclarationKind) in
 		return end
 	}
 
-	decl.SelfContained = f.selfContained(kind, entries)
+	decl.Globals = f.declGlobals(src, kind, entries)
 	if len(names) == 1 {
 		decl.Name = names[0]
 	} else {
@@ -67,10 +67,6 @@ type entry struct {
 	open  int
 	close int
 	code  string
-
-	// fieldTypes are the types the body declares, which is what decides
-	// whether the declaration reaches outside itself.
-	fieldTypes []string
 }
 
 // genDeclEntries returns the specs of a declaration and the line the whole
@@ -82,10 +78,9 @@ func genDeclEntries(src *source, line int, keyword string) ([]entry, int) {
 	if !strings.HasSuffix(code, "(") || strings.TrimSpace(strings.TrimSuffix(code, "(")) != keyword {
 		body := entryEnd(src, line)
 		return []entry{{
-			open:       line,
-			close:      body,
-			code:       strings.TrimSpace(strings.TrimPrefix(code, keyword)),
-			fieldTypes: bodyTypes(src, line, body),
+			open:  line,
+			close: body,
+			code:  strings.TrimSpace(strings.TrimPrefix(code, keyword)),
 		}}, body
 	}
 
@@ -98,7 +93,7 @@ func genDeclEntries(src *source, line int, keyword string) ([]entry, int) {
 			continue
 		}
 		body := entryEnd(src, i)
-		entries = append(entries, entry{open: i, close: body, code: text, fieldTypes: bodyTypes(src, i, body)})
+		entries = append(entries, entry{open: i, close: body, code: text})
 		i = body
 	}
 
@@ -192,26 +187,6 @@ func readValue(code string) []string {
 		}
 	}
 	return out
-}
-
-// bodyTypes is the type of every field a body declares, which is what a self
-// contained check reads.
-func bodyTypes(src *source, open, close int) []string {
-	if open >= close {
-		return nil
-	}
-
-	var types []string
-	for i := open + 1; i < close; i++ {
-		code := strings.TrimSpace(src.codeLine(i))
-		if code == "" {
-			continue
-		}
-		if _, typ, _ := splitField(code, src.line(i)); typ != "" {
-			types = append(types, typ)
-		}
-	}
-	return types
 }
 
 // cutTypeName splits a type spec into the name it declares and what it is

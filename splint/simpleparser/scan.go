@@ -24,12 +24,6 @@ type file struct {
 	// reference is recognised against.
 	aliases map[string]bool
 
-	// declared are the type names the file declares, which is what decides
-	// whether a declaration reaches outside itself: go/parser resolves an
-	// identifier against the file it is written in and nowhere wider, so a
-	// type from another file of the same package does not count.
-	declared map[string]bool
-
 	// names are every name the file declares at the top level, types and
 	// values and funcs alike. A selector reaching one of them reaches
 	// something written here rather than a package.
@@ -50,7 +44,7 @@ type file struct {
 // construct is found by where it starts and ends rather than by balancing what
 // is inside it.
 func scan(src *source) *file {
-	out := &file{aliases: map[string]bool{}, declared: declaredTypes(src), names: declaredNames(src)}
+	out := &file{aliases: map[string]bool{}, names: declaredNames(src)}
 
 	for i := 0; i < src.len(); i++ {
 		code := src.codeLine(i)
@@ -195,51 +189,6 @@ func isDirective(line string) bool {
 		}
 	}
 	return true
-}
-
-// declaredTypes collects the type names a file declares, in one pass before
-// the declarations are read: whether a field reaches outside its declaration
-// depends on names that may be declared below it.
-func declaredTypes(src *source) map[string]bool {
-	declared := map[string]bool{}
-
-	for i := 0; i < src.len(); i++ {
-		code := src.codeLine(i)
-		if code == "" || code[0] == ' ' || code[0] == '\t' {
-			continue
-		}
-
-		if !strings.HasPrefix(code, "type") {
-			continue
-		}
-
-		// The block form carries the prefix of the single form, so it is the
-		// one to test for first.
-		if rest := strings.TrimSpace(strings.TrimPrefix(code, "type")); rest == "(" {
-			end := blockEnd(src, i, ')')
-			for j := i + 1; j < end; j++ {
-				if name := typeName(strings.TrimSpace(src.codeLine(j))); name != "" {
-					declared[name] = true
-				}
-			}
-			i = end
-			continue
-		}
-
-		if strings.HasPrefix(code, "type ") {
-			if name := typeName(strings.TrimPrefix(code, "type ")); name != "" {
-				declared[name] = true
-			}
-		}
-	}
-
-	return declared
-}
-
-// typeName is the name a type spec declares.
-func typeName(spec string) string {
-	name, _, _ := strings.Cut(strings.TrimSpace(spec), " ")
-	return trimTypeParams(strings.TrimSpace(name))
 }
 
 // declaredNames collects every name a file declares at the top level.

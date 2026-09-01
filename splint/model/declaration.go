@@ -12,13 +12,24 @@ type Declaration struct {
 	File string `json:"File" yaml:"File"`
 	Line int    `json:"Line,omitempty" yaml:"Line,omitempty"`
 
-	SelfContained bool `json:"SelfContained" yaml:"SelfContained"`
-
 	// This is not encoded to json, it's computed on load.
 	Imports []string `json:"-" yaml:"-"`
 
+	// References are the packages the declaration reaches through an import of
+	// its own file, keyed by the name the import is written under: json ->
+	// Encode. A file is the scope an import is resolved in, so the same symbol
+	// reached from two files is recorded on both.
 	References StringSet `json:"References,omitempty" yaml:"References,omitempty"`
-	Globals    StringSet `json:"Globals,omitempty" yaml:"Globals,omitempty"`
+
+	// Globals are the package level names the declaration reaches that its own
+	// file neither declares nor binds. A bare identifier is a key with no
+	// symbols; a selector on a package level variable is a key with the name
+	// after the dot.
+	//
+	// It is what says how far a declaration reaches inside its own package: a
+	// declaration with none of them names only its imports and what is beside
+	// it in the file.
+	Globals StringSet `json:"Globals,omitempty" yaml:"Globals,omitempty"`
 
 	Doc string `json:"Doc,omitempty" yaml:"Doc,omitempty"`
 

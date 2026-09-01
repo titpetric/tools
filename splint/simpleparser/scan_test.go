@@ -74,27 +74,3 @@ func TestBlockEnd(t *testing.T) {
 		t.Errorf("blockEnd() = %d, want the last line %d", got, open.len()-1)
 	}
 }
-
-func TestDeclaredTypes(t *testing.T) {
-	src := newSource("x.go", []byte(`package p
-
-type Client struct{}
-
-type (
-	Mode  string
-	Store interface{}
-)
-
-type List[T any] []T
-`))
-
-	got := declaredTypes(src)
-	for _, name := range []string{"Client", "Mode", "Store", "List"} {
-		if !got[name] {
-			t.Errorf("declaredTypes() missing %q: %#v", name, got)
-		}
-	}
-	if len(got) != 4 {
-		t.Errorf("declaredTypes() = %#v, want four names", got)
-	}
-}

@@ -205,7 +205,7 @@ func packagePath(root, moduleDir, dir string) string {
 func splitGlobals(def *model.Definition) {
 	imports, _ := def.Imports.Map(def.Imports.All())
 
-	for _, decl := range def.Funcs {
+	for _, decl := range def.DeclarationList() {
 		for name, symbols := range decl.References {
 			if _, ok := imports[name]; ok {
 				continue

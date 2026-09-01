@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"log"
 	"os"
 	"path"
@@ -26,24 +27,80 @@ type (
 type collector struct {
 	fset *token.FileSet
 
+	// info and scope are what resolve an identifier. A name is a package level
+	// one when the object it uses is declared in the package scope, which is
+	// what tells it from a local, a field, a label and a builtin without
+	// tracking a single scope by hand.
+	//
+	// Both are nil for a package the loader could not type check, and the
+	// globals of that package are then not collected.
+	info  *types.Info
+	scope *types.Scope
+
 	definition map[string]*Definition
 	seen       map[string]bool
 	pkgPath    string // Current package path for relative file paths
 }
 
-func NewCollector(fset *token.FileSet) *collector {
-	return &collector{
+func NewCollector(fset *token.FileSet, info *types.Info, pkg *types.Package) *collector {
+	c := &collector{
 		fset:       fset,
+		info:       info,
 		definition: make(map[string]*Definition),
 		seen:       make(map[string]bool),
 	}
+	if pkg != nil {
+		c.scope = pkg.Scope()
+	}
+	return c
+}
+
+// globals are the package level names a declaration reaches that its own file
+// does not declare.
+//
+// The walk is every identifier of the node, and the resolution decides what is
+// worth recording: a local, a parameter, a struct field and a builtin all
+// resolve to something that is not the package scope, and the name after a
+// selector resolves to a field or a method rather than to the package. What is
+// left is the coupling of one file to the rest of its package.
+func (v *collector) globals(filename string, node ast.Node) model.StringSet {
+	if v.info == nil || v.scope == nil {
+		return nil
+	}
+
+	var found model.StringSet
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		ident, ok := n.(*ast.Ident)
+		if !ok {
+			return true
+		}
+
+		obj := v.info.Uses[ident]
+		if obj == nil || obj.Parent() != v.scope {
+			return true
+		}
+		if filepath.Base(v.fset.Position(obj.Pos()).Filename) == filepath.Base(filename) {
+			return true
+		}
+
+		if found == nil {
+			found = model.NewStringSet()
+		}
+		if _, seen := found[ident.Name]; !seen {
+			found.Add(ident.Name)
+		}
+		return true
+	})
+
+	return found
 }
 
 func (v *collector) Clean(verbose bool) []*Definition {
 	for _, def := range v.definition {
 		importMap, _ := def.Imports.Map(def.Imports.All())
 
-		for _, fv := range def.Funcs {
+		for _, fv := range def.DeclarationList() {
 			for k, v := range fv.References {
 				if _, ok := importMap[k]; !ok {
 					fv.Globals.Add(k, v...)
@@ -218,12 +275,12 @@ func (v *collector) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 		}
 
 		def := &Declaration{
-			Names:         names,
-			File:          v.relativeFile(filename),
-			Line:          v.fset.Position(node.Pos()).Line,
-			SelfContained: IsSelfContainedType(node),
-			Source:        v.getSource(file, node),
-			Doc:           strings.TrimSpace(v.getSource(file, node.Doc)),
+			Names:   names,
+			File:    v.relativeFile(filename),
+			Line:    v.fset.Position(node.Pos()).Line,
+			Globals: v.globals(filename, node),
+			Source:  v.getSource(file, node),
+			Doc:     strings.TrimSpace(v.getSource(file, node.Doc)),
 		}
 		if len(def.Names) == 1 {
 			def.Name = def.Names[0]
@@ -327,6 +384,7 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 		Returns:    returns,
 		Signature:  v.functionDef(decl),
 		References: collectFuncReferences(decl),
+		Globals:    v.globals(filename, decl),
 		Source:     source,
 		Complexity: complexity(v.fset, decl),
 	}

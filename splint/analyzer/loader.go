@@ -56,7 +56,9 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 		facts = append(facts, fileFacts(fset, file, src))
 	}
 
-	sink := collector.NewCollector(fset)
+	// The loader asked for types, so the collector resolves an identifier
+	// against the package scope rather than guessing at it.
+	sink := collector.NewCollector(fset, pkg.TypesInfo, pkg.Types)
 
 	insp := inspector.New(files)
 	insp.WithStack(nil, sink.Visit)

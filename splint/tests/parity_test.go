@@ -45,6 +45,7 @@ const budget = 0.001
 // a func, of a type and of a package alike.
 var allowed = map[string]string{
 	"Module.Sums":          "go-fsck reads the go.mod and not the go.sum beside it, so its documents record no versions",
+	"SelfContained":        "go-fsck records whether a type names another type, which splint reads out of the globals instead",
 	"Complexity.Cognitive": "gocognit weights a branch by how deeply it nests in the syntax tree, which a line scan has none of",
 	"Complexity.Cyclomatic": "gocyclo counts the branch nodes of a tree, and a line scan counts the keywords " +
 		"that produce them, which part company inside a composite literal",
@@ -243,6 +244,15 @@ func normalise(path string, a, b any) (any, any) {
 		// the same thing, so the padding inside a line is collapsed; the
 		// indentation opening a line is code structure and is left alone.
 		return alignment(a), alignment(b)
+	}
+
+	if strings.HasSuffix(path, ".Globals") {
+		// splint records every package level name a declaration reaches and
+		// go-fsck records the selectors of a function body that are not
+		// imports, so the two fill one field from different questions. The
+		// references beside it are collected the same way on both sides and
+		// are compared.
+		return nil, nil
 	}
 
 	if strings.HasPrefix(path, "Imports.") {
