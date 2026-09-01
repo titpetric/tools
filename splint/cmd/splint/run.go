@@ -7,6 +7,8 @@ import (
 	"io"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
 	"github.com/titpetric/tools/splint/linters"
@@ -74,15 +76,15 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 	// question from what they found: a run asking for one is not asking for
 	// the other.
 	if cfg.stats {
-		if cfg.json {
-			return exitClean, writeJSON(w, measured(reports))
+		if cfg.data() {
+			return exitClean, writeData(w, cfg, measured(reports))
 		}
 		return exitClean, render.Stats(w, reports)
 	}
 
 	result := report.New(reports...)
-	if cfg.json {
-		if err := writeJSON(w, result); err != nil {
+	if cfg.data() {
+		if err := writeData(w, cfg, result); err != nil {
 			return 0, err
 		}
 	} else if err := render.Issues(w, result); err != nil {
@@ -139,9 +141,9 @@ func offline(selected []model.Linter) {
 // measurement is what one linter measured, which is the table it would have
 // drawn and the numbers behind it.
 type measurement struct {
-	Linter     string             `json:"Linter"`
-	Metrics    model.LintMetrics  `json:"Metrics,omitzero"`
-	Statistics []model.Statistics `json:"Statistics,omitempty"`
+	Linter     string             `json:"Linter" yaml:"Linter"`
+	Metrics    model.LintMetrics  `json:"Metrics,omitzero" yaml:"Metrics,omitempty"`
+	Statistics []model.Statistics `json:"Statistics,omitempty" yaml:"Statistics,omitempty"`
 }
 
 // measured is what every linter of a run measured.
@@ -162,11 +164,26 @@ func measured(reports []model.LintReport) []measurement {
 	return out
 }
 
-// writeJSON writes what a rendering would have drawn, for a reader that is a
-// program. It is indented, because a document a person opens is one a person
-// reads.
-func writeJSON(w io.Writer, value any) error {
+// writeData writes what a rendering would have drawn, for a reader that is a
+// program.
+//
+// One data model answers both: every field carries a json and a yaml tag
+// naming the same key, and a severity is a text marshaller, which both
+// encoders read. The JSON is indented, because a document a person opens is
+// one a person reads.
+func writeData(w io.Writer, cfg *config, value any) error {
+	if cfg.yaml {
+		encoder := yaml.NewEncoder(w)
+		defer encoder.Close()
+		return encoder.Encode(value)
+	}
+
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+// data reports a run asked for the findings rather than a rendering of them.
+func (c *config) data() bool {
+	return c.json || c.yaml
 }

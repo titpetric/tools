@@ -13,12 +13,17 @@ import (
 )
 
 // Report is every issue of one run, gathered from the linters that ran.
+//
+// The fields carry a json and a yaml tag naming the same key, so a run asked
+// for its findings as data answers the same thing in either encoding. A
+// severity writes itself as the word it is called in both, because a level is
+// a text marshaller and both encoders read one.
 type Report struct {
 	// Issues are the findings, sorted by where they are.
-	Issues []model.Issue
+	Issues []model.Issue `json:"Issues" yaml:"Issues"`
 
 	// Linters names the linters that ran, in the order they ran.
-	Linters []string
+	Linters []string `json:"Linters" yaml:"Linters"`
 }
 
 // New gathers the reports of a run into one.

@@ -28,14 +28,16 @@ splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
 splint --output model.json ./...      # keep the document the linters read
 splint --input model.json             # lint a document read back from a file
-splint --json ./...                   # the findings as JSON, no rendering
+splint ./... --json                   # the findings as JSON, no rendering
+splint ./... --yaml                   # the same, as YAML
 splint --schema ./...                 # write the tree as a JSON Schema
 splint -stats ./...                   # what the linters measured, not what they found
 splint --offline ./...                # never ask the module proxy
 ```
 
-The exit code is 0 for a clean run, 1 when a linter reported something, and 2
-when the run itself failed, so a pipeline can tell a finding from a failure.
+A flag reads the same before the pattern or after it. The exit code is 0 for a
+clean run, 1 when a linter reported something, and 2 when the run itself
+failed, so a pipeline can tell a finding from a failure.
 
 ## Output
 
@@ -66,7 +68,10 @@ symbol violet; the message carries none, because it is the line a reader stops
 on.
 
 `--json` writes the findings as data instead, which is the same run with the
-rendering skipped:
+rendering skipped, and `--yaml` writes the same thing the way a document is
+written. One data model answers both: every field carries a json and a yaml tag
+naming the same key, and a severity is a text marshaller, which both encoders
+read, so it is the word in either.
 
 ```json
 {
@@ -87,8 +92,9 @@ rendering skipped:
 `-stats` is tables rather than lines, because what it writes is numbers. A
 terminal gets them drawn and anything else gets them as markdown, padded the
 way `mdox fmt` pads one so a document holding one is not reformatted the next
-time the docs are built. `--json -stats` writes what each linter measured: the
-metrics, keyed by package or by file, and the tables it would have drawn.
+time the docs are built. `-stats --json` and `-stats --yaml` write what each
+linter measured: the metrics, keyed by package or by file, and the tables it
+would have drawn.
 
 ## The two parsers
 

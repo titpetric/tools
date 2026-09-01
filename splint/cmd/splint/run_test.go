@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/titpetric/tools/splint/model"
 )
@@ -82,6 +85,103 @@ func TestRunJSON(t *testing.T) {
 		if issue.Linter == "" || issue.Message == "" {
 			t.Errorf("an issue is missing what it says: %#v", issue)
 		}
+	}
+}
+
+// TestRunFlagsAfterThePattern covers the command line written the way a person
+// writes it: the flag package stops at the first operand, so a flag after the
+// pattern used to be read as a second pattern and the run was silently not the
+// one that was asked for.
+func TestRunFlagsAfterThePattern(t *testing.T) {
+	before, code := runArgs(t, "-i", fixture, "--linters", "godoc", "./...")
+	if code != exitFound {
+		t.Fatalf("run() exited %d with the flags first", code)
+	}
+
+	after, code := runArgs(t, "./...", "-i", fixture, "--linters", "godoc")
+	if code != exitFound {
+		t.Errorf("run() exited %d with the flags after the pattern", code)
+	}
+	if after != before {
+		t.Errorf("the flags after the pattern read a different run:\n%s\n---\n%s", after, before)
+	}
+}
+
+// TestReorder covers what carries a value and what does not, which is what the
+// flag set is asked rather than guessed.
+func TestReorder(t *testing.T) {
+	fs := flag.NewFlagSet("splint", flag.ContinueOnError)
+	fs.String("i", "", "")
+	fs.String("linters", "", "")
+	fs.Bool("json", false, "")
+
+	tests := []struct {
+		args []string
+		want []string
+	}{
+		// A bool takes nothing with it, and the operand goes last.
+		{[]string{"./...", "-json"}, []string{"-json", "./..."}},
+		// A flag written as two words takes the second with it.
+		{[]string{"./...", "-i", "path"}, []string{"-i", "path", "./..."}},
+		{[]string{"./...", "-i=path"}, []string{"-i=path", "./..."}},
+		// Already in order, and left that way.
+		{[]string{"-json", "./..."}, []string{"-json", "./..."}},
+		// Everything after a bare -- is an operand.
+		{[]string{"--", "-json"}, []string{"-json"}},
+		{[]string{"-linters", "godoc", "./...", "-json"}, []string{"-linters", "godoc", "-json", "./..."}},
+	}
+
+	for _, test := range tests {
+		got := reorder(fs, test.args)
+		if len(got) != len(test.want) {
+			t.Errorf("reorder(%v) = %v, want %v", test.args, got, test.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != test.want[i] {
+				t.Errorf("reorder(%v) = %v, want %v", test.args, got, test.want)
+				break
+			}
+		}
+	}
+}
+
+// TestRunYAML covers the second encoding: the same answer, written the way a
+// document is written.
+func TestRunYAML(t *testing.T) {
+	got, code := runArgs(t, "-yaml", "-i", fixture, "./...")
+
+	if code != exitFound {
+		t.Errorf("run() exited %d, want %d", code, exitFound)
+	}
+
+	var found struct {
+		Issues  []model.Issue `yaml:"Issues"`
+		Linters []string      `yaml:"Linters"`
+	}
+	if err := yaml.Unmarshal([]byte(got), &found); err != nil {
+		t.Fatalf("-yaml wrote something that is not YAML: %v\n%s", err, got)
+	}
+	if len(found.Issues) == 0 {
+		t.Fatalf("-yaml wrote no issues:\n%s", got)
+	}
+
+	// A severity is a level, and it reads as the word in both encodings.
+	if !strings.Contains(got, "Severity: WARN") {
+		t.Errorf("-yaml wrote a severity as something other than the word:\n%s", got)
+	}
+}
+
+// TestRunOneEncoding covers asking for both: they are two encodings of one
+// answer, and a run cannot write both to one stream.
+func TestRunOneEncoding(t *testing.T) {
+	var out bytes.Buffer
+	_, err := run(context.Background(), []string{"-json", "-yaml", "-i", fixture, "./..."}, &out)
+	if err == nil {
+		t.Fatal("run() accepted both encodings")
+	}
+	if !strings.Contains(err.Error(), "-json") || !strings.Contains(err.Error(), "-yaml") {
+		t.Errorf("run() error = %v", err)
 	}
 }
 

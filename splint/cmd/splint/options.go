@@ -42,9 +42,10 @@ type config struct {
 	// linters selects the linters by name, and is every linter when empty.
 	linters []string
 
-	// json writes the data the rendering would have drawn, and skips the
-	// rendering.
+	// json and yaml write the data the rendering would have drawn, and skip
+	// the rendering. They are one question asked in two encodings.
 	json bool
+	yaml bool
 
 	help bool
 }
@@ -70,17 +71,22 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&strip, "strip-prefix", "", "package prefixes to strip from schema names, comma separated")
 	fs.StringVar(&selected, "linters", "", "linters to run, comma separated ("+strings.Join(linters.Names(), ", ")+")")
 	fs.BoolVar(&cfg.json, "json", false, "write the findings or the measurements as JSON")
+	fs.BoolVar(&cfg.yaml, "yaml", false, "write the findings or the measurements as YAML")
 	fs.BoolVar(&cfg.options.IncludeTests, "include-tests", false, "read the test files too")
 	fs.BoolVar(&cfg.options.IncludeSources, "include-sources", false, "keep the source of every declaration")
 	fs.BoolVar(&cfg.options.Verbose, "v", false, "say what is being read")
 	fs.BoolVar(&cfg.help, "help", false, "print this help")
 
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorder(fs, args)); err != nil {
 		if err == flag.ErrHelp {
 			cfg.help = true
 			return cfg, nil
 		}
 		return nil, err
+	}
+
+	if cfg.json && cfg.yaml {
+		return nil, fmt.Errorf("-json and -yaml are two encodings of one answer: ask for one")
 	}
 
 	if rest := fs.Args(); len(rest) > 0 {
@@ -134,6 +140,7 @@ Options:
   -strip-prefix LIST  package prefixes to strip from schema names
   -linters LIST       comma separated: %s
   -json               write the findings or the measurements as JSON
+  -yaml               write the findings or the measurements as YAML
   -include-tests      read the test files too
   -include-sources    keep the source of every declaration
   -v                  say what is being read
@@ -144,4 +151,57 @@ not compile, and is an order of magnitude quicker.
 
 Exits 1 when a linter found something, 2 when the run itself failed.
 `, analyzer.ParserName, simpleparser.ParserName, analyzer.ParserName, strings.Join(linters.Names(), ", "))
+}
+
+// reorder puts the flags of a command line in front of its operands.
+//
+// The flag package stops reading flags at the first argument that is not one,
+// so "splint ./... --json" takes the pattern and then reads --json as a second
+// operand: the run is silently not the one that was asked for, and the pattern
+// ends up being the flag. Every other tool takes the two in either order, so
+// this does too.
+//
+// A flag written as "-name value" carries the value with it, and a bool is
+// written alone. The flag set knows which is which, which is what is asked
+// here rather than guessed.
+func reorder(fs *flag.FlagSet, args []string) []string {
+	var flags, operands []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		// Everything after a bare -- is an operand, whatever it looks like.
+		if arg == "--" {
+			return append(flags, append(operands, args[i+1:]...)...)
+		}
+		if arg == "-" || !strings.HasPrefix(arg, "-") {
+			operands = append(operands, arg)
+			continue
+		}
+
+		flags = append(flags, arg)
+
+		name := strings.TrimLeft(arg, "-")
+		if strings.Contains(name, "=") || isBoolFlag(fs, name) {
+			continue
+		}
+		if i+1 < len(args) {
+			i++
+			flags = append(flags, args[i])
+		}
+	}
+
+	return append(flags, operands...)
+}
+
+// isBoolFlag reports a flag that takes no value, which is what the flag
+// package asks of a value to write it as "-name" alone.
+func isBoolFlag(fs *flag.FlagSet, name string) bool {
+	found := fs.Lookup(name)
+	if found == nil {
+		return false
+	}
+
+	boolean, ok := found.Value.(interface{ IsBoolFlag() bool })
+	return ok && boolean.IsBoolFlag()
 }
