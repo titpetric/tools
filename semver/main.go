@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"maps"
@@ -36,7 +38,64 @@ func (l TagList) Filter(cb func(*Tag) bool) TagList {
 	return result
 }
 
+// helpSpec is the page the command prints.
+func helpSpec(fs *flag.FlagSet) spec {
+	return spec{
+		Name:    "semver",
+		Tagline: "the latest patch of every minor, over the last two majors",
+		Usage: []string{
+			"semver",
+			"git ls-remote --tags <url> | semver",
+		},
+		Description: `Semver reads git tags and writes the ones worth scanning as JSON.
+
+The tags come from stdin when stdin is a pipe, in the two column form that
+"git ls-remote --tags" writes: a commit and a "refs/tags/" ref. With nothing
+piped in it runs "git tag -l" in the current repository instead, and the
+commit of every tag is then written as "local".
+
+A tag is read as a version with the leading "v" taken off. Anything that is
+not strict semver is skipped, and so is every prerelease and every "^{}" ref
+of an annotated tag. What is left is grouped by major, the two highest majors
+are kept, and within each of them the highest patch of each minor is kept.
+
+The JSON is an array of objects, ordered by major and then minor, both
+descending. Each one holds Commit, Name, Ref, Version, Major, Minor and
+Patch. Name and Version are the version as it parsed, without the "v", and
+Ref is the tag as it is written in the repository.`,
+		Flags: fs,
+		Examples: []example{
+			{"semver", "the tags of the repository here, as JSON"},
+			{"semver | jq -r '.[].Ref'", "the same tags, as a list of names"},
+			{"git ls-remote --tags https://github.com/golang/go | semver", "the tags of a repository that is not checked out"},
+			{"cat git-tags.txt | semver", "read ls-remote output that was saved to a file"},
+		},
+		Notes: `The tool takes no arguments and no flags: what it reads is decided by
+whether stdin is a pipe.
+
+Exits 1 when git fails, when the input cannot be read, or when the JSON
+cannot be written.`,
+	}
+}
+
 func main() {
+	// A flag set with nothing in it still answers --help and -h, which is all
+	// this tool has to read off a command line.
+	fs := flag.NewFlagSet("semver", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			if err := writeHelp(os.Stdout, helpSpec(fs)); err != nil {
+				fmt.Fprintln(os.Stderr, "Error writing help:", err)
+				os.Exit(1)
+			}
+			return
+		}
+		fmt.Fprintln(os.Stderr, "Error parsing arguments:", err)
+		os.Exit(1)
+	}
+
 	var result TagList
 
 	var reader io.Reader = os.Stdin
