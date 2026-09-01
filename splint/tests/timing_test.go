@@ -24,6 +24,11 @@ const runs = 3
 // reader wants to know is what "splint --parser=simpleparser ./..." costs
 // against "splint --parser=astparser ./...", process start and all, so that is
 // what this times.
+//
+// One linter runs rather than all of them. modcheck asks the module proxy
+// about every dependency, which is a round trip per module and more time than
+// either parser takes: a run of it measures the network and reports it as a
+// parser.
 func TestParserTiming(t *testing.T) {
 	binary := build(t)
 
@@ -91,7 +96,8 @@ func fastest(t *testing.T, binary, parser, root string) time.Duration {
 
 	best := time.Duration(0)
 	for i := 0; i < runs; i++ {
-		cmd := exec.Command(binary, "--parser="+parser, "-i", root, "--output", filepath.Join(t.TempDir(), "out.json"), "./...")
+		cmd := exec.Command(binary, "--parser="+parser, "--linters", "godoc",
+			"-i", root, "--output", filepath.Join(t.TempDir(), "out.json"), "./...")
 		cmd.Stdout, cmd.Stderr = nil, nil
 
 		start := time.Now()
