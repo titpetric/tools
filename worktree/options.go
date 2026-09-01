@@ -46,6 +46,71 @@ const commandVerdict = "verdict"
 // valueFlags lists the flags that take a value as a separate argument.
 var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true}
 
+// bind defines the command-line flags on a flag set, and gives that set the
+// help page as its usage, so -h and --help print the page rather than the
+// defaults the flag package would list.
+func (o *Options) bind(fs *flag.FlagSet) {
+	fs.BoolVar(&o.Update, "u", false, "update the workspace dependencies that are behind their latest tag, and tidy")
+	fs.BoolVar(&o.UpdateAll, "U", false, "update every dependency with go get -u ./..., including ones outside the workspace")
+	fs.BoolVar(&o.Pull, "pull", false, "pull new changes for each git repository")
+	fs.BoolVar(&o.All, "all", false, "include all modules (default: skip modules without releases/changes); with verdict, report every release in the chain")
+	fs.BoolVar(&o.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
+	fs.BoolVar(&o.D2, "d2", false, "output D2 dependency diagram to stdout")
+	fs.BoolVar(&o.Matrix, "t", false, "output dependency matrix to stdout")
+	fs.BoolVar(&o.Verbose, "v", false, "verbose output: show module details, every untracked file, and commands run during updates")
+	fs.BoolVar(&o.Verbose, "verbose", false, "alias of -v")
+	fs.BoolVar(&o.Apply, "apply", false, "perform the resolution instead of rendering it")
+	fs.BoolVar(&o.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
+	fs.BoolVar(&o.NoCache, "no-cache", false, "read every commit again instead of the models kept under the user cache directory")
+	fs.StringVar(&o.From, "from", "", "the `REVISION` worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
+	fs.StringVar(&o.To, "to", "", "the `REVISION` worktree verdict measures to, the working tree by default")
+	fs.StringVar(&o.GoVersion, "go", "", "set the go directive of every go.mod and go.work to `VERSION`, then update dependencies")
+
+	fs.Usage = func() { _ = writeHelp(os.Stdout, helpSpec(fs)) }
+}
+
+// helpSpec is the page the command prints.
+func helpSpec(fs *flag.FlagSet) spec {
+	return spec{
+		Name:    "worktree",
+		Tagline: "the state of a git and go workspace, and the releases it has earned",
+		Usage: []string{
+			"worktree [flags] [path]",
+			"worktree <command> [flags] [path]",
+		},
+		Description: `With no command, worktree scans the workspace and writes what it found: one
+row per module or repository, the tag it carries, the commits since that tag,
+what it requires from the workspace and what requires it. The scan starts at
+the nearest current or parent directory holding a go.work, a go.mod or a .git,
+and honours the .gitignore files it meets on the way down.
+
+The path is optional and selects the modules to work on. It matches a short
+module name, a directory, or any part of either, so "worktree platform" and
+"worktree ./platform" pick the same module. "./..." is the whole workspace,
+which is what a run with no path reads anyway.`,
+		Commands: []command{
+			{commandConfig, "open the setup screen, which writes the configuration file"},
+			{commandResolve, "release the selected modules in dependency order"},
+			{commandVerdict, "report the release one module has earned, as markdown"},
+			{releasePatch, "print the git commands that cut a patch release of the repository here"},
+			{releaseMinor, "print the git commands that cut a minor release of the repository here"},
+		},
+		Flags: fs,
+		Examples: []example{
+			{"worktree", "the whole workspace, one row per module"},
+			{"worktree platform -v", "one module, with its commits, issues and untracked files"},
+			{"worktree -u", "update the workspace dependencies that moved, and tidy"},
+			{"worktree resolve --apply", "release the modules that earned one, in dependency order"},
+			{"worktree verdict --from all", "every release of the repository here, as markdown"},
+			{"worktree patch | sh -x", "tag and push the next patch release"},
+		},
+		Notes: `patch, minor and verdict read the git repository of the current directory,
+or the one the path names. Everything else reads the workspace around it.
+
+resolve renders the plan and runs nothing until --apply is given.`,
+	}
+}
+
 // ParseOptions parses command-line flags and returns Options.
 func ParseOptions() *Options {
 	// Reorder os.Args so flags come before positional args,
@@ -68,21 +133,7 @@ func ParseOptions() *Options {
 	os.Args = append([]string{os.Args[0]}, append(flags, positional...)...)
 
 	opts := &Options{}
-	flag.BoolVar(&opts.Update, "u", false, "update the workspace dependencies that are behind their latest tag, and tidy")
-	flag.BoolVar(&opts.UpdateAll, "U", false, "update every dependency with go get -u ./..., including ones outside the workspace")
-	flag.BoolVar(&opts.Pull, "pull", false, "pull new changes for each git repository")
-	flag.BoolVar(&opts.All, "all", false, "include all modules (default: skip modules without releases/changes); with verdict, report every release in the chain")
-	flag.BoolVar(&opts.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
-	flag.BoolVar(&opts.D2, "d2", false, "output D2 dependency diagram to stdout")
-	flag.BoolVar(&opts.Matrix, "t", false, "output dependency matrix to stdout")
-	flag.BoolVar(&opts.Verbose, "v", false, "verbose output: show module details, every untracked file, and commands run during updates")
-	flag.BoolVar(&opts.Verbose, "verbose", false, "alias of -v")
-	flag.BoolVar(&opts.Apply, "apply", false, "perform the resolution instead of rendering it")
-	flag.BoolVar(&opts.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
-	flag.BoolVar(&opts.NoCache, "no-cache", false, "read every commit again instead of the models kept under the user cache directory")
-	flag.StringVar(&opts.From, "from", "", "the revision worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
-	flag.StringVar(&opts.To, "to", "", "the revision worktree verdict measures to, the working tree by default")
-	flag.StringVar(&opts.GoVersion, "go", "", "set the go directive of every go.mod and go.work to this version, then update dependencies")
+	opts.bind(flag.CommandLine)
 	flag.Parse()
 
 	// -U is a wider -u, so it implies it.
