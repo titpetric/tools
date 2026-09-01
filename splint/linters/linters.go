@@ -12,6 +12,7 @@ import (
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/linters/pairing"
+	"github.com/titpetric/tools/splint/linters/selfcontained"
 	"github.com/titpetric/tools/splint/linters/visibility"
 	"github.com/titpetric/tools/splint/linters/wraphandler"
 	"github.com/titpetric/tools/splint/model"
@@ -30,6 +31,7 @@ func All() []model.Linter {
 		wraphandler.New(),
 		filecheck.New(),
 		visibility.New(),
+		selfcontained.New(),
 		modcheck.New(),
 	}
 }
