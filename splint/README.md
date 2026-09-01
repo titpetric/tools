@@ -7,6 +7,12 @@ The model is schema and nothing else. It imports no third party package, so a
 linter written against it links neither `go/ast` nor `x/tools`. A parser fills
 the model and a linter reads it; neither refers to the other.
 
+The command is built to run in a pipeline. It exits on a code a job branches
+on, and it renders the one report three ways for the three readers a check has:
+the pipeline that gates on it, the operator watching a terminal, and whoever
+reads the artifact afterwards. Which rendering a run produces is decided by
+where the output goes, so the same command line serves all three.
+
 ## Install
 
 ```bash
@@ -30,12 +36,29 @@ splint -stats ./...                   # what the linters measured, not what they
 The exit code is 0 for a clean run, 1 when a linter reported something, and 2
 when the run itself failed, so a pipeline can tell a finding from a failure.
 
-Output is drawn for a terminal and written as a markdown table for anything
-else, so `splint ./... > REPORT.md` produces a document to paste from. The
-table is padded the way `mdox fmt` pads one, so a document holding it is not
-reformatted the next time the docs are built.
+## Output
 
-```
+The report is one set of issues in three renderings, one per reader:
+
+| Rendering  | Reader                      | What it is                                             |
+|------------|-----------------------------|--------------------------------------------------------|
+| `terminal` | the operator watching a run | a drawn table, with the severity column in colour      |
+| `markdown` | a PR comment, an artifact   | a padded markdown table, and the summary line above it |
+| `github`   | the CI log                  | one line per issue, in the shape a compiler writes     |
+
+`--format` names one and defaults to `auto`, under which the destination
+decides. `render.IsTerminal` asks whether the writer is an `*os.File` on a
+character device: stdout on a terminal gets the drawn table, and a pipe, a file
+or a CI log gets the markdown one. `TERM=dumb` counts as not a terminal, which
+is what a pager or an editor sets when it wants plain text.
+
+So `splint ./...` draws for whoever is watching and `splint ./... > REPORT.md`
+writes a document to paste from, with no flag in either. The markdown table is
+padded the way `mdox fmt` pads one, so a document holding it is not reformatted
+the next time the docs are built.
+
+The markdown rendering, which is what a redirect or a pipe produces:
+
 3 issues from 1 linter: godoc 3.
 
 | Position                        | Severity | Rule          | Symbol           | Message                                                             |
@@ -43,14 +66,22 @@ reformatted the next time the docs are built.
 | internal/options_from_env.go:29 | WARN     | godoc/verbose | OptionsFromEnv   | godoc runs to 11 lines, which usually says the symbol does too much |
 | serve_http.go:22                | WARN     | godoc/verbose | Tracer.ServeHTTP | godoc runs to 11 lines, which usually says the symbol does too much |
 | start_auto.go:20                | WARN     | godoc/verbose | StartAuto        | godoc runs to 11 lines, which usually says the symbol does too much |
-```
+
+The terminal rendering is the same rows in a drawn box, with `ERROR` red,
+`WARN` amber and `INFO` teal. Severity is the only thing that carries colour,
+because severity is what a reader scanning a long report is looking for.
 
 Under `--format github` the same issues are one line each, in the form a
-compiler writes and GitHub Actions resolves against a checkout:
+compiler writes and GitHub Actions resolves against a checkout into an
+annotation:
 
 ```
 internal/options_from_env.go:29: godoc/verbose: godoc runs to 11 lines, which usually says the symbol does too much
 ```
+
+`-stats` under `--format github` writes the markdown tables rather than lines:
+a log reads lines, a table is not one, and the table is what a reader can still
+take something from.
 
 ## The two parsers
 
@@ -343,13 +374,11 @@ decided by which packages the binary links: a driver registers itself with
 and main_test.go are where a program and a test binary are wired, and `TestMain`
 is the entry point of the second. A blank import in any other file is reported,
 and the finding names that file rather than the go.mod the other four rules
-name.
+name. One row of it:
 
-```
 | Position              | Severity | Rule           | Symbol                | Message                                                                      |
 |-----------------------|----------|----------------|-----------------------|------------------------------------------------------------------------------|
 | server/server_test.go | WARN     | modcheck/blank | example.com/drivers   | example.com/drivers is imported for its side effect from server_test.go, ... |
-```
 
 Two are left alone: a package belonging to the tree being read, and `embed`.
 Where a project puts its own registrations is its own arrangement, and a blank
@@ -361,14 +390,14 @@ Size is one column. The others are how far the dependency reaches into the tree
 and how much of the build list it brings with it. Four rows of one run over
 etl:
 
-```
 | Import                    | Version  | Size     | Deps | Total    | Files | Pkgs | Symbols | Kind   | Behind |
 |---------------------------|----------|----------|------|----------|-------|------|---------|--------|--------|
 | github.com/expr-lang/expr | v1.17.8  | 2.0 MB   | 0    | 2.0 MB   | 1     | 1    | 2       | direct |        |
 | github.com/go-bridget/mig | v0.6.1   | 107.9 KB | 30   | 57.8 MB  | 4     | 4    | 2       | direct |        |
 | github.com/jmoiron/sqlx   | v1.4.0   | 64.6 KB  | 3    | 449.0 KB | 12    | 8    | 2       | direct |        |
 | modernc.org/sqlite        | v1.57.0  | 22.7 MB  | 13   | 54.4 MB  | 3     | 3    | 0       | direct |        |
-```
+
+What each column counts:
 
 | Column    | What it counts                                              |
 |-----------|-------------------------------------------------------------|
@@ -395,14 +424,13 @@ downloaded; a version recorded by its go.mod alone was read for its
 requirements and passed over. Where more than one version of a module is
 recorded, `-stats` prints a second table.
 
-```
 | Module                      | Versions | Linked               | Size     | Overhead |
 |-----------------------------|----------|----------------------|----------|----------|
 | github.com/stretchr/testify | 4        | v1.12.1              | 203.6 KB | -        |
 | modernc.org/gc              | 2        | v2 v2.6.5, v3 v3.1.5 | 518.2 KB | 65.8 KB  |
 
-9 modules recorded at more than one version, 1 linked more than once, 65.8 KB of it linked twice or more.
-```
+9 modules recorded at more than one version, 1 linked more than once, 65.8 KB
+of it linked twice or more.
 
 The two majors of a module are one row: they are two module paths and one
 library, and a build requiring both downloads both. `Versions` counts every
@@ -416,9 +444,8 @@ Every linter reports what it measured as well as what it found, because a check
 that counts what it looked at has the count in hand by the time it knows what
 to report. `-stats` prints those and nothing else, one table per linter, a
 blank line apart, each with a line above saying what it is and a line below
-summarising it.
+summarising it. What `godoc` measured over the fixture:
 
-```
 Documentation of every exported symbol, by package.
 
 | Package                            | Exported | Documented | Share  | Missing | Format | Verbose |
@@ -427,7 +454,6 @@ Documentation of every exported symbol, by package.
 | example.com/fixture/handler        | 2        | 2          | 100.0% | 0       | 0      | 0       |
 
 14 of 18 exported symbols documented, 77.8%, 4 issues.
-```
 
 A linter picks its own columns. The numbers behind them are
 `model.LintMetrics`, keyed by package or by file, holding the linter's own
