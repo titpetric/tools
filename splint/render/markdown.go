@@ -9,48 +9,6 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// Markdown writes the report as a padded markdown table.
-//
-// The padding is what makes it mdox clean: a document holding this table is
-// left alone by "mdox fmt", so a report pasted into one is not reformatted the
-// next time the docs are built. Every cell is padded to its column, and the
-// rule under the header is written the way mdox writes it, as dashes with no
-// space on either side.
-func Markdown(w io.Writer, report *report.Report) error {
-	if report.Len() == 0 {
-		_, err := fmt.Fprintf(w, "%s\n", empty(report))
-		return err
-	}
-
-	header := []string{"Position", "Severity", "Rule", "Symbol", "Message"}
-	rows := make([][]string, 0, len(report.Issues))
-	for _, issue := range report.Issues {
-		rows = append(rows, []string{
-			issue.Position.Ref(),
-			severityName(issue.Severity),
-			issue.RuleName(),
-			issue.Symbol,
-			escape(issue.Message),
-		})
-	}
-
-	if _, err := fmt.Fprintf(w, "%s\n\n", summary(report)); err != nil {
-		return err
-	}
-	_, err := io.WriteString(w, markdownTable(header, rows))
-	return err
-}
-
-// GitHub writes one line per issue, which is what a log is read back out of.
-func GitHub(w io.Writer, found *report.Report) error {
-	for _, issue := range found.Issues {
-		if _, err := fmt.Fprintln(w, report.Line(issue)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // markdownTable renders a table with every column padded to its widest cell.
 func markdownTable(header []string, rows [][]string) string {
 	widths := make([]int, len(header))

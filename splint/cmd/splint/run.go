@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -73,11 +74,18 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 	// question from what they found: a run asking for one is not asking for
 	// the other.
 	if cfg.stats {
-		return exitClean, render.Stats(w, reports, render.Format(cfg.format))
+		if cfg.json {
+			return exitClean, writeJSON(w, measured(reports))
+		}
+		return exitClean, render.Stats(w, reports)
 	}
 
 	result := report.New(reports...)
-	if err := render.Issues(w, result, render.Format(cfg.format)); err != nil {
+	if cfg.json {
+		if err := writeJSON(w, result); err != nil {
+			return 0, err
+		}
+	} else if err := render.Issues(w, result); err != nil {
 		return 0, err
 	}
 
@@ -126,4 +134,39 @@ func offline(selected []model.Linter) {
 		}
 		module.Proxy.Offline = true
 	}
+}
+
+// measurement is what one linter measured, which is the table it would have
+// drawn and the numbers behind it.
+type measurement struct {
+	Linter     string             `json:"Linter"`
+	Metrics    model.LintMetrics  `json:"Metrics,omitzero"`
+	Statistics []model.Statistics `json:"Statistics,omitempty"`
+}
+
+// measured is what every linter of a run measured.
+func measured(reports []model.LintReport) []measurement {
+	out := make([]measurement, 0, len(reports))
+
+	for _, one := range reports {
+		if one == nil {
+			continue
+		}
+		out = append(out, measurement{
+			Linter:     one.Linter(),
+			Metrics:    one.Metrics(),
+			Statistics: one.Statistics(),
+		})
+	}
+
+	return out
+}
+
+// writeJSON writes what a rendering would have drawn, for a reader that is a
+// program. It is indented, because a document a person opens is one a person
+// reads.
+func writeJSON(w io.Writer, value any) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(value)
 }

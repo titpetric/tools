@@ -42,8 +42,9 @@ type config struct {
 	// linters selects the linters by name, and is every linter when empty.
 	linters []string
 
-	// format names the rendering, and is chosen by the destination when empty.
-	format string
+	// json writes the data the rendering would have drawn, and skips the
+	// rendering.
+	json bool
 
 	help bool
 }
@@ -68,7 +69,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
 	fs.StringVar(&strip, "strip-prefix", "", "package prefixes to strip from schema names, comma separated")
 	fs.StringVar(&selected, "linters", "", "linters to run, comma separated ("+strings.Join(linters.Names(), ", ")+")")
-	fs.StringVar(&cfg.format, "format", "auto", "output format: auto, markdown, terminal or github")
+	fs.BoolVar(&cfg.json, "json", false, "write the findings or the measurements as JSON")
 	fs.BoolVar(&cfg.options.IncludeTests, "include-tests", false, "read the test files too")
 	fs.BoolVar(&cfg.options.IncludeSources, "include-sources", false, "keep the source of every declaration")
 	fs.BoolVar(&cfg.options.Verbose, "v", false, "say what is being read")
@@ -132,7 +133,7 @@ Options:
   -offline            do not ask the module proxy, read the sizes from cache
   -strip-prefix LIST  package prefixes to strip from schema names
   -linters LIST       comma separated: %s
-  -format NAME        auto, markdown, terminal or github (default auto)
+  -json               write the findings or the measurements as JSON
   -include-tests      read the test files too
   -include-sources    keep the source of every declaration
   -v                  say what is being read

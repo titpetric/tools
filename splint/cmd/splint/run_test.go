@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/titpetric/tools/splint/model"
 )
 
 // fixture is the module of code that fails checks on purpose, which is what
@@ -47,13 +49,72 @@ func TestRunReportsTheFixture(t *testing.T) {
 	if code != exitFound {
 		t.Errorf("run() exited %d, want %d: a fixture that fails checks has to fail them", code, exitFound)
 	}
-	// Redirected output is markdown, which is what a buffer is.
-	if !strings.Contains(got, "| Position") {
-		t.Fatalf("run() wrote no table:\n%s", got)
+	// One line per finding, opening on the level and naming the file the way
+	// a compiler does.
+	if !strings.Contains(got, "WARN: undocumented.go:9: godoc/missing: Undocumented - ") {
+		t.Fatalf("run() wrote no findings:\n%s", got)
 	}
 	if strings.Contains(got, "\033") {
 		t.Error("run() wrote escape codes to something that is not a terminal")
 	}
+}
+
+// TestRunJSON covers the flag that skips the rendering: the same findings,
+// for a reader that is a program.
+func TestRunJSON(t *testing.T) {
+	got, code := runArgs(t, "-json", "-i", fixture, "./...")
+
+	if code != exitFound {
+		t.Errorf("run() exited %d, want %d", code, exitFound)
+	}
+
+	var found struct {
+		Issues  []model.Issue
+		Linters []string
+	}
+	if err := json.Unmarshal([]byte(got), &found); err != nil {
+		t.Fatalf("-json wrote something that is not JSON: %v\n%s", err, got)
+	}
+	if len(found.Issues) == 0 || len(found.Linters) == 0 {
+		t.Fatalf("-json wrote %d issues from %d linters", len(found.Issues), len(found.Linters))
+	}
+	for _, issue := range found.Issues {
+		if issue.Linter == "" || issue.Message == "" {
+			t.Errorf("an issue is missing what it says: %#v", issue)
+		}
+	}
+}
+
+// TestRunStatsJSON covers the measurements as data: the numbers behind the
+// tables rather than the tables.
+func TestRunStatsJSON(t *testing.T) {
+	got, code := runArgs(t, "-json", "-stats", "-i", fixture, "./...")
+
+	if code != exitClean {
+		t.Errorf("run() exited %d, want %d", code, exitClean)
+	}
+
+	var measured []struct {
+		Linter     string
+		Metrics    model.LintMetrics
+		Statistics []model.Statistics
+	}
+	if err := json.Unmarshal([]byte(got), &measured); err != nil {
+		t.Fatalf("-json -stats wrote something that is not JSON: %v\n%s", err, got)
+	}
+	if len(measured) == 0 {
+		t.Fatal("-json -stats wrote nothing")
+	}
+
+	for _, one := range measured {
+		if one.Linter == "godoc" {
+			if one.Metrics.Empty() || len(one.Statistics) == 0 {
+				t.Errorf("godoc measured nothing: %#v", one)
+			}
+			return
+		}
+	}
+	t.Error("-json -stats did not write godoc")
 }
 
 // TestRunStats covers the flag that asks what the linters measured rather than

@@ -2,6 +2,7 @@ package render_test
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
@@ -117,22 +118,25 @@ func TestTerminalStats(t *testing.T) {
 }
 
 func TestStatsOnNothing(t *testing.T) {
-	for _, format := range []render.Format{render.FormatMarkdown, render.FormatTerminal} {
+	for name, write := range map[string]func(io.Writer, []model.LintReport) error{
+		"markdown": render.MarkdownStats,
+		"terminal": render.TerminalStats,
+	} {
 		var out bytes.Buffer
-		if err := render.Stats(&out, []model.LintReport{results{name: "quiet"}}, format); err != nil {
+		if err := write(&out, []model.LintReport{results{name: "quiet"}}); err != nil {
 			t.Fatal(err)
 		}
 		// A run where no linter measured anything says so, rather than
 		// printing a blank that reads as though nothing ran.
 		if !strings.Contains(out.String(), "No linter reported any statistics.") {
-			t.Errorf("%s: Stats() = %q", format, out.String())
+			t.Errorf("%s: Stats() = %q", name, out.String())
 		}
 	}
 }
 
 func TestStatsPicksMarkdownWhenRedirected(t *testing.T) {
 	var out bytes.Buffer
-	if err := render.Stats(&out, tables(), render.FormatAuto); err != nil {
+	if err := render.Stats(&out, tables()); err != nil {
 		t.Fatal(err)
 	}
 

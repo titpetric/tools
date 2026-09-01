@@ -28,7 +28,7 @@ splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
 splint --output model.json ./...      # keep the document the linters read
 splint --input model.json             # lint a document read back from a file
-splint --format github ./...          # one line per issue, for a CI log
+splint --json ./...                   # the findings as JSON, no rendering
 splint --schema ./...                 # write the tree as a JSON Schema
 splint -stats ./...                   # what the linters measured, not what they found
 splint --offline ./...                # never ask the module proxy
@@ -39,72 +39,56 @@ when the run itself failed, so a pipeline can tell a finding from a failure.
 
 ## Output
 
-The report is one set of issues in three renderings, one per reader:
-
-| Rendering  | Reader                      | What it is                                             |
-|------------|-----------------------------|--------------------------------------------------------|
-| `terminal` | the operator watching a run | one drawn box per finding, two lines in it             |
-| `markdown` | a PR comment, an artifact   | a padded markdown table, and the summary line above it |
-| `github`   | the CI log                  | one line per issue, in the shape a compiler writes     |
-
-`--format` names one and defaults to `auto`, under which the destination
-decides. `render.IsTerminal` asks whether the writer is an `*os.File` on a
-character device: stdout on a terminal gets the boxes, and a pipe, a file or a
-CI log gets the markdown table. `TERM=dumb` counts as not a terminal, which
-is what a pager or an editor sets when it wants plain text.
-
-So `splint ./...` draws for whoever is watching and `splint ./... > REPORT.md`
-writes a document to paste from, with no flag in either. The markdown table is
-padded the way `mdox fmt` pads one, so a document holding it is not reformatted
-the next time the docs are built.
-
-The markdown rendering, which is what a redirect or a pipe produces:
-
-3 issues from 1 linter: godoc 3.
-
-| Position                        | Severity | Rule          | Symbol           | Message                                                             |
-|---------------------------------|----------|---------------|------------------|---------------------------------------------------------------------|
-| internal/options_from_env.go:29 | WARN     | godoc/verbose | OptionsFromEnv   | godoc runs to 11 lines, which usually says the symbol does too much |
-| serve_http.go:22                | WARN     | godoc/verbose | Tracer.ServeHTTP | godoc runs to 11 lines, which usually says the symbol does too much |
-| start_auto.go:20                | WARN     | godoc/verbose | StartAuto        | godoc runs to 11 lines, which usually says the symbol does too much |
-
-The terminal rendering is two lines per finding, a blank line apart: where it
-is, and what is wrong. A message is a sentence and a position is a path, and a
-table of both is a table as wide as the terminal with one column of it worth
-reading. Nothing is drawn around them either: a box is as wide as the longest
-line in it, so one long message widens the frame past the terminal and
-everything after it wraps.
+An issue is one line, whoever is reading it:
 
 ```
-4 issues from 1 linter: godoc 4.
-
-WARN undocumented.go:9 (godoc/missing)
-Undocumented - exported symbol lacks a godoc comment
-
-WARN undocumented.go:5 (godoc/format)
-Thing - godoc should open on "Thing" and opens on "This"
+WARN: undocumented.go:9: godoc/missing: Undocumented - exported symbol lacks a godoc comment
 ```
 
-`ERROR` is red, `WARN` amber and `INFO` teal, the position is teal, the rule is
-grey and the symbol is violet. The message carries no colour: it is the line a
-reader stops on, and everything around it is what they scanned to get there. A
-finding about a file rather than a symbol is the message on its own.
-
-It is the github line with the severity and the symbol added and the line
-broken in two. `-stats` still draws its tables, because a table of numbers is a
-table.
-
-Under `--format github` the same issues are one line each, in the form a
-compiler writes and GitHub Actions resolves against a checkout into an
-annotation:
+The level opens it, the position and the rule follow the shape a compiler
+writes, and the symbol prefixes the message it is about. A finding about a file
+rather than a symbol is the message alone after the rule:
 
 ```
-internal/options_from_env.go:29: godoc/verbose: godoc runs to 11 lines, which usually says the symbol does too much
+17 issues from 2 linters: godoc 4, pairing 13.
+WARN: order.go: pairing/unpaired: order.go has no order_test.go beside it
+WARN: paired/lonely.go:7: godoc/format: Lonely - godoc should end in punctuation
+WARN: undocumented.go:5: godoc/format: Thing - godoc should open on "Thing" and opens on "This"
 ```
 
-`-stats` under `--format github` writes the markdown tables rather than lines:
-a log reads lines, a table is not one, and the table is what a reader can still
-take something from.
+There is no flag for it. A terminal gets the same line with the level, the
+position, the rule and the symbol in colour, and a pipe, a file or a CI log
+gets it plain, which `render.IsTerminal` decides by asking whether the writer
+is an `*os.File` on a character device. `TERM=dumb` counts as not a terminal,
+which is what a pager or an editor sets when it wants plain text. `ERROR` is
+red, `WARN` amber and `INFO` teal, the position is teal, the rule grey and the
+symbol violet; the message carries none, because it is the line a reader stops
+on.
+
+`--json` writes the findings as data instead, which is the same run with the
+rendering skipped:
+
+```json
+{
+  "Issues": [
+    {
+      "Linter": "godoc",
+      "Rule": "missing",
+      "Severity": "WARN",
+      "Position": { "Package": "model", "File": "model/trace.go", "Line": 7 },
+      "Symbol": "Trace",
+      "Message": "exported symbol lacks a godoc comment"
+    }
+  ],
+  "Linters": ["godoc", "pairing"]
+}
+```
+
+`-stats` is tables rather than lines, because what it writes is numbers. A
+terminal gets them drawn and anything else gets them as markdown, padded the
+way `mdox fmt` pads one so a document holding one is not reformatted the next
+time the docs are built. `--json -stats` writes what each linter measured: the
+metrics, keyed by package or by file, and the tables it would have drawn.
 
 ## The two parsers
 
@@ -225,7 +209,7 @@ Three differences are representational, and are handled rather than counted:
 | `linters/`      | the registry, one subpackage per linter                                               |
 | `schema/`       | renders a document as a JSON Schema                                                   |
 | `report/`       | what was found: the issues, sorted and counted                                        |
-| `render/`       | how it looks: drawn tables, markdown, GitHub lines                                    |
+| `render/`       | how it looks: the issue line, drawn tables, markdown                                  |
 | `cmd/splint`    | the command                                                                           |
 | `tests/`        | the parity harness and the benchmark                                                  |
 

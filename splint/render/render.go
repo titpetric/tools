@@ -1,10 +1,12 @@
 // Package render writes what the linters found and what they measured.
 //
-// One issue always says the same things: where it is, which rule reported it,
-// which symbol it is about, and what is wrong. What changes is the frame
-// around them. A terminal gets a box per finding, two lines in it; a redirect
-// gets a markdown table; a CI log gets one line per issue, in the shape a
-// compiler writes and GitHub Actions resolves against a checkout.
+// An issue is one line, whoever is reading: the level, the position, the rule
+// and the message, in the shape a compiler writes and a log is read back out
+// of. A terminal gets the same line with the parts in colour, so what an
+// operator watches and what a CI log holds are one rendering and not two.
+//
+// The measurements are tables, and a table is drawn for a terminal and written
+// as markdown for anything else.
 package render
 
 import (
@@ -15,58 +17,51 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// Format names a rendering. An empty format is chosen by the destination.
-type Format string
+// Issues writes what the linters found, one line each, with a count above
+// them.
+func Issues(w io.Writer, found *report.Report) error {
+	colour := IsTerminal(w)
 
-const (
-	FormatAuto     Format = "auto"
-	FormatTerminal Format = "terminal"
-	FormatMarkdown Format = "markdown"
-	FormatGitHub   Format = "github"
-)
-
-// Issues writes what the linters found.
-func Issues(w io.Writer, found *report.Report, format Format) error {
-	switch resolve(w, format) {
-	case FormatTerminal:
-		return Terminal(w, found)
-	case FormatGitHub:
-		return GitHub(w, found)
+	if found.Len() == 0 {
+		_, err := writeLine(w, empty(found), colorGrey, colour)
+		return err
 	}
-	return Markdown(w, found)
+
+	if _, err := writeLine(w, summary(found), colorGrey, colour); err != nil {
+		return err
+	}
+
+	for _, issue := range found.Issues {
+		if _, err := io.WriteString(w, compose(issue, colour)+"\n"); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Stats writes what the linters measured, one table per linter, a blank line
-// apart.
-func Stats(w io.Writer, reports []model.LintReport, format Format) error {
-	switch resolve(w, format) {
-	case FormatTerminal:
+// apart. A terminal gets the table drawn and anything else gets it in
+// markdown.
+func Stats(w io.Writer, reports []model.LintReport) error {
+	if IsTerminal(w) {
 		return TerminalStats(w, reports)
-	case FormatGitHub:
-		// A CI log reads lines, and a table is not one. The markdown table is
-		// what a log holds that a reader can still take something from.
-		return MarkdownStats(w, reports)
 	}
 	return MarkdownStats(w, reports)
 }
 
-// resolve settles which rendering to use, which for auto is decided by where
-// the output is going.
-func resolve(w io.Writer, format Format) Format {
-	switch format {
-	case FormatTerminal, FormatMarkdown, FormatGitHub:
-		return format
+// writeLine writes one line of the frame around the issues, painted where it
+// is going to a terminal.
+func writeLine(w io.Writer, text, color string, colour bool) (int, error) {
+	if colour {
+		text = paint(text, color)
 	}
-
-	if IsTerminal(w) {
-		return FormatTerminal
-	}
-	return FormatMarkdown
+	return io.WriteString(w, text+"\n")
 }
 
 // IsTerminal reports whether a writer is a terminal, which is what decides
-// between the two renderings. A dumb terminal is not one: it is what a pager
-// or an editor sets when it wants plain text.
+// whether the output carries colour. A dumb terminal is not one: it is what a
+// pager or an editor sets when it wants plain text.
 func IsTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok || os.Getenv("TERM") == "dumb" {
