@@ -76,8 +76,8 @@ func TestLine(t *testing.T) {
 	}
 }
 
-// TestIssuesToAPipe covers what a log holds: a count, then one line per
-// finding, and no escape codes in any of it.
+// TestIssuesToAPipe covers what a program is written: one workflow command per
+// finding, which is what GitHub Actions turns into an annotation.
 func TestIssuesToAPipe(t *testing.T) {
 	var out bytes.Buffer
 	if err := render.Issues(&out, sample()); err != nil {
@@ -85,22 +85,68 @@ func TestIssuesToAPipe(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("wrote %d lines, want a count and one per issue:\n%s", len(lines), out.String())
-	}
-	if !strings.HasPrefix(lines[0], "2 issues from 2 linters") {
-		t.Errorf("the first line is %q", lines[0])
+	if len(lines) != 2 {
+		t.Fatalf("wrote %d lines, want one per issue:\n%s", len(lines), out.String())
 	}
 	if strings.Contains(out.String(), "\033") {
 		t.Error("a pipe was written escape codes")
 	}
 
 	for _, want := range []string{
-		"ERROR: model/trace.go:7: godoc/format: Trace - godoc should end in punctuation",
-		"WARN: frontend/view/page.go:42: godoc/missing: Page - exported symbol lacks a godoc comment",
+		"::error file=model/trace.go,line=7,title=godoc/format::Trace - godoc should end in punctuation",
+		"::warning file=frontend/view/page.go,line=42,title=godoc/missing::Page - exported symbol lacks a godoc comment",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("no line reads %q:\n%s", want, out.String())
+		}
+	}
+}
+
+// TestAnnotation covers the command one finding is written as, and what has to
+// be escaped in it.
+func TestAnnotation(t *testing.T) {
+	issue := model.Issue{
+		Linter: "filecheck", Rule: "long", Severity: model.SeverityInfo,
+		Position: model.Position{File: "./frontend/handler.go", Line: 12, EndLine: 640},
+		Message:  "handler.go runs to 612 lines",
+	}
+
+	// A level below a warning is a notice, the path never opens on a
+	// separator, and a block carries the line it ends on.
+	want := "::notice file=frontend/handler.go,line=12,endLine=640,title=filecheck/long::handler.go runs to 612 lines"
+	if got := render.Annotation(issue); got != want {
+		t.Errorf("Annotation() = %q, want %q", got, want)
+	}
+
+	// A message is read to the end of the line, so a line ending in one is
+	// written as an escape, and so is the percent that opens one. A property
+	// is read to the next comma or colon, so those are written as escapes too.
+	issue.Rule = "long,ish:er"
+	issue.Position = model.Position{File: "handler.go"}
+	issue.Message = "100% of\nit"
+	want = "::notice file=handler.go,title=filecheck/long%2Cish%3Aer::100%25 of%0Ait"
+	if got := render.Annotation(issue); got != want {
+		t.Errorf("Annotation() = %q, want %q", got, want)
+	}
+}
+
+// TestSummaryOfLinters covers what a terminal reads first: what each linter
+// found, at which level, and under which of its rules.
+func TestSummaryOfLinters(t *testing.T) {
+	var out bytes.Buffer
+	if err := render.Summary(&out, sample()); err != nil {
+		t.Fatal(err)
+	}
+
+	plain := strip(out.String())
+	for _, want := range []string{
+		"Linter", "Error", "Warn", "Info", "Total", "Rules",
+		"godoc", "format 1, missing 1",
+		// A linter that ran and found nothing is named, not tabulated.
+		"imports found nothing.",
+	} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("the summary does not hold %q:\n%s", want, plain)
 		}
 	}
 }

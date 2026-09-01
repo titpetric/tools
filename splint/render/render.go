@@ -1,9 +1,9 @@
 // Package render writes what the linters found and what they measured.
 //
-// An issue is one line, whoever is reading: the level, the position, the rule
-// and the message, in the shape a compiler writes and a log is read back out
-// of. A terminal gets the same line with the parts in colour, so what an
-// operator watches and what a CI log holds are one rendering and not two.
+// Who is reading decides what is written. A terminal gets a summary of what
+// each linter found and then the findings, in colour. Anything else gets a
+// GitHub Actions workflow command per finding, which is what turns one into an
+// annotation on the file and the line of a pull request review.
 //
 // The measurements are tables, and a table is drawn for a terminal and written
 // as markdown for anything else.
@@ -17,22 +17,33 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// Issues writes what the linters found, one line each, with a count above
-// them.
+// Issues writes what the linters found, the way the reader of it reads.
+//
+// A terminal is a person: they get what each linter found, and then the
+// findings themselves. Anything else is a program, and a program that is
+// GitHub Actions turns a workflow command into an annotation on a review.
 func Issues(w io.Writer, found *report.Report) error {
-	colour := IsTerminal(w)
+	if !IsTerminal(w) {
+		return Annotations(w, found)
+	}
 
 	if found.Len() == 0 {
-		_, err := writeLine(w, empty(found), colorGrey, colour)
+		_, err := writeLine(w, empty(found), colorGrey, true)
 		return err
 	}
 
-	if _, err := writeLine(w, summary(found), colorGrey, colour); err != nil {
+	if _, err := writeLine(w, summary(found), colorGrey, true); err != nil {
+		return err
+	}
+	if err := Summary(w, found); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, "\n"); err != nil {
 		return err
 	}
 
 	for _, issue := range found.Issues {
-		if _, err := io.WriteString(w, compose(issue, colour)+"\n"); err != nil {
+		if _, err := io.WriteString(w, compose(issue, true)+"\n"); err != nil {
 			return err
 		}
 	}

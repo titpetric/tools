@@ -67,15 +67,9 @@ func escape(cell string) string {
 
 // summary states what ran and what it found, in one line above the table.
 func summary(report *report.Report) string {
-	counts := report.Counts()
-	parts := make([]string, 0, len(report.Linters))
-	for _, linter := range report.Linters {
-		parts = append(parts, fmt.Sprintf("%s %d", linter, counts[linter]))
-	}
-	return fmt.Sprintf("%s from %s: %s.",
+	return fmt.Sprintf("%s from %s.",
 		plural(report.Len(), "issue", "issues"),
-		plural(len(report.Linters), "linter", "linters"),
-		strings.Join(parts, ", "))
+		plural(len(report.Linters), "linter", "linters"))
 }
 
 // empty is what a clean run says, which names the linters that found nothing

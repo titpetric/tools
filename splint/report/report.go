@@ -69,6 +69,111 @@ func (r *Report) Counts() map[string]int {
 	return counts
 }
 
+// Breakdown is what one linter found: how many at each level, and how many
+// under each of its rules.
+type Breakdown struct {
+	// Linter is the linter the findings came from, and Total is how many of
+	// them there are.
+	Linter string `json:"Linter" yaml:"Linter"`
+	Total  int    `json:"Total" yaml:"Total"`
+
+	// Errors, Warnings and Notices are the findings by level, which is what a
+	// reader scans before reading any of them.
+	Errors   int `json:"Errors" yaml:"Errors"`
+	Warnings int `json:"Warnings" yaml:"Warnings"`
+	Notices  int `json:"Notices" yaml:"Notices"`
+
+	// Rules is how many findings each rule of the linter reported, most first.
+	Rules []RuleCount `json:"Rules,omitempty" yaml:"Rules,omitempty"`
+}
+
+// RuleCount is one rule and how much it had to say.
+type RuleCount struct {
+	Rule  string `json:"Rule" yaml:"Rule"`
+	Count int    `json:"Count" yaml:"Count"`
+}
+
+// Breakdowns is what each linter that found something reported, in the order
+// the linters ran.
+//
+// A linter that found nothing is left out: the run says which linters ran, and
+// a row of zeroes for each of them is a table of what did not happen.
+func (r *Report) Breakdowns() []Breakdown {
+	at := map[string]*Breakdown{}
+	rules := map[string]map[string]int{}
+
+	for _, issue := range r.Issues {
+		one, known := at[issue.Linter]
+		if !known {
+			one = &Breakdown{Linter: issue.Linter}
+			at[issue.Linter] = one
+			rules[issue.Linter] = map[string]int{}
+		}
+
+		one.Total++
+		switch {
+		case issue.Severity >= model.SeverityError:
+			one.Errors++
+		case issue.Severity >= model.SeverityWarn:
+			one.Warnings++
+		default:
+			one.Notices++
+		}
+
+		rule := issue.Rule
+		if rule == "" {
+			rule = issue.Linter
+		}
+		rules[issue.Linter][rule]++
+	}
+
+	var out []Breakdown
+	for _, linter := range r.Linters {
+		one, found := at[linter]
+		if !found {
+			continue
+		}
+		one.Rules = counted(rules[linter])
+		out = append(out, *one)
+	}
+
+	return out
+}
+
+// Quiet names the linters that ran and found nothing, in the order they ran.
+func (r *Report) Quiet() []string {
+	found := map[string]bool{}
+	for _, issue := range r.Issues {
+		found[issue.Linter] = true
+	}
+
+	var out []string
+	for _, linter := range r.Linters {
+		if !found[linter] {
+			out = append(out, linter)
+		}
+	}
+	return out
+}
+
+// counted orders the rules of one linter, the loudest first and by name where
+// two said as much as each other.
+func counted(rules map[string]int) []RuleCount {
+	out := make([]RuleCount, 0, len(rules))
+	for rule, count := range rules {
+		out = append(out, RuleCount{Rule: rule, Count: count})
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Rule < out[j].Rule
+	})
+
+	return out
+}
+
 // sort orders the issues by file, then line, then linter, so a report reads
 // down a tree rather than jumping between linters.
 func (r *Report) sort() {

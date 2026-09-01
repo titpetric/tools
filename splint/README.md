@@ -41,31 +41,58 @@ failed, so a pipeline can tell a finding from a failure.
 
 ## Output
 
-An issue is one line, whoever is reading it:
+Who is reading decides what is written.
+
+A terminal is a person. They get what each linter found, and then the findings:
 
 ```
-WARN: undocumented.go:9: godoc/missing: Undocumented - exported symbol lacks a godoc comment
+98 issues from 12 linters.
+╭───────────┬───────┬──────┬──────┬───────┬──────────────╮
+│ Linter    │ Error │ Warn │ Info │ Total │ Rules        │
+├───────────┼───────┼──────┼──────┼───────┼──────────────┤
+│ func-args │       │ 1    │      │ 1     │ order 1      │
+│ pairing   │       │ 31   │      │ 31    │ unpaired 31  │
+│ coverage  │       │ 64   │      │ 64    │ uncovered 64 │
+│ filecheck │       │ 1    │      │ 1     │ long 1       │
+│ modcheck  │       │      │ 1    │ 1     │ thin 1       │
+╰───────────┴───────┴──────┴──────┴───────┴──────────────╯
+godoc, imports, func-returns, grouping, wraphandler, visibility, selfcontained found nothing.
+
+WARN: db/connect.go: pairing/unpaired: connect.go has no connect_test.go beside it
+WARN: db/connect.go:19: coverage/uncovered: Connect - exported symbol has no test named TestConnect
 ```
 
-The level opens it, the position and the rule follow the shape a compiler
-writes, and the symbol prefixes the message it is about. A finding about a file
-rather than a symbol is the message alone after the rule:
+A tree of any size answers with more findings than a screen holds, so which
+linter is talking and about what comes first. `ERROR` is red, `WARN` amber and
+`INFO` teal, the position is teal, the rule grey and the symbol violet; the
+message carries none, because it is the line a reader stops on. A linter that
+ran and found nothing is named under the table rather than given a row of
+zeroes.
+
+Anything else is a program, and the program that reads a log is GitHub Actions.
+It gets one [workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
+per finding, which is what puts one on the file and the line of a pull request
+review:
 
 ```
-17 issues from 2 linters: godoc 4, pairing 13.
-WARN: order.go: pairing/unpaired: order.go has no order_test.go beside it
-WARN: paired/lonely.go:7: godoc/format: Lonely - godoc should end in punctuation
-WARN: undocumented.go:5: godoc/format: Thing - godoc should open on "Thing" and opens on "This"
+::warning file=db/connect.go,line=19,title=coverage/uncovered::Connect - exported symbol has no test named TestConnect
+::error file=go.mod,title=modcheck/replace::example.com/two - go.mod replaces example.com/two with ../local/two
+::notice file=go.mod,title=modcheck/thin::github.com/lib/pq - github.com/lib/pq is reached from one file through one symbol
 ```
 
-There is no flag for it. A terminal gets the same line with the level, the
-position, the rule and the symbol in colour, and a pipe, a file or a CI log
-gets it plain, which `render.IsTerminal` decides by asking whether the writer
-is an `*os.File` on a character device. `TERM=dumb` counts as not a terminal,
-which is what a pager or an editor sets when it wants plain text. `ERROR` is
-red, `WARN` amber and `INFO` teal, the position is teal, the rule grey and the
-symbol violet; the message carries none, because it is the line a reader stops
-on.
+`ERROR` is an `::error`, `WARN` a `::warning` and everything below it a
+`::notice`, which is the three GitHub has. A rule reporting a block of lines
+sets `Position.EndLine` and the command carries `endLine`, so the annotation
+marks the block rather than the line it opens on. The message escapes `%`, CR
+and LF, and a property escapes those and `:` and `,`, which is what
+`@actions/core` does.
+
+Nothing else in a log becomes an annotation on its own: a compiler shaped line
+does it only where a
+[problem matcher](https://github.com/actions/toolkit/blob/main/docs/problem-matchers.md)
+was registered for it. GitHub shows ten warnings and ten errors per step and
+fifty annotations per job and drops the rest silently, so the exit code is what
+a gate reads, not the count of annotations.
 
 `--json` writes the findings as data instead, which is the same run with the
 rendering skipped, and `--yaml` writes the same thing the way a document is
@@ -425,19 +452,19 @@ splint --linters modcheck -stats --offline ./...   # 0.6s, asks nobody
 | `unused`  | warn     | a requirement no file imports                                                                                      |
 | `majors`  | warn     | two majors of one module required together, which link both and whose types do not satisfy each other's interfaces |
 | `thin`    | info     | a dependency reached from one file through one symbol, and not imported for its side effect anywhere               |
-| `blank`   | warn     | a blank import in a file other than main.go or main_test.go                                                        |
+| `blank`   | warn     | a blank import in a file that wires no binary: not a program, not a test                                           |
 
 A blank import runs the package's init and reaches no symbol. What it does is
 decided by which packages the binary links: a driver registers itself with
-`database/sql`, `net/http/pprof` mounts handlers on the default mux. main.go
-and main_test.go are where a program and a test binary are wired, and `TestMain`
-is the entry point of the second. A blank import in any other file is reported,
-and the finding names that file rather than the go.mod the other four rules
-name. One row of it:
+`database/sql`, `net/http/pprof` mounts handlers on the default mux. A program
+decides that for itself, and so does a test binary, so every file of package
+main and every test file may carry one. A library carrying one decides it for
+every consumer, which is what is reported, and the finding names the file it is
+in rather than the go.mod the other four rules name.
 
-| Position              | Severity | Rule           | Symbol              | Message                                                                      |
-|-----------------------|----------|----------------|---------------------|------------------------------------------------------------------------------|
-| server/server_test.go | WARN     | modcheck/blank | example.com/drivers | example.com/drivers is imported for its side effect from server_test.go, ... |
+```
+::warning file=server/handler.go,title=modcheck/blank::example.com/drivers - example.com/drivers is imported for its side effect from handler.go, which wires no binary: what a program links is decided by the program
+```
 
 Two are left alone: a package belonging to the tree being read, and `embed`.
 Where a project puts its own registrations is its own arrangement, and a blank

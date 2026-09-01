@@ -52,9 +52,9 @@ func TestRunReportsTheFixture(t *testing.T) {
 	if code != exitFound {
 		t.Errorf("run() exited %d, want %d: a fixture that fails checks has to fail them", code, exitFound)
 	}
-	// One line per finding, opening on the level and naming the file the way
-	// a compiler does.
-	if !strings.Contains(got, "WARN: undocumented.go:9: godoc/missing: Undocumented - ") {
+	// Redirected output is for a program: one workflow command per finding,
+	// which is what GitHub Actions turns into an annotation on a review.
+	if !strings.Contains(got, "::warning file=undocumented.go,line=9,title=godoc/missing::Undocumented - ") {
 		t.Fatalf("run() wrote no findings:\n%s", got)
 	}
 	if strings.Contains(got, "\033") {
