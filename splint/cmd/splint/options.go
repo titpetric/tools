@@ -32,6 +32,10 @@ type config struct {
 	schema bool
 	stats  bool
 
+	// offline keeps the run off the network. What a module weighs is then
+	// read from the size cache alone.
+	offline bool
+
 	// stripPrefix are package prefixes to take off a schema definition name.
 	stripPrefix []string
 
@@ -61,6 +65,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to a file")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
 	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
+	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
 	fs.StringVar(&strip, "strip-prefix", "", "package prefixes to strip from schema names, comma separated")
 	fs.StringVar(&selected, "linters", "", "linters to run, comma separated ("+strings.Join(linters.Names(), ", ")+")")
 	fs.StringVar(&cfg.format, "format", "auto", "output format: auto, markdown, terminal or github")
@@ -124,6 +129,7 @@ Options:
   -output FILE        write the parsed document to a .json or .yml file
   -schema             write the document as a JSON Schema instead of linting
   -stats              write what the linters measured, one table each
+  -offline            do not ask the module proxy, read the sizes from cache
   -strip-prefix LIST  package prefixes to strip from schema names
   -linters LIST       comma separated: %s
   -format NAME        auto, markdown, terminal or github (default auto)

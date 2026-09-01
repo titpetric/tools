@@ -101,8 +101,12 @@ func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[stri
 		}
 	}
 
-	for path, info := range proxy.LookupAll(ctx, r.unasked()) {
-		r.sizes[path+"@"+info.Version] = info.Size
+	// The versions go.sum records are asked one question and not four: what a
+	// copy of the source weighs. When it was published and what it requires
+	// say nothing about that.
+	unasked := r.unasked()
+	for path, size := range proxy.SizeAll(ctx, unasked) {
+		r.sizes[path+"@"+unasked[path]] = size
 	}
 
 	reach(deps)
@@ -141,6 +145,19 @@ func (r *Results) unasked() map[string]string {
 // nobody pays; what is worth knowing is how much of the build list is here
 // because of one requirement.
 func reach(deps map[string]*Dependency) {
+	// A run that asked nobody knows nothing about the graph, and a reach of
+	// nothing is a measurement rather than an absence. It is left blank.
+	answered := false
+	for _, dep := range deps {
+		if len(dep.requires) > 0 {
+			answered = true
+			break
+		}
+	}
+	if !answered {
+		return
+	}
+
 	for path, dep := range deps {
 		seen := map[string]bool{path: true}
 		queue := append([]string(nil), dep.requires...)
@@ -234,7 +251,7 @@ func (r Results) dependencies(deps []*Dependency) model.Statistics {
 			dep.Path,
 			dep.Version,
 			bytes(dep.Size),
-			strconv.Itoa(dep.Reach),
+			reached(dep.Reach, dep.Weight),
 			bytes(dep.Weight),
 			strconv.Itoa(dep.Files),
 			strconv.Itoa(dep.Packages),
@@ -297,6 +314,16 @@ func repeatedFooter(modules, linked int, overhead int64) string {
 		out += ", " + bytes(overhead) + " of it linked twice or more"
 	}
 	return out + "."
+}
+
+// reached renders how many modules a dependency brings with it, and reads as
+// nothing where the graph was not read: a run that asked nobody reports no
+// reach rather than a reach of nothing.
+func reached(count int, weight int64) string {
+	if weight == 0 {
+		return "-"
+	}
+	return strconv.Itoa(count)
 }
 
 // footer is the one line a reader takes away. The size is left out when the

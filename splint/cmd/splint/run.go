@@ -9,6 +9,7 @@ import (
 	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
 	"github.com/titpetric/tools/splint/linters"
+	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/render"
@@ -38,6 +39,10 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 	selected, unknown := linters.Named(cfg.linters...)
 	if len(unknown) > 0 {
 		return 0, fmt.Errorf("no such linter: %s (have %s)", strings.Join(unknown, ", "), strings.Join(linters.Names(), ", "))
+	}
+
+	if cfg.offline {
+		offline(selected)
 	}
 
 	root, err := document(ctx, cfg)
@@ -108,4 +113,17 @@ func parserFor(cfg *config) (splint.Parser, error) {
 		return simpleparser.New(cfg.options), nil
 	}
 	return nil, fmt.Errorf("no such parser: %s (have %s, %s)", cfg.parser, analyzer.ParserName, simpleparser.ParserName)
+}
+
+// offline takes the linters off the network. modcheck is the one that reaches
+// it, and what it asks about a module is a size, which the cache holds from
+// the runs that did ask.
+func offline(selected []model.Linter) {
+	for _, linter := range selected {
+		module, ok := linter.(*modcheck.Linter)
+		if !ok || module.Proxy == nil {
+			continue
+		}
+		module.Proxy.Offline = true
+	}
 }

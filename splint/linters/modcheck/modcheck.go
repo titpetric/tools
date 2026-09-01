@@ -85,6 +85,14 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 	report(&results, catalogue, usage)
 	blanks(&results, root, catalogue)
+
+	// Everything the proxy was asked is known by here, so the sizes it
+	// answered with are written once rather than per module. A cache that
+	// cannot be written is not a failure of the report.
+	if l.Proxy != nil {
+		_ = l.Proxy.Flush()
+	}
+
 	return results, nil
 }
 

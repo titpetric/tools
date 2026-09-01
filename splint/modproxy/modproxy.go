@@ -88,6 +88,16 @@ type Client struct {
 	// the person building it.
 	Private []string
 
+	// Sizes is what module versions weigh, kept between runs. A client
+	// without one asks the proxy every time.
+	Sizes *Cache
+
+	// Offline keeps the client off the network. What the cache holds is still
+	// answered, and a version it does not hold is answered by the size of the
+	// module it belongs to, so a report is drawn from what earlier runs
+	// learned rather than from nothing.
+	Offline bool
+
 	mu    sync.Mutex
 	known map[string]Info
 }
@@ -103,8 +113,16 @@ func New() *Client {
 		Proxy:   proxyFromEnv(),
 		HTTP:    &http.Client{Timeout: 10 * time.Second},
 		Private: privateFromEnv(),
+		Sizes:   OpenCache(DefaultCachePath()),
 		known:   map[string]Info{},
 	}
+}
+
+// Flush writes what was learned about module sizes, and is what a caller does
+// when it has finished asking. A cache that cannot be written is not a failure
+// of the report it was gathered for.
+func (c *Client) Flush() error {
+	return c.Sizes.Save()
 }
 
 // Lookup asks about one module version.
@@ -121,6 +139,11 @@ func (c *Client) Lookup(ctx context.Context, path, version string) Info {
 	info := c.ask(ctx, path, version)
 
 	c.mu.Lock()
+	// The map is filled here rather than in New, so a client written out as a
+	// literal is a client that works.
+	if c.known == nil {
+		c.known = map[string]Info{}
+	}
 	c.known[key] = info
 	c.mu.Unlock()
 
@@ -131,12 +154,58 @@ func (c *Client) Lookup(ctx context.Context, path, version string) Info {
 // tree of thirty dependencies asked about one at a time is thirty round trips
 // end to end.
 func (c *Client) LookupAll(ctx context.Context, modules map[string]string) map[string]Info {
+	return each(ctx, modules, c.Lookup)
+}
+
+// SizeAll is what a set of module versions weigh, and nothing else about them.
+//
+// It is one question rather than four. A version go.sum records the source of
+// is asked about to put a number on a copy the build downloads, and when it
+// was published or what it requires says nothing about that.
+func (c *Client) SizeAll(ctx context.Context, modules map[string]string) map[string]int64 {
+	return each(ctx, modules, c.SizeOf)
+}
+
+// SizeOf is what one version weighs, from the cache where it is known and from
+// the proxy where it is not.
+func (c *Client) SizeOf(ctx context.Context, path, version string) int64 {
+	if size, known := c.Sizes.Size(path, version); known {
+		return size
+	}
+
+	if c.Offline || c.Proxy == "" || c.private(path) {
+		return 0
+	}
+	escaped, err := escapePath(path)
+	if err != nil {
+		return 0
+	}
+
+	size, err := c.size(ctx, escaped, version)
+	if err != nil {
+		return 0
+	}
+
+	c.Sizes.Add(path, version, size)
+	return size
+}
+
+// each asks one question of every module, a few at a time.
+//
+// The answers are keyed by the module asked about rather than by the answer,
+// so a question that could not be answered is still an entry: a caller reading
+// the map gets the zero value and knows it asked.
+func each[T any](ctx context.Context, modules map[string]string, ask func(context.Context, string, string) T) map[string]T {
 	const workers = 8
 
 	type question struct{ path, version string }
+	type answer struct {
+		path string
+		of   T
+	}
 
 	queue := make(chan question)
-	out := make(chan Info)
+	out := make(chan answer)
 
 	var wg sync.WaitGroup
 	for range workers {
@@ -144,7 +213,7 @@ func (c *Client) LookupAll(ctx context.Context, modules map[string]string) map[s
 		go func() {
 			defer wg.Done()
 			for q := range queue {
-				out <- c.Lookup(ctx, q.path, q.version)
+				out <- answer{path: q.path, of: ask(ctx, q.path, q.version)}
 			}
 		}()
 	}
@@ -158,19 +227,26 @@ func (c *Client) LookupAll(ctx context.Context, modules map[string]string) map[s
 		close(out)
 	}()
 
-	answers := make(map[string]Info, len(modules))
-	for info := range out {
-		answers[info.Path] = info
+	answers := make(map[string]T, len(modules))
+	for one := range out {
+		answers[one.path] = one.of
 	}
 	return answers
 }
 
-// ask is one module's three questions.
+// ask is what the proxy knows about one module version: the size from the
+// cache or the proxy, and the rest from the proxy alone.
 func (c *Client) ask(ctx context.Context, path, version string) Info {
 	info := Info{Path: path, Version: version}
 
-	if c.Proxy == "" || c.private(path) {
-		info.Err = "not asked: the module is private or no proxy is configured"
+	// A size the cache holds is a size nobody has to be asked for, and it is
+	// what an offline run reports from.
+	if size, known := c.Sizes.Size(path, version); known {
+		info.Size = size
+	}
+
+	if c.Offline || c.Proxy == "" || c.private(path) {
+		info.Err = "not asked: the run is offline, the module is private, or no proxy is configured"
 		return info
 	}
 
@@ -180,10 +256,13 @@ func (c *Client) ask(ctx context.Context, path, version string) Info {
 		return info
 	}
 
-	if size, err := c.size(ctx, escaped, version); err != nil {
-		info.Err = err.Error()
-	} else {
-		info.Size = size
+	if info.Size == 0 {
+		if size, err := c.size(ctx, escaped, version); err != nil {
+			info.Err = err.Error()
+		} else {
+			info.Size = size
+			c.Sizes.Add(path, version, size)
+		}
 	}
 
 	if published, err := c.published(ctx, escaped, version); err == nil {
@@ -284,6 +363,10 @@ func (c *Client) json(ctx context.Context, url string, into any) error {
 
 // do makes one request and refuses anything that is not an answer.
 func (c *Client) do(ctx context.Context, method, url string) (*http.Response, error) {
+	if c.Offline {
+		return nil, fmt.Errorf("the run is offline")
+	}
+
 	request, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ import (
 
 	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/modproxy"
 )
 
 // lint runs the linter with no proxy, so the coupling is measured and nothing
@@ -263,7 +264,10 @@ func TestLinter_LintBlank(t *testing.T) {
 // fakeProxy answers the four questions a lookup asks. Every module weighs a
 // thousand bytes, and the one named deep requires thin, so the reach of a
 // dependency is something a test can count.
-func fakeProxy(t *testing.T) {
+//
+// The client it returns caches nowhere: a test does not write to the cache the
+// machine it runs on keeps.
+func fakeProxy(t *testing.T) *modproxy.Client {
 	t.Helper()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -285,16 +289,16 @@ func fakeProxy(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GOPROXY", server.URL)
+	return &modproxy.Client{Proxy: server.URL, HTTP: server.Client(), Sizes: modproxy.OpenCache("")}
 }
 
 // TestLinter_LintReach covers what a dependency brings in behind it. A go.mod
 // records what the build resolved to and not which requirement asked for what,
 // so the graph is read one dependency's go.mod at a time.
 func TestLinter_LintReach(t *testing.T) {
-	fakeProxy(t)
+	linter := &modcheck.Linter{Proxy: fakeProxy(t)}
 
-	report, err := modcheck.New().Lint(context.Background(), document())
+	report, err := linter.Lint(context.Background(), document())
 	if err != nil {
 		t.Fatalf("Lint() error = %v", err)
 	}
