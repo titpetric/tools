@@ -45,7 +45,7 @@ const budget = 0.001
 // a func, of a type and of a package alike.
 var allowed = map[string]string{
 	"Module.Sums":          "go-fsck reads the go.mod and not the go.sum beside it, so its documents record no versions",
-	"SelfContained":        "go-fsck records whether a type names another type, which splint reads out of the globals instead",
+	"SelfContained":        "a go-fsck built before the field went records whether a type names another type, which splint reads out of the globals instead",
 	"Complexity.Cognitive": "gocognit weights a branch by how deeply it nests in the syntax tree, which a line scan has none of",
 	"Complexity.Cyclomatic": "gocyclo counts the branch nodes of a tree, and a line scan counts the keywords " +
 		"that produce them, which part company inside a composite literal",
@@ -247,11 +247,16 @@ func normalise(path string, a, b any) (any, any) {
 	}
 
 	if strings.HasSuffix(path, ".Globals") {
-		// splint records every package level name a declaration reaches and
-		// go-fsck records the selectors of a function body that are not
-		// imports, so the two fill one field from different questions. The
-		// references beside it are collected the same way on both sides and
-		// are compared.
+		// The globals are where the two parsers part company on purpose: the
+		// ast parser resolves a name against the package scope and the line
+		// scanner decides from what the file declares and what the body
+		// binds. The second over-reports a local it did not see bound and
+		// misses a composite literal key, at a few percent of the names.
+		//
+		// A reader of the field resolves the names against what the package
+		// declares, which is what keeps the difference from mattering, and is
+		// why it is not counted here. The references beside it are collected
+		// the same way on both sides and are compared.
 		return nil, nil
 	}
 
