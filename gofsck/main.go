@@ -23,14 +23,21 @@ import (
 )
 
 var (
-	outputFile = flag.String("output", "", "Write report to file (empty = stdout)")
-	format     = flag.String("format", "text", "Output format: text, json, or yaml")
+	outputFile = flag.String("output", "", "Write report to `FILE` (empty = stdout)")
+	format     = flag.String("format", "text", "Output `FORMAT`: text, json, or yaml")
 	useChecker = flag.Bool("checker", false, "Use singlechecker mode (for linter integration)")
 
 	skipGenerated = flag.Bool("skip-generated", false, "Skip generated files (// Code generated ... DO NOT EDIT.)")
 )
 
 func main() {
+	// -h and --help are not flags of this set, so the flag package calls the
+	// usage function and exits 0. The page is what it calls, which is why the
+	// defaults are never printed.
+	flag.CommandLine.Usage = func() {
+		_ = writeHelp(os.Stdout, helpSpec(flag.CommandLine))
+	}
+
 	flag.Parse()
 
 	// If using checker mode, run with singlechecker (runs all analyzers)
@@ -96,6 +103,53 @@ func main() {
 		fmt.Printf("Report written to %s\n", *outputFile)
 	} else {
 		fmt.Println(output)
+	}
+}
+
+// helpSpec is the page the command prints.
+//
+// The six analyzers are not subcommands and there is no flag that selects one,
+// so they are described rather than listed as commands.
+func helpSpec(fs *flag.FlagSet) spec {
+	return spec{
+		Name:    "gofsck",
+		Tagline: "a structure check over Go packages, and a report of what it found",
+		Usage: []string{
+			"gofsck [flags] [packages]",
+		},
+		Description: `The arguments are package patterns as the go tool spells them: "." for the
+package in the working directory and "./..." for everything below it. A run
+given no arguments reads ".".
+
+One run loads the named packages once and puts six analyzers over them. They
+are not selectable, and the report holds a section for each.
+
+- pairing: every source file against its test file, and the ones left standing
+  alone on either side
+- coverage: the exported symbols against the test names that would cover them,
+  and the test each uncovered symbol wants
+- grouping: whether an exported symbol sits in the file its name asks for, so
+  that ServiceDiscovery is in service_discovery.go
+- wraphandler: whether an exported HTTP handler has the unexported wrapper
+  beside it that returns an error
+- filecheck: the weight of the tree by file size, a histogram per extension and
+  one rating for the share the large files hold
+- visibility: what a package exports against what it keeps, and how much of the
+  package the internal bodies occupy`,
+		Flags: fs,
+		Examples: []example{
+			{"gofsck ./...", "run the six over the whole module, and write the report as text"},
+			{"gofsck ./pkg/mypackage", "one package rather than the tree"},
+			{"gofsck -format json ./...", "the same report as JSON, for a program to read"},
+			{"gofsck -format yaml -output report.yaml ./...", "write the report to a file instead of stdout"},
+			{"gofsck -skip-generated ./...", "leave out the generated files, which nobody organized by hand"},
+		},
+		Notes: `-checker hands the grouping analyzer to singlechecker, which is what a
+golangci-lint plugin loads. The other five read package data rather than a
+syntax tree, and do not run in that mode.
+
+The exit status does not say what the analyzers found: it is 0 unless the run
+itself failed.`,
 	}
 }
 
