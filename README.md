@@ -10,6 +10,16 @@ A workspace overview tool for Go module and git workspaces. Displays module depe
 go install github.com/titpetric/tools/worktree@main
 ```
 
+### [splint](splint/)
+
+A data model of Go source, two parsers that fill it, and twelve linters over the top. The model imports no third party package, so a linter written against it links neither `go/ast` nor `x/tools`; one parser reads through `go/ast` and the other reads bytes, an order of magnitude quicker and tolerant of source that does not compile.
+
+The six gofsck analyzers are reimplemented here against the model, alongside checks for godoc, import collisions, argument and return order, module dependencies, and what a file needs from the rest of its package.
+
+```
+go install github.com/titpetric/tools/splint/cmd/splint@latest
+```
+
 ### [gofsck](gofsck/)
 
 A Go filesystem check tool with modular analyzers for package structure validation. Provides six analyzers:

@@ -25,12 +25,13 @@ go install github.com/titpetric/tools/splint/cmd/splint@latest
 splint ./...                          # lint everything below here
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
-splint --linters godoc,imports ./...  # run two of the eleven
+splint --linters godoc,imports ./...  # run two of the twelve
 splint --output model.json ./...      # keep the document the linters read
 splint --input model.json             # lint a document read back from a file
 splint --format github ./...          # one line per issue, for a CI log
 splint --schema ./...                 # write the tree as a JSON Schema
 splint -stats ./...                   # what the linters measured, not what they found
+splint --offline ./...                # never ask the module proxy
 ```
 
 The exit code is 0 for a clean run, 1 when a linter reported something, and 2
@@ -112,16 +113,20 @@ benchmark inside the process does.
 
 ```
 project           files  astparser     simple    ratio
-cli                   6      130ms        5ms    24.9x
-oida                132      488ms       24ms    20.3x
-atkins              276     1.897s       59ms    31.9x
-phpscript           318     3.543s       81ms    43.5x
-total                      14.459s      467ms    30.9x
+cli                   6      131ms        5ms    25.5x
+oida                132      671ms       38ms    17.7x
+atkins              276     2.523s      112ms    22.5x
+phpscript           319     5.573s      138ms    40.5x
+total                      18.999s      697ms    27.3x
 ```
 
-Sixteen repositories, 1,778 Go files: 14.459s for the ast parser and 467ms for
+Sixteen repositories, 1,843 Go files: 18.999s for the ast parser and 697ms for
 the line scan. The ratio rises with the size of the tree. The ast parser
 resolves a package against everything it imports; a line scan does not.
+
+One linter runs in the timing, not all of them. `modcheck` asks the module
+proxy about every dependency, which is a round trip per module and longer than
+either parser takes.
 
 ### Profile
 
@@ -278,6 +283,12 @@ Add it to `linters.All()` and it runs. A linter never touches disk and never
 parses anything: everything it needs is in the document, so the same rule runs
 over a tree either parser read and over one loaded from a file.
 
+A linter does not read `Declaration.Source` either. A rule is a question about
+the model, and a rule that has to read the text is a field the model is
+missing: add the field to the parsers, both of them, and read that. The source
+is in the document for consumers that are not linters, a browser or an analysis
+that walks branches, and `splint ./...` does not keep it.
+
 An issue carries an `slog.Level` for its severity, a position that reads
 `package: file.go:line`, the linter and rule it came from, and an `Attrs` map
 for anything else the rule has to say. The map is what keeps the schema from
@@ -304,8 +315,9 @@ heading.
 `testdata/` is a module of its own holding code that fails every check on
 purpose: a file with no test beside it, an exported symbol with no doc, a
 handler with no wrapper, symbols in files not named for them, two files
-reaching different modules as `model`, a blank import outside main.go, a
-function taking `(time.Duration, string)` and one returning `(error, *User)`.
+reaching different modules as `model`, a blank import outside main.go, a file
+whose every symbol reaches the file beside it, a function taking
+`(time.Duration, string)` and one returning `(error, *User)`.
 
 Every parser skips `testdata`, `vendor`, `node_modules` and anything opening on
 a dot or an underscore, so nothing reads it by accident. It is reached by being
@@ -321,29 +333,31 @@ was handed would read nothing at all.
 
 ## The linters
 
-Eleven of them. Five were written here; six came from gofsck, reimplemented
+Twelve of them. Six were written here; six came from gofsck, reimplemented
 against the model rather than translated from its AST walk.
 
-| Name           | What it reports                                                                                                                                                                                          | What it measures                                                                                     |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `godoc`        | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, and one long enough to say the symbol does too much                     | documented against exported, per package                                                             |
-| `imports`      | two files of one package reaching different modules under the same short name, which compiles and reads as though they agree                                                                             | import names and collisions, per package                                                             |
-| `func-args`    | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct | funcs considered against passing                                                                     |
-| `func-returns` | a function returning an error or a bool before the value it qualifies                                                                                                                                    | funcs considered against passing                                                                     |
-| `pairing`      | a file with no test named after it                                                                                                                                                                       | files, tests, paired and standalone, per package                                                     |
-| `coverage`     | an exported symbol no test is named for                                                                                                                                                                  | covered against exported, and the constructors, per package                                          |
-| `grouping`     | an exported symbol in a file not named for it                                                                                                                                                            | symbols passing, per package                                                                         |
-| `wraphandler`  | an exported HTTP handler with no unexported function behind it, so only a server can call it                                                                                                             | handlers wrapped, per package                                                                        |
-| `filecheck`    | a file long enough to be doing more than one thing                                                                                                                                                       | line counts and their spread, **per file**                                                           |
-| `visibility`   | nothing                                                                                                                                                                                                  | exported against internal, and the share of a package its private half occupies                      |
-| `modcheck`     | five module rules, listed below                                                                                                                                                                          | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records |
+| Name            | What it reports                                                                                                                                                                                          | What it measures                                                                                                                                            |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `godoc`         | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, and one long enough to say the symbol does too much                     | documented against exported, per package                                                                                                                    |
+| `imports`       | two files of one package reaching different modules under the same short name, which compiles and reads as though they agree                                                                             | import names and collisions, per package                                                                                                                    |
+| `func-args`     | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct | funcs considered against passing                                                                                                                            |
+| `func-returns`  | a function returning an error or a bool before the value it qualifies                                                                                                                                    | funcs considered against passing                                                                                                                            |
+| `pairing`       | a file with no test named after it                                                                                                                                                                       | files, tests, paired and standalone, per package                                                                                                            |
+| `coverage`      | an exported symbol no test is named for                                                                                                                                                                  | covered against exported, and the constructors, per package                                                                                                 |
+| `grouping`      | an exported symbol in a file not named for it                                                                                                                                                            | symbols passing, per package                                                                                                                                |
+| `wraphandler`   | an exported HTTP handler with no unexported function behind it, so only a server can call it                                                                                                             | handlers wrapped, per package                                                                                                                               |
+| `filecheck`     | a file long enough to be doing more than one thing                                                                                                                                                       | line counts and their spread, **per file**                                                                                                                  |
+| `visibility`    | nothing                                                                                                                                                                                                  | exported against internal, and the share of a package its private half occupies                                                                             |
+| `selfcontained` | nothing                                                                                                                                                                                                  | what a file needs from the rest of its package: symbols, types and funcs reaching nothing outside the file they are in, and the share that do, **per file** |
+| `modcheck`      | five module rules, listed below                                                                                                                                                                          | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records                                                        |
 
 `func-args` considers a function taking exactly two arguments. The order of one
 pair is unambiguous; for three or more the expected order is a heuristic sort.
 
-`visibility` reports no issues at all, which the interface allows: an empty
-report and a table. The counts are reported and not judged. A parser is mostly
-private and a data model mostly not.
+`visibility` and `selfcontained` report no issues at all, which the interface
+allows: an empty report and a table. The counts are reported and not judged. A
+parser is mostly private and a data model mostly not, and a package written as
+one unit across several files is as legitimate as one written as several.
 
 ## modcheck
 
@@ -357,6 +371,39 @@ reports the columns that come out of the document and leaves the rest blank.
 
 It replaces the audit output of
 [modcheck](https://github.com/titpetric/exp/tree/main/cmd/modcheck).
+
+### The size cache
+
+A module version is immutable, so what it weighs is a fact that does not
+expire. The sizes are kept in `~/.cache/splint/sizes.yml`, under the cache
+directory the machine names, and written once when the linter has finished
+asking rather than per module:
+
+```yaml
+github.com/a-h/templ:
+    size: 1961490
+    versions:
+        v0.3.1020: 1961490
+```
+
+`size` is the mean of the versions below it, and is what a version the file
+does not hold is answered with. A module is much the same size from one release
+to the next, so an answer within a few percent of the truth costs a round trip
+less than the truth does.
+
+The file is written beside itself and renamed over the old one, and what was
+written is read back before the rename: a cache that does not parse is one the
+next run would throw away, and throwing it away here costs nobody anything.
+
+`--offline` asks nobody. The sizes come from the cache alone, and the columns
+only the proxy can answer, the reach of a dependency and how far behind it is,
+are left blank rather than reported as nothing. One run fills the cache and
+every run after it can be offline.
+
+```
+splint --linters modcheck -stats ./...             # 3.1s cold, 1.8s with the sizes cached
+splint --linters modcheck -stats --offline ./...   # 0.6s, asks nobody
+```
 
 ### The rules
 
@@ -376,9 +423,9 @@ is the entry point of the second. A blank import in any other file is reported,
 and the finding names that file rather than the go.mod the other four rules
 name. One row of it:
 
-| Position              | Severity | Rule           | Symbol                | Message                                                                      |
-|-----------------------|----------|----------------|-----------------------|------------------------------------------------------------------------------|
-| server/server_test.go | WARN     | modcheck/blank | example.com/drivers   | example.com/drivers is imported for its side effect from server_test.go, ... |
+| Position              | Severity | Rule           | Symbol              | Message                                                                      |
+|-----------------------|----------|----------------|---------------------|------------------------------------------------------------------------------|
+| server/server_test.go | WARN     | modcheck/blank | example.com/drivers | example.com/drivers is imported for its side effect from server_test.go, ... |
 
 Two are left alone: a package belonging to the tree being read, and `embed`.
 Where a project puts its own registrations is its own arrangement, and a blank
@@ -390,12 +437,12 @@ Size is one column. The others are how far the dependency reaches into the tree
 and how much of the build list it brings with it. Four rows of one run over
 etl:
 
-| Import                    | Version  | Size     | Deps | Total    | Files | Pkgs | Symbols | Kind   | Behind |
-|---------------------------|----------|----------|------|----------|-------|------|---------|--------|--------|
-| github.com/expr-lang/expr | v1.17.8  | 2.0 MB   | 0    | 2.0 MB   | 1     | 1    | 2       | direct |        |
-| github.com/go-bridget/mig | v0.6.1   | 107.9 KB | 30   | 57.8 MB  | 4     | 4    | 2       | direct |        |
-| github.com/jmoiron/sqlx   | v1.4.0   | 64.6 KB  | 3    | 449.0 KB | 12    | 8    | 2       | direct |        |
-| modernc.org/sqlite        | v1.57.0  | 22.7 MB  | 13   | 54.4 MB  | 3     | 3    | 0       | direct |        |
+| Import                    | Version | Size     | Deps | Total    | Files | Pkgs | Symbols | Kind   | Behind |
+|---------------------------|---------|----------|------|----------|-------|------|---------|--------|--------|
+| github.com/expr-lang/expr | v1.17.8 | 2.0 MB   | 0    | 2.0 MB   | 1     | 1    | 2       | direct |        |
+| github.com/go-bridget/mig | v0.6.1  | 107.9 KB | 30   | 57.8 MB  | 4     | 4    | 2       | direct |        |
+| github.com/jmoiron/sqlx   | v1.4.0  | 64.6 KB  | 3    | 449.0 KB | 12    | 8    | 2       | direct |        |
+| modernc.org/sqlite        | v1.57.0 | 22.7 MB  | 13   | 54.4 MB  | 3     | 3    | 0       | direct |        |
 
 What each column counts:
 
@@ -438,6 +485,55 @@ version go.sum records of any of them, `Linked` names the ones with a hash of
 their source, `Size` adds those up, and `Overhead` is every linked copy past
 the largest.
 
+## selfcontained
+
+A declaration that reaches only the imports of its own file and what is
+declared beside it in that file is extractable: everything it is built from is
+in one place, which is what `go build one_file.go` asks for. One that reaches a
+name declared in another file of the package is not, and the file it is in does
+not move without the other file.
+
+The measure reads `Declaration.Globals`, which is what a parse recorded of the
+names a declaration reached that its own file neither declares nor binds. A
+name the package declares in another file is a reach; a name the package does
+not declare at all is a local the parse did not see bound, and it counts as
+nothing. That is the fuzz in the measure, and it is why the two parsers do not
+give quite the same figure: over oida they report 170 and 168 coupled symbols
+of 496.
+
+A package of one file is left out, along with generated files. Test files are
+counted apart in a column of their own, because a test reaches what it tests
+and counting the two together reports every package as more coupled than it is.
+
+```
+| Package                                       | Files | Types | Types(s) | Funcs | Funcs(s) | Coupling | Tests  |
+|-----------------------------------------------|-------|-------|----------|-------|----------|----------|--------|
+| github.com/titpetric/tools/splint/gomod        | 3     | 1     | 1        | 13    | 12       | 7.1%     | 11.8%  |
+| github.com/titpetric/tools/splint/model        | 25    | 26    | 14       | 75    | 50       | 34.9%    | 94.4%  |
+| github.com/titpetric/tools/splint/schema       | 5     | 3     | 3        | 24    | 13       | 40.7%    | 0.0%   |
+| github.com/titpetric/tools/splint/simpleparser | 14    | 9     | 9        | 112   | 68       | 35.8%    | 100.0% |
+
+23 packages of two or more files, 117 files, 740 symbols, 217 reaching another file, 29.3%.
+```
+
+`Types(s)` and `Funcs(s)` are the ones reaching nothing outside their file.
+`Coupling` is the share of every symbol of the package, vars and consts
+included, that reaches another file, so a package of one type used everywhere
+beside it reads high.
+
+The second table is the one to act on: the files reaching furthest into the
+rest of their package, counted rather than shared, so a file of two symbols
+does not head it for having both of them coupled.
+
+```
+| File                              | Symbols | Coupled | Coupling | Test |
+|-----------------------------------|---------|---------|----------|------|
+| linters/funcargs/funcargs_test.go | 13      | 13      | 100.0%   | yes  |
+| schema/converter.go               | 9       | 9       | 100.0%   |      |
+| simpleparser/scan.go              | 12      | 9       | 75.0%    |      |
+| linters/modcheck/result.go        | 18      | 8       | 44.4%    |      |
+```
+
 ## Statistics
 
 Every linter reports what it measured as well as what it found, because a check
@@ -448,10 +544,10 @@ summarising it. What `godoc` measured over the fixture:
 
 Documentation of every exported symbol, by package.
 
-| Package                            | Exported | Documented | Share  | Missing | Format | Verbose |
-|------------------------------------|----------|------------|--------|---------|--------|---------|
-| example.com/fixture                | 5        | 2          | 40.0%  | 1       | 2      | 0       |
-| example.com/fixture/handler        | 2        | 2          | 100.0% | 0       | 0      | 0       |
+| Package                     | Exported | Documented | Share  | Missing | Format | Verbose |
+|-----------------------------|----------|------------|--------|---------|--------|---------|
+| example.com/fixture         | 5        | 2          | 40.0%  | 1       | 2      | 0       |
+| example.com/fixture/handler | 2        | 2          | 100.0% | 0       | 0      | 0       |
 
 14 of 18 exported symbols documented, 77.8%, 4 issues.
 
