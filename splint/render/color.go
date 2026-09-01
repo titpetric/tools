@@ -16,6 +16,11 @@ const (
 	colorGrey      = "\033[38;5;245m"
 	colorRed       = "\033[38;5;167m"
 
+	// colorSymbol is the name a finding is about. It is not in worktree's
+	// palette: nothing there names a symbol, and a name has to read apart from
+	// the position and the rule around it.
+	colorSymbol = "\033[38;5;141m"
+
 	// colorSection opens a section of a report. It is bold, and no table is
 	// drawn in it, so a heading is told apart from the column headings under
 	// it.

@@ -43,14 +43,14 @@ The report is one set of issues in three renderings, one per reader:
 
 | Rendering  | Reader                      | What it is                                             |
 |------------|-----------------------------|--------------------------------------------------------|
-| `terminal` | the operator watching a run | a drawn table, with the severity column in colour      |
+| `terminal` | the operator watching a run | one drawn box per finding, two lines in it             |
 | `markdown` | a PR comment, an artifact   | a padded markdown table, and the summary line above it |
 | `github`   | the CI log                  | one line per issue, in the shape a compiler writes     |
 
 `--format` names one and defaults to `auto`, under which the destination
 decides. `render.IsTerminal` asks whether the writer is an `*os.File` on a
-character device: stdout on a terminal gets the drawn table, and a pipe, a file
-or a CI log gets the markdown one. `TERM=dumb` counts as not a terminal, which
+character device: stdout on a terminal gets the boxes, and a pipe, a file or a
+CI log gets the markdown table. `TERM=dumb` counts as not a terminal, which
 is what a pager or an editor sets when it wants plain text.
 
 So `splint ./...` draws for whoever is watching and `splint ./... > REPORT.md`
@@ -68,9 +68,29 @@ The markdown rendering, which is what a redirect or a pipe produces:
 | serve_http.go:22                | WARN     | godoc/verbose | Tracer.ServeHTTP | godoc runs to 11 lines, which usually says the symbol does too much |
 | start_auto.go:20                | WARN     | godoc/verbose | StartAuto        | godoc runs to 11 lines, which usually says the symbol does too much |
 
-The terminal rendering is the same rows in a drawn box, with `ERROR` red,
-`WARN` amber and `INFO` teal. Severity is the only thing that carries colour,
-because severity is what a reader scanning a long report is looking for.
+The terminal rendering is one box per finding, a blank line apart, and two
+lines in each: where it is, and what is wrong. A message is a sentence and a
+position is a path, and a table of both is a table as wide as the terminal with
+one column of it worth reading.
+
+```
+4 issues from 1 linter: godoc 4.
+
+╭──────────────────────────────────────────────────────╮
+│ WARN undocumented.go:9 (godoc/missing)               │
+│ Undocumented - exported symbol lacks a godoc comment │
+╰──────────────────────────────────────────────────────╯
+
+╭──────────────────────────────────────────────────────────╮
+│ WARN undocumented.go:5 (godoc/format)                    │
+│ Thing - godoc should open on "Thing" and opens on "This" │
+╰──────────────────────────────────────────────────────────╯
+```
+
+`ERROR` is red, `WARN` amber and `INFO` teal, the position is teal, the rule is
+grey and the symbol is violet. The message carries no colour: it is the line a
+reader stops on, and everything around it is what they scanned to get there. A
+finding about a file rather than a symbol is the message on its own.
 
 Under `--format github` the same issues are one line each, in the form a
 compiler writes and GitHub Actions resolves against a checkout into an

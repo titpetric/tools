@@ -161,6 +161,8 @@ func TestIsTerminal(t *testing.T) {
 	}
 }
 
+// TestTerminalDraws covers the shape a finding is read in: one box each, two
+// lines, and a blank line between them.
 func TestTerminalDraws(t *testing.T) {
 	var out bytes.Buffer
 	if err := render.Terminal(&out, sample()); err != nil {
@@ -168,14 +170,110 @@ func TestTerminalDraws(t *testing.T) {
 	}
 
 	text := out.String()
-	// The columns are the same as the markdown table's, so the two renderings
-	// are one report and not two.
-	for _, header := range []string{"Position", "Severity", "Rule", "Symbol", "Message"} {
-		if !strings.Contains(text, header) {
-			t.Errorf("the drawn table has no %q column:\n%s", header, text)
+	if got := strings.Count(text, "╭"); got != 2 {
+		t.Errorf("drew %d boxes for two findings:\n%s", got, text)
+	}
+	if strings.Contains(text, "Position") || strings.Contains(text, "Severity") {
+		t.Errorf("the boxes carry column headings:\n%s", text)
+	}
+
+	// The first line is the level, the file and the rule; the second is the
+	// symbol and what is wrong with it.
+	plain := strip(text)
+	for _, want := range []string{
+		"WARN frontend/view/page.go:42 (godoc/missing)",
+		"Page - exported symbol lacks a godoc comment",
+		"ERROR model/trace.go:7 (godoc/format)",
+		"Trace - godoc should end in punctuation",
+	} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("no line reads %q:\n%s", want, plain)
 		}
 	}
-	if !strings.Contains(text, "model/trace.go:7") {
-		t.Errorf("the drawn table lost a position:\n%s", text)
+
+	// A blank line between the boxes, and none after the last.
+	if !strings.Contains(plain, "╯\n\n╭") {
+		t.Errorf("the boxes are not a line apart:\n%s", plain)
 	}
+	if strings.HasSuffix(plain, "\n\n") {
+		t.Errorf("the report ends on a blank line:\n%q", plain)
+	}
+}
+
+// TestTerminalPaints covers what carries colour: the level, the position, the
+// rule and the symbol, and not the message.
+func TestTerminalPaints(t *testing.T) {
+	var out bytes.Buffer
+	if err := render.Terminal(&out, sample()); err != nil {
+		t.Fatal(err)
+	}
+
+	text := out.String()
+	for name, want := range map[string]string{
+		"the level":   "\033[38;5;214mWARN",
+		"an error":    "\033[38;5;167mERROR",
+		"the file":    "\033[38;5;72mfrontend/view/page.go:42",
+		"the rule":    "\033[38;5;245m(godoc/missing)",
+		"the symbol":  "\033[38;5;141mPage",
+		"the message": "- exported symbol lacks a godoc comment",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("%s does not read as %q:\n%q", name, want, text)
+		}
+	}
+}
+
+// TestTerminalWithoutASymbol covers a finding about a file rather than about a
+// symbol: the second line is the message and nothing in front of it.
+func TestTerminalWithoutASymbol(t *testing.T) {
+	var out bytes.Buffer
+	found := report.New(results{name: "filecheck", issues: []model.Issue{{
+		Linter: "filecheck", Rule: "long", Severity: model.SeverityWarn,
+		Position: model.Position{File: "frontend/handler.go"},
+		Message:  "handler.go runs to 612 lines of code",
+	}}})
+
+	if err := render.Terminal(&out, found); err != nil {
+		t.Fatal(err)
+	}
+
+	plain := strip(out.String())
+	if !strings.Contains(plain, "WARN frontend/handler.go (filecheck/long)") {
+		t.Errorf("the first line reads wrong:\n%s", plain)
+	}
+	if !strings.Contains(plain, "│ handler.go runs to 612 lines of code") {
+		t.Errorf("the message is not on its own:\n%s", plain)
+	}
+}
+
+func TestTerminalOnACleanRun(t *testing.T) {
+	var out bytes.Buffer
+	if err := render.Terminal(&out, report.New(results{name: "godoc"})); err != nil {
+		t.Fatal(err)
+	}
+
+	plain := strip(out.String())
+	if strings.Contains(plain, "╭") {
+		t.Errorf("a clean run drew a box:\n%s", plain)
+	}
+	if !strings.Contains(plain, "godoc") || !strings.Contains(plain, "No issues") {
+		t.Errorf("Terminal() on a clean run = %q", plain)
+	}
+}
+
+// strip removes the escape codes, so a test can read what a reader reads.
+func strip(text string) string {
+	var out strings.Builder
+
+	for i := 0; i < len(text); i++ {
+		if text[i] != 0x1b {
+			out.WriteByte(text[i])
+			continue
+		}
+		for i < len(text) && text[i] != 'm' {
+			i++
+		}
+	}
+
+	return out.String()
 }

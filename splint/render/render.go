@@ -1,9 +1,10 @@
 // Package render writes what the linters found and what they measured.
 //
-// One issue always reads the same way, "path/file.go:12: linter: message",
-// which is the shape a compiler writes and GitHub Actions resolves against a
-// checkout. What changes is the frame around it: a terminal gets a drawn
-// table, and anything else gets a markdown one.
+// One issue always says the same things: where it is, which rule reported it,
+// which symbol it is about, and what is wrong. What changes is the frame
+// around them. A terminal gets a box per finding, two lines in it; a redirect
+// gets a markdown table; a CI log gets one line per issue, in the shape a
+// compiler writes and GitHub Actions resolves against a checkout.
 package render
 
 import (
