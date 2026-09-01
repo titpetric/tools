@@ -68,29 +68,31 @@ The markdown rendering, which is what a redirect or a pipe produces:
 | serve_http.go:22                | WARN     | godoc/verbose | Tracer.ServeHTTP | godoc runs to 11 lines, which usually says the symbol does too much |
 | start_auto.go:20                | WARN     | godoc/verbose | StartAuto        | godoc runs to 11 lines, which usually says the symbol does too much |
 
-The terminal rendering is one box per finding, a blank line apart, and two
-lines in each: where it is, and what is wrong. A message is a sentence and a
-position is a path, and a table of both is a table as wide as the terminal with
-one column of it worth reading.
+The terminal rendering is two lines per finding, a blank line apart: where it
+is, and what is wrong. A message is a sentence and a position is a path, and a
+table of both is a table as wide as the terminal with one column of it worth
+reading. Nothing is drawn around them either: a box is as wide as the longest
+line in it, so one long message widens the frame past the terminal and
+everything after it wraps.
 
 ```
 4 issues from 1 linter: godoc 4.
 
-╭──────────────────────────────────────────────────────╮
-│ WARN undocumented.go:9 (godoc/missing)               │
-│ Undocumented - exported symbol lacks a godoc comment │
-╰──────────────────────────────────────────────────────╯
+WARN undocumented.go:9 (godoc/missing)
+Undocumented - exported symbol lacks a godoc comment
 
-╭──────────────────────────────────────────────────────────╮
-│ WARN undocumented.go:5 (godoc/format)                    │
-│ Thing - godoc should open on "Thing" and opens on "This" │
-╰──────────────────────────────────────────────────────────╯
+WARN undocumented.go:5 (godoc/format)
+Thing - godoc should open on "Thing" and opens on "This"
 ```
 
 `ERROR` is red, `WARN` amber and `INFO` teal, the position is teal, the rule is
 grey and the symbol is violet. The message carries no colour: it is the line a
 reader stops on, and everything around it is what they scanned to get there. A
 finding about a file rather than a symbol is the message on its own.
+
+It is the github line with the severity and the symbol added and the line
+broken in two. `-stats` still draws its tables, because a table of numbers is a
+table.
 
 Under `--format github` the same issues are one line each, in the form a
 compiler writes and GitHub Actions resolves against a checkout into an
@@ -432,7 +434,7 @@ splint --linters modcheck -stats --offline ./...   # 0.6s, asks nobody
 | `replace` | error    | a replace directive, so what the build resolves to is not what the go.mod requires                                 |
 | `unused`  | warn     | a requirement no file imports                                                                                      |
 | `majors`  | warn     | two majors of one module required together, which link both and whose types do not satisfy each other's interfaces |
-| `thin`    | info     | a dependency reached from one file through one symbol                                                              |
+| `thin`    | info     | a dependency reached from one file through one symbol, and not imported for its side effect anywhere               |
 | `blank`   | warn     | a blank import in a file other than main.go or main_test.go                                                        |
 
 A blank import runs the package's init and reaches no symbol. What it does is
@@ -480,8 +482,10 @@ required by a dependency and resolved away by this build is not counted, and a
 module two dependencies both require counts for both: each row is what that one
 dependency brings, not a division of the total.
 
-A dependency with zero symbols and one file is imported for what it registers,
-which is how a database driver is imported, so `thin` does not report it.
+A dependency any file imports for its side effect is imported for what it
+registers, which is how a database driver is imported. A registration is not
+something a caller can inline, so how little of the rest is reached by name
+says nothing and `thin` does not report it.
 
 ### What go.sum records
 

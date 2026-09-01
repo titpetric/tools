@@ -282,11 +282,14 @@ func report(results *Results, catalogue *gomod.Catalogue, deps map[string]*Depen
 					dep.Path),
 			})
 
+		case dep.blank:
+			// A dependency some file imports for its side effect is imported
+			// for what it registers rather than for what it offers, which is
+			// how a database driver is meant to be imported. The registration
+			// is not something a caller can inline, so how little of it is
+			// reached by name says nothing.
+
 		case dep.Files == 1 && dep.Symbols == 1:
-			// A dependency reaching no symbol at all is imported for what it
-			// registers rather than for what it offers, which is how a
-			// database driver is meant to be imported. There is nothing to
-			// inline, so it is not reported.
 			results.add(Result{
 				Rule:     RuleThin,
 				Severity: model.SeverityInfo,

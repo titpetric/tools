@@ -56,6 +56,11 @@ type Dependency struct {
 	// testOnly reports a module no file outside the tests imports, which is a
 	// dependency a consumer of this module never links.
 	testOnly bool
+
+	// blank reports a module some file imports for its side effect. A
+	// registration is not a symbol and cannot be inlined, so a dependency
+	// carrying one is not thin however little of it is reached by name.
+	blank bool
 }
 
 // Kind is how a reader classifies the dependency at a glance.

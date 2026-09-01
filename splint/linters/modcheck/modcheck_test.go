@@ -201,6 +201,33 @@ func TestLinter_LintDriverImport(t *testing.T) {
 	}
 }
 
+// TestLinter_LintBlankImportIsNotThin covers the driver imported for its side
+// effect and reached by name as well: the registration cannot be inlined, so
+// how little of the rest is used says nothing.
+func TestLinter_LintBlankImportIsNotThin(t *testing.T) {
+	root := &model.DocumentRoot{
+		Modules: []*model.Module{{
+			Path:     "example.com/main",
+			Requires: []model.Require{{Path: "example.com/driver", Version: "v1.0.0"}},
+		}},
+		Packages: model.DefinitionList{{
+			Package: model.Package{Package: "main", ImportPath: "example.com/main", Path: "."},
+			Imports: model.StringSet{
+				"main.go": {`_ "example.com/driver"`},
+				"open.go": {`"example.com/driver"`},
+			},
+			Funcs: model.DeclarationList{{
+				Kind: model.FuncKind, Name: "Open", File: "open.go",
+				References: model.StringSet{"driver": {"Error"}},
+			}},
+		}},
+	}
+
+	if got := rules(lint(t, root))[modcheck.RuleThin]; got != 0 {
+		t.Errorf("thin = %d, want 0 for a dependency imported for its side effect", got)
+	}
+}
+
 // blanked is a module blank importing four packages: one from the file that
 // wires the program, one from the file that wires the test binary, one from a
 // package of its own, and one from a library file.
