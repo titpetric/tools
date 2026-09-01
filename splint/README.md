@@ -26,7 +26,8 @@ splint ./...                          # lint everything below here
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
-splint --output model.json ./...      # keep the document the linters read
+splint --save ./...                   # lint, and write the document to splint.json
+splint --output model.json ./...      # keep the document under another name
 splint --input model.json             # lint a document read back from a file
 splint ./... --json                   # the findings as JSON, no rendering
 splint ./... --yaml                   # the same, as YAML
@@ -38,6 +39,19 @@ splint --offline ./...                # never ask the module proxy
 A flag reads the same before the pattern or after it. The exit code is 0 for a
 clean run, 1 when a linter reported something, and 2 when the run itself
 failed, so a pipeline can tell a finding from a failure.
+
+`--save` writes the parsed document to `splint.json`, beside the tree it
+describes, and lints as it always did. A `splint.json` that is there is what a
+later run reads instead of parsing, which is what makes the second run quick:
+oida is 637ms parsed and 12ms read back. It is also what makes a stale file a
+stale report, so `--save` parses again and rewrites it, and `--input` names
+another file where one run should read something else. It is the document
+`go-fsck` reads, under a name splint writes.
+
+`splint --help` is a page rather than a list of flag defaults: what the tool
+is, how it is called, every flag with its default, and runs worth copying. A
+terminal gets it in colour and anything else gets it as markdown, which is
+what `splint --help > docs/splint.md` writes.
 
 ## Output
 

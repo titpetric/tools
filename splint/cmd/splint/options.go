@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/titpetric/tools/splint"
@@ -11,6 +13,11 @@ import (
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/simpleparser"
 )
+
+// saveFile is the document --save writes, and the one a later run reads
+// instead of parsing. It sits with the tree it describes, so a run reading
+// another tree reads the file of that tree.
+const saveFile = "splint.json"
 
 // config is what one run was asked for.
 type config struct {
@@ -47,6 +54,11 @@ type config struct {
 	json bool
 	yaml bool
 
+	// save writes the parsed document to splint.json beside the tree, and
+	// flags is the parser the help page is written from.
+	save  bool
+	flags *flag.FlagSet
+
 	help bool
 }
 
@@ -61,15 +73,16 @@ func parseOptions(args []string) (*config, error) {
 	var selected, strip string
 	fs := flag.NewFlagSet("splint", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&cfg.options.SourcePath, "i", cfg.options.SourcePath, "source path to read")
-	fs.StringVar(&cfg.parser, "parser", cfg.parser, "parser to read the tree with")
-	fs.StringVar(&cfg.input, "input", "", "read a document from a file instead of parsing")
-	fs.StringVar(&cfg.output, "output", "", "write the parsed document to a file")
+	fs.StringVar(&cfg.options.SourcePath, "i", cfg.options.SourcePath, "read the tree at `PATH`")
+	fs.StringVar(&cfg.parser, "parser", cfg.parser, "read the tree with `NAME`: "+analyzer.ParserName+" or "+simpleparser.ParserName)
+	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
+	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
+	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+", beside the tree it describes")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
 	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
 	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
-	fs.StringVar(&strip, "strip-prefix", "", "package prefixes to strip from schema names, comma separated")
-	fs.StringVar(&selected, "linters", "", "linters to run, comma separated ("+strings.Join(linters.Names(), ", ")+")")
+	fs.StringVar(&strip, "strip-prefix", "", "strip the package prefixes in `LIST` from schema names, comma separated")
+	fs.StringVar(&selected, "linters", "", "run the linters in `LIST`, comma separated: "+strings.Join(linters.Names(), ", "))
 	fs.BoolVar(&cfg.json, "json", false, "write the findings or the measurements as JSON")
 	fs.BoolVar(&cfg.yaml, "yaml", false, "write the findings or the measurements as YAML")
 	fs.BoolVar(&cfg.options.IncludeTests, "include-tests", false, "read the test files too")
@@ -94,6 +107,20 @@ func parseOptions(args []string) (*config, error) {
 	}
 	cfg.linters = commaList(selected)
 	cfg.stripPrefix = commaList(strip)
+	cfg.flags = fs
+
+	// --save writes the document, and a document already written is what a
+	// run reads unless it was asked to write one. Both sit with the tree they
+	// describe, and an explicit --input or --output names its own file.
+	saved := filepath.Join(cfg.options.SourcePath, saveFile)
+	switch {
+	case cfg.save && cfg.output == "":
+		cfg.output = saved
+	case !cfg.save && cfg.input == "":
+		if _, err := os.Stat(saved); err == nil {
+			cfg.input = saved
+		}
+	}
 
 	// A schema is written from the types of a tree, and a type is described by
 	// what it declares, so the sources come along whether or not they were
@@ -122,35 +149,40 @@ func commaList(value string) []string {
 	return out
 }
 
-// printHelp writes what the command takes.
-func printHelp(w io.Writer) {
-	fmt.Fprintf(w, `Usage: splint [options] [pattern]
+// helpSpec is the page the command prints.
+func helpSpec(cfg *config) spec {
+	return spec{
+		Name:    "splint",
+		Tagline: "a linting framework over a data model of Go source",
+		Usage: []string{
+			"splint [flags] [pattern]",
+		},
+		Description: `The pattern is "." for the package in the source path and "./..." for
+everything below it, which is how every other tool here spells it.
 
-Lints a Go tree through the splint model. The pattern is "." for one package
-and "./..." for everything below the source path.
-
-Options:
-  -i PATH             source path to read (default ".")
-  -parser NAME        %s or %s (default %s)
-  -input FILE         read a document from a .json or .yml file instead
-  -output FILE        write the parsed document to a .json or .yml file
-  -schema             write the document as a JSON Schema instead of linting
-  -stats              write what the linters measured, one table each
-  -offline            do not ask the module proxy, read the sizes from cache
-  -strip-prefix LIST  package prefixes to strip from schema names
-  -linters LIST       comma separated: %s
-  -json               write the findings or the measurements as JSON
-  -yaml               write the findings or the measurements as YAML
-  -include-tests      read the test files too
-  -include-sources    keep the source of every declaration
-  -v                  say what is being read
+What is written depends on who is reading. A terminal gets a summary of what
+each linter found and then the findings, in colour. Anything else gets one
+GitHub Actions workflow command per finding, which is what puts one on the
+file and the line of a pull request review.
 
 The ast parser is the default. The simple parser reads the source without
 building a syntax tree: it produces the same document, reads source that does
-not compile, and is an order of magnitude quicker.
+not compile, and is an order of magnitude quicker.`,
+		Flags: cfg.flags,
+		Examples: []example{
+			{"splint ./...", "lint everything below here"},
+			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
+			{"splint -stats ./...", "what the linters measured, rather than what they found"},
+			{"splint --json ./...", "the findings as data, for a program to read"},
+			{"splint --linters godoc,imports ./...", "run two of the twelve"},
+			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
+		},
+		Notes: `A ` + saveFile + ` beside a tree is what a later run reads instead of parsing it,
+which is what makes the second run quick and a stale file a stale report:
+--save parses again and rewrites it.
 
-Exits 1 when a linter found something, 2 when the run itself failed.
-`, analyzer.ParserName, simpleparser.ParserName, analyzer.ParserName, strings.Join(linters.Names(), ", "))
+Exits 1 when a linter found something, 2 when the run itself failed.`,
+	}
 }
 
 // reorder puts the flags of a command line in front of its operands.

@@ -35,8 +35,7 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 		return 0, err
 	}
 	if cfg.help {
-		printHelp(w)
-		return exitClean, nil
+		return exitClean, writeHelp(w, helpSpec(cfg))
 	}
 
 	selected, unknown := linters.Named(cfg.linters...)
