@@ -27,6 +27,8 @@ worktree /abs/path   # show modules matching an absolute path
 
 By default the scan honours `.gitignore` files. An ignored folder is not descended into, so Git repositories and Go modules inside it are skipped; this keeps vendored checkouts and build output out of the listing. Only `.gitignore` files are read, not `.git/info/exclude` or the global excludes file, and a pattern applies even to paths that the repository tracks. Set `enable_gitignore: false` in the configuration to turn this off; see [Configuration](#configuration).
 
+Two directory names are never descended into, whatever the configuration says: `testdata`, whose `go.mod` files are test fixtures, and `.git`. A module below either is not listed, and `-u` and `-go` do not rewrite it.
+
 Two commands print the git commands for tagging a new release of the git repository in the current directory. They read the existing tags, detect the latest semver release, ignoring prereleases and tags that aren't semantic versions, and increment it:
 
 ```bash

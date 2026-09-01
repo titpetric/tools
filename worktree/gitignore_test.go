@@ -119,6 +119,29 @@ func TestScannerAppliesIgnorePathsWithoutGitignore(t *testing.T) {
 	}
 }
 
+// TestScannerSkipsTestdata checks a testdata directory is excluded without
+// being configured, and that a walk started inside one still runs.
+func TestScannerSkipsTestdata(t *testing.T) {
+	root := t.TempDir()
+	s := newScanner(config.Scan{}, root)
+
+	if !s.skip(filepath.Join(root, "testdata"), true) {
+		t.Fatal("scanner descended into a testdata directory")
+	}
+	if !s.skip(filepath.Join(root, "apps", "testdata"), true) {
+		t.Fatal("scanner descended into a nested testdata directory")
+	}
+	// The name only excludes a directory, so a file called testdata is kept.
+	if s.skip(filepath.Join(root, "testdata"), false) {
+		t.Fatal("scanner excluded a file named testdata")
+	}
+
+	inside := newScanner(config.Scan{}, filepath.Join(root, "testdata"))
+	if inside.skip(filepath.Join(root, "testdata"), true) {
+		t.Fatal("scanner excluded the root of the walk")
+	}
+}
+
 // TestScannerAppliesGitignoreWhenEnabled checks the .gitignore rules apply
 // with the setting on, and that an ignore path still wins over a negation.
 func TestScannerAppliesGitignoreWhenEnabled(t *testing.T) {

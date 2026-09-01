@@ -215,6 +215,12 @@ func (s *scanner) skip(path string, isDir bool) bool {
 		s.ignores = s.ignores.prune(path)
 	}
 	if path != s.root {
+		// A testdata directory holds fixtures, not workspace modules. The go
+		// tool ignores it and so does the scan, so a go.mod written for a test
+		// is never listed, updated, or rewritten.
+		if isDir && filepath.Base(path) == "testdata" {
+			return true
+		}
 		// A directory named in ignore_paths is excluded whatever the
 		// .gitignore files say, so the listing can be kept clean with the
 		// gitignore rules turned off.

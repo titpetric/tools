@@ -462,6 +462,32 @@ func TestFindProjectsSkipsIgnorePaths(t *testing.T) {
 	}
 }
 
+// TestFindProjectsSkipsTestdataAndGitContents checks the two directories the
+// walk never descends into. A go.mod under testdata is a fixture, and one
+// under .git belongs to git, so neither is a workspace module that -u may
+// rewrite.
+func TestFindProjectsSkipsTestdataAndGitContents(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "testdata", "go.mod"), "module example.com/fixture\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "testdata", "nested", "go.mod"), "module example.com/fixture/nested\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, ".git", "modules", "dep", "go.mod"), "module example.com/dep\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "apps", "testdata", "go.mod"), "module example.com/apps/fixture\n\ngo 1.25\n")
+	writeTestFile(t, filepath.Join(root, "apps", "go.mod"), "module example.com/apps\n\ngo 1.25\n")
+
+	got, err := findProjects(root, config.Default().Scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []projectDir{
+		{Path: ".", GoModule: true, GitRepo: true},
+		{Path: "." + string(filepath.Separator) + "apps", GoModule: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findProjects() = %#v, want %#v", got, want)
+	}
+}
+
 // TestFindProjectsWithoutGitRepos checks the setting that drops git
 // repositories holding no go module, leaving a go only listing.
 func TestFindProjectsWithoutGitRepos(t *testing.T) {
