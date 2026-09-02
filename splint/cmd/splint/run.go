@@ -11,6 +11,7 @@ import (
 
 	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/coverprofile"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/loader"
@@ -50,6 +51,12 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 	root, err := document(ctx, cfg)
 	if err != nil {
 		return 0, err
+	}
+
+	if cfg.coverageProfile != "" {
+		if err := coverprofile.Apply(root, cfg.coverageProfile); err != nil {
+			return 0, err
+		}
 	}
 
 	if cfg.output != "" {

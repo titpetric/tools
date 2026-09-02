@@ -265,6 +265,7 @@ Three differences are representational, and are handled rather than counted:
 | `gomod/`        | reads a go.mod and a go.sum into the model, and catalogues what they require          |
 | `modproxy/`     | asks the Go module proxy what a dependency weighs, how old it is and what it requires |
 | `loader/`       | reads a document back from `.json` or `.yml`                                          |
+| `coverprofile/` | folds a Go coverage profile into a parsed document                                    |
 | `linters/`      | the registry, one subpackage per linter                                               |
 | `schema/`       | renders a document as a JSON Schema                                                   |
 | `report/`       | what was found: the issues, sorted and counted                                        |
@@ -621,6 +622,38 @@ Documentation of every exported symbol, by package.
 A linter picks its own columns. The numbers behind them are
 `model.LintMetrics`, keyed by package or by file, holding the linter's own
 metric type: `filecheck` measures files and everything else measures packages.
+
+## Coverage
+
+`--append-coverage=FILE` reads a Go coverage profile, the file `go test -coverprofile` writes, and folds what it says into the document the parse
+produced:
+
+```bash
+go test -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
+splint -save --append-coverage=pkg.cov ./...
+```
+
+`model.Complexity.Coverage` is filled on every function and method, from the
+profile blocks that fall inside the file and the line range the parse recorded
+for it, and on every package, over the declarations in it. Both are weighted by
+statement rather than by block, which is what `go tool cover -func` reports:
+covered statements over total statements. A declaration with no statements
+reports 0, which is what the cover tool answers for it.
+
+A package is given the complexity of its declarations added up at the same
+time. Nothing else fills `model.Package.Complexity`, and a report printing
+coverage beside complexity reads both off the same struct.
+
+The flag belongs to a parse. `--input` reads a document that was extracted
+already, and the two together are refused rather than silently doing one of
+them.
+
+This replaces `go tool cover -func | summary coverfunc --json` followed by
+`go-fsck coverage -c`, which took the coverage through a summary of the profile
+rather than the profile. The package figure changes with it: the summary
+averaged the function percentages, and this weights them by the statements
+behind them, so a package of one long uncovered function and ten short covered
+ones reads lower here.
 
 ## Schemas
 

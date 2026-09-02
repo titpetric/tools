@@ -33,6 +33,10 @@ type config struct {
 	input  string
 	output string
 
+	// coverageProfile names a Go coverage profile to fold into the parse. It
+	// belongs to parsing a tree, so it cannot be combined with input.
+	coverageProfile string
+
 	// includeTests is the flag as it was given, which decides whether the
 	// written document keeps the test packages. The parse reads them either
 	// way, because the linters have nothing to check without them.
@@ -82,6 +86,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
 	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+", beside the tree it describes")
+	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
 	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
 	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
@@ -104,6 +109,14 @@ func parseOptions(args []string) (*config, error) {
 
 	if cfg.json && cfg.yaml {
 		return nil, fmt.Errorf("-json and -yaml are two encodings of one answer: ask for one")
+	}
+
+	// The overlay is part of extracting, which is what "append" says: it reads
+	// the line ranges the parse recorded and writes coverage onto them. A
+	// document named by -input was extracted already, and appending to it
+	// would mean rewriting a file the run was asked to read.
+	if cfg.coverageProfile != "" && cfg.input != "" {
+		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and -input reads a document instead of parsing: ask for one")
 	}
 
 	if rest := fs.Args(); len(rest) > 0 {
@@ -179,6 +192,7 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint ./...", "lint everything below here"},
 			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
 			{"splint --input " + saveFile, "lint a document read back, without parsing the tree"},
+			{"splint -save --append-coverage=pkg.cov ./...", "write the document with the coverage of every function in it"},
 			{"splint -stats ./...", "what the linters measured, rather than what they found"},
 			{"splint --json ./...", "the findings as data, for a program to read"},
 			{"splint --linters godoc,imports ./...", "run two of the twelve"},
