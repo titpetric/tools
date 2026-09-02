@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -14,9 +13,8 @@ import (
 	"github.com/titpetric/tools/splint/simpleparser"
 )
 
-// saveFile is the document --save writes, and the one a later run reads
-// instead of parsing. It sits with the tree it describes, so a run reading
-// another tree reads the file of that tree.
+// saveFile is the document --save writes. It sits with the tree it describes,
+// so a run reading another tree writes the file of that tree.
 const saveFile = "splint.json"
 
 // config is what one run was asked for.
@@ -30,7 +28,8 @@ type config struct {
 	parser string
 
 	// input reads a document back from a file instead of parsing, and output
-	// writes the parsed one to a file as well as linting it.
+	// writes the parsed one to a file as well as linting it. Both are
+	// resolved against the directory the command was run in.
 	input  string
 	output string
 
@@ -109,17 +108,15 @@ func parseOptions(args []string) (*config, error) {
 	cfg.stripPrefix = commaList(strip)
 	cfg.flags = fs
 
-	// --save writes the document, and a document already written is what a
-	// run reads unless it was asked to write one. Both sit with the tree they
-	// describe, and an explicit --input or --output names its own file.
-	saved := filepath.Join(cfg.options.SourcePath, saveFile)
-	switch {
-	case cfg.save && cfg.output == "":
-		cfg.output = saved
-	case !cfg.save && cfg.input == "":
-		if _, err := os.Stat(saved); err == nil {
-			cfg.input = saved
-		}
+	// --save writes the document beside the tree it describes. --output names
+	// its own file, resolved against the directory the command was run in,
+	// which is where the parse leaves the process.
+	//
+	// A document is read when --input names one. A splint.json found beside
+	// the tree used to be read instead of parsing, and a run that had written
+	// one earlier got that document back rather than the tree in front of it.
+	if cfg.save && cfg.output == "" {
+		cfg.output = filepath.Join(cfg.options.SourcePath, saveFile)
 	}
 
 	// A schema is written from the types of a tree, and a type is described by
@@ -172,14 +169,19 @@ not compile, and is an order of magnitude quicker.`,
 		Examples: []example{
 			{"splint ./...", "lint everything below here"},
 			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
+			{"splint --input " + saveFile, "lint a document read back, without parsing the tree"},
 			{"splint -stats ./...", "what the linters measured, rather than what they found"},
 			{"splint --json ./...", "the findings as data, for a program to read"},
 			{"splint --linters godoc,imports ./...", "run two of the twelve"},
 			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
 		},
-		Notes: `A ` + saveFile + ` beside a tree is what a later run reads instead of parsing it,
-which is what makes the second run quick and a stale file a stale report:
---save parses again and rewrites it.
+		Notes: `Every run parses the tree. --input is the one way to read a document that was
+already written, so a run is never answered by a file left behind by an
+earlier one.
+
+--save writes ` + saveFile + ` beside the tree and --output names another file.
+Both are resolved against the directory the command was run in, whichever
+tree -i pointed the parse at.
 
 Exits 1 when a linter found something, 2 when the run itself failed.`,
 	}

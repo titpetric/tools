@@ -41,12 +41,17 @@ clean run, 1 when a linter reported something, and 2 when the run itself
 failed, so a pipeline can tell a finding from a failure.
 
 `--save` writes the parsed document to `splint.json`, beside the tree it
-describes, and lints as it always did. A `splint.json` that is there is what a
-later run reads instead of parsing, which is what makes the second run quick:
-oida is 637ms parsed and 12ms read back. It is also what makes a stale file a
-stale report, so `--save` parses again and rewrites it, and `--input` names
-another file where one run should read something else. It is the document
-`go-fsck` reads, under a name splint writes.
+describes, and lints as it always did. `--output` names another file. Both are
+resolved against the directory the command was run in, whichever tree `-i`
+pointed the parse at: the parse moves the process into that tree and puts it
+back when it is done. It is the document `go-fsck` reads, under a name splint
+writes.
+
+Every run parses the tree. `--input` is the one way to read a document that was
+already written, and it is what makes a second run quick: oida is 637ms parsed
+and 12ms read back. A `splint.json` found beside the tree used to be read
+instead of parsing, so a job that extracted twice got the first document back
+and the second run reported a tree nobody had read.
 
 `splint --help` is a page rather than a list of flag defaults: what the tool
 is, how it is called, every flag with its default, and runs worth copying. A
