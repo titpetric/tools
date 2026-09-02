@@ -18,9 +18,8 @@ import (
 // fixture is the module of code that fails checks on purpose, which is what
 // gives these tests something to find.
 //
-// It is resolved once, and absolute: listing packages leaves the process in
-// the directory it read, so a relative path stops meaning the same thing after
-// the first parse.
+// It is resolved once, and absolute, so a test that moves the process to read
+// a tree of its own still points at the same fixture.
 var fixture = absolute("../../testdata")
 
 // absolute resolves a path at startup, before anything has moved.

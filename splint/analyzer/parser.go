@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -31,11 +32,25 @@ func New(options splint.Options) *Parser {
 }
 
 // Parse reads the tree and returns the document.
+//
+// The parse moves the process into the tree it reads, because the toolchain
+// resolves a pattern from the working directory and a loaded file is read from
+// a path relative to it. The directory is put back when the parse is over: a
+// process left standing in the tree resolved every relative path its caller
+// still held a second time against that tree, so "-i migrate -save" wrote
+// migrate/migrate/splint.json and "-output splint.json" wrote into migrate
+// rather than into the directory the command was typed in.
 func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 	root, err := filepath.Abs(p.options.SourcePath)
 	if err != nil {
 		return nil, err
 	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.Chdir(cwd) }()
 
 	doc := model.NewDocumentRoot(root, ParserName)
 
@@ -64,9 +79,9 @@ func (p *Parser) definitions(ctx context.Context, doc *model.DocumentRoot, root 
 			return nil, err
 		}
 	} else {
-		// Resolved before walking: listing packages leaves the process in the
-		// source directory, and a relative source path stops resolving to the
-		// same place afterwards.
+		// Resolved before walking: the walk moves the process into the tree,
+		// and a relative source path stops resolving to the same place until
+		// Parse puts it back.
 		module, err := FindModule(p.options.SourcePath)
 		if err != nil {
 			return nil, err
