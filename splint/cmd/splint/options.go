@@ -33,6 +33,11 @@ type config struct {
 	input  string
 	output string
 
+	// includeTests is the flag as it was given, which decides whether the
+	// written document keeps the test packages. The parse reads them either
+	// way, because the linters have nothing to check without them.
+	includeTests bool
+
 	// schema writes the document as a JSON Schema instead of linting it, and
 	// stats writes what the linters measured instead of what they found.
 	schema bool
@@ -84,7 +89,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&selected, "linters", "", "run the linters in `LIST`, comma separated: "+strings.Join(linters.Names(), ", "))
 	fs.BoolVar(&cfg.json, "json", false, "write the findings or the measurements as JSON")
 	fs.BoolVar(&cfg.yaml, "yaml", false, "write the findings or the measurements as YAML")
-	fs.BoolVar(&cfg.options.IncludeTests, "include-tests", false, "read the test files too")
+	fs.BoolVar(&cfg.includeTests, "include-tests", false, "keep the test packages and the test files in the written document")
 	fs.BoolVar(&cfg.options.IncludeSources, "include-sources", false, "keep the source of every declaration")
 	fs.BoolVar(&cfg.options.Verbose, "v", false, "say what is being read")
 	fs.BoolVar(&cfg.help, "help", false, "print this help")
@@ -127,7 +132,11 @@ func parseOptions(args []string) (*config, error) {
 	}
 
 	// A check that pairs a file with its test, or looks for the test of a
-	// symbol, has nothing to read unless the tests are read too.
+	// symbol, has nothing to read unless the tests are read too, so every
+	// parse reads them. Whether they survive into the document a run writes is
+	// what --include-tests decides: a consumer rendering a report off one
+	// listed a _test package as a package, which is not a package anyone
+	// wrote.
 	cfg.options.IncludeTests = true
 
 	return cfg, nil

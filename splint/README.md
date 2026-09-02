@@ -29,6 +29,7 @@ splint --linters godoc,imports ./...  # run two of the twelve
 splint --save ./...                   # lint, and write the document to splint.json
 splint --output model.json ./...      # keep the document under another name
 splint --input model.json             # lint a document read back from a file
+splint --include-tests --save ./...   # keep the test packages in what is written
 splint ./... --json                   # the findings as JSON, no rendering
 splint ./... --yaml                   # the same, as YAML
 splint --schema ./...                 # write the tree as a JSON Schema
@@ -52,6 +53,12 @@ already written, and it is what makes a second run quick: oida is 637ms parsed
 and 12ms read back. A `splint.json` found beside the tree used to be read
 instead of parsing, so a job that extracted twice got the first document back
 and the second run reported a tree nobody had read.
+
+`--include-tests` decides what the written document keeps. Every parse reads the
+test files, because `pairing` and `coverage` have nothing to check without them,
+and a document written without the flag carries no test package and no
+declaration from a `_test.go` file. A report rendered off one listed
+`cmd/lessgo_test` as a package otherwise.
 
 `splint --help` is a page rather than a list of flag defaults: what the tool
 is, how it is called, every flag with its default, and runs worth copying. A

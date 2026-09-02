@@ -53,7 +53,7 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 	}
 
 	if cfg.output != "" {
-		if err := loader.Save(cfg.output, root); err != nil {
+		if err := loader.Save(cfg.output, written(root, cfg)); err != nil {
 			return 0, err
 		}
 	}
@@ -94,6 +94,16 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 		return exitFound, nil
 	}
 	return exitClean, nil
+}
+
+// written is the document as a file holds it. The linters read every test file
+// of the tree; a reader of the document gets them only when --include-tests
+// asked for them.
+func written(root *model.DocumentRoot, cfg *config) *model.DocumentRoot {
+	if cfg.includeTests {
+		return root
+	}
+	return root.WithoutTests()
 }
 
 // document is the tree as the options ask for it: read back from a file when

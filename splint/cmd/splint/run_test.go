@@ -271,10 +271,13 @@ func TestRunUnknownLinter(t *testing.T) {
 
 // TestRunOutputAndInput covers the two halves of reading a document back: a
 // run writes one, and another run lints it without parsing anything.
+// The written document carries the test packages only when --include-tests
+// asked for them, and the linters read them either way, so the two runs report
+// the same findings only when the document holds what the parse read.
 func TestRunOutputAndInput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "model.json")
 
-	parsed, _ := runArgs(t, "-i", fixture, "--output", path, "./...")
+	parsed, _ := runArgs(t, "-i", fixture, "-include-tests", "--output", path, "./...")
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("--output wrote nothing: %v", err)
 	}
