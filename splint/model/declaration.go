@@ -42,6 +42,12 @@ type Declaration struct {
 	Arguments []string `json:"Arguments,omitempty" yaml:"Arguments,omitempty"`
 	Returns   []string `json:"Returns,omitempty" yaml:"Returns,omitempty"`
 
+	// TypeParams are the names a generic func binds between its name and its
+	// parameter list: Eval[T any] binds T. A name in here is a stand-in the
+	// caller fills rather than a type the package declares, which is what lets
+	// a reader of the model tell Exec[T]() (T, error) from a constructor.
+	TypeParams []string `json:"TypeParams,omitempty" yaml:"TypeParams,omitempty"`
+
 	Signature string `json:"Signature,omitempty" yaml:"Signature,omitempty"`
 	Source    string `json:"Source,omitempty" yaml:"Source,omitempty"`
 
@@ -54,6 +60,17 @@ func (f *Declaration) IsTestScope() bool {
 
 func (f *Declaration) HasReceiver() bool {
 	return f.Receiver != ""
+}
+
+// HasTypeParam reports whether name is one of the declaration's type
+// parameters rather than a type of its own.
+func (f *Declaration) HasTypeParam(name string) bool {
+	for _, param := range f.TypeParams {
+		if param == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (f *Declaration) Ref(pkg *Package) []Ref {

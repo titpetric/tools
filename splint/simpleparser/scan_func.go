@@ -141,9 +141,14 @@ func parseFuncHeader(header string) *model.Declaration {
 	}
 
 	// A generic function carries its type parameters between the name and the
-	// parameter list. They are not what the function takes.
+	// parameter list. They are not what the function takes, but the names they
+	// bind are recorded: a result typed as one is not a type the package has.
 	name := strings.TrimSpace(rest[:open])
+	var typeParams []string
 	if bracket := strings.Index(name, "["); bracket >= 0 {
+		if close := matchBracket(rest, bracket); close > 0 {
+			typeParams = typeParamNames(rest[bracket+1 : close])
+		}
 		name = strings.TrimSpace(name[:bracket])
 	} else if strings.HasSuffix(name, "]") {
 		if start := strings.Index(rest[:open], "["); start >= 0 {
@@ -163,13 +168,25 @@ func parseFuncHeader(header string) *model.Declaration {
 	results := resultGroups(trimBody(rest[close+1:]))
 
 	return &model.Declaration{
-		Kind:      model.FuncKind,
-		Name:      name,
-		Receiver:  symbolType(receiver),
-		Arguments: groupTypes(params),
-		Returns:   groupTypes(results),
-		Signature: signature(name, params, results),
+		Kind:       model.FuncKind,
+		Name:       name,
+		TypeParams: typeParams,
+		Receiver:   symbolType(receiver),
+		Arguments:  groupTypes(params),
+		Returns:    groupTypes(results),
+		Signature:  signature(name, params, results),
 	}
+}
+
+// typeParamNames are the names a type parameter list binds, read the way a
+// parameter list is: the constraint is the type of the group, and every name
+// in front of it is one parameter.
+func typeParamNames(list string) []string {
+	var names []string
+	for _, group := range paramGroups(list) {
+		names = append(names, group.Names...)
+	}
+	return names
 }
 
 // trimBody cuts the body off a result list, which is everything from the brace

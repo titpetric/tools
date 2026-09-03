@@ -380,6 +380,7 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 		File:       v.relativeFile(filename),
 		Line:       v.fset.Position(decl.Pos()).Line,
 		Name:       decl.Name.Name,
+		TypeParams: typeParamNames(decl.Type.TypeParams),
 		Arguments:  args,
 		Returns:    returns,
 		Signature:  v.functionDef(decl),
@@ -394,6 +395,24 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 	}
 
 	return declaration
+}
+
+// typeParamNames are the names a generic func binds, read off the field list
+// between the name and the parameters. The constraints are left out: the two
+// parsers render an exotic constraint differently, and a name is all a
+// consumer asks the list for.
+func typeParamNames(params *ast.FieldList) []string {
+	if params == nil {
+		return nil
+	}
+
+	var names []string
+	for _, field := range params.List {
+		for _, name := range field.Names {
+			names = append(names, name.Name)
+		}
+	}
+	return names
 }
 
 func (p *collector) getSource(file *ast.File, node any) string {
