@@ -125,6 +125,10 @@ func TestLinterReadsAFuncByWhatItBelongsTo(t *testing.T) {
 			decl:  &model.Declaration{Kind: model.FuncKind, Name: "All", Returns: []string{"[]Client"}, File: "server.go", Line: 9},
 		},
 		{
+			title: "a generic func returning its own type parameter constructs nothing",
+			decl:  &model.Declaration{Kind: model.FuncKind, Name: "Exec", TypeParams: []string{"T"}, Returns: []string{"T", "error"}, File: "server.go", Line: 9},
+		},
+		{
 			title: "an unexported receiver is nobody's business",
 			decl:  &model.Declaration{Kind: model.FuncKind, Name: "Close", Receiver: "*client", File: "server.go", Line: 9},
 		},

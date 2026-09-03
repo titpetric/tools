@@ -161,7 +161,7 @@ func collect(def *model.Definition) []symbol {
 
 		owner := receiverName(decl.Receiver)
 		if owner == "" {
-			owner = returnName(decl.Returns)
+			owner = returnName(decl)
 		}
 		if !isExported(owner) {
 			continue
@@ -214,18 +214,24 @@ func receiverName(receiver string) string {
 //
 // Only a plain type counts. A slice, a map, a channel or an instantiated
 // generic is a shape built out of a type rather than the type itself, and a
-// function returning one is not the constructor of anything.
-func returnName(returns []string) string {
-	if len(returns) == 0 {
+// function returning one is not the constructor of anything. Neither is a
+// generic function returning one of its own type parameters: the T that
+// Exec[T] returns is whatever the caller asked for, not a type to name a
+// file after.
+func returnName(decl *model.Declaration) string {
+	if len(decl.Returns) == 0 {
 		return ""
 	}
 
-	name := strings.TrimLeft(returns[0], "*")
+	name := strings.TrimLeft(decl.Returns[0], "*")
 	if strings.ContainsAny(name, "[]{}() \t,") {
 		return ""
 	}
 	if index := strings.LastIndexByte(name, '.'); index >= 0 {
-		name = name[index+1:]
+		return name[index+1:]
+	}
+	if decl.HasTypeParam(name) {
+		return ""
 	}
 	return name
 }
