@@ -979,13 +979,48 @@ func TestFieldText(t *testing.T) {
 		},
 		want: "Addr string -> []string",
 	}, {
-		title: "a tag is part of the shape, since a document decodes through it",
+		// A tag change on an unchanged type is named as one, rather than
+		// writing the same type on both sides of an arrow and leaving the
+		// reader to diff the tags by eye.
+		title: "a rewritten tag value is named key by key",
 		change: apiFieldChange{
 			Name: "Addr", Change: fieldChanged,
 			Old: &apiField{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},
 			New: &apiField{Name: "Addr", Type: "string", Tag: `yaml:"address"`},
 		},
-		want: "Addr string `yaml:\"addr\"` -> string `yaml:\"address\"`",
+		want: `Addr: yaml tag "addr" -> "address"`,
+	}, {
+		title: "a tag a field gained is named as added",
+		change: apiFieldChange{
+			Name: "Children", Change: fieldChanged,
+			Old: &apiField{Name: "Children", Type: "[]*StateNode", Tag: `yaml:"children,omitempty"`},
+			New: &apiField{Name: "Children", Type: "[]*StateNode", Tag: `json:"children,omitempty" yaml:"children,omitempty"`},
+		},
+		want: "Children: added json tag",
+	}, {
+		title: "a tag a field lost is named as removed",
+		change: apiFieldChange{
+			Name: "Name", Change: fieldChanged,
+			Old: &apiField{Name: "Name", Type: "string", Tag: `json:"name" xml:"name"`},
+			New: &apiField{Name: "Name", Type: "string", Tag: `json:"name"`},
+		},
+		want: "Name: removed xml tag",
+	}, {
+		title: "a tag change beside a type change keeps both shapes whole",
+		change: apiFieldChange{
+			Name: "Addr", Change: fieldChanged,
+			Old: &apiField{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},
+			New: &apiField{Name: "Addr", Type: "[]string", Tag: `yaml:"addrs"`},
+		},
+		want: "Addr string `yaml:\"addr\"` -> []string `yaml:\"addrs\"`",
+	}, {
+		title: "a tag that does not parse falls back to both shapes",
+		change: apiFieldChange{
+			Name: "Raw", Change: fieldChanged,
+			Old: &apiField{Name: "Raw", Type: "string", Tag: `not a tag`},
+			New: &apiField{Name: "Raw", Type: "string", Tag: `json:"raw"`},
+		},
+		want: "Raw string `not a tag` -> string `json:\"raw\"`",
 	}, {
 		// An interface method carries its name in the signature it is recorded
 		// under, so the name is not written in front of it twice.

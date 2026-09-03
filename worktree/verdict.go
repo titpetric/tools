@@ -1078,11 +1078,20 @@ func addedTypes(diff apiDiff) []apiSymbol {
 //
 // A tag is part of the shape, since it is what a stored document decodes
 // through, and is written alongside the type whenever either side carries one.
+//
+// A change to the tag alone is named as one, "Children: added json tag":
+// writing the unchanged type on both sides of an arrow buries what moved, and
+// reads as a field losing its name.
 func fieldText(change apiFieldChange) string {
 	switch {
 	case change.Old != nil && change.New != nil:
 		if change.Old.Embedded {
 			return "embeds " + change.Old.Type + " -> " + change.New.Type
+		}
+		if change.Old.Type == change.New.Type && change.Old.Tag != change.New.Tag {
+			if moved := tagChange(change.Old.Tag, change.New.Tag); moved != "" {
+				return change.Name + ": " + moved
+			}
 		}
 		return tidySignature(fieldLabel(change.Name, fieldShape(*change.Old)) + " -> " + fieldShape(*change.New))
 	case change.New != nil:
@@ -1091,6 +1100,78 @@ func fieldText(change apiFieldChange) string {
 		return tidySignature(fieldReads(*change.Old))
 	}
 	return change.Name
+}
+
+// tagChange names what moved between two struct tags, key by key: a key
+// added, a key removed, or the value under one rewritten. It returns nothing
+// when either tag does not parse, and the caller falls back to writing the
+// two shapes whole.
+func tagChange(oldTag, newTag string) string {
+	oldKeys, oldValues, ok := tagEntries(oldTag)
+	if !ok {
+		return ""
+	}
+	newKeys, newValues, ok := tagEntries(newTag)
+	if !ok {
+		return ""
+	}
+
+	var parts []string
+	for _, key := range newKeys {
+		before, had := oldValues[key]
+		switch {
+		case !had:
+			parts = append(parts, "added "+key+" tag")
+		case before != newValues[key]:
+			parts = append(parts, key+" tag "+strconv.Quote(before)+" -> "+strconv.Quote(newValues[key]))
+		}
+	}
+	for _, key := range oldKeys {
+		if _, has := newValues[key]; !has {
+			parts = append(parts, "removed "+key+" tag")
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// tagEntries reads a struct tag into its keys, written in order, and the
+// value each maps to. The format is the one reflect.StructTag reads: a name,
+// a colon, a quoted value, over and over. A tag written any other way reports
+// false, and an empty tag is a tag with no keys.
+func tagEntries(tag string) (keys []string, values map[string]string, ok bool) {
+	values = map[string]string{}
+
+	for tag != "" {
+		tag = strings.TrimLeft(tag, " ")
+		if tag == "" {
+			break
+		}
+
+		colon := strings.IndexByte(tag, ':')
+		if colon <= 0 || strings.ContainsAny(tag[:colon], " \"") {
+			return nil, nil, false
+		}
+		name := tag[:colon]
+		rest := tag[colon+1:]
+		if !strings.HasPrefix(rest, `"`) {
+			return nil, nil, false
+		}
+
+		value, err := strconv.QuotedPrefix(rest)
+		if err != nil {
+			return nil, nil, false
+		}
+		tag = rest[len(value):]
+
+		unquoted, err := strconv.Unquote(value)
+		if err != nil {
+			return nil, nil, false
+		}
+		keys = append(keys, name)
+		values[name] = unquoted
+	}
+
+	return keys, values, true
 }
 
 // fieldReads renders one field, an embed as the type it embeds.
