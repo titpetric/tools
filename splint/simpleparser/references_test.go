@@ -93,3 +93,33 @@ func TestTrimTypeParams(t *testing.T) {
 		}
 	}
 }
+
+// TestBodyLocalsAfterAClosingBrace covers a binding on a line that opens with
+// the brace closing the block above it.
+//
+// "} else if pkg, decl := f(); decl != nil {" binds pkg and decl. The scanner
+// reads one line at a time, so that leading brace has no opener on the line;
+// counting it would put the := that follows inside a block that is not there,
+// and both names would read as packages the file reaches without importing.
+func TestBodyLocalsAfterAClosingBrace(t *testing.T) {
+	src := newSource("x.go", []byte(`package x
+
+func Walk(ctor string) string {
+	if ctor == "" {
+		return ""
+	} else if pkg, decl := split(ctor); decl != nil {
+		_ = pkg
+		return decl.Type
+	}
+	return ""
+}
+`))
+
+	locals := bodyLocals(src, 2, 9)
+
+	for _, name := range []string{"pkg", "decl"} {
+		if !locals[name] {
+			t.Errorf("%s was not bound, so it reads as a package the file reaches", name)
+		}
+	}
+}

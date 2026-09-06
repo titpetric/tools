@@ -23,7 +23,13 @@ func splitTop(list string, sep byte) []string {
 		case '(', '[', '{':
 			depth++
 		case ')', ']', '}':
-			depth--
+			// A closer with no opener before it belongs to a bracket that was
+			// opened on an earlier line, which a scanner reading one line at a
+			// time cannot see. Letting the depth go negative would put the
+			// rest of the line inside a bracket that is not there.
+			if depth > 0 {
+				depth--
+			}
 		case sep:
 			if depth == 0 {
 				parts = append(parts, strings.TrimSpace(list[start:i]))
@@ -197,7 +203,12 @@ func indexTop(list string, sep byte) int {
 		case '(', '[', '{':
 			depth++
 		case ')', ']', '}':
-			depth--
+			// The same as splitTop: "} else if a, b := f(); b != nil {" opens
+			// on the brace that closed the block above it, and the := after it
+			// is at the top level of the line whatever that brace did.
+			if depth > 0 {
+				depth--
+			}
 		case sep:
 			if depth == 0 {
 				return i
