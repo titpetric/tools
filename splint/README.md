@@ -23,6 +23,8 @@ go install github.com/titpetric/tools/splint/cmd/splint@latest
 
 ```bash
 splint ./...                          # lint everything below here
+splint fix ./...                      # rewrite every import block, and report nothing
+splint --fix ./...                    # rewrite them, then report what is left
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
@@ -64,6 +66,160 @@ declaration from a `_test.go` file. A report rendered off one listed
 is, how it is called, every flag with its default, and runs worth copying. A
 terminal gets it in colour and anything else gets it as markdown, which is
 what `splint --help > docs/splint.md` writes.
+
+## splint fix
+
+`splint fix ./...` rewrites the import block of every file that does not hold
+the one the rules describe. `splint --fix ./...` does the same and then lints
+the tree the rewrite left, so nothing it cleared is in the report.
+
+It replaces `goimports -w` and `goimports-reviser` together. Those two have to
+be run in that order and never the reverse: goimports re-sorts the groups the
+reviser arranged. One pass here does both, and does the thing neither can.
+
+The fixer reads the tree with the simple parser unless `--parser` names one. A
+file that is missing an import it needs does not compile, and that is a file
+the fixer is there to repair; the ast parser resolves a tree through the
+toolchain, so it is the reading least likely to survive one. Reading the text
+also costs an order of magnitude less over the same tree, and a formatter is
+run on every save.
+
+Either parser answers the same. The ast parser reads the import declarations
+and the generated marker off the file's own bytes rather than off the syntax
+the package loader returns, because a cgo file is not loaded as it was written:
+the toolchain preprocesses it first, so `import "C"` is gone, an import of
+`"unsafe"` stands where it was, cgo's own generated header is on it, and the
+line numbers belong to a file that only exists inside the build.
+
+A file that imports nothing is a different thing and is valid Go. Nothing here
+touches one.
+
+### The groups
+
+An import block is written as one parenthesised declaration, the groups in this
+order, sorted by path within each group and separated by a blank line:
+
+| Group     | What is in it                                 |
+|-----------|-----------------------------------------------|
+| `std`     | a path whose first segment carries no dot     |
+| `blanked` | an import written `_` for its side effect     |
+| `general` | a third party dependency                      |
+| `company` | a path under a prefix `imports.company` names |
+| `project` | a path under the module the tree builds       |
+| `dotted`  | an import written `.`                         |
+
+That order is the one six of the eight `goimports-reviser` call sites in this
+workspace pass, `std,blanked,general,company,project`. `imports.order` in
+`.splint.yml` changes it, and a group the list leaves out is written after the
+ones it names rather than dropped.
+
+An alias repeating the last segment of the path is taken off, because the path
+already says it. A path ending in a major version gets one, because the path
+does not: `github.com/go-pg/pg/v9` is written `pg "github.com/go-pg/pg/v9"`,
+and `gopkg.in/yaml.v3` needs none because the segment already reads `yaml`. A
+path that implies no name gets none: what is left of `example.com/v2` once the
+version comes off is `example.com`, which is not something an import can be
+called. An alias somebody chose is kept, and stays in the group its path
+belongs to.
+
+Two import declarations in one file merge into one. A comment above an import
+and a comment beside it both survive the rewrite.
+
+### Resolving a name
+
+`model.User` in a file that imports no model is the case `goimports` gets
+wrong. It asks a global index and takes whichever model it indexed first, so a
+tree where `/service1` and `/service2` each hold one is a tree it formats
+wrong.
+
+The answer here is source relative. The walk starts at the directory the name
+was written in and goes up, stopping at the module the writing package belongs
+to. From `service2/storage`, `model` is `service2/model`. From
+`service1/handler` the same spelling is `service1/model`.
+
+Four things are asked, in this order, and the first that answers wins:
+
+| Source   | What it is                                                        |
+|----------|-------------------------------------------------------------------|
+| `alias`  | an entry in `imports.aliases` of `.splint.yml`                    |
+| `local`  | a package of the tree, found by walking up from the directory     |
+| `tree`   | a path some other file of the tree already imports under the name |
+| `module` | a requirement of the go.mod whose last segment is the name        |
+
+`tree` is what places a dependency with no module cache read and nothing asked
+of the network: one file spelling out `github.com/stretchr/testify/assert`
+teaches every other file in the tree what `assert` means. `alias` is there for
+the name the tree cannot place on its own, and it wins outright.
+
+A name two paths answer to is not resolved. A formatter guessing between them
+writes the wrong import half the time, so the file is reported under
+`imports/unresolved` and left exactly as it was.
+
+### What it does not do
+
+- It does not write `go.mod`. Removing the last import of a dependency leaves
+  the requirement in place until `go mod tidy` takes it out.
+- It does not touch a file carrying the `Code generated ... DO NOT EDIT.`
+  marker, which is what `goimports-reviser` skips too.
+- It does not move the `import "C"` of a cgo file. The comment above it is the
+  C source cgo compiles, and it is the preamble only while it sits directly
+  above that import, so that one declaration is pinned where it is. Every other
+  block in the file is formatted as usual.
+- It does not touch a file carrying a `//line` directive. The directive rebases
+  the line numbers the compiler reports from that point on, so the physical
+  lines of such a file are load bearing. They are machine output, from goyacc
+  and its like.
+- It does not touch a file behind a build constraint this build does not
+  satisfy. A `//go:build windows` file is not read on Linux, so it is neither
+  formatted nor reported there.
+- It does not touch anything outside the import declaration. Indentation and
+  the rest of the file are `gofmt`'s.
+- It does not remove an import whose name it does not know.
+  `github.com/goccy/go-yaml` is reached as `yaml`, and the last segment of the
+  path is not a Go identifier, so the name is a guess. An import removed on a
+  wrong guess is a file that no longer builds; one kept on a wrong guess is a
+  line nobody notices.
+- It does not add an import of the package the file is part of. A file writing
+  `package whitebox` reaches `whitebox.Bar` by a name it already has, and
+  importing it would be a cycle. A file writing `package whitebox_test` is a
+  package of its own and has to import the one it tests, so that one gets the
+  import.
+- It does not lose a line. A comment above an import, beside it, or belonging
+  to no import at all comes back in the rewritten block. The line endings of
+  the file and its lack of a trailing newline come back too.
+
+Before anything is written, the lines about to be replaced are checked to be an
+import declaration. The range comes from a parse, and a parse that read it
+wrong would otherwise have the rewrite overwrite whatever is really there.
+
+### Configuration
+
+`.splint.yml` sits at the root of the tree, beside `go.mod`. A tree with no
+such file is formatted by the defaults.
+
+```yaml
+imports:
+  order: [std, blanked, general, company, project, dotted]
+  company:
+    - github.com/titpetric/
+  project: github.com/titpetric/tools/splint  # defaults to the module path
+  set-alias: true
+  aliases:
+    clone: github.com/huandu/go-clone
+  pollution:
+    per-package: 2
+    file-share: 0.5
+    include-tests: true
+
+stats:
+  imports:
+    fixed: 0
+```
+
+`stats.imports.fixed` is how many times a `.go` file has had its import block
+rewritten, across every run against the tree. `splint fix` adds to it and
+writes the file back through its node tree, so the comments in a file written
+by hand survive the counter.
 
 ## Output
 
@@ -267,6 +423,10 @@ Three differences are representational, and are handled rather than counted:
 | `loader/`       | reads a document back from `.json` or `.yml`                                          |
 | `coverprofile/` | folds a Go coverage profile into a parsed document                                    |
 | `linters/`      | the registry, one subpackage per linter                                               |
+| `importfmt/`    | the house rule for an import block, as a function of the imports and nothing else     |
+| `resolve/`      | what package a bare name refers to, from where it was written                         |
+| `fix/`          | rewrites an import block. The only package here that writes a file                    |
+| `config/`       | reads `.splint.yml` and keeps the counter in it                                       |
 | `schema/`       | renders a document as a JSON Schema                                                   |
 | `report/`       | what was found: the issues, sorted and counted                                        |
 | `render/`       | how it looks: the issue line, drawn tables, markdown                                  |
@@ -297,6 +457,34 @@ Nothing in the package marshals anything itself. What it carries is utilities
 over the data: `DeclarationList.Exported`, `Definition.Merge`, `StringSet.Add`,
 `Declaration.Position`. A type with helpers hanging off it is the shape to
 reach for; a type with a `MarshalJSON` is not.
+
+### The imports of a file
+
+`Definition.Imports` is a `StringSet` of import literals keyed by filename. It
+is sorted on read, an alias equal to the last segment of the path is dropped at
+parse time, and no line is recorded. A rule about what a file imports reads it;
+a rule about how the file writes them cannot.
+
+`model.File` carries the second view. `ImportDecls` is the declarations as the
+file writes them, in order, each with its lines, and each spec with its alias,
+its doc comment, the comment beside it, and whether a blank line separates it
+from the spec before it. `ImportDecl.Line` and `EndLine` are the lines a
+rewrite replaces.
+
+`File.Uses` is every identifier the file writes before a dot, sorted. It
+over-collects: a local variable, a parameter and a receiver are all in it, so
+`t` from `t.Run` is a use. Over-collecting keeps an import that is not needed.
+Under-collecting removes one that is, and that breaks the build.
+
+`File.Package` is the name in the file's own package clause, which is not
+always the name of the package the file is recorded under. A directory holds
+one package and up to two test scopes, and the external one declares
+`<name>_test`; the two are one definition in the model and only the clause
+tells a file of one from a file of the other.
+
+Both are filled only when `splint.Options.IncludeImports` is set. The command
+sets it on every run; the parity harness does not, so the document it compares
+against `go-fsck extract` is the document it always was.
 
 ## Writing a linter
 
@@ -397,6 +585,68 @@ splint -stats -i testdata ./...
 The root is read whatever it is called. A walk that skipped the directory it
 was handed would read nothing at all.
 
+### The formatter fixture
+
+`linters/imports/testdata/` is the second one, and it is three trees:
+
+| Directory | What it holds                                                            |
+|-----------|--------------------------------------------------------------------------|
+| `input/`  | a module written the way source that has never been formatted is written |
+| `golden/` | the same module as the formatter should leave it                         |
+| `output/` | what `atkins fix` writes, for reading a change by eye. Gitignored        |
+
+`input/` is where each claim about the fixer is stated as source. `main.go`
+writes two import declarations and an alias that repeats its path.
+`service1/handler` and `service2/storage` both reach `model.` with no import,
+and each has to resolve to its own service. `client/client_test.go` reaches
+`assert.` and is placed by `client/client.go` writing the path out.
+`comments.go` carries a comment above an import and one beside it, and
+`dangle/` a comment belonging to no import at all. `goyaml.go` imports
+`github.com/goccy/go-yaml` and writes `yaml`, so the name the import is reached
+by is not the last segment of its path. `odd/` writes its blocks in shapes
+gofmt would not: a closing paren that is indented, a block on one line, and a
+block holding nothing. `whitebox/` and `blackbox/` are the two ways a package
+is tested, and only one of them may import the package it tests.
+`generated.go` and `cgo/` have to come out unchanged. `broken/broken.go`
+reaches a name nothing can place.
+
+`TestFixGolden` copies `input/` into a temporary directory, runs the fixer over
+it with both parsers, and reports every file that does not come out the way
+`golden/` says. `TestFixIsIdempotent` runs it over `golden/` and asserts that
+nothing is written.
+
+```shell
+atkins fix   # copy input to output, fix it, and diff it against golden
+```
+
+The job ends on that diff, so a change to the formatter shows up as a diff
+before `golden/` is moved to match it.
+
+### The corpus
+
+A fixture holds the cases somebody thought of. The module cache holds the ones
+nobody did: every dependency this machine has ever downloaded, written by
+people who never heard of this formatter.
+
+`TestCorpusDoesNotCorruptSource` reads modules out of `GOMODCACHE`, works out
+what the fixer would write in each, and applies it in memory. Nothing is
+written to the cache. Each rewritten file is then checked against the source it
+came from on three things:
+
+- it still parses
+- every declaration that is not an import prints exactly as it did before, so a
+  rewrite that deleted a function or truncated a file fails here
+- the name the file reaches each import by is unchanged, and a path appears or
+  vanishes only where the plan said it would
+
+The sorting keys come from each module's own `go.mod`, so every module is
+formatted under its own project prefix.
+
+```shell
+go test ./tests/ -run TestCorpus                      # 300 modules
+SPLINT_CORPUS=0 go test ./tests/ -run TestCorpus      # every module in the cache
+```
+
 ## The linters
 
 Twelve of them. Six were written here; six came from gofsck, reimplemented
@@ -405,7 +655,7 @@ against the model rather than translated from its AST walk.
 | Name            | What it reports                                                                                                                                                                                          | What it measures                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `godoc`         | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, and one long enough to say the symbol does too much                     | documented against exported, per package                                                                                                                    |
-| `imports`       | two files of one package reaching different modules under the same short name, which compiles and reads as though they agree                                                                             | import names and collisions, per package                                                                                                                    |
+| `imports`       | five rules, listed below: a name meaning two things, a block not written to the house rule, an import nothing reaches, a name nothing can place, and a dependency that has spread                        | import names and collisions, files formatted, unused and unresolved, per package; and how far every external dependency has reached                         |
 | `func-args`     | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct | funcs considered against passing                                                                                                                            |
 | `func-returns`  | a function returning an error or a bool before the value it qualifies                                                                                                                                    | funcs considered against passing                                                                                                                            |
 | `pairing`       | a file with no test named after it                                                                                                                                                                       | files, tests, paired and standalone, per package                                                                                                            |
@@ -424,6 +674,56 @@ pair is unambiguous; for three or more the expected order is a heuristic sort.
 allows: an empty report and a table. The counts are reported and not judged. A
 parser is mostly private and a data model mostly not, and a package written as
 one unit across several files is as legitimate as one written as several.
+
+## imports
+
+Five rules. Four of them are about one file's import block; the fifth is about
+how far a dependency has reached.
+
+| Rule         | Severity | Fixable | What it reports                                                                                                                               |
+|--------------|----------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `collision`  | WARN     | no      | two files of one package reaching different modules under the same short name, which compiles and reads as though they agree                  |
+| `format`     | ERROR    | yes     | an import block that is not the one the house rule describes: the wrong order, more than one declaration, an import to add or one to take out |
+| `unused`     | ERROR    | yes     | an import no name in the file reaches                                                                                                         |
+| `unresolved` | ERROR    | no      | a name the file reaches that nothing can place, or that two paths answer to                                                                   |
+| `pollution`  | WARN     | no      | an external dependency reaching more of the tree than one place                                                                               |
+
+A fixable finding carries a `fix` attribute whose value is `splint fix`, and
+`splint fix ./...` clears every one of them. `unresolved` is not fixable: there
+is nothing to write.
+
+`unused` and `unresolved` read different sets on purpose, and each errs the way
+that cannot break a build. `File.Uses` over-collects, so an import it keeps
+alive is never removed. `Declaration.References` and `Declaration.Globals`
+exclude locals, parameters and the names the file declares, so a name they
+report really is unbound. References are collected on function bodies, so a
+package reached only from a struct field is not reported as unresolved; the
+compiler catches that one.
+
+### Pollution
+
+One file is the clean reading. A dependency reached from one file through one
+name is one place to change when it is replaced, and one place a reader has to
+understand to know what the tree took on.
+
+A package of the tree is counted and never reported. A model package imported
+by every consumer under it is what a package structure is for, and a rule that
+called it pollution would be a rule against writing one. The standard library
+is not reported either.
+
+An external dependency is reported when two or more files of one directory
+import it, or when it reaches half the files of the tree. `per-package`,
+`file-share` and `include-tests` under `imports.pollution` in `.splint.yml`
+move those, and a zero turns either rule off.
+
+The count is per directory, so a package and its test half are counted
+together. That means a package whose two test files both reach
+`testify/assert` is reported. Set `include-tests: false` for a tree where that
+reads as noise rather than as a finding.
+
+`modcheck` counts files, packages and symbols per dependency as well. The two
+ask different questions: modcheck asks what a dependency costs to carry, and
+`pollution` asks how far one import path has spread.
 
 ## modcheck
 
