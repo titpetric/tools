@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer/internal/collector"
 	"github.com/titpetric/tools/splint/model"
 )
@@ -19,7 +20,7 @@ import (
 // A file carrying a build tag is skipped: the loaded syntax is what the
 // default build constraints selected, and a tagged file that came through with
 // it would be read under constraints it was not written for.
-func Load(in *Target, verbose bool) ([]*model.Definition, error) {
+func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 	if in == nil || in.Syntax == nil {
 		return nil, fmt.Errorf("no syntax loaded for package: %s", in.Package)
 	}
@@ -28,7 +29,7 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 	sourcePath := in.Package.Path
 	fset := pkg.Fset
 
-	if verbose {
+	if options.Verbose {
 		log.Printf("Loading package %s %q", sourcePath, in.Package.Name())
 	}
 
@@ -53,7 +54,7 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 		}
 
 		files = append(files, file)
-		facts = append(facts, fileFacts(fset, file, src))
+		facts = append(facts, fileFacts(fset, file, src, options.IncludeImports))
 	}
 
 	// The loader asked for types, so the collector resolves an identifier
@@ -63,7 +64,7 @@ func Load(in *Target, verbose bool) ([]*model.Definition, error) {
 	insp := inspector.New(files)
 	insp.WithStack(nil, sink.Visit)
 
-	results := sink.Clean(verbose)
+	results := sink.Clean(options.Verbose)
 
 	// Attach the package information to all returned definitions
 	for _, def := range results {

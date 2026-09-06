@@ -76,13 +76,20 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 			scopes[isTest] = def
 		}
 
-		def.Files = append(def.Files, model.File{
+		entry := model.File{
 			Name:      name,
 			Lines:     src.codeLines(),
 			Size:      len(data),
 			Generated: src.generated(),
 			Test:      isTest,
-		})
+		}
+		if p.options.IncludeImports {
+			entry.Package = parsed.Package
+			entry.Directives = model.HasLineDirectives(src.lines)
+			entry.ImportDecls = parsed.ImportDecls
+			entry.Uses = uses(src)
+		}
+		def.Files = append(def.Files, entry)
 
 		merge(def, parsed, name, seen[isTest])
 	}

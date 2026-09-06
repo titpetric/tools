@@ -152,7 +152,7 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 			continue
 		}
 
-		d, err := Load(target, p.options.Verbose)
+		d, err := Load(target, p.options)
 		if err != nil {
 			return nil, err
 		}

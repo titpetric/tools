@@ -20,6 +20,10 @@ type file struct {
 	// quotes, prefixed by the alias and a space when the file gives one.
 	Imports []string
 
+	// ImportDecls are the same imports as the file writes them, with their
+	// lines and their comments, which is what a formatter puts back.
+	ImportDecls model.ImportDeclList
+
 	// aliases is what each import is reached by in this file, which is what a
 	// reference is recognised against.
 	aliases map[string]bool
