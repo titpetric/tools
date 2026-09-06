@@ -1,0 +1,11 @@
+# The import rules this tree is formatted under. `splint fix ./...` writes
+# them and `splint ./...` reports a file that does not hold them.
+imports:
+  # Everything under this prefix is ours without being this module, and gets
+  # a group of its own between the third party imports and the project's.
+  company:
+    - github.com/titpetric/
+# What runs of splint have counted. Written by the tool.
+stats:
+  imports:
+    fixed: 14

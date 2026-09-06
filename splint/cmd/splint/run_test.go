@@ -36,7 +36,7 @@ func runArgs(t *testing.T, args ...string) (string, int) {
 	t.Helper()
 
 	var out bytes.Buffer
-	code, err := run(context.Background(), args, &out)
+	code, err := run(context.Background(), args, &out, &out)
 	if err != nil {
 		t.Fatalf("run(%v) error = %v", args, err)
 	}
@@ -175,7 +175,7 @@ func TestRunYAML(t *testing.T) {
 // answer, and a run cannot write both to one stream.
 func TestRunOneEncoding(t *testing.T) {
 	var out bytes.Buffer
-	_, err := run(context.Background(), []string{"-json", "-yaml", "-i", fixture, "./..."}, &out)
+	_, err := run(context.Background(), []string{"-json", "-yaml", "-i", fixture, "./..."}, &out, &out)
 	if err == nil {
 		t.Fatal("run() accepted both encodings")
 	}
@@ -250,7 +250,7 @@ func TestRunParsers(t *testing.T) {
 
 func TestRunUnknownParser(t *testing.T) {
 	var out bytes.Buffer
-	if _, err := run(context.Background(), []string{"--parser=nope", "-i", fixture, "./..."}, &out); err == nil {
+	if _, err := run(context.Background(), []string{"--parser=nope", "-i", fixture, "./..."}, &out, &out); err == nil {
 		t.Fatal("run() accepted a parser that does not exist")
 	} else if !strings.Contains(err.Error(), "astparser") {
 		t.Errorf("run() error = %v, want the parsers it does have", err)
@@ -259,7 +259,7 @@ func TestRunUnknownParser(t *testing.T) {
 
 func TestRunUnknownLinter(t *testing.T) {
 	var out bytes.Buffer
-	_, err := run(context.Background(), []string{"--linters", "nope", "-i", fixture, "./..."}, &out)
+	_, err := run(context.Background(), []string{"--linters", "nope", "-i", fixture, "./..."}, &out, &out)
 	if err == nil {
 		t.Fatal("run() accepted a linter that does not exist")
 	}

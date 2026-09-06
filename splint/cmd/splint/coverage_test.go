@@ -58,7 +58,7 @@ func TestAppendCoverage(t *testing.T) {
 // skips the parse.
 func TestAppendCoverageWithInput(t *testing.T) {
 	var out bytes.Buffer
-	_, err := run(context.Background(), []string{"--append-coverage=pkg.cov", "-input", "doc.json"}, &out)
+	_, err := run(context.Background(), []string{"--append-coverage=pkg.cov", "-input", "doc.json"}, &out, &out)
 	if err == nil {
 		t.Fatal("run() accepted --append-coverage with -input")
 	}
@@ -71,7 +71,7 @@ func TestAppendCoverageWithInput(t *testing.T) {
 // is a failed run rather than a document with no coverage in it.
 func TestAppendCoverageMissingProfile(t *testing.T) {
 	var out bytes.Buffer
-	_, err := run(context.Background(), []string{"-i", fixture, "--append-coverage=nowhere.cov", "./..."}, &out)
+	_, err := run(context.Background(), []string{"-i", fixture, "--append-coverage=nowhere.cov", "./..."}, &out, &out)
 	if err == nil {
 		t.Fatal("run() accepted a profile that does not exist")
 	}

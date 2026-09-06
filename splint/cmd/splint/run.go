@@ -30,13 +30,28 @@ const (
 )
 
 // run parses the tree, lints the document and writes the report.
-func run(ctx context.Context, args []string, w io.Writer) (int, error) {
+//
+// The report goes to w and anything said along the way goes to progress. The
+// two are one stream for splint fix, whose whole output is what it rewrote,
+// and two for splint --fix, where w is carrying a report a program parses: a
+// line of progress written into it is a line of invalid JSON.
+func run(ctx context.Context, args []string, w, progress io.Writer) (int, error) {
 	cfg, err := parseOptions(args)
 	if err != nil {
 		return 0, err
 	}
 	if cfg.help {
 		return exitClean, writeHelp(w, helpSpec(cfg))
+	}
+
+	// A fix is a rewrite of the tree, and a report of a tree that has just
+	// been rewritten has to be a report of what the rewrite left. Both paths
+	// therefore fix first and parse after.
+	if cfg.command == commandFix {
+		if _, err := runFix(ctx, cfg, w); err != nil {
+			return 0, err
+		}
+		return exitClean, nil
 	}
 
 	selected, unknown := linters.Named(cfg.linters...)
@@ -48,8 +63,18 @@ func run(ctx context.Context, args []string, w io.Writer) (int, error) {
 		offline(selected)
 	}
 
+	if cfg.fix {
+		if _, err := runFix(ctx, cfg, progress); err != nil {
+			return 0, err
+		}
+	}
+
 	root, err := document(ctx, cfg)
 	if err != nil {
+		return 0, err
+	}
+
+	if err := configure(selected, cfg, root); err != nil {
 		return 0, err
 	}
 

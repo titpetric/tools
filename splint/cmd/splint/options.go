@@ -17,15 +17,34 @@ import (
 // so a run reading another tree writes the file of that tree.
 const saveFile = "splint.json"
 
+// The commands the tool takes. A command line naming neither lints, which is
+// what splint has always done and what every pipeline calling it expects.
+const (
+	commandLint = "lint"
+	commandFix  = "fix"
+)
+
 // config is what one run was asked for.
 type config struct {
+	// command is the verb the command line opened with: lint, which reports,
+	// or fix, which rewrites.
+	command string
+
+	// fix rewrites the tree before linting it, so a report is of the tree as
+	// the fixer left it rather than of the one it found.
+	fix bool
+
 	// options are what the parser is given.
 	options splint.Options
 
 	// parser names which parser reads the tree. The ast parser is the default
 	// and stays the default: it is the exact reading, and the quick one is
 	// something a caller asks for on purpose.
-	parser string
+	//
+	// parserNamed reports the flag having been given, which is what lets the
+	// fixer pick its own default without overriding a choice.
+	parser      string
+	parserNamed bool
 
 	// input reads a document back from a file instead of parsing, and output
 	// writes the parsed one to a file as well as linting it. Both are
@@ -76,7 +95,8 @@ type config struct {
 // and "splint ." reads one package, which is how every other tool here spells
 // it.
 func parseOptions(args []string) (*config, error) {
-	cfg := &config{options: splint.NewOptions(), parser: analyzer.ParserName}
+	name, args := verb(args)
+	cfg := &config{command: name, options: splint.NewOptions(), parser: analyzer.ParserName}
 
 	var selected, strip string
 	fs := flag.NewFlagSet("splint", flag.ContinueOnError)
@@ -85,6 +105,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&cfg.parser, "parser", cfg.parser, "read the tree with `NAME`: "+analyzer.ParserName+" or "+simpleparser.ParserName)
 	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
+	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one, then lint what is left")
 	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+", beside the tree it describes")
 	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
@@ -107,6 +128,12 @@ func parseOptions(args []string) (*config, error) {
 		return nil, err
 	}
 
+	fs.Visit(func(given *flag.Flag) {
+		if given.Name == "parser" {
+			cfg.parserNamed = true
+		}
+	})
+
 	if cfg.json && cfg.yaml {
 		return nil, fmt.Errorf("-json and -yaml are two encodings of one answer: ask for one")
 	}
@@ -117,6 +144,13 @@ func parseOptions(args []string) (*config, error) {
 	// would mean rewriting a file the run was asked to read.
 	if cfg.coverageProfile != "" && cfg.input != "" {
 		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and -input reads a document instead of parsing: ask for one")
+	}
+
+	// The fixer writes the files a tree is made of. A document named by
+	// -input describes a tree the run never looked at, and rewriting from one
+	// would edit whatever tree the process happens to be standing in.
+	if (cfg.fix || cfg.command == commandFix) && cfg.input != "" {
+		return nil, fmt.Errorf("a fix rewrites the tree and -input reads a document instead of a tree: ask for one")
 	}
 
 	if rest := fs.Args(); len(rest) > 0 {
@@ -152,7 +186,31 @@ func parseOptions(args []string) (*config, error) {
 	// wrote.
 	cfg.options.IncludeTests = true
 
+	// The import rules read the declarations as a file writes them, and the
+	// fixer writes them back. Every run of the command asks for them: they are
+	// a walk of lines the parse already makes, and a run that had not asked
+	// would report every file as holding no imports at all.
+	cfg.options.IncludeImports = true
+
 	return cfg, nil
+}
+
+// verb peels a leading command off the command line.
+//
+// A command line that opens with anything else is a lint, so "splint ./..."
+// and every pipeline written before there were commands mean what they always
+// meant.
+func verb(args []string) (string, []string) {
+	if len(args) == 0 {
+		return commandLint, args
+	}
+
+	switch args[0] {
+	case commandFix, commandLint:
+		return args[0], args[1:]
+	}
+
+	return commandLint, args
 }
 
 // commaList splits a comma separated flag into its entries.
@@ -175,6 +233,11 @@ func helpSpec(cfg *config) spec {
 		Tagline: "a linting framework over a data model of Go source",
 		Usage: []string{
 			"splint [flags] [pattern]",
+			"splint fix [flags] [pattern]",
+		},
+		Commands: []command{
+			{commandLint, "report what the linters found. This is what a command line naming no verb does"},
+			{commandFix, "rewrite the import block of every file that does not hold the one the rules describe"},
 		},
 		Description: `The pattern is "." for the package in the source path and "./..." for
 everything below it, which is how every other tool here spells it.
@@ -190,6 +253,8 @@ not compile, and is an order of magnitude quicker.`,
 		Flags: cfg.flags,
 		Examples: []example{
 			{"splint ./...", "lint everything below here"},
+			{"splint fix ./...", "rewrite every import block to the house rules, and report nothing"},
+			{"splint --fix ./...", "rewrite them, then report what is left"},
 			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
 			{"splint --input " + saveFile, "lint a document read back, without parsing the tree"},
 			{"splint -save --append-coverage=pkg.cov ./...", "write the document with the coverage of every function in it"},
@@ -198,7 +263,21 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint --linters godoc,imports ./...", "run two of the twelve"},
 			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
 		},
-		Notes: `Every run parses the tree. --input is the one way to read a document that was
+		Notes: `splint fix rewrites the import block of every file that does not hold the
+one the rules describe: the groups in order, one declaration per file, an
+import nothing reaches taken out, and an import a name needs put in. It reads
+.splint.yml beside the tree for the group order, the company prefixes and the
+names the tree cannot place on its own, and it counts what it rewrote under
+stats.imports.fixed in the same file. It never writes go.mod and never touches
+a generated file. A file holding a name nothing can place is left alone, and
+splint ./... says which name.
+
+The fixer reads the tree with the simple parser unless --parser names one: a
+file that is missing an import it needs does not compile, and that is the file
+the fixer is there to repair. A file that imports nothing is valid Go and is
+left alone.
+
+Every run parses the tree. --input is the one way to read a document that was
 already written, so a run is never answered by a file left behind by an
 earlier one.
 

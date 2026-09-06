@@ -56,7 +56,7 @@ func runIn(t *testing.T, dir string, args ...string) string {
 	t.Chdir(dir)
 
 	var out bytes.Buffer
-	if _, err := run(context.Background(), args, &out); err != nil {
+	if _, err := run(context.Background(), args, &out, &out); err != nil {
 		t.Fatalf("run(%v) error = %v", args, err)
 	}
 	return out.String()
