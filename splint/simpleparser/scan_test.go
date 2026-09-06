@@ -1,6 +1,8 @@
 package simpleparser
 
-import "testing"
+import (
+	"testing"
+)
 
 // TestDocAbove covers what go/ast's CommentGroup.Text does, which is what the
 // doc has to read like for the two parsers to agree.

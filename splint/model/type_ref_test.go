@@ -1,6 +1,8 @@
 package model
 
-import "testing"
+import (
+	"testing"
+)
 
 // TestTypeRef covers the trims a reference goes through: variadics, slices,
 // maps, pointers and generic instantiations.

@@ -1,6 +1,8 @@
 package model
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestIsExported(t *testing.T) {
 	tests := map[string]bool{

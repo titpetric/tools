@@ -1,6 +1,8 @@
 package model
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNewStatistics(t *testing.T) {
 	labels := []string{"Package", "Files"}

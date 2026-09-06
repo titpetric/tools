@@ -1,6 +1,8 @@
 package model
 
-import "sort"
+import (
+	"sort"
+)
 
 // DefinitionList holds a list of Go packages.
 type DefinitionList []*Definition

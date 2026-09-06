@@ -1,6 +1,8 @@
 package model
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestDeclarationSymbol(t *testing.T) {
 	tests := []struct {

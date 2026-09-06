@@ -1,6 +1,8 @@
 package tests
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Difference is one place two values disagree.
 type Difference struct {

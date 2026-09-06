@@ -14,8 +14,9 @@ import (
 	"sort"
 	"strings"
 
-	. "github.com/titpetric/tools/splint/analyzer/internal/ast"
 	"github.com/titpetric/tools/splint/model"
+
+	. "github.com/titpetric/tools/splint/analyzer/internal/ast"
 )
 
 type (

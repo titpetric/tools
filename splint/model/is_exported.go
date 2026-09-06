@@ -1,6 +1,8 @@
 package model
 
-import "unicode"
+import (
+	"unicode"
+)
 
 // isExported reports whether a declared name is visible outside its package,
 // which in Go is whether it starts with an upper case letter.

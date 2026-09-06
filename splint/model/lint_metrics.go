@@ -1,6 +1,8 @@
 package model
 
-import "sort"
+import (
+	"sort"
+)
 
 // LintMetrics is what a linter measured, keyed by what it measured it on.
 //

@@ -4,8 +4,9 @@ import (
 	"go/ast"
 	"strings"
 
-	. "github.com/titpetric/tools/splint/analyzer/internal/ast"
 	"github.com/titpetric/tools/splint/model"
+
+	. "github.com/titpetric/tools/splint/analyzer/internal/ast"
 )
 
 func (p *collector) collectStructFields(out *model.Declaration, file *ast.File, decl *ast.GenDecl) {

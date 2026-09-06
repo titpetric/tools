@@ -1,6 +1,8 @@
 package model
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestFileBase(t *testing.T) {
 	tests := map[string]string{

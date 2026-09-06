@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 // WithoutTests returns the document with the test packages left out, and with
 // the test files of the packages that remain left out of those.
