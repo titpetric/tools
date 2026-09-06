@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 // File is one file of a package, as the parse read it.
 //
@@ -24,6 +26,63 @@ type File struct {
 
 	// Test reports a file the toolchain compiles into the test binary.
 	Test bool `json:"Test,omitempty" yaml:"Test,omitempty"`
+
+	// Directives reports a file carrying //line directives, which rebase the
+	// line numbers the compiler reports from that point on.
+	//
+	// The physical lines of such a file are load bearing: moving a directive,
+	// or deleting the declaration one sits above, changes every position
+	// reported for the rest of the file. Nothing here rewrites one. They are
+	// machine output, from goyacc and its like, and no reader wrote them.
+	Directives bool `json:"Directives,omitempty" yaml:"Directives,omitempty"`
+
+	// Package is the name in the file's own package clause.
+	//
+	// It is not always the name of the package the file is recorded under. A
+	// directory holds at most one package and up to two test scopes, and the
+	// external one declares "<name>_test": the two are one definition in the
+	// model and only the clause tells a file of one from a file of the other.
+	// A file may not import the package its clause names, and the external
+	// test file must.
+	Package string `json:"Package,omitempty" yaml:"Package,omitempty"`
+
+	// ImportDecls are the import declarations of the file, in the order they
+	// are written. They are filled when the parse was asked for them, and a
+	// document written without them describes the same package.
+	ImportDecls ImportDeclList `json:"ImportDecls,omitempty" yaml:"ImportDecls,omitempty"`
+
+	// Uses are the identifiers the file writes before a dot, sorted and
+	// deduplicated: the names an import of this file may have to answer to.
+	//
+	// It over-collects. A local variable, a parameter and a receiver are all
+	// in it, so "t" from t.Run is a use. That is the direction that cannot
+	// break a build: a name in here keeps an import that is not needed, and a
+	// name missing from here removes one that is.
+	Uses []string `json:"Uses,omitempty" yaml:"Uses,omitempty"`
+}
+
+// HasLineDirectives reports source carrying a //line directive.
+//
+// The directive is written at the start of a line, in the two comment forms Go
+// accepts for it. Anything else spelled "line" is a comment about something.
+func HasLineDirectives(lines []string) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(trimmed, "//line ") || strings.HasPrefix(trimmed, "/*line ") {
+			return true
+		}
+	}
+	return false
+}
+
+// UsesName reports whether the file writes the name before a dot.
+func (f File) UsesName(name string) bool {
+	for _, use := range f.Uses {
+		if use == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Base is the filename with the .go suffix and the _test marker taken off,

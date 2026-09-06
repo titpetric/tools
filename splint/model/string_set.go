@@ -17,6 +17,11 @@ import (
 // costs more than everything else the loop does.
 var majorVersion = regexp.MustCompile(`/v[0-9]+$`)
 
+// dottedVersion matches the major version gopkg.in writes onto the last
+// segment rather than into one of its own: "gopkg.in/yaml.v3" is imported as
+// yaml.
+var dottedVersion = regexp.MustCompile(`\.v[0-9]+$`)
+
 // StringSet provides a key based unique string slice.
 type StringSet map[string][]string
 

@@ -17,6 +17,12 @@ type Options struct {
 	// the size of a document and the whole of what a restore needs.
 	IncludeSources bool
 
+	// IncludeImports keeps the import declarations of every file as they are
+	// written, and the names each file writes before a dot. It is what the
+	// import rules and the fixer read; nothing else needs it, and a parse not
+	// asked for it does not pay for it.
+	IncludeImports bool
+
 	// Verbose asks the parser to say what it is doing.
 	Verbose bool
 }
