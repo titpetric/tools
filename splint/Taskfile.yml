@@ -70,3 +70,8 @@ tasks:
         go test ./tests/ -run XXX -bench BenchmarkASTParser -benchtime 10s
         -cpuprofile .profile/cpu-ast.out -memprofile .profile/mem-ast.out -o .profile/tests.bin
       - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem-ast.out
+
+  corpus:
+    desc: "Run the import fixer over every module in the go module cache"
+    cmds:
+      - SPLINT_CORPUS=0 go test ./tests/ -run TestCorpus -v -timeout 50m

@@ -6,3 +6,8 @@ splint.json
 .profile/
 # The coverage profile the test job writes.
 pkg.cov
+
+# The formatter fixture as `atkins fix` writes it. testdata/input is the
+# source and testdata/golden is what it should come out as; this is the copy
+# in between, kept for reading a change by eye.
+/linters/imports/testdata/output/
