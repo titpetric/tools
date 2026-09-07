@@ -3,8 +3,7 @@ tasks:
   default:
     desc: "Capture workspace screenshots"
     steps:
-      - goimports -w .
-      - go fmt ./...
+      - splint fix ./...
       - gotestsum ./... -- -count 1
       - go install .
       - defer: rm -f examples/*.txt
