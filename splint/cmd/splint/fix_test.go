@@ -87,19 +87,25 @@ func TestFixCommandRewritesTheTree(t *testing.T) {
 	}
 }
 
-// TestFixCountsWhatItRewrote covers the counter the prompt asks for, kept in
-// the tree's own configuration file across runs.
+// TestFixCountsWhatItRewrote covers the counter, which is kept on the machine
+// rather than beside the tree: a run that rewrote a file leaves the tree it
+// rewrote holding only source.
 func TestFixCountsWhatItRewrote(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir := tree(t)
 
 	runArgs(t, "fix", "-i", dir, "./...")
 
-	rules, err := settings.Load(dir)
+	stats, err := settings.LoadStats()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rules.Stats.Imports.Fixed != 13 {
-		t.Errorf("stats.imports.fixed = %d, want 13", rules.Stats.Imports.Fixed)
+	if stats.Imports.Fixed != 13 {
+		t.Errorf("imports.fixed = %d, want 13", stats.Imports.Fixed)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, settings.Filename)); !os.IsNotExist(err) {
+		t.Errorf("the fixer wrote %s into the tree", settings.Filename)
 	}
 
 	// A second run has nothing left to write, and the count does not move.
@@ -108,12 +114,12 @@ func TestFixCountsWhatItRewrote(t *testing.T) {
 		t.Errorf("a second run rewrote a tree it had already written:\n%s", got)
 	}
 
-	rules, err = settings.Load(dir)
+	stats, err = settings.LoadStats()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rules.Stats.Imports.Fixed != 13 {
-		t.Errorf("stats.imports.fixed = %d after a run that wrote nothing, want 13", rules.Stats.Imports.Fixed)
+	if stats.Imports.Fixed != 13 {
+		t.Errorf("imports.fixed = %d after a run that wrote nothing, want 13", stats.Imports.Fixed)
 	}
 }
 

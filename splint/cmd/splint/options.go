@@ -268,8 +268,9 @@ one the rules describe: the groups in order, one declaration per file, an
 import nothing reaches taken out, and an import a name needs put in. It reads
 .splint.yml beside the tree for the group order, the company prefixes and the
 names the tree cannot place on its own, and it counts what it rewrote under
-stats.imports.fixed in the same file. It never writes go.mod and never touches
-a generated file. A file holding a name nothing can place is left alone, and
+imports.fixed in splint.yml under the user configuration directory, which is
+where a count of what this machine has done belongs rather than beside the
+tree. It never writes go.mod and never touches a generated file. A file holding a name nothing can place is left alone, and
 splint ./... says which name.
 
 The fixer reads the tree with the simple parser unless --parser names one: a

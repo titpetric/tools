@@ -27,10 +27,6 @@ const Filename = ".splint.yml"
 type Config struct {
 	// Imports is the house rule for an import block.
 	Imports Imports `yaml:"imports"`
-
-	// Stats is what runs of splint have counted. It is written by the tool
-	// rather than by hand.
-	Stats Stats `yaml:"stats"`
 }
 
 // Imports is the house rule for an import block.
@@ -76,18 +72,6 @@ type Pollution struct {
 	// whose three test files all reach testify is reported. Set it false when
 	// that reads as noise rather than as a finding.
 	IncludeTests *bool `yaml:"include-tests"`
-}
-
-// Stats is what runs of splint have counted.
-type Stats struct {
-	Imports StatsImports `yaml:"imports"`
-}
-
-// StatsImports is what the import fixer has counted.
-type StatsImports struct {
-	// Fixed is how many times a .go file has had its import block rewritten,
-	// across every run against this tree.
-	Fixed int `yaml:"fixed"`
 }
 
 // Default is the configuration a tree with no file is read under.

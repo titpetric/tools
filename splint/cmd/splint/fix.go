@@ -36,10 +36,10 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 		return 0, err
 	}
 
-	// The count is bookkeeping and the rewrite is the work. A tree whose
-	// configuration cannot be written has still been formatted, and failing
+	// The count is bookkeeping and the rewrite is the work. A machine whose
+	// counter cannot be written has still had its tree formatted, and failing
 	// the run here would say it had not.
-	if err := settings.AddFixed(cfg.options.SourcePath, len(changed)); err != nil {
+	if err := settings.AddFixed(len(changed)); err != nil {
 		fmt.Fprintf(w, "the rewrite is done and the count is not recorded: %v\n", err)
 	}
 

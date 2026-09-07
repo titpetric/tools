@@ -25,4 +25,4 @@ tasks:
       - rm -rf linters/imports/testdata/output
       - cp -r linters/imports/testdata/input linters/imports/testdata/output
       - go run ./cmd/splint fix -i linters/imports/testdata/output ./...
-      - diff -ru linters/imports/testdata/golden linters/imports/testdata/output --exclude=.splint.yml
+      - diff -ru linters/imports/testdata/golden linters/imports/testdata/output

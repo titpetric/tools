@@ -5,7 +5,3 @@ imports:
   # a group of its own between the third party imports and the project's.
   company:
     - github.com/titpetric/
-# What runs of splint have counted. Written by the tool.
-stats:
-  imports:
-    fixed: 14

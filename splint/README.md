@@ -210,16 +210,27 @@ imports:
     per-package: 2
     file-share: 0.5
     include-tests: true
-
-stats:
-  imports:
-    fixed: 0
 ```
 
-`stats.imports.fixed` is how many times a `.go` file has had its import block
-rewritten, across every run against the tree. `splint fix` adds to it and
-writes the file back through its node tree, so the comments in a file written
-by hand survive the counter.
+The file states rules and nothing else. What a run counted is kept on the
+machine, in `splint.yml` under the directory the operating system keeps a
+user's configuration in, which is `~/.config/splint.yml` on Linux:
+
+```yaml
+imports:
+  fixed: 0
+```
+
+`imports.fixed` is how many times a `.go` file has had its import block
+rewritten, across every run this user has made against any tree. It is not
+kept beside the tree: a tree's own file states what its authors decided and
+commit, and a counter is what one person's runs have done. Keeping it there
+left every run that rewrote a file with a dirty repository and every branch
+carrying a different number.
+
+`splint fix` adds to the counter and writes the file back through its node
+tree, so a comment written beside one survives it. A run that rewrote nothing
+does not write at all.
 
 ## Output
 

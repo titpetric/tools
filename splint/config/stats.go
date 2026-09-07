@@ -5,26 +5,84 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
 
-// AddFixed adds n to stats.imports.fixed and writes the file back.
+// StatsFilename is the file the counters live in, under the directory the
+// operating system keeps a user's configuration in.
 //
-// The file is edited rather than re-encoded from the struct: a tree that wrote
-// its rules by hand wrote comments beside them, and a counter that came back
-// having deleted them is a counter nobody would keep. The whole document is
-// kept as nodes and one scalar is changed.
+// They are not kept beside the tree. A tree's own file states the rules its
+// source is formatted under, which is a decision its authors made and commit;
+// a counter is what one person's runs have done and belongs to that person's
+// machine. Keeping it in the tree meant every run that rewrote a file left the
+// repository dirty and every branch carried a different number.
+const StatsFilename = "splint.yml"
+
+// Stats is what runs of splint have counted.
+type Stats struct {
+	Imports StatsImports `yaml:"imports"`
+}
+
+// StatsImports is what the import fixer has counted.
+type StatsImports struct {
+	// Fixed is how many times a .go file has had its import block rewritten,
+	// across every run this user has made, against any tree.
+	Fixed int `yaml:"fixed"`
+}
+
+// StatsPath is the file the counters are kept in.
+func StatsPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, StatsFilename), nil
+}
+
+// LoadStats reads the counters. A machine that has none reads zeroes and no
+// error.
+func LoadStats() (Stats, error) {
+	var stats Stats
+
+	path, err := StatsPath()
+	if err != nil {
+		return stats, err
+	}
+
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return stats, nil
+	}
+	if err != nil {
+		return stats, err
+	}
+
+	if err := yaml.Unmarshal(data, &stats); err != nil {
+		return stats, err
+	}
+	return stats, nil
+}
+
+// AddFixed adds n to imports.fixed and writes the file back.
 //
-// A tree with no file gets one holding the count and nothing else. Adding
+// The file is edited rather than re-encoded from the struct: somebody who
+// wrote a comment beside a counter keeps it. The whole document is kept as
+// nodes and one scalar is changed.
+//
+// A machine with no file gets one holding the count and nothing else. Adding
 // nothing writes nothing.
-func AddFixed(dir string, n int) error {
+func AddFixed(n int) error {
 	if n <= 0 {
 		return nil
 	}
 
-	path := Path(dir)
+	path, err := StatsPath()
+	if err != nil {
+		return err
+	}
 
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -40,8 +98,7 @@ func AddFixed(dir string, n int) error {
 		}
 	}
 
-	root := documentRoot(&document)
-	counter := entry(entry(root, "stats"), "imports")
+	counter := entry(documentRoot(&document), "imports")
 
 	value := field(counter, "fixed")
 	count, err := strconv.Atoi(value.Value)
@@ -57,6 +114,9 @@ func AddFixed(dir string, n int) error {
 		return err
 	}
 
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
 	return write(path, out)
 }
 

@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,9 +41,6 @@ func TestLoadFile(t *testing.T) {
     per-package: 4
     file-share: 0.25
     include-tests: false
-stats:
-  imports:
-    fixed: 12
 `), 0o644))
 
 	cfg, err := config.Load(dir)
@@ -54,7 +50,6 @@ stats:
 	assert.Equal(t, map[string]string{"assert": "github.com/stretchr/testify/assert"}, cfg.Imports.Aliases)
 	assert.Equal(t, 4, cfg.Imports.Pollution.PerPackage)
 	assert.False(t, cfg.Imports.Pollution.CountTests())
-	assert.Equal(t, 12, cfg.Stats.Imports.Fixed)
 
 	opts := cfg.ImportOptions("example.com/app")
 	assert.Equal(t, "example.com/other", opts.Project, "a project the file names wins over the module")
@@ -62,64 +57,86 @@ stats:
 	assert.False(t, opts.SetAlias)
 }
 
-// TestAddFixedCreatesTheFile covers the first fix run against a tree that has
-// no configuration.
+// TestAddFixedCreatesTheFile covers the first fix run on a machine that has
+// no counter yet.
 func TestAddFixedCreatesTheFile(t *testing.T) {
-	dir := t.TempDir()
+	userConfig(t)
 
-	require.NoError(t, config.AddFixed(dir, 3))
+	require.NoError(t, config.AddFixed(3))
 
-	cfg, err := config.Load(dir)
+	stats, err := config.LoadStats()
 	require.NoError(t, err)
-	assert.Equal(t, 3, cfg.Stats.Imports.Fixed)
+	assert.Equal(t, 3, stats.Imports.Fixed)
 }
 
-// TestAddFixedAccumulates covers the counter being what the prompt asked for:
-// how many times a file has been rewritten, across runs.
+// TestAddFixedAccumulates covers the counter being what it says: how many
+// times a file has been rewritten, across runs and across trees.
 func TestAddFixedAccumulates(t *testing.T) {
-	dir := t.TempDir()
+	userConfig(t)
 
-	require.NoError(t, config.AddFixed(dir, 3))
-	require.NoError(t, config.AddFixed(dir, 4))
-	require.NoError(t, config.AddFixed(dir, 0))
+	require.NoError(t, config.AddFixed(3))
+	require.NoError(t, config.AddFixed(4))
+	require.NoError(t, config.AddFixed(0))
 
-	cfg, err := config.Load(dir)
+	stats, err := config.LoadStats()
 	require.NoError(t, err)
-	assert.Equal(t, 7, cfg.Stats.Imports.Fixed)
+	assert.Equal(t, 7, stats.Imports.Fixed)
 }
 
 // TestAddFixedKeepsComments is why the counter is written through the node
 // tree rather than re-encoded from the struct.
 func TestAddFixedKeepsComments(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(config.Path(dir), []byte(`# The house rule for this tree.
+	userConfig(t)
+
+	path, err := config.StatsPath()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, []byte(`# What splint has counted on this machine.
 imports:
-  # Everything under here is ours.
-  company: [github.com/titpetric/]
+  # Files whose import block was rewritten.
+  fixed: 5
 `), 0o644))
 
-	require.NoError(t, config.AddFixed(dir, 1))
+	require.NoError(t, config.AddFixed(1))
 
-	data, err := os.ReadFile(config.Path(dir))
+	data, err := os.ReadFile(path)
 	require.NoError(t, err)
+	assert.Contains(t, string(data), "# What splint has counted on this machine.")
+	assert.Contains(t, string(data), "# Files whose import block was rewritten.")
 
-	assert.Contains(t, string(data), "# The house rule for this tree.")
-	assert.Contains(t, string(data), "# Everything under here is ours.")
-
-	cfg, err := config.Load(dir)
+	stats, err := config.LoadStats()
 	require.NoError(t, err)
-	assert.Equal(t, 1, cfg.Stats.Imports.Fixed)
-	assert.Equal(t, []string{"github.com/titpetric/"}, cfg.Imports.Company)
+	assert.Equal(t, 6, stats.Imports.Fixed)
 }
 
-// TestAddFixedLeavesNoTemporary covers the write: the file is replaced through
-// a temporary, and the temporary is not left behind.
-func TestAddFixedLeavesNoTemporary(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, config.AddFixed(dir, 1))
+// TestAddFixedIsNotWrittenBesideTheTree is the change this test file exists
+// for: a run that rewrote a file leaves the tree it rewrote alone.
+func TestAddFixedIsNotWrittenBesideTheTree(t *testing.T) {
+	userConfig(t)
 
-	entries, err := os.ReadDir(dir)
+	tree := t.TempDir()
+	require.NoError(t, config.AddFixed(2))
+
+	entries, err := os.ReadDir(tree)
 	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, config.Filename, filepath.Base(entries[0].Name()))
+	assert.Empty(t, entries, "the counter was written into the tree")
+}
+
+// TestLoadStatsWithoutAFile covers a machine that has never run the fixer.
+func TestLoadStatsWithoutAFile(t *testing.T) {
+	userConfig(t)
+
+	stats, err := config.LoadStats()
+	require.NoError(t, err)
+	assert.Equal(t, 0, stats.Imports.Fixed)
+}
+
+// userConfig points the counter at a directory of the test's own, so a run of
+// the suite neither reads nor writes the counter of whoever is running it.
+func userConfig(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	return dir
 }
