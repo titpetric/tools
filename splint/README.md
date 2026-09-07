@@ -194,8 +194,15 @@ wrong would otherwise have the rewrite overwrite whatever is really there.
 
 ### Configuration
 
-`.splint.yml` sits at the root of the tree, beside `go.mod`. A tree with no
-such file is formatted by the defaults.
+Two files, and they belong to different people.
+
+| File                                         | Holds                                  | Written by                          |
+|----------------------------------------------|----------------------------------------|-------------------------------------|
+| `.splint.yml` beside `go.mod`                | the rules a tree is formatted under    | its authors, by hand, and committed |
+| `splint.yml` under the user config directory | what runs on this machine have counted | `splint fix`                        |
+
+`.splint.yml` sits at the root of the tree. A tree with no such file is
+formatted by the defaults.
 
 ```yaml
 imports:
@@ -437,7 +444,7 @@ Three differences are representational, and are handled rather than counted:
 | `importfmt/`    | the house rule for an import block, as a function of the imports and nothing else     |
 | `resolve/`      | what package a bare name refers to, from where it was written                         |
 | `fix/`          | rewrites an import block. The only package here that writes a file                    |
-| `config/`       | reads `.splint.yml` and keeps the counter in it                                       |
+| `config/`       | reads the tree's `.splint.yml`, and keeps the run counter under the user config dir   |
 | `schema/`       | renders a document as a JSON Schema                                                   |
 | `report/`       | what was found: the issues, sorted and counted                                        |
 | `render/`       | how it looks: the issue line, drawn tables, markdown                                  |
