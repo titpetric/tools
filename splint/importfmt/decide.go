@@ -1,6 +1,7 @@
 package importfmt
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -32,6 +33,24 @@ type Unresolved struct {
 	// Candidates are the paths that answered when more than one did, and are
 	// empty when nothing answered at all.
 	Candidates []string
+}
+
+// Message says what could not be placed and why, quoting a use so a reader
+// knows which line to look at. It is what the linter reports and what the
+// fixer says about a file it leaves alone.
+func (u Unresolved) Message() string {
+	reached := u.Name
+	if len(u.Symbols) > 0 {
+		reached += "." + u.Symbols[0]
+	}
+
+	if len(u.Candidates) > 0 {
+		return fmt.Sprintf("%s reaches %s and %d packages answer to it: %s",
+			reached, u.Name, len(u.Candidates), strings.Join(u.Candidates, ", "))
+	}
+
+	return fmt.Sprintf("%s reaches %s and no package of the tree, no file of it and no requirement is called that",
+		reached, u.Name)
 }
 
 // Decision is what one file's import block should hold.

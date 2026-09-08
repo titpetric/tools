@@ -84,8 +84,13 @@ func TestFixGolden(t *testing.T) {
 			// is the "C" declaration itself, which testdata/golden holds
 			// exactly where the preamble above it put it.
 
-			assert.Equal(t, []string{"broken/broken.go"}, plan.Skipped,
-				"a file reaching a name nothing can place is left alone rather than written without the import it needs")
+			assert.Equal(t, []fix.Skip{{
+				Name: "broken/broken.go",
+				Unresolved: []importfmt.Unresolved{
+					{Name: "nope", Symbols: []string{"Value"}},
+				},
+			}}, plan.Skipped,
+				"a file reaching a name nothing can place is left alone rather than written without the import it needs, and the skip says which name and which use")
 
 			compareTree(t, goldenDir, dir, sawCgo)
 		})

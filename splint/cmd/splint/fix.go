@@ -83,9 +83,17 @@ func writeFixed(w io.Writer, plan *fix.Plan, changed []string) error {
 		}
 	}
 
-	for _, name := range plan.Skipped {
-		if _, err := fmt.Fprintln(w, "left alone:", name, "- a name in it does not resolve"); err != nil {
-			return err
+	for _, skip := range plan.Skipped {
+		if len(skip.Unresolved) == 0 {
+			if _, err := fmt.Fprintln(w, "left alone:", skip.Name, "- a name in it does not resolve"); err != nil {
+				return err
+			}
+			continue
+		}
+		for _, unresolved := range skip.Unresolved {
+			if _, err := fmt.Fprintf(w, "left alone: %s - %s\n", skip.Name, unresolved.Message()); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -45,6 +45,18 @@ type FileFix struct {
 	Removed []string
 }
 
+// Skip is one file that needs a rewrite and cannot have one, and the names
+// that stop it.
+type Skip struct {
+	// Name is the file as a report names it, relative to the root of the
+	// parse.
+	Name string
+
+	// Unresolved are the names nothing could place, each with the symbols the
+	// file reaches through it, so the report says which lines to look at.
+	Unresolved []importfmt.Unresolved
+}
+
 // Plan is every file a run would rewrite.
 type Plan struct {
 	Files []FileFix
@@ -52,7 +64,7 @@ type Plan struct {
 	// Skipped are the files that need a rewrite and cannot have one, because a
 	// name in them does not resolve. Writing the block without that import
 	// would leave a file that does not build.
-	Skipped []string
+	Skipped []Skip
 }
 
 // Len is how many files the plan rewrites.
@@ -101,7 +113,10 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 			seen[path] = true
 
 			if !decision.Sound() {
-				plan.Skipped = append(plan.Skipped, name(root, path))
+				plan.Skipped = append(plan.Skipped, Skip{
+					Name:       name(root, path),
+					Unresolved: decision.Unresolved,
+				})
 				continue
 			}
 
@@ -116,7 +131,7 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 	}
 
 	sort.Slice(plan.Files, func(i, j int) bool { return plan.Files[i].Path < plan.Files[j].Path })
-	sort.Strings(plan.Skipped)
+	sort.Slice(plan.Skipped, func(i, j int) bool { return plan.Skipped[i].Name < plan.Skipped[j].Name })
 
 	return plan
 }

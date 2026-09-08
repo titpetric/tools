@@ -19,12 +19,17 @@ func (f *file) scanFunc(src *source, line int) int {
 	}
 
 	// A body written on the same line as the signature closes on that line;
-	// anything else closes on a brace at column zero. Where the body starts is
-	// what keeps the signature out of the references.
+	// one opened at the end of it closes on a brace at column zero. Where the
+	// body starts is what keeps the signature out of the references. A
+	// declaration with no body at all, a forward declaration to assembly or a
+	// go:linkname target, ends with its signature: scanning it for a closing
+	// brace would read every declaration under it as the body, up to wherever
+	// some later brace closes.
 	body, column := end, 0
-	if closedOnLine(src.codeLine(end)) {
+	switch {
+	case closedOnLine(src.codeLine(end)):
 		column = bodyColumn(src.codeLine(end))
-	} else {
+	case strings.HasSuffix(strings.TrimSpace(src.codeLine(end)), "{"):
 		body = blockEnd(src, end, '}')
 	}
 

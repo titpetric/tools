@@ -153,7 +153,7 @@ func (l *Linter) block(results *Results, metric *Metric, root *model.DocumentRoo
 				Severity: model.SeverityError,
 				Position: position,
 				Symbol:   unresolved.Name,
-				Message:  unresolvedMessage(unresolved),
+				Message:  unresolved.Message(),
 			})
 			metric.Unresolved++
 		}
@@ -183,22 +183,6 @@ func (l *Linter) block(results *Results, metric *Metric, root *model.DocumentRoo
 			Fixable:  decision.Sound(),
 		})
 	}
-}
-
-// unresolvedMessage says what could not be placed and why.
-func unresolvedMessage(unresolved importfmt.Unresolved) string {
-	reached := unresolved.Name
-	if len(unresolved.Symbols) > 0 {
-		reached += "." + unresolved.Symbols[0]
-	}
-
-	if len(unresolved.Candidates) > 0 {
-		return fmt.Sprintf("%s reaches %s and %d packages answer to it: %s",
-			reached, unresolved.Name, len(unresolved.Candidates), strings.Join(unresolved.Candidates, ", "))
-	}
-
-	return fmt.Sprintf("%s reaches %s and no package of the tree, no file of it and no requirement is called that",
-		reached, unresolved.Name)
 }
 
 // formatMessage says what is wrong with the block rather than printing the one
