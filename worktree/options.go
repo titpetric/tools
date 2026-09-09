@@ -25,6 +25,7 @@ type Options struct {
 	Stats      bool
 	Apply      bool
 	NoCache    bool
+	Exec       string
 	GoVersion  string
 	Release    string
 	From       string
@@ -44,7 +45,7 @@ const commandResolve = "resolve"
 const commandVerdict = "verdict"
 
 // valueFlags lists the flags that take a value as a separate argument.
-var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true}
+var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true, "-exec": true, "--exec": true}
 
 // bind defines the command-line flags on a flag set, and gives that set the
 // help page as its usage, so -h and --help print the page rather than the
@@ -65,6 +66,7 @@ func (o *Options) bind(fs *flag.FlagSet) {
 	fs.StringVar(&o.From, "from", "", "the `REVISION` worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
 	fs.StringVar(&o.To, "to", "", "the `REVISION` worktree verdict measures to, the working tree by default")
 	fs.StringVar(&o.GoVersion, "go", "", "set the go directive of every go.mod and go.work to `VERSION`, then update dependencies")
+	fs.StringVar(&o.Exec, "exec", "", "run `COMMAND` with bash -c in every go module")
 
 	fs.Usage = func() { _ = writeHelp(os.Stdout, helpSpec(fs)) }
 }
@@ -100,6 +102,7 @@ which is what a run with no path reads anyway.`,
 			{"worktree", "the whole workspace, one row per module"},
 			{"worktree platform -v", "one module, with its commits, issues and untracked files"},
 			{"worktree -u", "update the workspace dependencies that moved, and tidy"},
+			{"worktree --exec 'go get ./...'", "run a command in every go module"},
 			{"worktree resolve --apply", "release the modules that earned one, in dependency order"},
 			{"worktree verdict --from all", "every release of the repository here, as markdown"},
 			{"worktree patch | sh -x", "tag and push the next patch release"},

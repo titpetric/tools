@@ -393,6 +393,16 @@ func main() {
 		return
 	}
 
+	if opts.Exec != "" {
+		if len(goModPaths) == 0 {
+			log.Fatalf("--exec requires a go.work or go.mod")
+		}
+		if execModules(os.Stdout, goModPaths, opts.Exec, opts.Verbose, supportsANSI(os.Stdout)) > 0 {
+			os.Exit(1)
+		}
+		return
+	}
+
 	if opts.Update || opts.GoVersion != "" {
 		if len(goModPaths) == 0 {
 			log.Fatalf("dependency updates require a go.work or go.mod")
