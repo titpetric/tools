@@ -1,6 +1,8 @@
 package main
 
-import "strings"
+import (
+	"strings"
+)
 
 // moduleLink returns a GitHub URL for a Go module path.
 // For submodules (e.g. github.com/user/repo/subdir), it generates

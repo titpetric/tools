@@ -8,7 +8,9 @@
 // back, so a round trip through the setup screen cannot drop one.
 package config
 
-import "slices"
+import (
+	"slices"
+)
 
 // Version is the document version this build writes. A document declaring a
 // higher version is rejected, a document declaring none is accepted as

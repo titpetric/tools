@@ -1,6 +1,8 @@
 package components
 
-import "strings"
+import (
+	"strings"
+)
 
 // ModuleVerbose returns a verbose module cell with description, path, and import path.
 func ModuleVerbose(description, dirPath, moduleName string) Cell {

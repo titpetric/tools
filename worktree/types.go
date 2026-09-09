@@ -1,6 +1,8 @@
 package main
 
-import "github.com/titpetric/tools/worktree/components"
+import (
+	"github.com/titpetric/tools/worktree/components"
+)
 
 type projectDir struct {
 	Path     string

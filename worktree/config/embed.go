@@ -1,6 +1,8 @@
 package config
 
-import _ "embed"
+import (
+	_ "embed"
+)
 
 // DefaultConfig is the built-in configuration document. It is the value of
 // every setting when ~/.config/worktree.yml does not exist, and the comments

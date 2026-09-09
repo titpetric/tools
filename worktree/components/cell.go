@@ -1,6 +1,8 @@
 package components
 
-import "github.com/charmbracelet/x/ansi"
+import (
+	"github.com/charmbracelet/x/ansi"
+)
 
 // Cell represents a multi-line table cell. Each element is one display line
 // (may contain ANSI color codes).

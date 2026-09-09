@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
 	"github.com/titpetric/tools/worktree/components"
 )
 
