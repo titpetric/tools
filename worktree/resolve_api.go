@@ -119,6 +119,17 @@ func tidySignature(signature string) string {
 	return strings.ReplaceAll(signature, ", ctx context.Context", ", context.Context")
 }
 
+// qualifySignature prefixes a signature with the receiver the symbol name
+// carries. A compared signature starts with the bare method name, so two
+// methods named alike on different types of the same package would otherwise
+// read as the same change.
+func qualifySignature(name, signature string) string {
+	if _, method, ok := strings.Cut(name, "."); ok && strings.HasPrefix(signature, method+" ") {
+		return name + strings.TrimPrefix(signature, method)
+	}
+	return signature
+}
+
 // apiChange is an exported symbol whose signature moved between two revisions.
 type apiChange struct {
 	Key     string `json:"key"`

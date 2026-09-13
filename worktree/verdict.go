@@ -459,20 +459,33 @@ func writeVisibility(w io.Writer, v verdict, styled bool) {
 		return
 	}
 
-	headers := []string{"Package", "Types", "Funcs", "Ratio"}
+	headers := []string{"Package", "Exported types", "Internal types", "Exported funcs", "Internal funcs", "Internal code"}
 	rows := make([][]string, 0, len(v.Visibility.Packages))
 	for _, pkg := range v.Visibility.Packages {
 		rows = append(rows, []string{
 			colorLines(pkg.Package, components.ColorSeparator, styled),
-			fmt.Sprintf("%d / %d", pkg.ExportedTypes, pkg.InternalTypes),
-			fmt.Sprintf("%d / %d", pkg.ExportedFuncs, pkg.InternalFuncs),
+			strconv.Itoa(pkg.ExportedTypes),
+			strconv.Itoa(pkg.InternalTypes),
+			strconv.Itoa(pkg.ExportedFuncs),
+			strconv.Itoa(pkg.InternalFuncs),
 			fmt.Sprintf("%.1f%%", pkg.InternalRatio),
 		})
 	}
 
 	writeHeading(w, "Visibility, the working tree", styled)
+	writeLegend(w, "Counts are the declared types and funcs of each package, split by the case of their name. Internal code is the share of the package's code inside internal func bodies.", styled)
 	writeSimpleTable(w, headers, rows, styled)
 	writeGap(w, styled)
+}
+
+// writeLegend writes the sentence naming what a table's columns hold, between
+// the heading and the table.
+func writeLegend(w io.Writer, text string, styled bool) {
+	if !styled {
+		fmt.Fprintf(w, "%s\n\n", text)
+		return
+	}
+	fmt.Fprintf(w, "%s\n", colorLines(text, components.ColorSeparator, styled))
 }
 
 // writeTitle writes the line the report opens on, which names the module and
@@ -706,7 +719,9 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		}
 	}
 	for _, change := range v.API.Changed {
-		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + tidySignature(change.Old) + "\nAfter: " + tidySignature(change.New), change.Exported, touched[change.Key]})
+		before := tidySignature(qualifySignature(change.Name, change.Old))
+		after := tidySignature(qualifySignature(change.Name, change.New))
+		entries = append(entries, symbolEntry{"Changed", change.Package, "Before: " + before + "\nAfter: " + after, change.Exported, touched[change.Key]})
 	}
 	for _, symbol := range collapseRemovedMethods(v.API.Removed) {
 		entries = append(entries, symbolEntry{"Removed", symbol.Package, symbol.String(), symbol.Exported, touched[symbol.Key]})

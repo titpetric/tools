@@ -481,11 +481,12 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| Changed | / | type Config struct | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
 		"| Removed | / | type Config struct | Retries int |",
 		// The working tree stands on its own: one row per package, counted
-		// and not judged.
+		// and not judged, with the legend naming what the columns hold.
 		"## Visibility, the working tree",
-		"| Package | Types | Funcs | Ratio |",
-		"| ./ | 9 / 1 | 43 / 37 | 44.8% |",
-		"| ./storage | 3 / 1 | 22 / 3 | 8.4% |",
+		"Counts are the declared types and funcs of each package, split by the case of their name.",
+		"| Package | Exported types | Internal types | Exported funcs | Internal funcs | Internal code |",
+		"| ./ | 9 | 1 | 43 | 37 | 44.8% |",
+		"| ./storage | 3 | 1 | 22 | 3 | 8.4% |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
@@ -500,6 +501,27 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 	// column to keep it apart from.
 	if strings.Contains(got, "| Change | Package | Exported | Unexported |") {
 		t.Errorf("renderVerdict() added a package column for a single package:\n%s", got)
+	}
+}
+
+// TestRenderVerdictMethodReceivers pins the receiver on a changed method: the
+// compared signatures carry the bare name, so without the qualification two
+// same-named methods on different types read as one change repeated.
+func TestRenderVerdictMethodReceivers(t *testing.T) {
+	v := sampleVerdict()
+	v.API.Changed = []apiChange{{
+		Key: "example.com/x.file.Save", Package: "example.com/x",
+		Name: "file.Save", Exported: false,
+		Old: "Save (context.Context) error", New: "Save (context.Context, string) error",
+	}}
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+
+	got := out.String()
+	want := "Before: file.Save (context.Context) error<br>After: file.Save (context.Context, string) error"
+	if !strings.Contains(got, want) {
+		t.Errorf("renderVerdict() output missing %q:\n%s", want, got)
 	}
 }
 

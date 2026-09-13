@@ -314,3 +314,23 @@ func TestTidySignature(t *testing.T) {
 		}
 	}
 }
+
+func TestQualifySignature(t *testing.T) {
+	tests := []struct {
+		name, signature, want string
+	}{
+		// A method's compared signature starts with the bare name, so the
+		// receiver the symbol name carries is put back.
+		{"memoryStorage.Save", "Save (context.Context, model.Trace) error", "memoryStorage.Save (context.Context, model.Trace) error"},
+		// A plain func has no receiver and reads as it came.
+		{"TraceHost", "TraceHost (Trace) string", "TraceHost (Trace) string"},
+		// A name that does not match the signature is left alone rather
+		// than guessed at.
+		{"other.Load", "Save (context.Context) error", "Save (context.Context) error"},
+	}
+	for _, test := range tests {
+		if got := qualifySignature(test.name, test.signature); got != test.want {
+			t.Errorf("qualifySignature(%q, %q) = %q, want %q", test.name, test.signature, got, test.want)
+		}
+	}
+}
