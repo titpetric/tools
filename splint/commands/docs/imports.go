@@ -43,7 +43,7 @@ func renderImports(w io.Writer, defs model.DefinitionList) error {
 	}
 
 	for _, src := range imports.Keys() {
-		for _, use := range imports[src] {
+		for _, use := range imports.Get(src) {
 			fmt.Fprintf(w, "[%s] --|> [%s]\n", src, use)
 		}
 	}
