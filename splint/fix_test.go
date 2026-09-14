@@ -18,7 +18,7 @@ import (
 
 // unformatted is the fixture the import fixer is tested against, resolved
 // before anything has moved the process.
-var unformatted = absolute("../../linters/imports/testdata/input")
+var unformatted = absolute("linters/imports/testdata/input")
 
 // tree writes a copy of the fixture into a directory of its own and returns
 // it, so a test that rewrites source rewrites its own copy.

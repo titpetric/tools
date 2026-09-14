@@ -10,9 +10,9 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
-	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer/internal/collector"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
 // Load reads one package into its definitions.

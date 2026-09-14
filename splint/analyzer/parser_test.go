@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
 // TestParseRestoresTheWorkingDirectory covers what a caller still holds after a

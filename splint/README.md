@@ -16,7 +16,7 @@ where the output goes, so the same command line serves all three.
 ## Install
 
 ```bash
-go install github.com/titpetric/tools/splint/cmd/splint@latest
+go install github.com/titpetric/tools/splint@main
 ```
 
 ## Use
@@ -25,6 +25,8 @@ go install github.com/titpetric/tools/splint/cmd/splint@latest
 splint ./...                          # lint everything below here
 splint fix ./...                      # rewrite every import block, and report nothing
 splint --fix ./...                    # rewrite them, then report what is left
+splint docs ./... > docs/api.md       # render the tree as an API reference
+splint coverage --input splint.json   # report the coverage a document carries
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
@@ -440,6 +442,8 @@ Three differences are representational, and are handled rather than counted:
 | `modproxy/`     | asks the Go module proxy what a dependency weighs, how old it is and what it requires |
 | `loader/`       | reads a document back from `.json` or `.yml`                                          |
 | `coverprofile/` | folds a Go coverage profile into a parsed document                                    |
+| `coverreport/`  | renders the coverage a document carries as tables, or through a template              |
+| `docs/`         | renders a document as an API reference: markdown, spec, imports, plantuml             |
 | `linters/`      | the registry, one subpackage per linter                                               |
 | `importfmt/`    | the house rule for an import block, as a function of the imports and nothing else     |
 | `resolve/`      | what package a bare name refers to, from where it was written                         |
@@ -448,12 +452,13 @@ Three differences are representational, and are handled rather than counted:
 | `schema/`       | renders a document as a JSON Schema                                                   |
 | `report/`       | what was found: the issues, sorted and counted                                        |
 | `render/`       | how it looks: the issue line, drawn tables, markdown                                  |
-| `cmd/splint`    | the command                                                                           |
+| `pkg/splint/`   | Options and the Parser interface, what the parsers are constructed from               |
 | `tests/`        | the parity harness and the benchmark                                                  |
 
-The dependency runs one way. `model` imports nothing of its own; `splint`
-imports `model`; the parsers import `splint` and `model`; the linters import
-`model` alone; `cmd` imports all of it.
+The dependency runs one way. `model` imports nothing of its own; `pkg/splint`
+imports `model`; the parsers import both; the linters import `model` alone;
+the command at the module root imports all of it, which is what makes the
+root `package main` and the install line one segment shorter.
 
 `report` holds what was found and `render` holds how it looks, so there is one
 package to open when the output is wrong. The drawn tables are worktree's,
@@ -973,6 +978,23 @@ averaged the function percentages, and this weights them by the statements
 behind them, so a package of one long uncovered function and ten short covered
 ones reads lower here.
 
+`splint coverage` renders what was folded in, which was `go-fsck coverage`:
+one markdown row per covered function with its cognitive complexity beside
+the coverage, and one per package with the lines added up. `-v` keeps the
+uncovered functions in, `--json` writes the rows as data, and `--template`
+renders a text/template with both tables, `.Functions` and `.Packages`, in
+place of printing the function table alone.
+
+```bash
+go test -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
+splint coverage --append-coverage=pkg.cov ./... > docs/testing-coverage.md
+splint coverage --input splint.json --template docs/testing-coverage.md.tpl
+```
+
+The report reads the same two fields whichever way the document arrived: a
+parse with the profile folded in, or `--input` naming a document that was
+written with one.
+
 ## Schemas
 
 `--schema` writes the types of a tree as a JSON Schema draft-07 document rather
@@ -989,6 +1011,32 @@ the first one it was handed, and a type name two packages both declare is
 qualified with the package, since a schema has one namespace and two `Config`
 types are not the same type. An interface and a test package describe no shape
 and are left out.
+
+## Docs
+
+`splint docs` renders the tree as an API reference rather than linting it,
+which was `go-fsck docs`. The reference is the package godoc, every exported
+type, const and var behind a `<details>` fold, the signature of every
+exported function, and the godoc examples printed whole from the test
+package they live in. Function bodies are not printed.
+
+```shell
+splint docs ./... > docs/api.md
+splint docs --input splint.json > docs/api.md
+splint docs --render puml ./... | plantuml -tsvg -pipe > docs/structure.svg
+splint docs --render imports ./... | plantuml -tsvg -pipe > docs/imports.svg
+splint docs --split --out docs/api --strip-prefix github.com/titpetric ./...
+```
+
+A parse for the docs keeps the sources whether or not they were asked for,
+the way `--schema` does, so `splint docs -i ./migrate .` is the whole of a
+docs job: no document on disk and nothing to clean up. `--render` picks the
+rendering: markdown is the default, `spec` is the declared symbols alone,
+`imports` and `puml` are plantuml diagrams of what the packages reach, and
+`json` is the document itself. `--split` writes one markdown file per package
+under `--out` with a README listing them, named after the import path with
+`--strip-prefix` taken off the front. `--hide` leaves named types out of the
+puml diagram and `--model` draws the data model alone.
 
 ## Development
 

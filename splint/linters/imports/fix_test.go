@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
 	"github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/fix"
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/pkg/splint"
 	"github.com/titpetric/tools/splint/simpleparser"
 )
 

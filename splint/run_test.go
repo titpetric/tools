@@ -20,7 +20,7 @@ import (
 //
 // It is resolved once, and absolute, so a test that moves the process to read
 // a tree of its own still points at the same fixture.
-var fixture = absolute("../../testdata")
+var fixture = absolute("testdata")
 
 // absolute resolves a path at startup, before anything has moved.
 func absolute(path string) string {

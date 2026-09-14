@@ -9,13 +9,15 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
 	"github.com/titpetric/tools/splint/coverprofile"
+	"github.com/titpetric/tools/splint/coverreport"
+	"github.com/titpetric/tools/splint/docs"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/pkg/splint"
 	"github.com/titpetric/tools/splint/render"
 	"github.com/titpetric/tools/splint/report"
 	"github.com/titpetric/tools/splint/schema"
@@ -88,6 +90,33 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		if err := loader.Save(cfg.output, written(root, cfg)); err != nil {
 			return 0, err
 		}
+	}
+
+	// docs and coverage render the document rather than lint it. The docs get
+	// the parse whole, because the examples they print live in the test
+	// packages; the coverage report gets what a written document would hold,
+	// so a run over a parse reports what a run over --input would.
+	if cfg.command == commandDocs {
+		return exitClean, docs.Write(w, root, docs.Options{
+			Format:      cfg.render,
+			Split:       cfg.split,
+			OutDir:      cfg.out,
+			StripPrefix: cfg.stripPrefix,
+			Model:       cfg.modelMode,
+			Hide:        cfg.hide,
+			Verbose:     cfg.options.Verbose,
+		})
+	}
+
+	if cfg.command == commandCoverage {
+		reported := written(root, cfg)
+		if cfg.data() {
+			return exitClean, writeData(w, cfg, coverreport.Data(reported, cfg.options.Verbose))
+		}
+		return exitClean, coverreport.Write(w, reported, coverreport.Options{
+			Template: cfg.template,
+			Verbose:  cfg.options.Verbose,
+		})
 	}
 
 	if cfg.schema {

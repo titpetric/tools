@@ -83,7 +83,7 @@ func build(t *testing.T) string {
 	t.Helper()
 
 	binary := filepath.Join(t.TempDir(), "splint")
-	cmd := exec.Command("go", "build", "-o", binary, "../cmd/splint")
+	cmd := exec.Command("go", "build", "-o", binary, "..")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v: %s", err, out)
 	}

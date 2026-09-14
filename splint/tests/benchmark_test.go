@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/pkg/splint"
 	"github.com/titpetric/tools/splint/simpleparser"
 )
 

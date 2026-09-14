@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/titpetric/tools/splint"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
 // ParserName is what a document says produced it, and what --parser takes to

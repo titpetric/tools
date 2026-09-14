@@ -1,42 +1,385 @@
-package splint
+package main
 
-// Options is what a parser is asked for. A caller builds one of these and
-// hands it to whichever parser it imports; nothing else differs between them.
-type Options struct {
-	// SourcePath is the directory the parse is rooted at.
-	SourcePath string
+import (
+	"flag"
+	"fmt"
+	"io"
+	"path/filepath"
+	"strings"
 
-	// Pattern is "." for the package in SourcePath and "./..." for everything
-	// below it, which is the only distinction the parsers make.
-	Pattern string
+	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/docs"
+	"github.com/titpetric/tools/splint/linters"
+	"github.com/titpetric/tools/splint/pkg/splint"
+	"github.com/titpetric/tools/splint/simpleparser"
+)
 
-	// IncludeTests keeps the test files and the test packages.
-	IncludeTests bool
+// saveFile is the document --save writes. It sits with the tree it describes,
+// so a run reading another tree writes the file of that tree.
+const saveFile = "splint.json"
 
-	// IncludeSources keeps the source of every declaration, which is most of
-	// the size of a document and the whole of what a restore needs.
-	IncludeSources bool
+// The commands the tool takes. A command line naming none lints, which is
+// what splint has always done and what every pipeline calling it expects.
+const (
+	commandLint     = "lint"
+	commandFix      = "fix"
+	commandDocs     = "docs"
+	commandCoverage = "coverage"
+)
 
-	// IncludeImports keeps the import declarations of every file as they are
-	// written, and the names each file writes before a dot. It is what the
-	// import rules and the fixer read; nothing else needs it, and a parse not
-	// asked for it does not pay for it.
-	IncludeImports bool
+// config is what one run was asked for.
+type config struct {
+	// command is the verb the command line opened with: lint, which reports,
+	// or fix, which rewrites.
+	command string
 
-	// Verbose asks the parser to say what it is doing.
-	Verbose bool
+	// fix rewrites the tree before linting it, so a report is of the tree as
+	// the fixer left it rather than of the one it found.
+	fix bool
+
+	// options are what the parser is given.
+	options splint.Options
+
+	// parser names which parser reads the tree. The ast parser is the default
+	// and stays the default: it is the exact reading, and the quick one is
+	// something a caller asks for on purpose.
+	//
+	// parserNamed reports the flag having been given, which is what lets the
+	// fixer pick its own default without overriding a choice.
+	parser      string
+	parserNamed bool
+
+	// input reads a document back from a file instead of parsing, and output
+	// writes the parsed one to a file as well as linting it. Both are
+	// resolved against the directory the command was run in.
+	input  string
+	output string
+
+	// coverageProfile names a Go coverage profile to fold into the parse. It
+	// belongs to parsing a tree, so it cannot be combined with input.
+	coverageProfile string
+
+	// includeTests is the flag as it was given, which decides whether the
+	// written document keeps the test packages. The parse reads them either
+	// way, because the linters have nothing to check without them.
+	includeTests bool
+
+	// schema writes the document as a JSON Schema instead of linting it, and
+	// stats writes what the linters measured instead of what they found.
+	schema bool
+	stats  bool
+
+	// render names the rendering splint docs writes, and split writes one
+	// markdown file per package under out instead of one document.
+	render string
+	split  bool
+	out    string
+
+	// hide are type names the puml diagram leaves out, and modelMode draws
+	// the data model alone: no functions and no interfaces.
+	hide      []string
+	modelMode bool
+
+	// template names a text/template file the coverage report is rendered
+	// through, with .Functions and .Packages as markdown tables.
+	template string
+
+	// offline keeps the run off the network. What a module weighs is then
+	// read from the size cache alone.
+	offline bool
+
+	// stripPrefix are package prefixes to take off a schema definition name.
+	stripPrefix []string
+
+	// linters selects the linters by name, and is every linter when empty.
+	linters []string
+
+	// json and yaml write the data the rendering would have drawn, and skip
+	// the rendering. They are one question asked in two encodings.
+	json bool
+	yaml bool
+
+	// save writes the parsed document to splint.json beside the tree, and
+	// flags is the parser the help page is written from.
+	save  bool
+	flags *flag.FlagSet
+
+	help bool
 }
 
-// NewOptions returns the defaults: the current directory, one package, no
-// tests and no sources.
-func NewOptions() Options {
-	return Options{
-		SourcePath: ".",
-		Pattern:    ".",
+// parseOptions reads the command line.
+//
+// The trailing argument is the pattern, so "splint ./..." reads the whole tree
+// and "splint ." reads one package, which is how every other tool here spells
+// it.
+func parseOptions(args []string) (*config, error) {
+	name, args := verb(args)
+	cfg := &config{command: name, options: splint.NewOptions(), parser: analyzer.ParserName}
+
+	var selected, strip, hide string
+	fs := flag.NewFlagSet("splint", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&cfg.options.SourcePath, "i", cfg.options.SourcePath, "read the tree at `PATH`")
+	fs.StringVar(&cfg.parser, "parser", cfg.parser, "read the tree with `NAME`: "+analyzer.ParserName+" or "+simpleparser.ParserName)
+	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
+	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
+	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one, then lint what is left")
+	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+", beside the tree it describes")
+	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
+	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
+	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
+	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
+	fs.StringVar(&strip, "strip-prefix", "", "strip the package prefixes in `LIST` from schema and split file names, comma separated")
+	fs.StringVar(&cfg.render, "render", docs.FormatMarkdown, "write the docs as `FORMAT`: markdown, spec, imports, puml or json")
+	fs.BoolVar(&cfg.split, "split", false, "write the docs as one markdown file per package under --out")
+	fs.StringVar(&cfg.out, "out", ".", "write the split docs under `DIR`")
+	fs.StringVar(&hide, "hide", "", "leave the types in `LIST` out of the puml diagram, comma separated")
+	fs.BoolVar(&cfg.modelMode, "model", false, "draw the puml data model alone: no functions and no interfaces")
+	fs.StringVar(&cfg.template, "template", "", "render the coverage report through the text/template at `FILE`")
+	fs.StringVar(&selected, "linters", "", "run the linters in `LIST`, comma separated: "+strings.Join(linters.Names(), ", "))
+	fs.BoolVar(&cfg.json, "json", false, "write the findings or the measurements as JSON")
+	fs.BoolVar(&cfg.yaml, "yaml", false, "write the findings or the measurements as YAML")
+	fs.BoolVar(&cfg.includeTests, "include-tests", false, "keep the test packages and the test files in the written document")
+	fs.BoolVar(&cfg.options.IncludeSources, "include-sources", false, "keep the source of every declaration")
+	fs.BoolVar(&cfg.options.Verbose, "v", false, "say what is being read")
+	fs.BoolVar(&cfg.help, "help", false, "print this help")
+
+	if err := fs.Parse(reorder(fs, args)); err != nil {
+		if err == flag.ErrHelp {
+			cfg.help = true
+			return cfg, nil
+		}
+		return nil, err
+	}
+
+	fs.Visit(func(given *flag.Flag) {
+		if given.Name == "parser" {
+			cfg.parserNamed = true
+		}
+	})
+
+	if cfg.json && cfg.yaml {
+		return nil, fmt.Errorf("-json and -yaml are two encodings of one answer: ask for one")
+	}
+
+	// The overlay is part of extracting, which is what "append" says: it reads
+	// the line ranges the parse recorded and writes coverage onto them. A
+	// document named by -input was extracted already, and appending to it
+	// would mean rewriting a file the run was asked to read.
+	if cfg.coverageProfile != "" && cfg.input != "" {
+		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and -input reads a document instead of parsing: ask for one")
+	}
+
+	// The fixer writes the files a tree is made of. A document named by
+	// -input describes a tree the run never looked at, and rewriting from one
+	// would edit whatever tree the process happens to be standing in.
+	if (cfg.fix || cfg.command == commandFix) && cfg.input != "" {
+		return nil, fmt.Errorf("a fix rewrites the tree and -input reads a document instead of a tree: ask for one")
+	}
+
+	if rest := fs.Args(); len(rest) > 0 {
+		cfg.options.Pattern = rest[len(rest)-1]
+	}
+	cfg.linters = commaList(selected)
+	cfg.stripPrefix = commaList(strip)
+	cfg.hide = commaList(hide)
+	cfg.flags = fs
+
+	// --save writes the document beside the tree it describes. --output names
+	// its own file, resolved against the directory the command was run in,
+	// which is where the parse leaves the process.
+	//
+	// A document is read when --input names one. A splint.json found beside
+	// the tree used to be read instead of parsing, and a run that had written
+	// one earlier got that document back rather than the tree in front of it.
+	if cfg.save && cfg.output == "" {
+		cfg.output = filepath.Join(cfg.options.SourcePath, saveFile)
+	}
+
+	// A schema is written from the types of a tree, and a type is described by
+	// what it declares, so the sources come along whether or not they were
+	// asked for. The docs print the declarations and the examples, which are
+	// source too.
+	if cfg.schema || cfg.command == commandDocs {
+		cfg.options.IncludeSources = true
+	}
+
+	// A check that pairs a file with its test, or looks for the test of a
+	// symbol, has nothing to read unless the tests are read too, so every
+	// parse reads them. Whether they survive into the document a run writes is
+	// what --include-tests decides: a consumer rendering a report off one
+	// listed a _test package as a package, which is not a package anyone
+	// wrote.
+	cfg.options.IncludeTests = true
+
+	// The import rules read the declarations as a file writes them, and the
+	// fixer writes them back. Every run of the command asks for them: they are
+	// a walk of lines the parse already makes, and a run that had not asked
+	// would report every file as holding no imports at all.
+	cfg.options.IncludeImports = true
+
+	return cfg, nil
+}
+
+// verb peels a leading command off the command line.
+//
+// A command line that opens with anything else is a lint, so "splint ./..."
+// and every pipeline written before there were commands mean what they always
+// meant.
+func verb(args []string) (string, []string) {
+	if len(args) == 0 {
+		return commandLint, args
+	}
+
+	switch args[0] {
+	case commandFix, commandLint, commandDocs, commandCoverage:
+		return args[0], args[1:]
+	}
+
+	return commandLint, args
+}
+
+// commaList splits a comma separated flag into its entries.
+func commaList(value string) []string {
+	var out []string
+
+	for _, entry := range strings.Split(value, ",") {
+		if entry = strings.TrimSpace(entry); entry != "" {
+			out = append(out, entry)
+		}
+	}
+
+	return out
+}
+
+// helpSpec is the page the command prints.
+func helpSpec(cfg *config) spec {
+	return spec{
+		Name:    "splint",
+		Tagline: "a linting framework over a data model of Go source",
+		Usage: []string{
+			"splint [flags] [pattern]",
+			"splint fix [flags] [pattern]",
+			"splint docs [flags] [pattern]",
+			"splint coverage [flags] [pattern]",
+		},
+		Commands: []command{
+			{commandLint, "report what the linters found. This is what a command line naming no verb does"},
+			{commandFix, "rewrite the import block of every file that does not hold the one the rules describe"},
+			{commandDocs, "render the tree as an API reference: markdown, a spec, an import list or plantuml"},
+			{commandCoverage, "report the coverage the document carries, per function and per package"},
+		},
+		Description: `The pattern is "." for the package in the source path and "./..." for
+everything below it, which is how every other tool here spells it.
+
+What is written depends on who is reading. A terminal gets a summary of what
+each linter found and then the findings, in colour. Anything else gets one
+GitHub Actions workflow command per finding, which is what puts one on the
+file and the line of a pull request review.
+
+The ast parser is the default. The simple parser reads the source without
+building a syntax tree: it produces the same document, reads source that does
+not compile, and is an order of magnitude quicker.`,
+		Flags: cfg.flags,
+		Examples: []example{
+			{"splint ./...", "lint everything below here"},
+			{"splint fix ./...", "rewrite every import block to the house rules, and report nothing"},
+			{"splint --fix ./...", "rewrite them, then report what is left"},
+			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
+			{"splint --input " + saveFile, "lint a document read back, without parsing the tree"},
+			{"splint -save --append-coverage=pkg.cov ./...", "write the document with the coverage of every function in it"},
+			{"splint docs ./... > docs/api.md", "the API reference of the tree"},
+			{"splint docs --render puml ./...", "a plantuml diagram of the types"},
+			{"splint docs --split --out docs/api --strip-prefix github.com/titpetric ./...", "one markdown file per package"},
+			{"splint coverage --append-coverage=pkg.cov ./...", "fold a profile into a parse and report it"},
+			{"splint coverage --input " + saveFile + " --template docs/testing-coverage.md.tpl", "the report of a document already written"},
+			{"splint -stats ./...", "what the linters measured, rather than what they found"},
+			{"splint --json ./...", "the findings as data, for a program to read"},
+			{"splint --linters godoc,imports ./...", "run two of the twelve"},
+			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
+		},
+		Notes: `splint fix rewrites the import block of every file that does not hold the
+one the rules describe: the groups in order, one declaration per file, an
+import nothing reaches taken out, and an import a name needs put in. It reads
+.splint.yml beside the tree for the group order, the company prefixes and the
+names the tree cannot place on its own, and it counts what it rewrote under
+imports.fixed in splint.yml under the user configuration directory, which is
+where a count of what this machine has done belongs rather than beside the
+tree. It never writes go.mod and never touches a generated file. A file holding a name nothing can place is left alone, and
+splint ./... says which name.
+
+The fixer reads the tree with the simple parser unless --parser names one: a
+file that is missing an import it needs does not compile, and that is the file
+the fixer is there to repair. A file that imports nothing is valid Go and is
+left alone.
+
+splint docs renders the tree as an API reference instead of linting it: the
+package godoc, every exported declaration behind a details fold, and the
+godoc examples printed whole. splint coverage reports the coverage a document
+carries, which --append-coverage folds in; --template renders a page from the
+.Functions and .Packages tables instead of printing the function table.
+
+Every run parses the tree. --input is the one way to read a document that was
+already written, so a run is never answered by a file left behind by an
+earlier one.
+
+--save writes ` + saveFile + ` beside the tree and --output names another file.
+Both are resolved against the directory the command was run in, whichever
+tree -i pointed the parse at.
+
+Exits 1 when a linter found something, 2 when the run itself failed.`,
 	}
 }
 
-// Recursive reports whether the pattern reaches below the source path.
-func (o Options) Recursive() bool {
-	return o.Pattern == "./..."
+// reorder puts the flags of a command line in front of its operands.
+//
+// The flag package stops reading flags at the first argument that is not one,
+// so "splint ./... --json" takes the pattern and then reads --json as a second
+// operand: the run is silently not the one that was asked for, and the pattern
+// ends up being the flag. Every other tool takes the two in either order, so
+// this does too.
+//
+// A flag written as "-name value" carries the value with it, and a bool is
+// written alone. The flag set knows which is which, which is what is asked
+// here rather than guessed.
+func reorder(fs *flag.FlagSet, args []string) []string {
+	var flags, operands []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		// Everything after a bare -- is an operand, whatever it looks like.
+		if arg == "--" {
+			return append(flags, append(operands, args[i+1:]...)...)
+		}
+		if arg == "-" || !strings.HasPrefix(arg, "-") {
+			operands = append(operands, arg)
+			continue
+		}
+
+		flags = append(flags, arg)
+
+		name := strings.TrimLeft(arg, "-")
+		if strings.Contains(name, "=") || isBoolFlag(fs, name) {
+			continue
+		}
+		if i+1 < len(args) {
+			i++
+			flags = append(flags, args[i])
+		}
+	}
+
+	return append(flags, operands...)
+}
+
+// isBoolFlag reports a flag that takes no value, which is what the flag
+// package asks of a value to write it as "-name" alone.
+func isBoolFlag(fs *flag.FlagSet, name string) bool {
+	found := fs.Lookup(name)
+	if found == nil {
+		return false
+	}
+
+	boolean, ok := found.Value.(interface{ IsBoolFlag() bool })
+	return ok && boolean.IsBoolFlag()
 }
