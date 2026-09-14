@@ -37,10 +37,14 @@ func All() []model.Linter {
 }
 
 // Named returns the linters whose names are given, and the names that matched
-// nothing. An empty selection is every linter.
+// nothing. An empty selection is every linter, and the literal "none" is no
+// linter at all: a run that extracts a document without judging the tree.
 func Named(names ...string) ([]model.Linter, []string) {
 	if len(names) == 0 {
 		return All(), nil
+	}
+	if len(names) == 1 && names[0] == "none" {
+		return nil, nil
 	}
 
 	byName := make(map[string]model.Linter)

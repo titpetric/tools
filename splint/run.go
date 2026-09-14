@@ -12,6 +12,7 @@ import (
 	"github.com/titpetric/tools/splint/analyzer"
 	"github.com/titpetric/tools/splint/coverprofile"
 	"github.com/titpetric/tools/splint/coverreport"
+	"github.com/titpetric/tools/splint/diff"
 	"github.com/titpetric/tools/splint/docs"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
@@ -54,6 +55,24 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 			return 0, err
 		}
 		return exitClean, nil
+	}
+
+	// A diff is between two documents already written; no tree is parsed.
+	// The JSON is one line, which is what worktree reads.
+	if cfg.command == commandDiff {
+		result, err := diff.Load(cfg.oldFile, cfg.newFile, cfg.diffOptions)
+		if err != nil {
+			return 0, err
+		}
+		if cfg.data() {
+			encoded, err := json.Marshal(result)
+			if err != nil {
+				return 0, err
+			}
+			_, err = fmt.Fprintln(w, string(encoded))
+			return exitClean, err
+		}
+		return exitClean, diff.Write(w, result, cfg.options.Verbose)
 	}
 
 	selected, unknown := linters.Named(cfg.linters...)

@@ -27,6 +27,8 @@ splint fix ./...                      # rewrite every import block, and report n
 splint --fix ./...                    # rewrite them, then report what is left
 splint docs ./... > docs/api.md       # render the tree as an API reference
 splint coverage --input splint.json   # report the coverage a document carries
+splint diff --old a.json --new b.json # what a release takes away
+splint --linters none --save ./...    # extract a document and judge nothing
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
@@ -44,6 +46,11 @@ splint --offline ./...                # never ask the module proxy
 A flag reads the same before the pattern or after it. The exit code is 0 for a
 clean run, 1 when a linter reported something, and 2 when the run itself
 failed, so a pipeline can tell a finding from a failure.
+
+`--linters none` runs no linter at all, which is the extract: the tree is
+parsed and the document written, and the run exits 0 whatever the tree looks
+like. It is what a job that only wants the document calls, in place of
+suffixing a lint with `|| true`.
 
 `--save` writes the parsed document to `splint.json`, beside the tree it
 describes, and lints as it always did. `--output` names another file. Both are
@@ -443,6 +450,7 @@ Three differences are representational, and are handled rather than counted:
 | `loader/`       | reads a document back from `.json` or `.yml`                                          |
 | `coverprofile/` | folds a Go coverage profile into a parsed document                                    |
 | `coverreport/`  | renders the coverage a document carries as tables, or through a template              |
+| `diff/`         | compares two documents: the exported API and the go.mod behind it                     |
 | `docs/`         | renders a document as an API reference: markdown, spec, imports, plantuml             |
 | `linters/`      | the registry, one subpackage per linter                                               |
 | `importfmt/`    | the house rule for an import block, as a function of the imports and nothing else     |
@@ -747,6 +755,37 @@ reads as noise rather than as a finding.
 `modcheck` counts files, packages and symbols per dependency as well. The two
 ask different questions: modcheck asks what a dependency costs to carry, and
 `pollution` asks how far one import path has spread.
+
+## Diff
+
+`splint diff` compares two documents: the exported API of every package, and
+the go.mod behind it. This was `go-fsck diff`, and it is what
+[worktree](https://github.com/titpetric/tools/tree/main/worktree) reads for
+its release verdicts, so the JSON field names are a contract.
+
+```shell
+splint --linters none --output old.json -i /path/to/v1 ./...
+splint --linters none --output new.json ./...
+splint diff --old old.json --new new.json
+splint diff --old old.json --new new.json --json
+```
+
+A symbol is keyed by import path, receiver and name, so it is found across
+revisions whichever file it moved to, and a move between files is no change
+at all. A signature is compared with its parameter names stripped, because
+renaming a parameter changes no caller.
+
+Breaking is a removed or changed exported symbol, or a field moved on an
+exported type; an added symbol is not, an added struct field is not, and an
+added interface method is, because every implementation is now short one.
+`--include-unexported` compares the unexported declarations and the internal
+packages too, reported but never breaking, and a go.mod change is never
+breaking either. `--include-indirect` keeps the indirect requirements in the
+go.mod comparison.
+
+The rendering is one line per moved symbol under `-`, `~` and `+` markers,
+the fields that moved, the go.mod changes, and a summary line; `-v` adds
+what each symbol reads as, and `--json` writes the result as data.
 
 ## modcheck
 

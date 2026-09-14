@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/diff"
 	"github.com/titpetric/tools/splint/docs"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/pkg/splint"
@@ -25,6 +26,7 @@ const (
 	commandFix      = "fix"
 	commandDocs     = "docs"
 	commandCoverage = "coverage"
+	commandDiff     = "diff"
 )
 
 // config is what one run was asked for.
@@ -84,6 +86,12 @@ type config struct {
 	// through, with .Functions and .Packages as markdown tables.
 	template string
 
+	// oldFile and newFile are the two documents splint diff compares, and
+	// the diffOptions are what the comparison includes.
+	oldFile     string
+	newFile     string
+	diffOptions diff.Options
+
 	// offline keeps the run off the network. What a module weighs is then
 	// read from the size cache alone.
 	offline bool
@@ -136,6 +144,11 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&hide, "hide", "", "leave the types in `LIST` out of the puml diagram, comma separated")
 	fs.BoolVar(&cfg.modelMode, "model", false, "draw the puml data model alone: no functions and no interfaces")
 	fs.StringVar(&cfg.template, "template", "", "render the coverage report through the text/template at `FILE`")
+	fs.StringVar(&cfg.oldFile, "old", "", "diff: the document of the older revision at `FILE`")
+	fs.StringVar(&cfg.newFile, "new", "", "diff: the document of the newer revision at `FILE`")
+	fs.BoolVar(&cfg.diffOptions.IncludeInternal, "include-internal", false, "diff: compare the internal packages as well")
+	fs.BoolVar(&cfg.diffOptions.IncludeIndirect, "include-indirect", false, "diff: compare the indirect go.mod requirements as well")
+	fs.BoolVar(&cfg.diffOptions.IncludeUnexported, "include-unexported", false, "diff: compare the unexported declarations as well, reported but never breaking")
 	fs.StringVar(&selected, "linters", "", "run the linters in `LIST`, comma separated: "+strings.Join(linters.Names(), ", "))
 	fs.BoolVar(&cfg.json, "json", false, "write the findings or the measurements as JSON")
 	fs.BoolVar(&cfg.yaml, "yaml", false, "write the findings or the measurements as YAML")
@@ -175,6 +188,12 @@ func parseOptions(args []string) (*config, error) {
 	// would edit whatever tree the process happens to be standing in.
 	if (cfg.fix || cfg.command == commandFix) && cfg.input != "" {
 		return nil, fmt.Errorf("a fix rewrites the tree and -input reads a document instead of a tree: ask for one")
+	}
+
+	// A diff is between two documents already written, so there is nothing
+	// to compare until both are named.
+	if cfg.command == commandDiff && (cfg.oldFile == "" || cfg.newFile == "") {
+		return nil, fmt.Errorf("splint diff compares two documents: both --old and --new are required")
 	}
 
 	if rest := fs.Args(); len(rest) > 0 {
@@ -232,7 +251,7 @@ func verb(args []string) (string, []string) {
 	}
 
 	switch args[0] {
-	case commandFix, commandLint, commandDocs, commandCoverage:
+	case commandFix, commandLint, commandDocs, commandCoverage, commandDiff:
 		return args[0], args[1:]
 	}
 
@@ -262,12 +281,14 @@ func helpSpec(cfg *config) spec {
 			"splint fix [flags] [pattern]",
 			"splint docs [flags] [pattern]",
 			"splint coverage [flags] [pattern]",
+			"splint diff --old FILE --new FILE [flags]",
 		},
 		Commands: []command{
 			{commandLint, "report what the linters found. This is what a command line naming no verb does"},
 			{commandFix, "rewrite the import block of every file that does not hold the one the rules describe"},
 			{commandDocs, "render the tree as an API reference: markdown, a spec, an import list or plantuml"},
 			{commandCoverage, "report the coverage the document carries, per function and per package"},
+			{commandDiff, "compare the exported API and the go.mod of two documents"},
 		},
 		Description: `The pattern is "." for the package in the source path and "./..." for
 everything below it, which is how every other tool here spells it.
@@ -293,6 +314,8 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint docs --split --out docs/api --strip-prefix github.com/titpetric ./...", "one markdown file per package"},
 			{"splint coverage --append-coverage=pkg.cov ./...", "fold a profile into a parse and report it"},
 			{"splint coverage --input " + saveFile + " --template docs/testing-coverage.md.tpl", "the report of a document already written"},
+			{"splint diff --old old.json --new new.json", "what a release takes away"},
+			{"splint --linters none --output model.json ./...", "extract a document and judge nothing"},
 			{"splint -stats ./...", "what the linters measured, rather than what they found"},
 			{"splint --json ./...", "the findings as data, for a program to read"},
 			{"splint --linters godoc,imports ./...", "run two of the twelve"},
