@@ -21,7 +21,7 @@ tasks:
   check:
     desc: "Run the installed gofsck over its own tree"
     cmds:
-      - gofsck ./...
+      - splint ./...
 
   clean:
     desc: "Clean build artifacts and generated files"
@@ -29,4 +29,3 @@ tasks:
       - rm -f gofsck gofsck.so
       - rm -f go-fsck.db go-fsck.json
       - rm -f golangci-lint.json report.json
-      - rm -rf ../docs_backup/
