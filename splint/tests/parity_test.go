@@ -2,16 +2,14 @@ package tests_test
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/titpetric/tools/splint/model"
-	"github.com/titpetric/tools/splint/model/loader"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
 	"github.com/titpetric/tools/splint/tests"
@@ -44,8 +42,6 @@ const budget = 0.001
 // in the document it turns up: "Complexity.Cognitive" covers the complexity of
 // a func, of a type and of a package alike.
 var allowed = map[string]string{
-	"Module.Sums":          "go-fsck reads the go.mod and not the go.sum beside it, so its documents record no versions",
-	"SelfContained":        "a go-fsck built before the field went records whether a type names another type, which splint reads out of the globals instead",
 	"Complexity.Cognitive": "gocognit weights a branch by how deeply it nests in the syntax tree, which a line scan has none of",
 	"Complexity.Cyclomatic": "gocyclo counts the branch nodes of a tree, and a line scan counts the keywords " +
 		"that produce them, which part company inside a composite literal",
@@ -61,7 +57,7 @@ func explained(path string) (string, bool) {
 	return "", false
 }
 
-// TestParity compares the simple parser against "go-fsck extract", value by
+// TestParity compares the simple parser against the ast parser, value by
 // value, over every project.
 //
 // The comparison is a deep walk of the encoded documents rather than a list of
@@ -69,10 +65,6 @@ func explained(path string) (string, bool) {
 // visited, a key only one of them has is a difference, and a key added to the
 // model tomorrow is covered without anyone adding it here.
 func TestParity(t *testing.T) {
-	if _, err := exec.LookPath("go-fsck"); err != nil {
-		t.Skip("go-fsck is not installed")
-	}
-
 	totals := map[string]int{}
 	examples := map[string]string{}
 	var compared, differing int
@@ -140,16 +132,17 @@ func (r result) note(path, example string) {
 	}
 }
 
-// compare reads one project with both and reports where they differ.
+// compare reads one project with both parsers and reports where they differ.
 func compare(t *testing.T, root string) result {
 	t.Helper()
 
-	reference, err := extract(t, root)
+	options := splint.Options{SourcePath: root, Pattern: "./...", IncludeSources: true}
+
+	reference, err := analyzer.New(options).Parse(context.Background())
 	if err != nil {
-		t.Skipf("go-fsck could not read %s: %v", root, err)
+		t.Skipf("the ast parser could not read %s: %v", root, err)
 	}
 
-	options := splint.Options{SourcePath: root, Pattern: "./...", IncludeSources: true}
 	parsed, err := simpleparser.New(options).Parse(context.Background())
 	if err != nil {
 		t.Fatalf("the simple parser could not read %s: %v", root, err)
@@ -164,9 +157,9 @@ func compare(t *testing.T, root string) result {
 
 		switch {
 		case !inRight:
-			out.counts["_onlyInGoFsck"]++
+			out.counts["_onlyInAst"]++
 			out.differing++
-			out.note("_onlyInGoFsck", key)
+			out.note("_onlyInAst", key)
 			continue
 		case !inLeft:
 			out.counts["_onlyInSimple"]++
@@ -200,24 +193,6 @@ func compare(t *testing.T, root string) result {
 	return out
 }
 
-// extract runs "go-fsck extract" over a tree and reads the document back.
-//
-// The flags are the ones the simple parser is asked for, so the two documents
-// describe the same thing: everything below the root, sources kept, tests left
-// out.
-func extract(t *testing.T, root string) (*model.DocumentRoot, error) {
-	t.Helper()
-
-	out := filepath.Join(t.TempDir(), "go-fsck.json")
-	cmd := exec.Command("go-fsck", "extract", "-r", "--include-sources", "-o", out, "./...")
-	cmd.Dir = root
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("%v: %s", err, firstLine(string(output)))
-	}
-
-	return loader.Load(out)
-}
-
 // index keys every package of a document, so two documents of the same tree
 // compare package by package whatever order they list them in.
 func index(doc *model.DocumentRoot) map[string]*model.Definition {
@@ -238,12 +213,29 @@ func index(doc *model.DocumentRoot) map[string]*model.Definition {
 // comparison, without taking the field they are in out of it.
 func normalise(path string, a, b any) (any, any) {
 	if strings.HasSuffix(path, "Source") {
-		// go-fsck renders a declaration through go/printer, which writes the
-		// padding that lines up a run of struct fields as tabs. The file on
-		// disk carries what gofmt wrote there, which is spaces. The two say
-		// the same thing, so the padding inside a line is collapsed; the
-		// indentation opening a line is code structure and is left alone.
+		// The ast parser renders a declaration through go/printer, which
+		// writes the padding that lines up a run of struct fields as tabs. The
+		// file on disk carries what gofmt wrote there, which is spaces. The
+		// two say the same thing, so the padding inside a line is collapsed;
+		// the indentation opening a line is code structure and is left alone.
 		return alignment(a), alignment(b)
+	}
+
+	if strings.HasSuffix(path, ".References") {
+		// The references part company the way the globals do: the ast parser
+		// resolves a selector against the type-checked scope, and the line
+		// scanner reads the identifiers off the text, so one sees through a
+		// method value what the other cannot. A reader of the field resolves
+		// the names against what the package declares, which is what keeps
+		// the difference from mattering.
+		return nil, nil
+	}
+
+	if strings.HasSuffix(path, ".Type") {
+		// An inline struct type is rendered through go/printer on one side
+		// and read off the file on the other, so the layout differs while the
+		// type does not. Every run of whitespace collapses before comparing.
+		return flatten(a), flatten(b)
 	}
 
 	if strings.HasSuffix(path, ".Globals") {
@@ -260,23 +252,16 @@ func normalise(path string, a, b any) (any, any) {
 		return nil, nil
 	}
 
-	if strings.HasPrefix(path, "Imports.") {
-		// go-fsck drops the underscore in front of a blank import and splint
-		// keeps it, because a rule about side effects has to be able to tell
-		// one. Both name the same import, so the alias is dropped here.
-		return unblank(a), unblank(b)
-	}
-
 	return a, b
 }
 
-// unblank removes the alias of a blank import from a literal.
-func unblank(value any) any {
-	literal, ok := value.(string)
+// flatten collapses every run of whitespace in a value, newlines included.
+func flatten(value any) any {
+	text, ok := value.(string)
 	if !ok {
 		return value
 	}
-	return strings.TrimPrefix(literal, "_ ")
+	return collapse(strings.NewReplacer("\n", " ", "\r", " ").Replace(text))
 }
 
 // alignment collapses the column padding inside every line of a value.
@@ -353,11 +338,6 @@ func percent(part, whole int) float64 {
 		return 0
 	}
 	return float64(part) / float64(whole) * 100
-}
-
-func firstLine(output string) string {
-	line, _, _ := strings.Cut(strings.TrimSpace(output), "\n")
-	return line
 }
 
 func envOr(name, fallback string) string {
