@@ -80,6 +80,27 @@ func TestSaveWithASourcePath(t *testing.T) {
 	}
 }
 
+// TestSaveRunsNoLinter covers --save as the extract: the run is there for the
+// document it writes, so no linter runs and a tree the linters would report
+// exits clean.
+func TestSaveRunsNoLinter(t *testing.T) {
+	root := t.TempDir()
+	tree := writeTree(t, root, "tree")
+	t.Chdir(tree)
+
+	var out bytes.Buffer
+	code, err := run(context.Background(), []string{"--save", "."}, &out, &out)
+	if err != nil {
+		t.Fatalf("run(--save) error = %v", err)
+	}
+	if code != exitClean {
+		t.Errorf("run(--save) exit = %d, want %d: %s", code, exitClean, out.String())
+	}
+	if _, err := os.Stat(filepath.Join(tree, saveFile)); err != nil {
+		t.Errorf("--save wrote no %s: %v", saveFile, err)
+	}
+}
+
 // TestOutputWithASourcePath covers the other flag naming a file: -output is
 // relative to the directory the command was run in, whichever tree it reads.
 func TestOutputWithASourcePath(t *testing.T) {

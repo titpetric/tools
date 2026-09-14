@@ -144,7 +144,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
 	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one, then lint what is left")
-	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+", beside the tree it describes")
+	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+" beside the tree, and run no linter")
 	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
 	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
@@ -241,6 +241,12 @@ func parseOptions(args []string) (*config, error) {
 	// one earlier got that document back rather than the tree in front of it.
 	if cfg.save && cfg.output == "" {
 		cfg.output = filepath.Join(cfg.options.SourcePath, saveFile)
+	}
+
+	// --save is the extract: the run is there for the document it writes, so
+	// no linter runs and the exit code says nothing about the tree.
+	if cfg.save {
+		cfg.linters = []string{"none"}
 	}
 
 	// A schema is written from the types of a tree, and a type is described by
@@ -346,7 +352,7 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint ./...", "lint everything below here"},
 			{"splint fix ./...", "rewrite every import block to the house rules, and report nothing"},
 			{"splint --fix ./...", "rewrite them, then report what is left"},
-			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
+			{"splint --save ./...", "write the parsed document to " + saveFile + ", and lint nothing"},
 			{"splint --input " + saveFile, "lint a document read back, without parsing the tree"},
 			{"splint --save --append-coverage=pkg.cov ./...", "write the document with the coverage of every function in it"},
 			{"splint docs ./... > docs/api.md", "the API reference of the tree"},
