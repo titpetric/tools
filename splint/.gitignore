@@ -1,9 +1,8 @@
 # The built binary, not the command's source: a bare "splint" matches the
 # directory cmd/splint too, and hides the whole command from git.
 /splint
-go-fsck.json
 splint.json
-.profile/
+.pprof/
 # The coverage profile the test job writes.
 pkg.cov
 

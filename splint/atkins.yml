@@ -32,8 +32,8 @@ tasks:
   clean:
     desc: "Clean build artifacts"
     cmds:
-      - rm -f splint go-fsck.json splint.json
-      - rm -rf .profile
+      - rm -f splint splint.json
+      - rm -rf .pprof
 
   fix:
     desc: "Regenerate the formatter fixture from its input"
@@ -48,7 +48,7 @@ tasks:
       - diff -ru linters/imports/testdata/golden linters/imports/testdata/output
 
   parity:
-    desc: "Compare the two parsers against go-fsck extract, value by value"
+    desc: "Compare the two parsers, value by value"
     cmds:
       - go test ./tests/ -run TestParity -v -timeout 30m
 
@@ -60,23 +60,23 @@ tasks:
   profile:
     desc: "Profile the simple parser: 10s of parsing, cpu and memory"
     cmds:
-      - mkdir -p .profile
+      - mkdir -p .pprof
       - >-
         go test ./tests/ -run XXX -bench BenchmarkSimpleParser -benchtime 10s
-        -cpuprofile .profile/cpu.out -memprofile .profile/mem.out -o .profile/tests.bin
+        -cpuprofile .pprof/cpu.out -memprofile .pprof/mem.out -o .pprof/tests.bin
       - echo "--- cpu ---"
-      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/cpu.out
+      - go tool pprof -top -nodecount=15 .pprof/tests.bin .pprof/cpu.out
       - echo "--- allocations ---"
-      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem.out
+      - go tool pprof -top -nodecount=15 .pprof/tests.bin .pprof/mem.out
 
   profile:ast:
     desc: "The same for the ast parser, to compare against"
     cmds:
-      - mkdir -p .profile
+      - mkdir -p .pprof
       - >-
         go test ./tests/ -run XXX -bench BenchmarkASTParser -benchtime 10s
-        -cpuprofile .profile/cpu-ast.out -memprofile .profile/mem-ast.out -o .profile/tests.bin
-      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem-ast.out
+        -cpuprofile .pprof/cpu-ast.out -memprofile .pprof/mem-ast.out -o .pprof/tests.bin
+      - go tool pprof -top -nodecount=15 .pprof/tests.bin .pprof/mem-ast.out
 
   corpus:
     desc: "Run the import fixer over every module in the go module cache"
