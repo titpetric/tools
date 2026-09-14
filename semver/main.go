@@ -13,7 +13,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
+	semver "github.com/Masterminds/semver/v3"
 )
 
 type Tag struct {

@@ -1,11 +1,10 @@
 package wraphandler
 
 import (
-	"testing"
-
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/tools/go/packages"

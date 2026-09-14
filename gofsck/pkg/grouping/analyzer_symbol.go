@@ -1,6 +1,8 @@
 package grouping
 
-import "go/token"
+import (
+	"go/token"
+)
 
 // AnalyzerSymbol holds information about a symbol: its filename, name, receiver (if any), and if it's a test symbol.
 type AnalyzerSymbol struct {
