@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/commands/fix"
 	"github.com/titpetric/tools/splint/config"
-	"github.com/titpetric/tools/splint/fix"
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
-	"github.com/titpetric/tools/splint/simpleparser"
 )
 
 // The fixture: source written the way a file that has never been formatted

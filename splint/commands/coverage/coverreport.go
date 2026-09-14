@@ -5,7 +5,7 @@
 // with the coverage and the cognitive complexity beside it, and one row per
 // package with the lines added up. A template turns the two tables into a
 // page; without one the function table alone is printed.
-package coverreport
+package coverage
 
 import (
 	"bytes"

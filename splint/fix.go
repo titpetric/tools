@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/titpetric/tools/splint/commands/fix"
 	settings "github.com/titpetric/tools/splint/config"
-	"github.com/titpetric/tools/splint/fix"
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/model"
-	"github.com/titpetric/tools/splint/simpleparser"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
 
 // runFix rewrites the import block of every file that does not hold the one

@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 
 	"github.com/titpetric/tools/splint/model"
 )
@@ -64,7 +63,7 @@ func TestRunReportsTheFixture(t *testing.T) {
 // TestRunJSON covers the flag that skips the rendering: the same findings,
 // for a reader that is a program.
 func TestRunJSON(t *testing.T) {
-	got, code := runArgs(t, "-json", "-i", fixture, "./...")
+	got, code := runArgs(t, "--json", "-i", fixture, "./...")
 
 	if code != exitFound {
 		t.Errorf("run() exited %d, want %d", code, exitFound)
@@ -106,49 +105,10 @@ func TestRunFlagsAfterThePattern(t *testing.T) {
 	}
 }
 
-// TestReorder covers what carries a value and what does not, which is what the
-// flag set is asked rather than guessed.
-func TestReorder(t *testing.T) {
-	fs := flag.NewFlagSet("splint", flag.ContinueOnError)
-	fs.String("i", "", "")
-	fs.String("linters", "", "")
-	fs.Bool("json", false, "")
-
-	tests := []struct {
-		args []string
-		want []string
-	}{
-		// A bool takes nothing with it, and the operand goes last.
-		{[]string{"./...", "-json"}, []string{"-json", "./..."}},
-		// A flag written as two words takes the second with it.
-		{[]string{"./...", "-i", "path"}, []string{"-i", "path", "./..."}},
-		{[]string{"./...", "-i=path"}, []string{"-i=path", "./..."}},
-		// Already in order, and left that way.
-		{[]string{"-json", "./..."}, []string{"-json", "./..."}},
-		// Everything after a bare -- is an operand.
-		{[]string{"--", "-json"}, []string{"-json"}},
-		{[]string{"-linters", "godoc", "./...", "-json"}, []string{"-linters", "godoc", "-json", "./..."}},
-	}
-
-	for _, test := range tests {
-		got := reorder(fs, test.args)
-		if len(got) != len(test.want) {
-			t.Errorf("reorder(%v) = %v, want %v", test.args, got, test.want)
-			continue
-		}
-		for i := range got {
-			if got[i] != test.want[i] {
-				t.Errorf("reorder(%v) = %v, want %v", test.args, got, test.want)
-				break
-			}
-		}
-	}
-}
-
 // TestRunYAML covers the second encoding: the same answer, written the way a
 // document is written.
 func TestRunYAML(t *testing.T) {
-	got, code := runArgs(t, "-yaml", "-i", fixture, "./...")
+	got, code := runArgs(t, "--yaml", "-i", fixture, "./...")
 
 	if code != exitFound {
 		t.Errorf("run() exited %d, want %d", code, exitFound)
@@ -175,11 +135,11 @@ func TestRunYAML(t *testing.T) {
 // answer, and a run cannot write both to one stream.
 func TestRunOneEncoding(t *testing.T) {
 	var out bytes.Buffer
-	_, err := run(context.Background(), []string{"-json", "-yaml", "-i", fixture, "./..."}, &out, &out)
+	_, err := run(context.Background(), []string{"--json", "--yaml", "-i", fixture, "./..."}, &out, &out)
 	if err == nil {
 		t.Fatal("run() accepted both encodings")
 	}
-	if !strings.Contains(err.Error(), "-json") || !strings.Contains(err.Error(), "-yaml") {
+	if !strings.Contains(err.Error(), "--json") || !strings.Contains(err.Error(), "--yaml") {
 		t.Errorf("run() error = %v", err)
 	}
 }
@@ -187,7 +147,7 @@ func TestRunOneEncoding(t *testing.T) {
 // TestRunStatsJSON covers the measurements as data: the numbers behind the
 // tables rather than the tables.
 func TestRunStatsJSON(t *testing.T) {
-	got, code := runArgs(t, "-json", "-stats", "-i", fixture, "./...")
+	got, code := runArgs(t, "--json", "--stats", "-i", fixture, "./...")
 
 	if code != exitClean {
 		t.Errorf("run() exited %d, want %d", code, exitClean)
@@ -219,7 +179,7 @@ func TestRunStatsJSON(t *testing.T) {
 // TestRunStats covers the flag that asks what the linters measured rather than
 // what they found.
 func TestRunStats(t *testing.T) {
-	got, code := runArgs(t, "-stats", "-i", fixture, "./...")
+	got, code := runArgs(t, "--stats", "-i", fixture, "./...")
 
 	// Statistics are not findings, so a run asking for them is not failing.
 	if code != exitClean {
@@ -277,7 +237,7 @@ func TestRunUnknownLinter(t *testing.T) {
 func TestRunOutputAndInput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "model.json")
 
-	parsed, _ := runArgs(t, "-i", fixture, "-include-tests", "--output", path, "./...")
+	parsed, _ := runArgs(t, "-i", fixture, "--include-tests", "--output", path, "./...")
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("--output wrote nothing: %v", err)
 	}
@@ -289,7 +249,7 @@ func TestRunOutputAndInput(t *testing.T) {
 }
 
 func TestRunSchema(t *testing.T) {
-	got, code := runArgs(t, "-schema", "-i", fixture, "./...")
+	got, code := runArgs(t, "--schema", "-i", fixture, "./...")
 
 	if code != exitClean {
 		t.Errorf("run() exited %d", code)
@@ -319,7 +279,7 @@ func TestRunHelp(t *testing.T) {
 	if code != exitClean {
 		t.Errorf("run() exited %d", code)
 	}
-	for _, want := range []string{"-parser NAME", "-stats", "-schema", "astparser", "simpleparser"} {
+	for _, want := range []string{"-parser NAME", "--stats", "--schema", "astparser", "simpleparser"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("--help does not mention %q", want)
 		}

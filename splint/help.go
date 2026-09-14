@@ -1,11 +1,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/spf13/pflag"
 )
 
 // The palette a help page is painted in, which is the one the reports beside
@@ -39,7 +40,7 @@ type spec struct {
 
 	// Flags is the parser itself, walked rather than repeated: a flag is
 	// documented by having been defined.
-	Flags *flag.FlagSet
+	Flags *pflag.FlagSet
 
 	// Examples are runs worth copying, and Notes is what is left to say.
 	Examples []example
@@ -58,10 +59,12 @@ type example struct {
 	About   string
 }
 
-// flagDoc is one flag as a page reads it: the name, what its value is called,
-// what it defaults to, and what it does.
+// flagDoc is one flag as a page reads it: the name, the one letter form when
+// it has one, what its value is called, what it defaults to, and what it
+// does.
 type flagDoc struct {
 	Name        string
+	Shorthand   string
 	Placeholder string
 	Default     string
 	About       string
@@ -179,13 +182,17 @@ func helpMarkdown(w io.Writer, s spec) error {
 	return err
 }
 
-// spelled is the flag as it is typed, with the name of its value after it
-// where it takes one.
+// spelled is the flag as it is typed, the short form first where there is
+// one, with the name of its value after it where it takes one.
 func (f flagDoc) spelled() string {
-	if f.Placeholder == "" {
-		return "-" + f.Name
+	name := "--" + f.Name
+	if f.Shorthand != "" && f.Shorthand != f.Name {
+		name = "-" + f.Shorthand + ", " + name
 	}
-	return "-" + f.Name + " " + f.Placeholder
+	if f.Placeholder == "" {
+		return name
+	}
+	return name + " " + f.Placeholder
 }
 
 // flagDocs reads the flags off the parser, in the order it walks them, which
@@ -194,14 +201,14 @@ func (f flagDoc) spelled() string {
 // A default that is the zero of its type says nothing, so it is left out: a
 // bool that is off and a string that is empty are what a flag not given
 // already means.
-func flagDocs(fs *flag.FlagSet) []flagDoc {
+func flagDocs(fs *pflag.FlagSet) []flagDoc {
 	if fs == nil {
 		return nil
 	}
 
 	var out []flagDoc
-	fs.VisitAll(func(one *flag.Flag) {
-		placeholder, about := flag.UnquoteUsage(one)
+	fs.VisitAll(func(one *pflag.Flag) {
+		placeholder, about := pflag.UnquoteUsage(one)
 
 		value := one.DefValue
 		switch value {
@@ -211,6 +218,7 @@ func flagDocs(fs *flag.FlagSet) []flagDoc {
 
 		out = append(out, flagDoc{
 			Name:        one.Name,
+			Shorthand:   one.Shorthand,
 			Placeholder: placeholder,
 			Default:     value,
 			About:       about,

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/titpetric/tools/splint/analyzer/internal/ast"
+	"github.com/titpetric/tools/splint/parsers/analyzer/internal/ast"
 )
 
 const src = `package example

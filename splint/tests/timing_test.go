@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/titpetric/tools/splint/analyzer"
-	"github.com/titpetric/tools/splint/simpleparser"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
 
 // runs is how many times each parser reads each tree. The fastest of them is

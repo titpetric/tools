@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
 )
 
 func TestListPackages(t *testing.T) {

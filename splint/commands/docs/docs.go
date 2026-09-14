@@ -58,13 +58,23 @@ type Options struct {
 	Root  string
 	Title string
 
-	// Verbose keeps the unexported symbols in the spec rendering.
+	// Symbol names one declaration to print alone, godoc style, with how
+	// many tests reach it: "Open" or "Client.Close". Naming one overrides
+	// the format.
+	Symbol string
+
+	// Verbose keeps the unexported symbols in the spec rendering, and lists
+	// every reference to a symbol under the symbol rendering.
 	Verbose bool
 }
 
 // Write renders the document to w in the format the options name.
 func Write(w io.Writer, root *model.DocumentRoot, opts Options) error {
 	defs := root.Packages
+
+	if opts.Symbol != "" {
+		return renderSymbol(w, root, opts)
+	}
 
 	if opts.Split {
 		return renderSplit(defs, opts)

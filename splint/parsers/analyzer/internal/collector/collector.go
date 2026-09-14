@@ -16,7 +16,7 @@ import (
 
 	"github.com/titpetric/tools/splint/model"
 
-	. "github.com/titpetric/tools/splint/analyzer/internal/ast"
+	. "github.com/titpetric/tools/splint/parsers/analyzer/internal/ast"
 )
 
 type (
@@ -37,6 +37,7 @@ type collector struct {
 	// globals of that package are then not collected.
 	info  *types.Info
 	scope *types.Scope
+	pkg   *types.Package
 
 	definition map[string]*Definition
 	seen       map[string]bool
@@ -51,6 +52,7 @@ func NewCollector(fset *token.FileSet, info *types.Info, pkg *types.Package) *co
 		seen:       make(map[string]bool),
 	}
 	if pkg != nil {
+		c.pkg = pkg
 		c.scope = pkg.Scope()
 	}
 	return c
@@ -394,6 +396,8 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 	if decl.Recv != nil {
 		declaration.Receiver = v.symbolType(file, decl.Recv.List[0].Type)
 	}
+
+	v.resolveMethods(file, filename, decl, declaration)
 
 	return declaration
 }

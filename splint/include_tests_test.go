@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/titpetric/tools/splint/loader"
+	"github.com/titpetric/tools/splint/model/loader"
 )
 
 // TestWrittenDocumentHasNoTestPackages covers --include-tests. The parse reads
@@ -39,7 +39,7 @@ func TestWrittenDocumentHasNoTestPackages(t *testing.T) {
 
 	// The linters still read them: the fixture has a file with no test beside
 	// it, which is a finding only when the tests were read.
-	found, _ := runArgs(t, "-i", fixture, "-linters", "pairing", "./...")
+	found, _ := runArgs(t, "-i", fixture, "--linters", "pairing", "./...")
 	if !strings.Contains(found, "pairing/unpaired") {
 		t.Error("the pairing linter found nothing, so the parse did not read the tests")
 	}
@@ -48,7 +48,7 @@ func TestWrittenDocumentHasNoTestPackages(t *testing.T) {
 // TestWrittenDocumentKeepsTestPackages covers the flag being given.
 func TestWrittenDocumentKeepsTestPackages(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "model.json")
-	runArgs(t, "-i", fixture, "-include-tests", "--output", path, "./...")
+	runArgs(t, "-i", fixture, "--include-tests", "--output", path, "./...")
 
 	doc, err := loader.Load(path)
 	if err != nil {

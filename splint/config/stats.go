@@ -1,14 +1,12 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // StatsFilename is the file the counters live in, under the directory the
@@ -69,8 +67,10 @@ func LoadStats() (Stats, error) {
 // AddFixed adds n to imports.fixed and writes the file back.
 //
 // The file is edited rather than re-encoded from the struct: somebody who
-// wrote a comment beside a counter keeps it. The whole document is kept as
-// nodes and one scalar is changed.
+// wrote a comment beside a counter keeps it, and a key this version does not
+// know stays where it was. The document is read whole with its comments kept
+// aside, one value is changed, and the comments are written back where they
+// were.
 //
 // A machine with no file gets one holding the count and nothing else. Adding
 // nothing writes nothing.
@@ -91,25 +91,15 @@ func AddFixed(n int) error {
 		return err
 	}
 
-	var document yaml.Node
+	document := yaml.MapSlice{}
+	comments := yaml.CommentMap{}
 	if len(data) > 0 {
-		if err := yaml.Unmarshal(data, &document); err != nil {
+		if err := yaml.UnmarshalWithOptions(data, &document, yaml.UseOrderedMap(), yaml.CommentToMap(comments)); err != nil {
 			return err
 		}
 	}
 
-	counter := entry(documentRoot(&document), "imports")
-
-	value := field(counter, "fixed")
-	count, err := strconv.Atoi(value.Value)
-	if err != nil {
-		count = 0
-	}
-	value.Kind, value.Tag, value.Style = yaml.ScalarNode, "!!int", 0
-	value.Content = nil
-	value.Value = strconv.Itoa(count + n)
-
-	out, err := marshal(&document)
+	out, err := yaml.MarshalWithOptions(bump(document, n), yaml.WithComment(comments), yaml.Indent(2))
 	if err != nil {
 		return err
 	}
@@ -120,75 +110,53 @@ func AddFixed(n int) error {
 	return write(path, out)
 }
 
-// documentRoot is the mapping at the top of a document, added when the
-// document is empty.
-func documentRoot(document *yaml.Node) *yaml.Node {
-	if document.Kind == 0 {
-		document.Kind = yaml.DocumentNode
-	}
-	if len(document.Content) == 0 {
-		document.Content = []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}
-	}
-
-	root := document.Content[0]
-	if root.Kind != yaml.MappingNode {
-		root.Kind = yaml.MappingNode
-		root.Tag = "!!map"
-		root.Value = ""
-		root.Content = nil
-	}
-
-	return root
-}
-
-// entry is the mapping under a key of a mapping, added when the key is not
-// there and replaced when what is there is not a mapping.
-func entry(parent *yaml.Node, key string) *yaml.Node {
-	found := field(parent, key)
-	if found.Kind != yaml.MappingNode {
-		found.Kind = yaml.MappingNode
-		found.Tag = "!!map"
-		found.Value = ""
-		found.Content = nil
-	}
-	return found
-}
-
-// field is the value node under a key of a mapping, added when the key is not
-// there.
-func field(parent *yaml.Node, key string) *yaml.Node {
-	for i := 0; i+1 < len(parent.Content); i += 2 {
-		if parent.Content[i].Value == key {
-			return parent.Content[i+1]
+// bump adds n to imports.fixed, keeping every other key as it was read. An
+// imports that is not a mapping is replaced with one, which is what the value
+// had to be for the counter to live under it.
+func bump(document yaml.MapSlice, n int) yaml.MapSlice {
+	for i, item := range document {
+		if key, ok := item.Key.(string); !ok || key != "imports" {
+			continue
 		}
+		imports, ok := item.Value.(yaml.MapSlice)
+		if !ok {
+			imports = yaml.MapSlice{}
+		}
+		document[i].Value = bumpFixed(imports, n)
+		return document
 	}
 
-	name := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}
-	value := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: "0"}
-	parent.Content = append(parent.Content, name, value)
-
-	return value
+	return append(document, yaml.MapItem{Key: "imports", Value: bumpFixed(yaml.MapSlice{}, n)})
 }
 
-// marshal writes the document at two spaces, which is what the rest of the
-// YAML in this workspace is written at. yaml.Marshal writes four.
-func marshal(document *yaml.Node) ([]byte, error) {
-	if len(document.Content) == 0 {
-		return nil, nil
+// bumpFixed adds n to the fixed entry, starting a counter that is missing or
+// unreadable at zero.
+func bumpFixed(imports yaml.MapSlice, n int) yaml.MapSlice {
+	for i, item := range imports {
+		if key, ok := item.Key.(string); !ok || key != "fixed" {
+			continue
+		}
+		imports[i].Value = asInt(item.Value) + n
+		return imports
 	}
 
-	out := &bytes.Buffer{}
-	encoder := yaml.NewEncoder(out)
-	encoder.SetIndent(2)
+	return append(imports, yaml.MapItem{Key: "fixed", Value: n})
+}
 
-	if err := encoder.Encode(document.Content[0]); err != nil {
-		return nil, err
+// asInt reads a decoded scalar as a count, and reads anything that is not one
+// as zero.
+func asInt(value any) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case uint64:
+		return int(v)
+	case float64:
+		return int(v)
 	}
-	if err := encoder.Close(); err != nil {
-		return nil, err
-	}
-
-	return out.Bytes(), nil
+	return 0
 }
 
 // write replaces the file, through a temporary beside it so a run interrupted

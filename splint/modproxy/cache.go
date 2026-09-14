@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // CacheName is the file the sizes are kept in, under the user's cache

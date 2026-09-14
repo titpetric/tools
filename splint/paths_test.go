@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/titpetric/tools/splint/loader"
+	"github.com/titpetric/tools/splint/model/loader"
 )
 
 // tiny is a module of one package, written where a test asks for it. The
@@ -70,7 +70,7 @@ func TestSaveWithASourcePath(t *testing.T) {
 	root := t.TempDir()
 	tree := writeTree(t, root, "tree")
 
-	runIn(t, root, "-i", "tree", "-save", ".")
+	runIn(t, root, "-i", "tree", "--save", ".")
 
 	if _, err := os.Stat(filepath.Join(tree, saveFile)); err != nil {
 		t.Errorf("-save wrote no %s beside the tree: %v", saveFile, err)
@@ -86,7 +86,7 @@ func TestOutputWithASourcePath(t *testing.T) {
 	root := t.TempDir()
 	tree := writeTree(t, root, "tree")
 
-	runIn(t, root, "-i", "tree", "-output", "doc.json", ".")
+	runIn(t, root, "-i", "tree", "--output", "doc.json", ".")
 
 	if _, err := os.Stat(filepath.Join(root, "doc.json")); err != nil {
 		t.Errorf("-output wrote nothing where it was told: %v", err)
@@ -104,5 +104,5 @@ func TestOutputWithASourcePath(t *testing.T) {
 		t.Errorf("the written document holds %d packages, want 1", len(doc.Packages))
 	}
 
-	runIn(t, root, "-input", "doc.json")
+	runIn(t, root, "--input", "doc.json")
 }

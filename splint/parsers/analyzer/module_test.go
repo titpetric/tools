@@ -3,7 +3,7 @@ package analyzer_test
 import (
 	"testing"
 
-	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
 )
 
 // TestLoadModules will traverse the folder structure for go.mod files;

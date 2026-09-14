@@ -1,18 +1,21 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
-	"github.com/titpetric/tools/splint/analyzer"
-	"github.com/titpetric/tools/splint/diff"
-	"github.com/titpetric/tools/splint/docs"
+	"github.com/spf13/pflag"
+
+	"github.com/titpetric/tools/splint/commands/diff"
+	"github.com/titpetric/tools/splint/commands/docs"
 	"github.com/titpetric/tools/splint/linters"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
-	"github.com/titpetric/tools/splint/simpleparser"
 )
 
 // saveFile is the document --save writes. It sits with the tree it describes,
@@ -87,6 +90,10 @@ type config struct {
 	docsRoot  string
 	docsTitle string
 
+	// docsSymbol names one symbol splint docs prints alone, godoc style: a
+	// trailing "Open" or "Client.Close" argument.
+	docsSymbol string
+
 	// template names a text/template file the coverage report is rendered
 	// through, with .Functions and .Packages as markdown tables.
 	template string
@@ -115,7 +122,7 @@ type config struct {
 	// save writes the parsed document to splint.json beside the tree, and
 	// flags is the parser the help page is written from.
 	save  bool
-	flags *flag.FlagSet
+	flags *pflag.FlagSet
 
 	help bool
 }
@@ -130,9 +137,9 @@ func parseOptions(args []string) (*config, error) {
 	cfg := &config{command: name, options: splint.NewOptions(), parser: analyzer.ParserName}
 
 	var selected, strip, hide string
-	fs := flag.NewFlagSet("splint", flag.ContinueOnError)
+	fs := pflag.NewFlagSet("splint", pflag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&cfg.options.SourcePath, "i", cfg.options.SourcePath, "read the tree at `PATH`")
+	fs.StringVarP(&cfg.options.SourcePath, "i", "i", cfg.options.SourcePath, "read the tree at `PATH`")
 	fs.StringVar(&cfg.parser, "parser", cfg.parser, "read the tree with `NAME`: "+analyzer.ParserName+" or "+simpleparser.ParserName)
 	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
@@ -161,25 +168,27 @@ func parseOptions(args []string) (*config, error) {
 	fs.BoolVar(&cfg.yaml, "yaml", false, "write the findings or the measurements as YAML")
 	fs.BoolVar(&cfg.includeTests, "include-tests", false, "keep the test packages and the test files in the written document")
 	fs.BoolVar(&cfg.options.IncludeSources, "include-sources", false, "keep the source of every declaration")
-	fs.BoolVar(&cfg.options.Verbose, "v", false, "say what is being read")
-	fs.BoolVar(&cfg.help, "help", false, "print this help")
+	fs.BoolVarP(&cfg.options.Verbose, "verbose", "v", false, "say what is being read")
+	fs.BoolVarP(&cfg.help, "help", "h", false, "print this help")
 
-	if err := fs.Parse(reorder(fs, args)); err != nil {
-		if err == flag.ErrHelp {
+	// pflag reads flags and operands in either order, so "splint ./... --json"
+	// is the run "splint --json ./..." is.
+	if err := fs.Parse(args); err != nil {
+		if err == pflag.ErrHelp {
 			cfg.help = true
 			return cfg, nil
 		}
 		return nil, err
 	}
 
-	fs.Visit(func(given *flag.Flag) {
+	fs.Visit(func(given *pflag.Flag) {
 		if given.Name == "parser" {
 			cfg.parserNamed = true
 		}
 	})
 
 	if cfg.json && cfg.yaml {
-		return nil, fmt.Errorf("-json and -yaml are two encodings of one answer: ask for one")
+		return nil, fmt.Errorf("--json and --yaml are two encodings of one answer: ask for one")
 	}
 
 	// The overlay is part of extracting, which is what "append" says: it reads
@@ -187,14 +196,14 @@ func parseOptions(args []string) (*config, error) {
 	// document named by -input was extracted already, and appending to it
 	// would mean rewriting a file the run was asked to read.
 	if cfg.coverageProfile != "" && cfg.input != "" {
-		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and -input reads a document instead of parsing: ask for one")
+		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and --input reads a document instead of parsing: ask for one")
 	}
 
 	// The fixer writes the files a tree is made of. A document named by
 	// -input describes a tree the run never looked at, and rewriting from one
 	// would edit whatever tree the process happens to be standing in.
 	if (cfg.fix || cfg.command == commandFix) && cfg.input != "" {
-		return nil, fmt.Errorf("a fix rewrites the tree and -input reads a document instead of a tree: ask for one")
+		return nil, fmt.Errorf("a fix rewrites the tree and --input reads a document instead of a tree: ask for one")
 	}
 
 	// A diff is between two documents already written, so there is nothing
@@ -203,8 +212,20 @@ func parseOptions(args []string) (*config, error) {
 		return nil, fmt.Errorf("splint diff compares two documents: both --old and --new are required")
 	}
 
+	// The trailing argument is the pattern. splint docs also takes a symbol
+	// after it, and tells a lone symbol from a lone pattern the way go doc
+	// does: no separator and an uppercase first letter is a symbol.
 	if rest := fs.Args(); len(rest) > 0 {
-		cfg.options.Pattern = rest[len(rest)-1]
+		last := rest[len(rest)-1]
+		switch {
+		case cfg.command == commandDocs && len(rest) > 1:
+			cfg.docsSymbol = last
+			cfg.options.Pattern = rest[len(rest)-2]
+		case cfg.command == commandDocs && symbolQuery(last):
+			cfg.docsSymbol = last
+		default:
+			cfg.options.Pattern = last
+		}
 	}
 	cfg.linters = commaList(selected)
 	cfg.stripPrefix = commaList(strip)
@@ -247,6 +268,18 @@ func parseOptions(args []string) (*config, error) {
 	return cfg, nil
 }
 
+// symbolQuery reports an argument naming a symbol rather than a tree: no
+// path separator and an uppercase first letter, which is how go doc tells
+// the two apart. "Config" and "Config.IfDirective" are symbols; ".", "./..."
+// and a directory are patterns.
+func symbolQuery(arg string) bool {
+	if strings.Contains(arg, "/") {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(arg)
+	return unicode.IsUpper(r)
+}
+
 // verb peels a leading command off the command line.
 //
 // A command line that opens with anything else is a lint, so "splint ./..."
@@ -286,7 +319,7 @@ func helpSpec(cfg *config) spec {
 		Usage: []string{
 			"splint [flags] [pattern]",
 			"splint fix [flags] [pattern]",
-			"splint docs [flags] [pattern]",
+			"splint docs [flags] [pattern] [Symbol[.Method]]",
 			"splint coverage [flags] [pattern]",
 			"splint diff --old FILE --new FILE [flags]",
 		},
@@ -315,16 +348,18 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint --fix ./...", "rewrite them, then report what is left"},
 			{"splint --save ./...", "lint, and write the parsed document to " + saveFile},
 			{"splint --input " + saveFile, "lint a document read back, without parsing the tree"},
-			{"splint -save --append-coverage=pkg.cov ./...", "write the document with the coverage of every function in it"},
+			{"splint --save --append-coverage=pkg.cov ./...", "write the document with the coverage of every function in it"},
 			{"splint docs ./... > docs/api.md", "the API reference of the tree"},
 			{"splint docs --render puml ./...", "a plantuml diagram of the types"},
 			{"splint docs --split --out docs/api --strip-prefix github.com/titpetric ./...", "one markdown file per package"},
 			{"splint docs --root Config --title \"# Configuration\" .", "a config reference from one type down"},
+			{"splint docs . Client.Close", "one symbol, godoc style, and how many tests reach it"},
+			{"splint docs -v ./... Open", "the same, listing every reference to it, tests and product code"},
 			{"splint coverage --append-coverage=pkg.cov ./...", "fold a profile into a parse and report it"},
 			{"splint coverage --input " + saveFile + " --template docs/testing-coverage.md.tpl", "the report of a document already written"},
 			{"splint diff --old old.json --new new.json", "what a release takes away"},
 			{"splint --linters none --output model.json ./...", "extract a document and judge nothing"},
-			{"splint -stats ./...", "what the linters measured, rather than what they found"},
+			{"splint --stats ./...", "what the linters measured, rather than what they found"},
 			{"splint --json ./...", "the findings as data, for a program to read"},
 			{"splint --linters godoc,imports ./...", "run two of the twelve"},
 			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
@@ -362,55 +397,3 @@ Exits 1 when a linter found something, 2 when the run itself failed.`,
 	}
 }
 
-// reorder puts the flags of a command line in front of its operands.
-//
-// The flag package stops reading flags at the first argument that is not one,
-// so "splint ./... --json" takes the pattern and then reads --json as a second
-// operand: the run is silently not the one that was asked for, and the pattern
-// ends up being the flag. Every other tool takes the two in either order, so
-// this does too.
-//
-// A flag written as "-name value" carries the value with it, and a bool is
-// written alone. The flag set knows which is which, which is what is asked
-// here rather than guessed.
-func reorder(fs *flag.FlagSet, args []string) []string {
-	var flags, operands []string
-
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-
-		// Everything after a bare -- is an operand, whatever it looks like.
-		if arg == "--" {
-			return append(flags, append(operands, args[i+1:]...)...)
-		}
-		if arg == "-" || !strings.HasPrefix(arg, "-") {
-			operands = append(operands, arg)
-			continue
-		}
-
-		flags = append(flags, arg)
-
-		name := strings.TrimLeft(arg, "-")
-		if strings.Contains(name, "=") || isBoolFlag(fs, name) {
-			continue
-		}
-		if i+1 < len(args) {
-			i++
-			flags = append(flags, args[i])
-		}
-	}
-
-	return append(flags, operands...)
-}
-
-// isBoolFlag reports a flag that takes no value, which is what the flag
-// package asks of a value to write it as "-name" alone.
-func isBoolFlag(fs *flag.FlagSet, name string) bool {
-	found := fs.Lookup(name)
-	if found == nil {
-		return false
-	}
-
-	boolean, ok := found.Value.(interface{ IsBoolFlag() bool })
-	return ok && boolean.IsBoolFlag()
-}

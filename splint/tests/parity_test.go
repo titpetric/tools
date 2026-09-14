@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/model/loader"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
-	"github.com/titpetric/tools/splint/simpleparser"
 	"github.com/titpetric/tools/splint/tests"
 )
 

@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/model/loader"
 )
 
 // document is a small document with one package holding one func, which is

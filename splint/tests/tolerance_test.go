@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
-	"github.com/titpetric/tools/splint/simpleparser"
 )
 
 // broken is a package that does not compile: the type it names is not declared

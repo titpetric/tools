@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
-	"github.com/titpetric/tools/splint/analyzer/internal/collector"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/analyzer/internal/collector"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 

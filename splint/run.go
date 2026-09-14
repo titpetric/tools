@@ -7,22 +7,22 @@ import (
 	"io"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 
-	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/commands/coverage"
+	"github.com/titpetric/tools/splint/commands/diff"
+	"github.com/titpetric/tools/splint/commands/docs"
 	"github.com/titpetric/tools/splint/coverprofile"
-	"github.com/titpetric/tools/splint/coverreport"
-	"github.com/titpetric/tools/splint/diff"
-	"github.com/titpetric/tools/splint/docs"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
-	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/model/loader"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
 	"github.com/titpetric/tools/splint/render"
 	"github.com/titpetric/tools/splint/report"
 	"github.com/titpetric/tools/splint/schema"
-	"github.com/titpetric/tools/splint/simpleparser"
 )
 
 // Exit codes: nothing found, something found, and the run itself failing,
@@ -125,6 +125,7 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 			Hide:        cfg.hide,
 			Root:        cfg.docsRoot,
 			Title:       cfg.docsTitle,
+			Symbol:      cfg.docsSymbol,
 			Verbose:     cfg.options.Verbose,
 		})
 	}
@@ -132,9 +133,9 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 	if cfg.command == commandCoverage {
 		reported := written(root, cfg)
 		if cfg.data() {
-			return exitClean, writeData(w, cfg, coverreport.Data(reported, cfg.options.Verbose))
+			return exitClean, writeData(w, cfg, coverage.Data(reported, cfg.options.Verbose))
 		}
-		return exitClean, coverreport.Write(w, reported, coverreport.Options{
+		return exitClean, coverage.Write(w, reported, coverage.Options{
 			Template: cfg.template,
 			Verbose:  cfg.options.Verbose,
 		})

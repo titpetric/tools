@@ -9,8 +9,8 @@ import (
 
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
-	"github.com/titpetric/tools/splint/simpleparser"
 )
 
 // fixture lints a tree and returns the issues, keyed by the rule they are

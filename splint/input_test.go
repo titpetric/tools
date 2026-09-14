@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/model/loader"
 )
 
 // TestNoImplicitInput covers a splint.json sitting beside a tree: it used to
@@ -22,7 +22,7 @@ func TestNoImplicitInput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := runIn(t, root, "-i", "tree", "-linters", "pairing", ".")
+	got := runIn(t, root, "-i", "tree", "--linters", "pairing", ".")
 	if !strings.Contains(got, "tiny.go") {
 		t.Errorf("a run beside a %s did not read the tree:\n%s", saveFile, got)
 	}

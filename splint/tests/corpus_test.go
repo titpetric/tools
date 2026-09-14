@@ -16,11 +16,11 @@ import (
 
 	"golang.org/x/mod/modfile"
 
+	"github.com/titpetric/tools/splint/commands/fix"
 	"github.com/titpetric/tools/splint/config"
-	"github.com/titpetric/tools/splint/fix"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
-	"github.com/titpetric/tools/splint/simpleparser"
 )
 
 // The corpus is the Go module cache, which is every dependency this machine

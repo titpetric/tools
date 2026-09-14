@@ -17,8 +17,8 @@ import (
 	"io"
 	"sort"
 
-	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/model/loader"
 )
 
 // Symbol is one exported declaration of a package.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/titpetric/tools/splint/loader"
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/model/loader"
 )
 
 // tinyProfile covers the body of Do and nothing else. The line and column
@@ -29,7 +29,7 @@ func TestAppendCoverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runIn(t, root, "-i", "tree", "-save", "--append-coverage=pkg.cov", ".")
+	runIn(t, root, "-i", "tree", "--save", "--append-coverage=pkg.cov", ".")
 
 	doc, err := loader.Load(filepath.Join(tree, saveFile))
 	if err != nil {
@@ -58,7 +58,7 @@ func TestAppendCoverage(t *testing.T) {
 // skips the parse.
 func TestAppendCoverageWithInput(t *testing.T) {
 	var out bytes.Buffer
-	_, err := run(context.Background(), []string{"--append-coverage=pkg.cov", "-input", "doc.json"}, &out, &out)
+	_, err := run(context.Background(), []string{"--append-coverage=pkg.cov", "--input", "doc.json"}, &out, &out)
 	if err == nil {
 		t.Fatal("run() accepted --append-coverage with -input")
 	}

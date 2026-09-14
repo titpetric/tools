@@ -56,7 +56,7 @@ func TestHelpTerminal(t *testing.T) {
 		helpSection + "splint" + helpReset,
 		helpSection + "Usage:" + helpReset,
 		helpSection + "Flags:" + helpReset,
-		helpName + "-save" + helpReset,
+		helpName + "--save" + helpReset,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page does not paint %q:\n%q", want, page)

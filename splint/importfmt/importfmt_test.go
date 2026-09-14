@@ -94,11 +94,11 @@ func TestFormatLiterals(t *testing.T) {
 		},
 		{
 			name:    "an alias the file chose is kept",
-			imports: []string{`tea "charm.land/bubbletea/v2"`, `sp "github.com/titpetric/tools/splint/simpleparser"`},
+			imports: []string{`tea "charm.land/bubbletea/v2"`, `sp "github.com/titpetric/tools/splint/parsers/simpleparser"`},
 			expect: `import (
 	tea "charm.land/bubbletea/v2"
 
-	sp "github.com/titpetric/tools/splint/simpleparser"
+	sp "github.com/titpetric/tools/splint/parsers/simpleparser"
 )`,
 		},
 		{

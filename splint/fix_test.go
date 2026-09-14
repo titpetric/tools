@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/titpetric/tools/splint/analyzer"
 	settings "github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/model"
-	"github.com/titpetric/tools/splint/simpleparser"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
 
 // unformatted is the fixture the import fixer is tested against, resolved

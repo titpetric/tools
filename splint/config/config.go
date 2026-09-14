@@ -14,7 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 
 	"github.com/titpetric/tools/splint/importfmt"
 )

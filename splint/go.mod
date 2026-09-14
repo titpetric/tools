@@ -5,11 +5,12 @@ go 1.27.0
 require (
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/fzipp/gocyclo v0.6.0
+	github.com/goccy/go-yaml v1.19.2
+	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	github.com/uudashr/gocognit v1.2.1
 	golang.org/x/mod v0.41.0
 	golang.org/x/tools v0.50.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -20,4 +21,5 @@ require (
 	github.com/mattn/go-runewidth v0.0.30 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

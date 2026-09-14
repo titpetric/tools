@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/titpetric/tools/splint/analyzer"
+	"github.com/titpetric/tools/splint/parsers/analyzer"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
@@ -20,7 +20,7 @@ func TestParseRestoresTheWorkingDirectory(t *testing.T) {
 	}
 
 	options := splint.NewOptions()
-	options.SourcePath = "../testdata"
+	options.SourcePath = "../../testdata"
 	options.Pattern = "./..."
 
 	if _, err := analyzer.New(options).Parse(context.Background()); err != nil {
@@ -46,7 +46,7 @@ func TestParseOfANonExistentTree(t *testing.T) {
 	}
 
 	options := splint.NewOptions()
-	options.SourcePath = "../testdata/nowhere"
+	options.SourcePath = "../../testdata/nowhere"
 
 	if _, err := analyzer.New(options).Parse(context.Background()); err == nil {
 		t.Fatal("Parse() read a tree that does not exist")
