@@ -5,3 +5,8 @@ imports:
   # a group of its own between the third party imports and the project's.
   company:
     - github.com/titpetric/
+
+  # The tree's own naming: goccy/go-yaml declares package yaml, which no path
+  # segment says, so the fixer is told rather than left to guess gopkg.in.
+  aliases:
+    yaml: github.com/goccy/go-yaml

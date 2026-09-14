@@ -1,17 +1,39 @@
 #!/usr/bin/env atkins
+env:
+  vars:
+    CGO_ENABLED: "0"
+
 tasks:
   default:
-    desc: "Format, test, install"
+    desc: "Format, test, install, self-check"
     cmds:
-      - task: go:fmt
+      - task: fmt
       - task: go:test
       - task: install
+      - task: check
+
+  fmt:
+    desc: "Format sources: the shared Go formatting, then splint's own import fixer"
+    cmds:
+      - task: go:fmt
+      - go run . fix ./...
 
   install:
     desc: "Install splint into the environment"
     passthru: true
     cmds:
       - go install .
+
+  check:
+    desc: "Run the installed splint over its own tree, reported and not gating"
+    cmds:
+      - splint ./... || true
+
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - rm -f splint go-fsck.json splint.json
+      - rm -rf .profile
 
   fix:
     desc: "Regenerate the formatter fixture from its input"
@@ -24,3 +46,39 @@ tasks:
       - cp -r linters/imports/testdata/input linters/imports/testdata/output
       - go run . fix -i linters/imports/testdata/output ./...
       - diff -ru linters/imports/testdata/golden linters/imports/testdata/output
+
+  parity:
+    desc: "Compare the two parsers against go-fsck extract, value by value"
+    cmds:
+      - go test ./tests/ -run TestParity -v -timeout 30m
+
+  bench:
+    desc: "Time the two parsers, by running the command over every project"
+    cmds:
+      - go test ./tests/ -run TestParserTiming -v -timeout 30m
+
+  profile:
+    desc: "Profile the simple parser: 10s of parsing, cpu and memory"
+    cmds:
+      - mkdir -p .profile
+      - >-
+        go test ./tests/ -run XXX -bench BenchmarkSimpleParser -benchtime 10s
+        -cpuprofile .profile/cpu.out -memprofile .profile/mem.out -o .profile/tests.bin
+      - echo "--- cpu ---"
+      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/cpu.out
+      - echo "--- allocations ---"
+      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem.out
+
+  profile:ast:
+    desc: "The same for the ast parser, to compare against"
+    cmds:
+      - mkdir -p .profile
+      - >-
+        go test ./tests/ -run XXX -bench BenchmarkASTParser -benchtime 10s
+        -cpuprofile .profile/cpu-ast.out -memprofile .profile/mem-ast.out -o .profile/tests.bin
+      - go tool pprof -top -nodecount=15 .profile/tests.bin .profile/mem-ast.out
+
+  corpus:
+    desc: "Run the import fixer over every module in the go module cache"
+    cmds:
+      - SPLINT_CORPUS=0 go test ./tests/ -run TestCorpus -v -timeout 50m
