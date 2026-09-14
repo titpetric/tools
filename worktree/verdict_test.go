@@ -91,7 +91,7 @@ func verdictRepo(t *testing.T) string {
 }
 
 func TestReadVerdictReportsTheLastReleaseWhenLevelWithItsTag(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	got, err := readVerdict(verdictRepo(t), "", "", false)
 	if err != nil {
@@ -117,7 +117,7 @@ func TestReadVerdictReportsTheLastReleaseWhenLevelWithItsTag(t *testing.T) {
 }
 
 func TestReadVerdictProposesAReleaseWhenBehind(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	alpha := verdictRepo(t)
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Bye parts.\nfunc Bye(name string) string { return name }\n\n// Hi greets.\nfunc Hi() string { return \"hi\" }\n")
@@ -142,7 +142,7 @@ func TestReadVerdictProposesAReleaseWhenBehind(t *testing.T) {
 // The first release has no earlier one to be compared against, so everything it
 // exports is reported as added.
 func TestReadVerdictWithOneTagAddsEverythingItExports(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -169,7 +169,7 @@ func TestReadVerdictWithOneTagAddsEverythingItExports(t *testing.T) {
 }
 
 func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -208,7 +208,7 @@ func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
 }
 
 func TestApiDiffBetweenReadsTwoTagsAndNotTheWorkingTree(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	alpha := verdictRepo(t)
 	// A working tree that would swamp the answer if it were being read.
@@ -227,7 +227,7 @@ func TestApiDiffBetweenReadsTwoTagsAndNotTheWorkingTree(t *testing.T) {
 }
 
 func TestApiDiffBetweenReadsTheExportedShapeOfAnAddedType(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -268,7 +268,7 @@ func TestApiDiffBetweenReadsTheExportedShapeOfAnAddedType(t *testing.T) {
 }
 
 func TestApiDiffBetweenReportsAFieldThatMoved(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -325,8 +325,8 @@ func TestVerdictSummary(t *testing.T) {
 		},
 		{
 			name: "first release, the API was not read",
-			in:   verdict{Version: "v0.0.1", API: apiDiff{Skipped: "go-fsck is not installed"}},
-			want: "First release: v0.0.1, the API was not read, go-fsck is not installed.",
+			in:   verdict{Version: "v0.0.1", API: apiDiff{Skipped: "splint is not installed"}},
+			want: "First release: v0.0.1, the API was not read, splint is not installed.",
 		},
 		{
 			name: "patch",
@@ -357,9 +357,9 @@ func TestVerdictSummary(t *testing.T) {
 			name: "nothing to compare",
 			in: verdict{
 				Version: "v1.0.1", Since: "v1.0.0", Release: releasePatch,
-				API: apiDiff{Skipped: "go-fsck is not installed"},
+				API: apiDiff{Skipped: "splint is not installed"},
 			},
-			want: "Patch release: v1.0.1, the API was not compared, go-fsck is not installed.",
+			want: "Patch release: v1.0.1, the API was not compared, splint is not installed.",
 		},
 		{
 			name: "a release that was made",
@@ -717,7 +717,7 @@ func TestGoSeriesChanged(t *testing.T) {
 }
 
 func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -757,7 +757,7 @@ func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
 }
 
 func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	alpha := verdictRepo(t)
 	// A working tree the report must not read, since a range was named.
@@ -1139,7 +1139,7 @@ func commitScanRepo(t *testing.T) string {
 }
 
 func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	got, err := readVerdict(commitScanRepo(t), "", "", false)
 	if err != nil {
@@ -1169,7 +1169,7 @@ func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
 }
 
 func TestRenderVerdictWritesTheCountColumnsOfEachCommit(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	v, err := readVerdict(commitScanRepo(t), "", "", false)
 	if err != nil {
@@ -1195,7 +1195,7 @@ func TestRenderVerdictWritesTheCountColumnsOfEachCommit(t *testing.T) {
 }
 
 func TestRenderVerdictNamesTheCommitsBehindASymbol(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	alpha := commitScanRepo(t)
 	v, err := readVerdict(alpha, "", "", false)
@@ -1259,7 +1259,7 @@ func twoModelsRepo(t *testing.T) string {
 }
 
 func TestRenderVerdictNamesAPackageByItsPathBelowTheModule(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	v, err := readVerdict(twoModelsRepo(t), "", "", false)
 	if err != nil {
@@ -1357,7 +1357,7 @@ func TestFieldReadsEmbedded(t *testing.T) {
 		t.Errorf("fieldReads(embedded) = %q", got)
 	}
 	// An embed is read as the type it is declared with, pointer and all: the
-	// name go-fsck reaches it by drops the star and says less.
+	// name splint reaches it by drops the star and says less.
 	value := apiField{Name: "Base", Type: "platform.Base", Embedded: true}
 	if got := fieldReads(value); got != "embeds platform.Base" {
 		t.Errorf("fieldReads(value embed) = %q", got)

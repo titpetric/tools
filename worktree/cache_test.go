@@ -42,7 +42,7 @@ func cacheEntries(t *testing.T, dir string) []string {
 }
 
 func TestVerdictCacheKeepsTheModelOfACommit(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	dir := cacheHome(t)
 	alpha := verdictRepo(t)
@@ -86,7 +86,7 @@ func TestVerdictCacheKeepsTheModelOfACommit(t *testing.T) {
 }
 
 func TestVerdictCacheIsNotWrittenWithoutIt(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	dir := cacheHome(t)
 	if _, err := readVerdict(verdictRepo(t), "", "", false); err != nil {

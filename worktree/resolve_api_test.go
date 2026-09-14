@@ -11,11 +11,11 @@ import (
 	"testing"
 )
 
-// requireGoFsck skips a test that cannot run without the extraction tool.
-func requireGoFsck(t *testing.T) {
+// requireSplint skips a test that cannot run without the extraction tool.
+func requireSplint(t *testing.T) {
 	t.Helper()
-	if _, err := exec.LookPath("go-fsck"); err != nil {
-		t.Skip("go-fsck is not installed")
+	if _, err := exec.LookPath("splint"); err != nil {
+		t.Skip("splint is not installed")
 	}
 }
 
@@ -115,7 +115,7 @@ func TestFirstLine(t *testing.T) {
 }
 
 func TestApiDiffSinceTagSkipsWhatItCannotCompare(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	if got := apiDiffSinceTag(t.TempDir(), "v9.9.9"); got.Skipped == "" || got.Breaking {
 		t.Fatalf("apiDiffSinceTag() against a tag that does not exist = %#v, want a skipped, non breaking result", got)
@@ -125,7 +125,7 @@ func TestApiDiffSinceTagSkipsWhatItCannotCompare(t *testing.T) {
 // A comparison measured from the start of history has no revision to read on
 // the old side, and reports everything the module exports as added.
 func TestApiDiffFromTheStartOfHistory(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -149,7 +149,7 @@ func TestApiDiffFromTheStartOfHistory(t *testing.T) {
 }
 
 func TestApiDiffSinceTagReadsRemovedAndAddedSymbols(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")
@@ -201,7 +201,7 @@ func TestApiDiffSinceTagReadsRemovedAndAddedSymbols(t *testing.T) {
 }
 
 func TestApiModelsReadsEachRevisionOnce(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	root := testRepo(t, "alpha")
 	alpha := filepath.Join(root, "alpha")

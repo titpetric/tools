@@ -89,7 +89,7 @@ Each module is pinned to the version its dependency ends up at, which is the tag
 
 ### Choosing between a patch and a minor
 
-The release is a minor when it costs a consumer something, and a patch otherwise. The API side of that is decided by comparing the exported symbols of the working tree against the latest tag with [`go-fsck diff`](https://github.com/titpetric/exp/tree/main/cmd/go-fsck):
+The release is a minor when it costs a consumer something, and a patch otherwise. The API side of that is decided by comparing the exported symbols of the working tree against the latest tag with [`splint diff`](https://github.com/titpetric/tools/tree/main/splint):
 
 - a removed exported symbol, or one whose signature changed, is breaking, and earns a minor,
 - so does an exported field a type loses or reshapes, and a method an interface gains, see [Data model changes](#data-model-changes),
@@ -98,7 +98,7 @@ The release is a minor when it costs a consumer something, and a patch otherwise
 
 The tagged revision is unpacked into a temporary directory rather than checked out, so the working tree is left alone. Parameter names are not part of a signature, so renaming one is not a change; changing its type is. Test packages, commands and internal packages are left out, since none of them are API another module can depend on. `-v` lists the symbols behind the count.
 
-Anything that stops the comparison from running - no `go-fsck` installed, a `go-fsck` without the `diff` command, or a revision that cannot be read - is reported in place and read as non breaking, so a missing tool costs a patch release rather than stopping the run. Note that `go-fsck` skips files carrying build constraints, so symbols behind a `//go:build` line are invisible to both sides of the comparison.
+Anything that stops the comparison from running - no `splint` installed, a `splint` without the `diff` command, or a revision that cannot be read - is reported in place and read as non breaking, so a missing tool costs a patch release rather than stopping the run. Note that `splint` skips files carrying build constraints, so symbols behind a `//go:build` line are invisible to both sides of the comparison.
 
 ### Stopping on a dirty repository
 
@@ -202,9 +202,9 @@ Reading a range commit by commit means modelling every commit in it, and on a re
 ~/.cache/worktree/verdict-<key>.json
 ```
 
-The directory is the one `os.UserCacheDir` names, which is `$XDG_CACHE_HOME/worktree` or `~/.cache/worktree` on Linux and `~/Library/Caches/worktree` on macOS. The key is the module, the commit the revision resolves to, the go-fsck binary that read it, and the layout of the entry. A tag is resolved to its commit before it is looked up, so moving a tag to another commit reads another entry rather than the one it used to name. Installing another go-fsck does the same. The working tree is never kept: it is the one revision that can change under a run.
+The directory is the one `os.UserCacheDir` names, which is `$XDG_CACHE_HOME/worktree` or `~/.cache/worktree` on Linux and `~/Library/Caches/worktree` on macOS. The key is the module, the commit the revision resolves to, the splint binary that read it, and the layout of the entry. A tag is resolved to its commit before it is looked up, so moving a tag to another commit reads another entry rather than the one it used to name. Installing another splint does the same. The working tree is never kept: it is the one revision that can change under a run.
 
-`--no-cache` reads every commit again and writes nothing, which is the flag to reach for when go-fsck itself is what changed. A cache directory that cannot be made, or an entry that cannot be written, is a slower run and not a failed one.
+`--no-cache` reads every commit again and writes nothing, which is the flag to reach for when splint itself is what changed. A cache directory that cannot be made, or an entry that cannot be written, is a slower run and not a failed one.
 
 ### Data model changes
 
@@ -241,7 +241,7 @@ Adding a method to an interface stops every implementor compiling, where adding 
 
 A breaking data model change earns a minor the same way a removed symbol does, and the verdict says which: `Minor release: v0.2.0, because 1 exported field moved since v0.1.0.`
 
-This needs a [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) that reports the field comparison. An older one reports only the symbols, and the section is left out.
+This needs a [splint](https://github.com/titpetric/tools/tree/main/splint) that reports the field comparison. An older one reports only the symbols, and the section is left out.
 
 ### Visibility
 

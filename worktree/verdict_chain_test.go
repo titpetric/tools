@@ -245,7 +245,7 @@ func chainRepo(t *testing.T) string {
 }
 
 func TestReadVerdictsCoversEveryRelease(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	alpha := chainRepo(t)
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Bye parts.\nfunc Bye(name string) string { return name }\n\n// Hi greets.\nfunc Hi() string { return \"hi\" }\n\n// Extra is pending.\nfunc Extra() {}\n")
@@ -311,7 +311,7 @@ func chainVersions(verdicts []verdict) []string {
 }
 
 func TestReadVerdictsComparesTheAPIOfEveryRelease(t *testing.T) {
-	requireGoFsck(t)
+	requireSplint(t)
 
 	got, err := readVerdicts(chainRepo(t), false, "", "", false)
 	if err != nil {

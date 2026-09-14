@@ -14,13 +14,13 @@ import (
 // verdictCacheSchema is the layout of what a cache entry holds. Raise it when
 // the content changes shape, so entries written by an older worktree are read
 // under another name rather than misread under this one.
-const verdictCacheSchema = 1
+const verdictCacheSchema = 2
 
 // verdictCache keeps the extracted model of a commit on disk, so history is
 // modelled once and every later run reads it back.
 //
 // A commit is immutable, and so is the model of one: the same commit read by
-// the same go-fsck is the same model, whichever range asked for it. That is
+// the same splint is the same model, whichever range asked for it. That is
 // what makes the entry safe to keep between runs, and what the key is built
 // from. The working tree is the one revision that can change under a run, and
 // is never cached.
@@ -34,7 +34,7 @@ type verdictCache struct {
 	// read or write.
 	dir string
 
-	// tool identifies the go-fsck binary the entries were written by, so a
+	// tool identifies the splint binary the entries were written by, so a
 	// newer one does not read models the older one wrote.
 	tool string
 
@@ -60,15 +60,15 @@ func openVerdictCache(enabled bool) *verdictCache {
 		return cache
 	}
 
-	cache.dir, cache.tool = dir, goFsckIdentity()
+	cache.dir, cache.tool = dir, splintIdentity()
 	return cache
 }
 
-// goFsckIdentity names the extraction tool as its path, size and modification
+// splintIdentity names the extraction tool as its path, size and modification
 // time, which is what a reinstall changes. A model is only as stable as the
 // tool that wrote it, so an entry written by another one is not read back.
-func goFsckIdentity() string {
-	path, err := exec.LookPath("go-fsck")
+func splintIdentity() string {
+	path, err := exec.LookPath("splint")
 	if err != nil {
 		return ""
 	}

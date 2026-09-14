@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// apiSymbol is one exported declaration, as "go-fsck diff" reports it.
+// apiSymbol is one exported declaration, as "splint diff" reports it.
 type apiSymbol struct {
 	// Key identifies the declaration across revisions, as the import path
 	// followed by the receiver type and name.
@@ -146,14 +146,14 @@ type apiChange struct {
 }
 
 // apiDiff is the exported symbol difference between a release tag and the
-// working tree of a module, as reported by "go-fsck diff".
+// working tree of a module, as reported by "splint diff".
 type apiDiff struct {
 	Removed []apiSymbol `json:"removed"`
 	Added   []apiSymbol `json:"added"`
 	Changed []apiChange `json:"changed"`
 
 	// Types are the types both revisions carry whose exported fields moved,
-	// which is the data model the release changes. An older go-fsck reports
+	// which is the data model the release changes. An older tool reports
 	// none, and the report leaves the section out.
 	Types []apiTypeChange `json:"types"`
 
@@ -351,7 +351,7 @@ func (m *apiModels) base(dir, ref string) (string, error) {
 		return m.empty, nil
 	}
 
-	// A go-fsck model is the list of packages of a revision, so a revision
+	// A model is the list of packages of a revision, so a revision
 	// that holds none of them is the empty list.
 	path := filepath.Join(m.work, "empty.json")
 	if err := os.WriteFile(path, []byte("[]\n"), 0o644); err != nil {
@@ -364,8 +364,8 @@ func (m *apiModels) base(dir, ref string) (string, error) {
 // diff compares the exported API of two revisions of the module in dir, reading
 // each through the cache. It is apiDiffBetween with the revisions remembered.
 func (m *apiModels) diff(dir, oldRef, newRef string) apiDiff {
-	if _, err := exec.LookPath("go-fsck"); err != nil {
-		return apiDiff{Skipped: "go-fsck is not installed"}
+	if _, err := exec.LookPath("splint"); err != nil {
+		return apiDiff{Skipped: "splint is not installed"}
 	}
 
 	oldModel, err := m.base(dir, oldRef)
@@ -388,8 +388,8 @@ func (m *apiModels) diff(dir, oldRef, newRef string) apiDiff {
 // than an error: an unreadable API is treated as non breaking and said to be,
 // so a missing tool does not stop a run.
 func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
-	if _, err := exec.LookPath("go-fsck"); err != nil {
-		return apiDiff{Skipped: "go-fsck is not installed"}
+	if _, err := exec.LookPath("splint"); err != nil {
+		return apiDiff{Skipped: "splint is not installed"}
 	}
 
 	models, err := newAPIModels(true)
@@ -402,18 +402,22 @@ func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 }
 
 // diffModels compares two models that have already been extracted.
+//
+// A splint from before the diff verb reads "diff" as a lint pattern and
+// stops on the --old flag it does not define, which is what the flag error
+// detects: the tool is there but the command is not.
 func diffModels(oldModel, newModel string) apiDiff {
-	out, err := exec.Command("go-fsck", "diff", "--old", oldModel, "--new", newModel, "--json", "--include-unexported").CombinedOutput()
+	out, err := exec.Command("splint", "diff", "--old", oldModel, "--new", newModel, "--json", "--include-unexported").CombinedOutput()
 	if err != nil {
-		if strings.Contains(string(out), "Unknown command") {
-			return apiDiff{Skipped: "the installed go-fsck has no diff command"}
+		if strings.Contains(string(out), "flag provided but not defined") {
+			return apiDiff{Skipped: "the installed splint has no diff command"}
 		}
-		return apiDiff{Skipped: fmt.Sprintf("go-fsck diff: %v", firstLine(string(out)))}
+		return apiDiff{Skipped: fmt.Sprintf("splint diff: %v", firstLine(string(out)))}
 	}
 
 	var diff apiDiff
 	if err := json.Unmarshal(out, &diff); err != nil {
-		return apiDiff{Skipped: fmt.Sprintf("go-fsck diff: %v", err)}
+		return apiDiff{Skipped: fmt.Sprintf("splint diff: %v", err)}
 	}
 	return diff
 }
@@ -431,7 +435,7 @@ func extractRef(dir, ref, work string) (string, error) {
 	}
 
 	model := work + ".json"
-	if err := goFsckExtract(source, model); err != nil {
+	if err := splintExtract(source, model); err != nil {
 		return "", err
 	}
 	return model, nil
@@ -455,7 +459,8 @@ func baseName(ref string) string {
 	return ref
 }
 
-// goFsckExtract writes the model of the module in dir to out.
+// splintExtract writes the model of the module in dir to out. The linters
+// are off: this run is the extract, and a lint finding is not a failure of it.
 //
 // The model is read from the syntax tree and package load errors are
 // discarded, so this works on a source tree that was never built, which is
@@ -465,8 +470,8 @@ func baseName(ref string) string {
 // Sources are not asked for. They carry every function body with them and
 // multiply the size of the model, and the fields a report is written from are
 // recorded either way.
-func goFsckExtract(dir, out string) error {
-	cmd := exec.Command("go-fsck", "extract", "-i", dir, "-r", "-o", out)
+func splintExtract(dir, out string) error {
+	cmd := exec.Command("splint", "--linters", "none", "-i", dir, "--output", out, "./...")
 	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOFLAGS=-mod=mod", "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%s", firstLine(string(output)))
