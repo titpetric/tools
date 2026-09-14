@@ -53,24 +53,12 @@ A CLI tool that reads git tags from the local repository or `git ls-remote --tag
 go install github.com/titpetric/tools/semver@latest
 ```
 
-### [generic](generic/)
-
-A Go library providing type-safe generic utilities:
-
-- **List[T]** - Generic list type with `Filter`, `Find`, `Get`, `Value`, and `ListMap` operations
-- **Pointer[T]** - Helper to get a pointer to any value
-- **TemplateRenderer[T]** - Type-safe HTML template rendering with embedded filesystem support and local file overrides
-
-```
-go get github.com/titpetric/tools/generic
-```
-
 ## Development
 
-Each module is an independent Go module. A root [Taskfile.yml](Taskfile.yml) is provided with:
+Each module is an independent Go module. A root [atkins.yml](atkins.yml) is provided with:
 
-- `task update` - Update Go version and dependencies across all modules
-- `task list` - List all sub-module directories
+- `atkins update` - Update Go version and dependencies across all modules
+- `atkins list` - List all sub-module directories
 
 ## License
 
