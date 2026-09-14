@@ -1,0 +1,38 @@
+#!/usr/bin/env atkins
+# The markdown lives under data/ and is written without soft wraps, which is
+# why the shared mdox skill (docs/, --soft-wraps) does not apply here.
+
+vars:
+  folder: data
+
+tasks:
+  default:
+    desc: "Check the markdown formatting and language"
+    cmds:
+      - task: lint
+
+  up:
+    desc: "Bring up the docker env"
+    cmds:
+      - task: compose:up
+
+  down:
+    desc: "Bring down the docker env"
+    cmds:
+      - task: compose:down
+
+  fmt:
+    desc: "Format the markdown with mdox"
+    cmds:
+      - mdox fmt -l --no-soft-wraps $(find ${{ folder }} -name '*.md')
+
+  lint:
+    desc: "Check the formatting, then lint the language with vale"
+    cmds:
+      - mdox fmt --check --no-soft-wraps $(find ${{ folder }} -name '*.md')
+      - docker run --rm -v $(pwd):/docs -w /docs jdkato/vale .
+
+  setup:
+    desc: "Install mdox"
+    cmds:
+      - go install github.com/bwplotka/mdox@latest

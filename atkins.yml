@@ -1,0 +1,11 @@
+#!/usr/bin/env atkins
+tasks:
+  update:
+    desc: "Set the go version and update dependencies for every module"
+    cmds:
+      - find . -mindepth 2 -maxdepth 2 -name go.mod | xargs -n1 dirname | xargs -I{} sh -xc 'cd {} && go mod edit -go=1.27.0 && go get -u ./... && go mod tidy'
+
+  list:
+    desc: "Print the module folders"
+    cmds:
+      - find . -mindepth 2 -maxdepth 2 -type f -name go.mod | xargs -n1 dirname

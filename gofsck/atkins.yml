@@ -1,0 +1,32 @@
+#!/usr/bin/env atkins
+env:
+  vars:
+    CGO_ENABLED: "0"
+
+tasks:
+  default:
+    desc: "Format, test, install, self-check"
+    cmds:
+      - task: go:fmt
+      - task: go:test
+      - task: install
+      - task: check
+
+  install:
+    desc: "Install gofsck into the environment"
+    passthru: true
+    cmds:
+      - go install .
+
+  check:
+    desc: "Run the installed gofsck over its own tree"
+    cmds:
+      - gofsck ./...
+
+  clean:
+    desc: "Clean build artifacts and generated files"
+    cmds:
+      - rm -f gofsck gofsck.so
+      - rm -f go-fsck.db go-fsck.json
+      - rm -f golangci-lint.json report.json
+      - rm -rf ../docs_backup/

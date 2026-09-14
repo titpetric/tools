@@ -1,0 +1,12 @@
+#!/usr/bin/env atkins
+tasks:
+  default:
+    desc: "Format and install semver"
+    cmds:
+      - task: go:fmt
+      - go install .
+
+  test:
+    desc: "Regenerate git-tags.json from the fixture tags"
+    cmds:
+      - cat git-tags.txt | semver | jq . > git-tags.json
