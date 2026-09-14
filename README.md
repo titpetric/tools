@@ -17,7 +17,7 @@ A data model of Go source, two parsers that fill it, and twelve linters over the
 The six gofsck analyzers are reimplemented here against the model, alongside checks for godoc, import collisions, argument and return order, module dependencies, and what a file needs from the rest of its package.
 
 ```
-go install github.com/titpetric/tools/splint/cmd/splint@latest
+go install github.com/titpetric/tools/splint@main
 ```
 
 ### [gofsck](gofsck/)
