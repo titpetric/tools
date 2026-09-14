@@ -37,6 +37,7 @@ splint --fix ./...                    # rewrite them, then report what is left
 splint docs ./... > docs/api.md       # render the tree as an API reference
 splint coverage --input splint.json   # report the coverage a document carries
 splint diff --old a.json --new b.json # what a release takes away
+splint sizes --input splint.json       # every file with its byte size, as JSON
 splint --save ./...                   # extract a document to splint.json, and judge nothing
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
@@ -678,6 +679,17 @@ splint coverage --input splint.json --template docs/testing-coverage.md.tpl
 ```
 
 The report reads the same two fields whichever way the document arrived: a parse with the profile folded in, or `--input` naming a document that was written with one.
+
+## Sizes
+
+`splint sizes` reports what the document weighs: every file with its byte size, the per directory totals, and a histogram over the files in powers of two from 1 KB to 256 KB. The output is JSON, in the shape `go-ddd-stats` wrote, so a consumer storing these payloads reads old and new rows the same way.
+
+```shell
+splint sizes ./...
+splint sizes --input splint.json
+```
+
+Every file the document carries is counted, whatever scope declared it: a document written with `--include-tests` counts the test files, one written without does not.
 
 ## Schemas
 

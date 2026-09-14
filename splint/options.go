@@ -30,6 +30,7 @@ const (
 	commandDocs     = "docs"
 	commandCoverage = "coverage"
 	commandDiff     = "diff"
+	commandSizes    = "sizes"
 )
 
 // config is what one run was asked for.
@@ -297,7 +298,7 @@ func verb(args []string) (string, []string) {
 	}
 
 	switch args[0] {
-	case commandFix, commandLint, commandDocs, commandCoverage, commandDiff:
+	case commandFix, commandLint, commandDocs, commandCoverage, commandDiff, commandSizes:
 		return args[0], args[1:]
 	}
 
@@ -335,6 +336,7 @@ func helpSpec(cfg *config) spec {
 			{commandDocs, "render the tree as an API reference: markdown, a spec, an import list or plantuml"},
 			{commandCoverage, "report the coverage the document carries, per function and per package"},
 			{commandDiff, "compare the exported API and the go.mod of two documents"},
+			{commandSizes, "report every file with its byte size, the per directory totals and a histogram, as JSON"},
 		},
 		Description: `The pattern is "." for the package in the source path and "./..." for
 everything below it, which is how every other tool here spells it.

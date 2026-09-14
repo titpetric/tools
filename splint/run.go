@@ -12,6 +12,7 @@ import (
 	"github.com/titpetric/tools/splint/commands/coverage"
 	"github.com/titpetric/tools/splint/commands/diff"
 	"github.com/titpetric/tools/splint/commands/docs"
+	"github.com/titpetric/tools/splint/commands/sizes"
 	"github.com/titpetric/tools/splint/coverprofile"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
@@ -128,6 +129,10 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 			Symbol:      cfg.docsSymbol,
 			Verbose:     cfg.options.Verbose,
 		})
+	}
+
+	if cfg.command == commandSizes {
+		return exitClean, sizes.Write(w, root.Packages)
 	}
 
 	if cfg.command == commandCoverage {
