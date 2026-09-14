@@ -82,6 +82,11 @@ type config struct {
 	hide      []string
 	modelMode bool
 
+	// docsRoot opens the docs on one type and renders them as a config
+	// reference, and docsTitle replaces that type's heading.
+	docsRoot  string
+	docsTitle string
+
 	// template names a text/template file the coverage report is rendered
 	// through, with .Functions and .Packages as markdown tables.
 	template string
@@ -142,6 +147,8 @@ func parseOptions(args []string) (*config, error) {
 	fs.BoolVar(&cfg.split, "split", false, "write the docs as one markdown file per package under --out")
 	fs.StringVar(&cfg.out, "out", ".", "write the split docs under `DIR`")
 	fs.StringVar(&hide, "hide", "", "leave the types in `LIST` out of the puml diagram, comma separated")
+	fs.StringVar(&cfg.docsRoot, "root", "", "open the docs on the type `NAME` and render them as a config reference")
+	fs.StringVar(&cfg.docsTitle, "title", "", "print `TEXT` as the heading of the root type")
 	fs.BoolVar(&cfg.modelMode, "model", false, "draw the puml data model alone: no functions and no interfaces")
 	fs.StringVar(&cfg.template, "template", "", "render the coverage report through the text/template at `FILE`")
 	fs.StringVar(&cfg.oldFile, "old", "", "diff: the document of the older revision at `FILE`")
@@ -312,6 +319,7 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint docs ./... > docs/api.md", "the API reference of the tree"},
 			{"splint docs --render puml ./...", "a plantuml diagram of the types"},
 			{"splint docs --split --out docs/api --strip-prefix github.com/titpetric ./...", "one markdown file per package"},
+			{"splint docs --root Config --title \"# Configuration\" .", "a config reference from one type down"},
 			{"splint coverage --append-coverage=pkg.cov ./...", "fold a profile into a parse and report it"},
 			{"splint coverage --input " + saveFile + " --template docs/testing-coverage.md.tpl", "the report of a document already written"},
 			{"splint diff --old old.json --new new.json", "what a release takes away"},

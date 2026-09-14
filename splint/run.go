@@ -123,6 +123,8 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 			StripPrefix: cfg.stripPrefix,
 			Model:       cfg.modelMode,
 			Hide:        cfg.hide,
+			Root:        cfg.docsRoot,
+			Title:       cfg.docsTitle,
 			Verbose:     cfg.options.Verbose,
 		})
 	}

@@ -1071,11 +1071,31 @@ A parse for the docs keeps the sources whether or not they were asked for,
 the way `--schema` does, so `splint docs -i ./migrate .` is the whole of a
 docs job: no document on disk and nothing to clean up. `--render` picks the
 rendering: markdown is the default, `spec` is the declared symbols alone,
-`imports` and `puml` are plantuml diagrams of what the packages reach, and
-`json` is the document itself. `--split` writes one markdown file per package
-under `--out` with a README listing them, named after the import path with
-`--strip-prefix` taken off the front. `--hide` leaves named types out of the
-puml diagram and `--model` draws the data model alone.
+`imports` and `puml` are plantuml diagrams of what the packages reach,
+`config` is a configuration reference, and `json` is the document itself.
+`--split` writes one markdown file per package under `--out` with a README
+listing them, named after the import path with `--strip-prefix` taken off
+the front. `--hide` leaves named types out of the puml diagram and `--model`
+draws the data model alone.
+
+### The config reference
+
+`--root` opens the docs on one type and renders them as a configuration
+reference, which was `schema-gen markdown`: each type under its own heading,
+each field as a bold line carrying its json name and its type, and the field
+doc as the paragraph under it. A field whose type the package declares links
+to that type's section, so a reader walks a nested config from the root; the
+root type prints first and the types it reaches follow in reach order.
+`--title` replaces the root type's heading.
+
+```shell
+splint docs --root Config --title "# Configuration" -i ./server/config . > docs/config.md
+```
+
+A `bool` reads as `boolean` and an `interface{}` as `any`, because the
+reference describes a document rather than the Go that decodes it. A type
+with no fields is described by what it is defined as, linked where that is a
+declared type.
 
 ## Development
 

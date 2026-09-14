@@ -27,6 +27,7 @@ const (
 	FormatImports  = "imports"
 	FormatPlantUML = "puml"
 	FormatJSON     = "json"
+	FormatConfig   = "config"
 )
 
 // Options is what one rendering was asked for.
@@ -52,6 +53,11 @@ type Options struct {
 	// Hide are type names left out of the puml diagram.
 	Hide []string
 
+	// Root names the type a config reference opens on, and Title replaces
+	// its heading. Naming a root selects the config rendering.
+	Root  string
+	Title string
+
 	// Verbose keeps the unexported symbols in the spec rendering.
 	Verbose bool
 }
@@ -73,7 +79,14 @@ func Write(w io.Writer, root *model.DocumentRoot, opts Options) error {
 		return renderJSON(w, defs)
 	case FormatPlantUML, "plantuml":
 		return renderPlantUML(w, opts, defs)
+	case FormatConfig:
+		return renderConfig(w, opts, defs)
 	default:
+		// A root type selects the config reference: it is the one rendering
+		// a root means anything to.
+		if opts.Root != "" {
+			return renderConfig(w, opts, defs)
+		}
 		return renderMarkdown(w, defs)
 	}
 }
