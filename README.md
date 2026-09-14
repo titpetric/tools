@@ -14,25 +14,10 @@ go install github.com/titpetric/tools/worktree@main
 
 A data model of Go source, two parsers that fill it, and twelve linters over the top. The model imports no third party package, so a linter written against it links neither `go/ast` nor `x/tools`; one parser reads through `go/ast` and the other reads bytes, an order of magnitude quicker and tolerant of source that does not compile.
 
-The six gofsck analyzers are reimplemented here against the model, alongside checks for godoc, import collisions, argument and return order, module dependencies, and what a file needs from the rest of its package.
+The linters cover file-test pairing, symbol-test coverage, symbol grouping by filename, HTTP handler wrappers, file size, visibility, godoc, import collisions, argument and return order, module dependencies, and what a file needs from the rest of its package.
 
 ```
 go install github.com/titpetric/tools/splint@main
-```
-
-### [gofsck](gofsck/)
-
-A Go filesystem check tool with modular analyzers for package structure validation. Provides six analyzers:
-
-1. **Pairing** - Validates that source files have corresponding test files
-2. **Coverage** - Analyzes symbol-test coverage using naming conventions
-3. **Grouping** - Ensures exported symbols are in appropriately named files (also available as a golangci-lint plugin)
-4. **Wraphandler** - Ensures exported HTTP handlers have corresponding unexported error-returning wrappers
-5. **Filecheck** - Gauges complexity by file size distribution and cognitive load ratings
-6. **Visibility** - Counts exported against internal types and funcs per package, and the share of package code the internal bodies occupy
-
-```
-go install github.com/titpetric/tools/gofsck@latest
 ```
 
 ### [puzzle](puzzle/)
