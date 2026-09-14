@@ -1,17 +1,26 @@
 # splint
 
-A data model of Go source, two parsers that fill it, and a linting framework
-over the top.
+A data model of Go source, two parsers that fill it, and a linting framework over the top.
 
-The model is schema and nothing else. It imports no third party package, so a
-linter written against it links neither `go/ast` nor `x/tools`. A parser fills
-the model and a linter reads it; neither refers to the other.
+The model is schema and nothing else. It imports no third party package, so a linter written against it links neither `go/ast` nor `x/tools`. A parser fills the model and a linter reads it; neither refers to the other.
 
-The command is built to run in a pipeline. It exits on a code a job branches
-on, and it renders the one report three ways for the three readers a check has:
-the pipeline that gates on it, the operator watching a terminal, and whoever
-reads the artifact afterwards. Which rendering a run produces is decided by
-where the output goes, so the same command line serves all three.
+The command is built to run in a pipeline. It exits on a code a job branches on, and it renders the one report three ways for the three readers a check has: the pipeline that gates on it, the operator watching a terminal, and whoever reads the artifact afterwards. Which rendering a run produces is decided by where the output goes, so the same command line serves all three.
+
+## What it obsoletes
+
+Two earlier tools of ours:
+
+- [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) - the extract/lint/docs/coverage/diff toolchain over the same document model. Every subcommand lives on here, and a document it wrote still loads.
+- [gofsck](https://github.com/titpetric/tools/tree/main/gofsck) - the single-pass package layout analyser. Its six checks (pairing, coverage, grouping, wraphandler, filecheck, visibility) run here as linters.
+
+And the common tools it stands in for:
+
+| Tool                | What splint does instead                                                                                                                                      |
+|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `goimports`         | `splint fix` adds the missing imports and drops the unused ones, resolved against the tree, not a global index                                                |
+| `goimports-reviser` | the same pass writes the block in the configured group order                                                                                                  |
+| `gofumpt`           | nothing for now: it is a stricter gofmt that rarely rewrites anything, and gofmt already runs. Formatting rules under the same philosophy may land here later |
+| `golangci-lint`     | the twelve linters here, a smaller and more opinionated set                                                                                                   |
 
 ## Install
 
@@ -28,11 +37,10 @@ splint --fix ./...                    # rewrite them, then report what is left
 splint docs ./... > docs/api.md       # render the tree as an API reference
 splint coverage --input splint.json   # report the coverage a document carries
 splint diff --old a.json --new b.json # what a release takes away
-splint --linters none --save ./...    # extract a document and judge nothing
+splint --save ./...                   # extract a document to splint.json, and judge nothing
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
 splint --linters godoc,imports ./...  # run two of the twelve
-splint --save ./...                   # lint, and write the document to splint.json
 splint --output model.json ./...      # keep the document under another name
 splint --input model.json             # lint a document read back from a file
 splint --include-tests --save ./...   # keep the test packages in what is written
@@ -43,70 +51,31 @@ splint --stats ./...                   # what the linters measured, not what the
 splint --offline ./...                # never ask the module proxy
 ```
 
-A flag reads the same before the pattern or after it. The exit code is 0 for a
-clean run, 1 when a linter reported something, and 2 when the run itself
-failed, so a pipeline can tell a finding from a failure.
+A flag reads the same before the pattern or after it. The exit code is 0 for a clean run, 1 when a linter reported something, and 2 when the run itself failed, so a pipeline can tell a finding from a failure.
 
-`--linters none` runs no linter at all, which is the extract: the tree is
-parsed and the document written, and the run exits 0 whatever the tree looks
-like. It is what a job that only wants the document calls, in place of
-suffixing a lint with `|| true`.
+`--linters none` runs no linter at all, which is the extract: the tree is parsed and the document written, and the run exits 0 whatever the tree looks like. It is what a job that only wants the document calls, in place of suffixing a lint with `|| true`.
 
-`--save` writes the parsed document to `splint.json`, beside the tree it
-describes, and lints as it always did. `--output` names another file. Both are
-resolved against the directory the command was run in, whichever tree `-i`
-pointed the parse at: the parse moves the process into that tree and puts it
-back when it is done. It is the document `go-fsck` reads, under a name splint
-writes.
+`--save` writes the parsed document to `splint.json`, beside the tree it describes, and runs no linter: a run given `--save` is there for the document it writes, so the exit code says nothing about the tree. `--output` names another file. Both are resolved against the directory the command was run in, whichever tree `-i` pointed the parse at: the parse moves the process into that tree and puts it back when it is done.
 
-Every run parses the tree. `--input` is the one way to read a document that was
-already written, and it is what makes a second run quick: oida is 637ms parsed
-and 12ms read back. A `splint.json` found beside the tree used to be read
-instead of parsing, so a job that extracted twice got the first document back
-and the second run reported a tree nobody had read.
+Every run parses the tree. `--input` is the one way to read a document that was already written, and it is what makes a second run quick: oida is 637ms parsed and 12ms read back. A `splint.json` found beside the tree used to be read instead of parsing, so a job that extracted twice got the first document back and the second run reported a tree nobody had read.
 
-`--include-tests` decides what the written document keeps. Every parse reads the
-test files, because `pairing` and `coverage` have nothing to check without them,
-and a document written without the flag carries no test package and no
-declaration from a `_test.go` file. A report rendered off one listed
-`cmd/lessgo_test` as a package otherwise.
+`--include-tests` decides what the written document keeps. Every parse reads the test files, because `pairing` and `coverage` have nothing to check without them, and a document written without the flag carries no test package and no declaration from a `_test.go` file. A report rendered off one listed `cmd/lessgo_test` as a package otherwise.
 
-`splint --help` is a page rather than a list of flag defaults: what the tool
-is, how it is called, every flag with its default, and runs worth copying. A
-terminal gets it in colour and anything else gets it as markdown, which is
-what `splint --help > docs/splint.md` writes.
+`splint --help` is a page rather than a list of flag defaults: what the tool is, how it is called, every flag with its default, and runs worth copying. A terminal gets it in colour and anything else gets it as markdown, which is what `splint --help > docs/splint.md` writes.
 
 ## splint fix
 
-`splint fix ./...` rewrites the import block of every file that does not hold
-the one the rules describe. `splint --fix ./...` does the same and then lints
-the tree the rewrite left, so nothing it cleared is in the report.
+`splint fix ./...` rewrites the import block of every file that does not hold the one the rules describe. `splint --fix ./...` does the same and then lints the tree the rewrite left, so nothing it cleared is in the report.
 
-It replaces `goimports -w` and `goimports-reviser` together. Those two have to
-be run in that order and never the reverse: goimports re-sorts the groups the
-reviser arranged. One pass here does both, and does the thing neither can.
+The fixer reads the tree with the simple parser unless `--parser` names one. A file that is missing an import it needs does not compile, and that is a file the fixer is there to repair; the ast parser resolves a tree through the toolchain, so it is the reading least likely to survive one. Reading the text also costs an order of magnitude less over the same tree, and a formatter is run on every save.
 
-The fixer reads the tree with the simple parser unless `--parser` names one. A
-file that is missing an import it needs does not compile, and that is a file
-the fixer is there to repair; the ast parser resolves a tree through the
-toolchain, so it is the reading least likely to survive one. Reading the text
-also costs an order of magnitude less over the same tree, and a formatter is
-run on every save.
+Either parser answers the same. The ast parser reads the import declarations and the generated marker off the file's own bytes rather than off the syntax the package loader returns, because a cgo file is not loaded as it was written: the toolchain preprocesses it first, so `import "C"` is gone, an import of `"unsafe"` stands where it was, cgo's own generated header is on it, and the line numbers belong to a file that only exists inside the build.
 
-Either parser answers the same. The ast parser reads the import declarations
-and the generated marker off the file's own bytes rather than off the syntax
-the package loader returns, because a cgo file is not loaded as it was written:
-the toolchain preprocesses it first, so `import "C"` is gone, an import of
-`"unsafe"` stands where it was, cgo's own generated header is on it, and the
-line numbers belong to a file that only exists inside the build.
-
-A file that imports nothing is a different thing and is valid Go. Nothing here
-touches one.
+A file that imports nothing is a different thing and is valid Go. Nothing here touches one.
 
 ### The groups
 
-An import block is written as one parenthesised declaration, the groups in this
-order, sorted by path within each group and separated by a blank line:
+An import block is written as one parenthesised declaration, the groups in this order, sorted by path within each group and separated by a blank line:
 
 | Group     | What is in it                                 |
 |-----------|-----------------------------------------------|
@@ -117,34 +86,17 @@ order, sorted by path within each group and separated by a blank line:
 | `project` | a path under the module the tree builds       |
 | `dotted`  | an import written `.`                         |
 
-That order is the one six of the eight `goimports-reviser` call sites in this
-workspace pass, `std,blanked,general,company,project`. `imports.order` in
-`.splint.yml` changes it, and a group the list leaves out is written after the
-ones it names rather than dropped.
+That order is the default, `std,blanked,general,company,project`. `imports.order` in `.splint.yml` changes it, and a group the list leaves out is written after the ones it names rather than dropped.
 
-An alias repeating the last segment of the path is taken off, because the path
-already says it. A path ending in a major version gets one, because the path
-does not: `github.com/go-pg/pg/v9` is written `pg "github.com/go-pg/pg/v9"`,
-and `gopkg.in/yaml.v3` needs none because the segment already reads `yaml`. A
-path that implies no name gets none: what is left of `example.com/v2` once the
-version comes off is `example.com`, which is not something an import can be
-called. An alias somebody chose is kept, and stays in the group its path
-belongs to.
+An alias repeating the last segment of the path is taken off, because the path already says it. A path ending in a major version gets one, because the path does not: `github.com/go-pg/pg/v9` is written `pg "github.com/go-pg/pg/v9"`, and `gopkg.in/yaml.v3` needs none because the segment already reads `yaml`. A path that implies no name gets none: what is left of `example.com/v2` once the version comes off is `example.com`, which is not something an import can be called. An alias somebody chose is kept, and stays in the group its path belongs to.
 
-Two import declarations in one file merge into one. A comment above an import
-and a comment beside it both survive the rewrite.
+Two import declarations in one file merge into one. A comment above an import and a comment beside it both survive the rewrite.
 
 ### Resolving a name
 
-`model.User` in a file that imports no model is the case `goimports` gets
-wrong. It asks a global index and takes whichever model it indexed first, so a
-tree where `/service1` and `/service2` each hold one is a tree it formats
-wrong.
+`model.User` in a file that imports no model is the ambiguous case: a global index answers with whichever model it indexed first, so a tree where `/service1` and `/service2` each hold one gets the wrong import half the time.
 
-The answer here is source relative. The walk starts at the directory the name
-was written in and goes up, stopping at the module the writing package belongs
-to. From `service2/storage`, `model` is `service2/model`. From
-`service1/handler` the same spelling is `service1/model`.
+The answer here is source relative. The walk starts at the directory the name was written in and goes up, stopping at the module the writing package belongs to. From `service2/storage`, `model` is `service2/model`. From `service1/handler` the same spelling is `service1/model`.
 
 Four things are asked, in this order, and the first that answers wins:
 
@@ -155,51 +107,23 @@ Four things are asked, in this order, and the first that answers wins:
 | `tree`   | a path some other file of the tree already imports under the name |
 | `module` | a requirement of the go.mod whose last segment is the name        |
 
-`tree` is what places a dependency with no module cache read and nothing asked
-of the network: one file spelling out `github.com/stretchr/testify/assert`
-teaches every other file in the tree what `assert` means. `alias` is there for
-the name the tree cannot place on its own, and it wins outright.
+`tree` is what places a dependency with no module cache read and nothing asked of the network: one file spelling out `github.com/stretchr/testify/assert` teaches every other file in the tree what `assert` means. `alias` is there for the name the tree cannot place on its own, and it wins outright.
 
-A name two paths answer to is not resolved. A formatter guessing between them
-writes the wrong import half the time, so the file is reported under
-`imports/unresolved` and left exactly as it was.
+A name two paths answer to is not resolved. A formatter guessing between them writes the wrong import half the time, so the file is reported under `imports/unresolved` and left exactly as it was.
 
 ### What it does not do
 
-- It does not write `go.mod`. Removing the last import of a dependency leaves
-  the requirement in place until `go mod tidy` takes it out.
-- It does not touch a file carrying the `Code generated ... DO NOT EDIT.`
-  marker, which is what `goimports-reviser` skips too.
-- It does not move the `import "C"` of a cgo file. The comment above it is the
-  C source cgo compiles, and it is the preamble only while it sits directly
-  above that import, so that one declaration is pinned where it is. Every other
-  block in the file is formatted as usual.
-- It does not touch a file carrying a `//line` directive. The directive rebases
-  the line numbers the compiler reports from that point on, so the physical
-  lines of such a file are load bearing. They are machine output, from goyacc
-  and its like.
-- It does not touch a file behind a build constraint this build does not
-  satisfy. A `//go:build windows` file is not read on Linux, so it is neither
-  formatted nor reported there.
-- It does not touch anything outside the import declaration. Indentation and
-  the rest of the file are `gofmt`'s.
-- It does not remove an import whose name it does not know.
-  `github.com/goccy/go-yaml` is reached as `yaml`, and the last segment of the
-  path is not a Go identifier, so the name is a guess. An import removed on a
-  wrong guess is a file that no longer builds; one kept on a wrong guess is a
-  line nobody notices.
-- It does not add an import of the package the file is part of. A file writing
-  `package whitebox` reaches `whitebox.Bar` by a name it already has, and
-  importing it would be a cycle. A file writing `package whitebox_test` is a
-  package of its own and has to import the one it tests, so that one gets the
-  import.
-- It does not lose a line. A comment above an import, beside it, or belonging
-  to no import at all comes back in the rewritten block. The line endings of
-  the file and its lack of a trailing newline come back too.
+- It does not write `go.mod`. Removing the last import of a dependency leaves the requirement in place until `go mod tidy` takes it out.
+- It does not touch a file carrying the `Code generated ... DO NOT EDIT.` marker.
+- It does not move the `import "C"` of a cgo file. The comment above it is the C source cgo compiles, and it is the preamble only while it sits directly above that import, so that one declaration is pinned where it is. Every other block in the file is formatted as usual.
+- It does not touch a file carrying a `//line` directive. The directive rebases the line numbers the compiler reports from that point on, so the physical lines of such a file are load bearing. They are machine output, from goyacc and its like.
+- It does not touch a file behind a build constraint this build does not satisfy. A `//go:build windows` file is not read on Linux, so it is neither formatted nor reported there.
+- It does not touch anything outside the import declaration. Indentation and the rest of the file are `gofmt`'s.
+- It does not remove an import whose name it does not know. `github.com/goccy/go-yaml` is reached as `yaml`, and the last segment of the path is not a Go identifier, so the name is a guess. An import removed on a wrong guess is a file that no longer builds; one kept on a wrong guess is a line nobody notices.
+- It does not add an import of the package the file is part of. A file writing `package whitebox` reaches `whitebox.Bar` by a name it already has, and importing it would be a cycle. A file writing `package whitebox_test` is a package of its own and has to import the one it tests, so that one gets the import.
+- It does not lose a line. A comment above an import, beside it, or belonging to no import at all comes back in the rewritten block. The line endings of the file and its lack of a trailing newline come back too.
 
-Before anything is written, the lines about to be replaced are checked to be an
-import declaration. The range comes from a parse, and a parse that read it
-wrong would otherwise have the rewrite overwrite whatever is really there.
+Before anything is written, the lines about to be replaced are checked to be an import declaration. The range comes from a parse, and a parse that read it wrong would otherwise have the rewrite overwrite whatever is really there.
 
 ### Configuration
 
@@ -210,8 +134,7 @@ Two files, and they belong to different people.
 | `.splint.yml` beside `go.mod`                | the rules a tree is formatted under    | its authors, by hand, and committed |
 | `splint.yml` under the user config directory | what runs on this machine have counted | `splint fix`                        |
 
-`.splint.yml` sits at the root of the tree. A tree with no such file is
-formatted by the defaults.
+`.splint.yml` sits at the root of the tree. A tree with no such file is formatted by the defaults.
 
 ```yaml
 imports:
@@ -228,25 +151,16 @@ imports:
     include-tests: true
 ```
 
-The file states rules and nothing else. What a run counted is kept on the
-machine, in `splint.yml` under the directory the operating system keeps a
-user's configuration in, which is `~/.config/splint.yml` on Linux:
+The file states rules and nothing else. What a run counted is kept on the machine, in `splint.yml` under the directory the operating system keeps a user's configuration in, which is `~/.config/splint.yml` on Linux:
 
 ```yaml
 imports:
   fixed: 0
 ```
 
-`imports.fixed` is how many times a `.go` file has had its import block
-rewritten, across every run this user has made against any tree. It is not
-kept beside the tree: a tree's own file states what its authors decided and
-commit, and a counter is what one person's runs have done. Keeping it there
-left every run that rewrote a file with a dirty repository and every branch
-carrying a different number.
+`imports.fixed` is how many times a `.go` file has had its import block rewritten, across every run this user has made against any tree. It is not kept beside the tree: a tree's own file states what its authors decided and commit, and a counter is what one person's runs have done. Keeping it there left every run that rewrote a file with a dirty repository and every branch carrying a different number.
 
-`splint fix` adds to the counter and writes the file back through its node
-tree, so a comment written beside one survives it. A run that rewrote nothing
-does not write at all.
+`splint fix` adds to the counter and writes the file back through its node tree, so a comment written beside one survives it. A run that rewrote nothing does not write at all.
 
 ## Output
 
@@ -271,17 +185,9 @@ WARN: db/connect.go: pairing/unpaired: connect.go has no connect_test.go beside 
 WARN: db/connect.go:19: coverage/uncovered: Connect - exported symbol has no test named TestConnect
 ```
 
-A tree of any size answers with more findings than a screen holds, so which
-linter is talking and about what comes first. `ERROR` is red, `WARN` amber and
-`INFO` teal, the position is teal, the rule grey and the symbol violet; the
-message carries none, because it is the line a reader stops on. A linter that
-ran and found nothing is named under the table rather than given a row of
-zeroes.
+A tree of any size answers with more findings than a screen holds, so which linter is talking and about what comes first. `ERROR` is red, `WARN` amber and `INFO` teal, the position is teal, the rule grey and the symbol violet; the message carries none, because it is the line a reader stops on. A linter that ran and found nothing is named under the table rather than given a row of zeroes.
 
-Anything else is a program, and the program that reads a log is GitHub Actions.
-It gets one [workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
-per finding, which is what puts one on the file and the line of a pull request
-review:
+Anything else is a program, and the program that reads a log is GitHub Actions. It gets one [workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands) per finding, which is what puts one on the file and the line of a pull request review:
 
 ```
 ::warning file=db/connect.go,line=19,title=coverage/uncovered::Connect - exported symbol has no test named TestConnect
@@ -289,25 +195,11 @@ review:
 ::notice file=go.mod,title=modcheck/thin::github.com/lib/pq - github.com/lib/pq is reached from one file through one symbol
 ```
 
-`ERROR` is an `::error`, `WARN` a `::warning` and everything below it a
-`::notice`, which is the three GitHub has. A rule reporting a block of lines
-sets `Position.EndLine` and the command carries `endLine`, so the annotation
-marks the block rather than the line it opens on. The message escapes `%`, CR
-and LF, and a property escapes those and `:` and `,`, which is what
-`@actions/core` does.
+`ERROR` is an `::error`, `WARN` a `::warning` and everything below it a `::notice`, which is the three GitHub has. A rule reporting a block of lines sets `Position.EndLine` and the command carries `endLine`, so the annotation marks the block rather than the line it opens on. The message escapes `%`, CR and LF, and a property escapes those and `:` and `,`, which is what `@actions/core` does.
 
-Nothing else in a log becomes an annotation on its own: a compiler shaped line
-does it only where a
-[problem matcher](https://github.com/actions/toolkit/blob/main/docs/problem-matchers.md)
-was registered for it. GitHub shows ten warnings and ten errors per step and
-fifty annotations per job and drops the rest silently, so the exit code is what
-a gate reads, not the count of annotations.
+Nothing else in a log becomes an annotation on its own: a compiler shaped line does it only where a [problem matcher](https://github.com/actions/toolkit/blob/main/docs/problem-matchers.md) was registered for it. GitHub shows ten warnings and ten errors per step and fifty annotations per job and drops the rest silently, so the exit code is what a gate reads, not the count of annotations.
 
-`--json` writes the findings as data instead, which is the same run with the
-rendering skipped, and `--yaml` writes the same thing the way a document is
-written. One data model answers both: every field carries a json and a yaml tag
-naming the same key, and a severity is a text marshaller, which both encoders
-read, so it is the word in either.
+`--json` writes the findings as data instead, which is the same run with the rendering skipped, and `--yaml` writes the same thing the way a document is written. One data model answers both: every field carries a json and a yaml tag naming the same key, and a severity is a text marshaller, which both encoders read, so it is the word in either.
 
 ```json
 {
@@ -325,17 +217,11 @@ read, so it is the word in either.
 }
 ```
 
-`--stats` is tables rather than lines, because what it writes is numbers. A
-terminal gets them drawn and anything else gets them as markdown, padded the
-way `mdox fmt` pads one so a document holding one is not reformatted the next
-time the docs are built. `-stats --json` and `-stats --yaml` write what each
-linter measured: the metrics, keyed by package or by file, and the tables it
-would have drawn.
+`--stats` is tables rather than lines, because what it writes is numbers. A terminal gets them drawn and anything else gets them as markdown, padded the way `mdox fmt` pads one so a document holding one is not reformatted the next time the docs are built. `-stats --json` and `-stats --yaml` write what each linter measured: the metrics, keyed by package or by file, and the tables it would have drawn.
 
 ## The two parsers
 
-Both are constructed as `New(splint.Options)` and both return a
-`*model.DocumentRoot`, so which one a program uses is an import.
+Both are constructed as `New(splint.Options)` and both return a `*model.DocumentRoot`, so which one a program uses is an import.
 
 |                              | `astparser`                    | `simpleparser`               |
 |------------------------------|--------------------------------|------------------------------|
@@ -344,20 +230,13 @@ Both are constructed as `New(splint.Options)` and both return a
 | Source that does not compile | depends on the toolchain       | reads it regardless          |
 | Default                      | yes                            | on request                   |
 
-`simpleparser` finds a declaration by where it starts and where it ends. gofmt
-puts every top level declaration at column zero, and the brace or paren that
-closes one at column zero as well, so a function's extent is found without
-balancing a brace inside it. That extent, taken verbatim, is the source the
-model records.
+`simpleparser` finds a declaration by where it starts and where it ends. gofmt puts every top level declaration at column zero, and the brace or paren that closes one at column zero as well, so a function's extent is found without balancing a brace inside it. That extent, taken verbatim, is the source the model records.
 
-A parser that builds no tree cannot fill a schema that names one, which is why
-the model carries no `go/ast` types. Nothing in the model is Go specific.
+A parser that builds no tree cannot fill a schema that names one, which is why the model carries no `go/ast` types. Nothing in the model is Go specific.
 
 ### Speed
 
-`task bench` times both parsers by running the command over every project,
-which measures what a caller of the command experiences rather than what a
-benchmark inside the process does.
+`task bench` times both parsers by running the command over every project, which measures what a caller of the command experiences rather than what a benchmark inside the process does.
 
 ```
 project           files  astparser     simple    ratio
@@ -368,18 +247,13 @@ phpscript           319     5.573s      138ms    40.5x
 total                      18.999s      697ms    27.3x
 ```
 
-Sixteen repositories, 1,843 Go files: 18.999s for the ast parser and 697ms for
-the line scan. The ratio rises with the size of the tree. The ast parser
-resolves a package against everything it imports; a line scan does not.
+Sixteen repositories, 1,843 Go files: 18.999s for the ast parser and 697ms for the line scan. The ratio rises with the size of the tree. The ast parser resolves a package against everything it imports; a line scan does not.
 
-One linter runs in the timing, not all of them. `modcheck` asks the module
-proxy about every dependency, which is a round trip per module and longer than
-either parser takes.
+One linter runs in the timing, not all of them. `modcheck` asks the module proxy about every dependency, which is a round trip per module and longer than either parser takes.
 
 ### Profile
 
-`task profile` takes ten seconds of parsing with a cpu and a memory profile and
-prints the top of both. What it reported, in the order of what each was worth:
+`task profile` takes ten seconds of parsing with a cpu and a memory profile and prints the top of both. What it reported, in the order of what each was worth:
 
 | Was                                                                           | Cost                         |
 |-------------------------------------------------------------------------------|------------------------------|
@@ -392,138 +266,84 @@ prints the top of both. What it reported, in the order of what each was worth:
 | `declaredNames` parsed every signature to read the name off the front of it   | not measured separately      |
 | `selectors` returned a slice per line of every body, and the caller kept none | not measured separately      |
 
-Together: 76ms to 45ms, 22.1MB to 15.3MB, and 225 thousand allocations to 140
-thousand, on the same tree with the same output. The parity harness ran
-unchanged over the same repositories.
+Together: 76ms to 45ms, 22.1MB to 15.3MB, and 225 thousand allocations to 140 thousand, on the same tree with the same output. The parity harness ran unchanged over the same repositories.
 
 ### Parity
 
-`task parity` runs the simple parser over sixteen repositories and compares
-what it produced against what `go-fsck extract` produced for the same tree.
+`task parity` runs both parsers over sixteen repositories and compares what they produced for the same tree, value by value, with the ast parser as the reference.
 
-The comparison walks the encoded documents value by value rather than checking
-a list of fields: every key either side carries is visited, a key only one of
-them has is a difference, and a key added to the model later is covered without
-an edit here. The declaration lists are keyed on the symbol before the walk, so
-one extra declaration is one difference rather than a shift that misreports
-every declaration after it.
+The comparison walks the encoded documents value by value rather than checking a list of fields: every key either side carries is visited, a key only one of them has is a difference, and a key added to the model later is covered without an edit here. The declaration lists are keyed on the symbol before the walk, so one extra declaration is one difference rather than a shift that misreports every declaration after it.
 
 ```
-total: 200932 values compared, 1904 differ (0.9476%)
-  Funcs[].Complexity.Cognitive   1426  gocognit weights a branch by how deeply it nests
-  Funcs[].Globals                   2  unexplained
-      ./renderer Funcs[renderer.go.Renderer.renderBlock].Globals: <absent> != {"decl":["Key"]}
+total: 270807 values compared, 1677 differ (0.6193%)
+  Funcs[].Complexity.Cognitive   1563  gocognit weights a branch by how deeply it nests
+  Vars[].Source                     6  unexplained
+      ./server/model Vars[setting.go.byteUnits].Source: // byteUnits are the suffixes [...]
   ...
-unexplained: 133 of 200932 values, 0.0662%, budget 0.1000%
+unexplained: 101 of 270807 values, 0.0373%, budget 0.1000%
 ```
 
-Cognitive complexity accounts for 1426 of the 1904: `gocognit` weights a branch
-by how deeply it nests in the syntax tree, and a line scan has no tree to read
-the nesting from. `Module.Sums` accounts for 332: go-fsck reads the go.mod and
-not the go.sum beside it. The remainder is 133 values in 200,932, and the
-harness asserts that as a budget: a change that pushes it higher fails the
-test. Each difference prints an example.
+Cognitive complexity accounts for 1563 of the 1677: `gocognit` weights a branch by how deeply it nests in the syntax tree, and a line scan has no tree to read the nesting from. The remainder is 101 values in 270,807, and the harness asserts that as a budget: a change that pushes it higher fails the test. Each difference prints an example.
 
 Three differences are representational, and are handled rather than counted:
 
-- **Column alignment.** go-fsck renders a declaration through `go/printer`,
-  which writes the padding that lines up a run of struct fields as tabs. The
-  file on disk carries what gofmt wrote, which is spaces. The padding inside a
-  line is collapsed before the two are compared.
-- **Package paths under a nested module.** `go-fsck extract` writes `.generic`
-  for the root package of a module nested below the parse root, and
-  `./frontend` for a package of the root module. The simple parser reproduces
-  both, so a document it writes compares against one already on disk.
-- **The blank import alias.** go-fsck records `_ "embed"` as `"embed"` and
-  splint records the underscore, which `modcheck` reads. The alias is dropped
-  from both sides before they are compared.
+- **Column alignment.** The ast parser renders a declaration through `go/printer`, which writes the padding that lines up a run of struct fields as tabs. The file on disk carries what gofmt wrote, which is spaces. The padding inside a line is collapsed before the two are compared.
+- **The globals and the references.** The ast parser resolves a name against the type-checked scope and the line scanner decides from what the file declares and what the body binds, so the two part company on a few percent of the names. A reader of either field resolves the names against what the package declares, which is what keeps the difference from mattering, and both are left out of the count.
+- **Inline struct types.** A field whose type is written out as a struct is rendered by `go/printer` on one side and read off the file on the other, so the layout differs while the type does not. Whitespace collapses before the two are compared.
 
 ## Packages
 
-| Package         | What                                                                                  |
-|-----------------|---------------------------------------------------------------------------------------|
-| `model/`        | the schema, and the linter interfaces over it. No third party imports                 |
-| `parsers/analyzer/`     | the `go/ast` parser, moved from go-fsck                                       |
-| `parsers/simpleparser/` | the parser that reads bytes                                                   |
-| `gomod/`        | reads a go.mod and a go.sum into the model, and catalogues what they require          |
-| `modproxy/`     | asks the Go module proxy what a dependency weighs, how old it is and what it requires |
-| `model/loader/` | reads a document back from `.json` or `.yml`                                          |
-| `coverprofile/` | folds a Go coverage profile into a parsed document                                    |
-| `refindex/`     | the reverse lookup: which declarations reach a symbol, read off the references        |
-| `commands/coverage/` | renders the coverage a document carries as tables, or through a template         |
-| `commands/diff/`     | compares two documents: the exported API and the go.mod behind it                |
-| `commands/docs/`     | renders a document as an API reference: markdown, spec, imports, plantuml, or one symbol godoc style |
-| `linters/`      | the registry, one subpackage per linter                                               |
-| `importfmt/`    | the house rule for an import block, as a function of the imports and nothing else     |
-| `resolve/`      | what package a bare name refers to, from where it was written                         |
-| `commands/fix/`      | rewrites an import block. The only package here that writes a file               |
-| `config/`       | reads the tree's `.splint.yml`, and keeps the run counter under the user config dir   |
-| `schema/`       | renders a document as a JSON Schema                                                   |
-| `report/`       | what was found: the issues, sorted and counted                                        |
-| `render/`       | how it looks: the issue line, drawn tables, markdown                                  |
-| `pkg/splint/`   | Options and the Parser interface, what the parsers are constructed from               |
-| `tests/`        | the parity harness and the benchmark                                                  |
+| Package                 | What                                                                                                 |
+|-------------------------|------------------------------------------------------------------------------------------------------|
+| `model/`                | the schema, and the linter interfaces over it. No third party imports                                |
+| `parsers/analyzer/`     | the `go/ast` parser                                                                                  |
+| `parsers/simpleparser/` | the parser that reads bytes                                                                          |
+| `gomod/`                | reads a go.mod and a go.sum into the model, and catalogues what they require                         |
+| `modproxy/`             | asks the Go module proxy what a dependency weighs, how old it is and what it requires                |
+| `model/loader/`         | reads a document back from `.json` or `.yml`                                                         |
+| `coverprofile/`         | folds a Go coverage profile into a parsed document                                                   |
+| `refindex/`             | the reverse lookup: which declarations reach a symbol, read off the references                       |
+| `commands/coverage/`    | renders the coverage a document carries as tables, or through a template                             |
+| `commands/diff/`        | compares two documents: the exported API and the go.mod behind it                                    |
+| `commands/docs/`        | renders a document as an API reference: markdown, spec, imports, plantuml, or one symbol godoc style |
+| `linters/`              | the registry, one subpackage per linter                                                              |
+| `importfmt/`            | the house rule for an import block, as a function of the imports and nothing else                    |
+| `resolve/`              | what package a bare name refers to, from where it was written                                        |
+| `commands/fix/`         | rewrites an import block. The only package here that writes a file                                   |
+| `config/`               | reads the tree's `.splint.yml`, and keeps the run counter under the user config dir                  |
+| `schema/`               | renders a document as a JSON Schema                                                                  |
+| `report/`               | what was found: the issues, sorted and counted                                                       |
+| `render/`               | how it looks: the issue line, drawn tables, markdown                                                 |
+| `pkg/splint/`           | Options and the Parser interface, what the parsers are constructed from                              |
+| `tests/`                | the parity harness and the benchmark                                                                 |
 
-The dependency runs one way. `model` imports nothing of its own; `pkg/splint`
-imports `model`; the parsers import both; the linters import `model` alone;
-the command at the module root imports all of it, which is what makes the
-root `package main` and the install line one segment shorter.
+The dependency runs one way. `model` imports nothing of its own; `pkg/splint` imports `model`; the parsers import both; the linters import `model` alone; the command at the module root imports all of it, which is what makes the root `package main` and the install line one segment shorter.
 
-`report` holds what was found and `render` holds how it looks, so there is one
-package to open when the output is wrong. The drawn tables are worktree's,
-ported rather than imported: worktree draws them in `package main`, and splint
-does not depend on a CLI tool's module.
+`report` holds what was found and `render` holds how it looks, so there is one package to open when the output is wrong. The drawn tables are worktree's, ported rather than imported: worktree draws them in `package main`, and splint does not depend on a CLI tool's module.
 
 ## The model
 
-`model.DocumentRoot` is what one parse produced: the packages it found and the
-modules they belong to. Every field carries a `json` and a `yaml` tag naming the
-same key, so the two encodings describe the same document and `loader` reads
-either.
+`model.DocumentRoot` is what one parse produced: the packages it found and the modules they belong to. Every field carries a `json` and a `yaml` tag naming the same key, so the two encodings describe the same document and `loader` reads either.
 
-The JSON keys are the Go field names, which is what `go-fsck extract` writes. A
-document splint writes is one go-fsck's own subcommands can read, and the other
-way round.
+The JSON keys are the Go field names. `loader` reads a document back whether it carries the root object or is a bare list of packages, so documents written before the root existed still load.
 
-Nothing in the package marshals anything itself. What it carries is utilities
-over the data: `DeclarationList.Exported`, `Definition.Merge`, `StringSet.Add`,
-`Declaration.Position`. A type with helpers hanging off it is the shape to
-reach for; a type with a `MarshalJSON` is not.
+Nothing in the package marshals anything itself. What it carries is utilities over the data: `DeclarationList.Exported`, `Definition.Merge`, `StringSet.Add`, `Declaration.Position`. A type with helpers hanging off it is the shape to reach for; a type with a `MarshalJSON` is not.
 
 ### The imports of a file
 
-`Definition.Imports` is a `StringSet` of import literals keyed by filename. It
-is sorted on read, an alias equal to the last segment of the path is dropped at
-parse time, and no line is recorded. A rule about what a file imports reads it;
-a rule about how the file writes them cannot.
+`Definition.Imports` is a `StringSet` of import literals keyed by filename. It is sorted on read, an alias equal to the last segment of the path is dropped at parse time, and no line is recorded. A rule about what a file imports reads it; a rule about how the file writes them cannot.
 
-`model.File` carries the second view. `ImportDecls` is the declarations as the
-file writes them, in order, each with its lines, and each spec with its alias,
-its doc comment, the comment beside it, and whether a blank line separates it
-from the spec before it. `ImportDecl.Line` and `EndLine` are the lines a
-rewrite replaces.
+`model.File` carries the second view. `ImportDecls` is the declarations as the file writes them, in order, each with its lines, and each spec with its alias, its doc comment, the comment beside it, and whether a blank line separates it from the spec before it. `ImportDecl.Line` and `EndLine` are the lines a rewrite replaces.
 
-`File.Uses` is every identifier the file writes before a dot, sorted. It
-over-collects: a local variable, a parameter and a receiver are all in it, so
-`t` from `t.Run` is a use. Over-collecting keeps an import that is not needed.
-Under-collecting removes one that is, and that breaks the build.
+`File.Uses` is every identifier the file writes before a dot, sorted. It over-collects: a local variable, a parameter and a receiver are all in it, so `t` from `t.Run` is a use. Over-collecting keeps an import that is not needed. Under-collecting removes one that is, and that breaks the build.
 
-`File.Package` is the name in the file's own package clause, which is not
-always the name of the package the file is recorded under. A directory holds
-one package and up to two test scopes, and the external one declares
-`<name>_test`; the two are one definition in the model and only the clause
-tells a file of one from a file of the other.
+`File.Package` is the name in the file's own package clause, which is not always the name of the package the file is recorded under. A directory holds one package and up to two test scopes, and the external one declares `<name>_test`; the two are one definition in the model and only the clause tells a file of one from a file of the other.
 
-Both are filled only when `splint.Options.IncludeImports` is set. The command
-sets it on every run; the parity harness does not, so the document it compares
-against `go-fsck extract` is the document it always was.
+Both are filled only when `splint.Options.IncludeImports` is set. The command sets it on every run; the parity harness does not, so the document it compares is the document it always was.
 
 ## Writing a linter
 
-A linter keeps its own result type and implements two methods on the slice of
-them. The framework ranges over that slice in place and materialises only the
-`model.Issue` view of each, so a rule carrying twenty fields per finding is
-walked without copying any of them.
+A linter keeps its own result type and implements two methods on the slice of them. The framework ranges over that slice in place and materialises only the `model.Issue` view of each, so a rule carrying twenty fields per finding is walked without copying any of them.
 
 ```go
 package mine
@@ -565,23 +385,13 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 }
 ```
 
-Add it to `linters.All()` and it runs. A linter never touches disk and never
-parses anything: everything it needs is in the document, so the same rule runs
-over a tree either parser read and over one loaded from a file.
+Add it to `linters.All()` and it runs. A linter never touches disk and never parses anything: everything it needs is in the document, so the same rule runs over a tree either parser read and over one loaded from a file.
 
-A linter does not read `Declaration.Source` either. A rule is a question about
-the model, and a rule that has to read the text is a field the model is
-missing: add the field to the parsers, both of them, and read that. The source
-is in the document for consumers that are not linters, a browser or an analysis
-that walks branches, and `splint ./...` does not keep it.
+A linter does not read `Declaration.Source` either. A rule is a question about the model, and a rule that has to read the text is a field the model is missing: add the field to the parsers, both of them, and read that. The source is in the document for consumers that are not linters, a browser or an analysis that walks branches, and `splint ./...` does not keep it.
 
-An issue carries an `slog.Level` for its severity, a position that reads
-`package: file.go:line`, the linter and rule it came from, and an `Attrs` map
-for anything else the rule has to say. The map is what keeps the schema from
-growing a field per rule.
+An issue carries an `slog.Level` for its severity, a position that reads `package: file.go:line`, the linter and rule it came from, and an `Attrs` map for anything else the rule has to say. The map is what keeps the schema from growing a field per rule.
 
-`Statistics` is one table: labels, rows, and two options for the line above and
-the line below.
+`Statistics` is one table: labels, rows, and two options for the line above and the line below.
 
 ```go
 model.NewStatistics(
@@ -592,30 +402,20 @@ model.NewStatistics(
 )
 ```
 
-A linter that measures nothing returns the zero `LintMetrics` and no tables,
-and the renderer leaves it out rather than drawing an empty box under a
-heading.
+A linter that measures nothing returns the zero `LintMetrics` and no tables, and the renderer leaves it out rather than drawing an empty box under a heading.
 
 ## The fixture
 
-`testdata/` is a module of its own holding code that fails every check on
-purpose: a file with no test beside it, an exported symbol with no doc, a
-handler with no wrapper, symbols in files not named for them, two files
-reaching different modules as `model`, a blank import outside main.go, a file
-whose every symbol reaches the file beside it, a function taking
-`(time.Duration, string)` and one returning `(error, *User)`.
+`testdata/` is a module of its own holding code that fails every check on purpose: a file with no test beside it, an exported symbol with no doc, a handler with no wrapper, symbols in files not named for them, two files reaching different modules as `model`, a blank import outside main.go, a file whose every symbol reaches the file beside it, a function taking `(time.Duration, string)` and one returning `(error, *User)`.
 
-Every parser skips `testdata`, `vendor`, `node_modules` and anything opening on
-a dot or an underscore, so nothing reads it by accident. It is reached by being
-pointed at:
+Every parser skips `testdata`, `vendor`, `node_modules` and anything opening on a dot or an underscore, so nothing reads it by accident. It is reached by being pointed at:
 
 ```shell
 splint -i testdata ./...
 splint --stats -i testdata ./...
 ```
 
-The root is read whatever it is called. A walk that skipped the directory it
-was handed would read nothing at all.
+The root is read whatever it is called. A walk that skipped the directory it was handed would read nothing at all.
 
 ### The formatter fixture
 
@@ -627,52 +427,27 @@ was handed would read nothing at all.
 | `golden/` | the same module as the formatter should leave it                         |
 | `output/` | what `atkins fix` writes, for reading a change by eye. Gitignored        |
 
-`input/` is where each claim about the fixer is stated as source. `main.go`
-writes two import declarations and an alias that repeats its path.
-`service1/handler` and `service2/storage` both reach `model.` with no import,
-and each has to resolve to its own service. `client/client_test.go` reaches
-`assert.` and is placed by `client/client.go` writing the path out.
-`comments.go` carries a comment above an import and one beside it, and
-`dangle/` a comment belonging to no import at all. `goyaml.go` imports
-`github.com/goccy/go-yaml` and writes `yaml`, so the name the import is reached
-by is not the last segment of its path. `odd/` writes its blocks in shapes
-gofmt would not: a closing paren that is indented, a block on one line, and a
-block holding nothing. `whitebox/` and `blackbox/` are the two ways a package
-is tested, and only one of them may import the package it tests.
-`generated.go` and `cgo/` have to come out unchanged. `broken/broken.go`
-reaches a name nothing can place.
+`input/` is where each claim about the fixer is stated as source. `main.go` writes two import declarations and an alias that repeats its path. `service1/handler` and `service2/storage` both reach `model.` with no import, and each has to resolve to its own service. `client/client_test.go` reaches `assert.` and is placed by `client/client.go` writing the path out. `comments.go` carries a comment above an import and one beside it, and `dangle/` a comment belonging to no import at all. `goyaml.go` imports `github.com/goccy/go-yaml` and writes `yaml`, so the name the import is reached by is not the last segment of its path. `odd/` writes its blocks in shapes gofmt would not: a closing paren that is indented, a block on one line, and a block holding nothing. `whitebox/` and `blackbox/` are the two ways a package is tested, and only one of them may import the package it tests. `generated.go` and `cgo/` have to come out unchanged. `broken/broken.go` reaches a name nothing can place.
 
-`TestFixGolden` copies `input/` into a temporary directory, runs the fixer over
-it with both parsers, and reports every file that does not come out the way
-`golden/` says. `TestFixIsIdempotent` runs it over `golden/` and asserts that
-nothing is written.
+`TestFixGolden` copies `input/` into a temporary directory, runs the fixer over it with both parsers, and reports every file that does not come out the way `golden/` says. `TestFixIsIdempotent` runs it over `golden/` and asserts that nothing is written.
 
 ```shell
 atkins fix   # copy input to output, fix it, and diff it against golden
 ```
 
-The job ends on that diff, so a change to the formatter shows up as a diff
-before `golden/` is moved to match it.
+The job ends on that diff, so a change to the formatter shows up as a diff before `golden/` is moved to match it.
 
 ### The corpus
 
-A fixture holds the cases somebody thought of. The module cache holds the ones
-nobody did: every dependency this machine has ever downloaded, written by
-people who never heard of this formatter.
+A fixture holds the cases somebody thought of. The module cache holds the ones nobody did: every dependency this machine has ever downloaded, written by people who never heard of this formatter.
 
-`TestCorpusDoesNotCorruptSource` reads modules out of `GOMODCACHE`, works out
-what the fixer would write in each, and applies it in memory. Nothing is
-written to the cache. Each rewritten file is then checked against the source it
-came from on three things:
+`TestCorpusDoesNotCorruptSource` reads modules out of `GOMODCACHE`, works out what the fixer would write in each, and applies it in memory. Nothing is written to the cache. Each rewritten file is then checked against the source it came from on three things:
 
 - it still parses
-- every declaration that is not an import prints exactly as it did before, so a
-  rewrite that deleted a function or truncated a file fails here
-- the name the file reaches each import by is unchanged, and a path appears or
-  vanishes only where the plan said it would
+- every declaration that is not an import prints exactly as it did before, so a rewrite that deleted a function or truncated a file fails here
+- the name the file reaches each import by is unchanged, and a path appears or vanishes only where the plan said it would
 
-The sorting keys come from each module's own `go.mod`, so every module is
-formatted under its own project prefix.
+The sorting keys come from each module's own `go.mod`, so every module is formatted under its own project prefix.
 
 ```shell
 go test ./tests/ -run TestCorpus                      # 300 modules
@@ -681,8 +456,7 @@ SPLINT_CORPUS=0 go test ./tests/ -run TestCorpus      # every module in the cach
 
 ## The linters
 
-Twelve of them. Six were written here; six came from gofsck, reimplemented
-against the model rather than translated from its AST walk.
+Twelve of them, every one a set of rules over the parsed document.
 
 | Name            | What it reports                                                                                                                                                                                          | What it measures                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -699,18 +473,13 @@ against the model rather than translated from its AST walk.
 | `selfcontained` | nothing                                                                                                                                                                                                  | what a file needs from the rest of its package: symbols, types and funcs reaching nothing outside the file they are in, and the share that do, **per file** |
 | `modcheck`      | five module rules, listed below                                                                                                                                                                          | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records                                                        |
 
-`func-args` considers a function taking exactly two arguments. The order of one
-pair is unambiguous; for three or more the expected order is a heuristic sort.
+`func-args` considers a function taking exactly two arguments. The order of one pair is unambiguous; for three or more the expected order is a heuristic sort.
 
-`visibility` and `selfcontained` report no issues at all, which the interface
-allows: an empty report and a table. The counts are reported and not judged. A
-parser is mostly private and a data model mostly not, and a package written as
-one unit across several files is as legitimate as one written as several.
+`visibility` and `selfcontained` report no issues at all, which the interface allows: an empty report and a table. The counts are reported and not judged. A parser is mostly private and a data model mostly not, and a package written as one unit across several files is as legitimate as one written as several.
 
 ## imports
 
-Five rules. Four of them are about one file's import block; the fifth is about
-how far a dependency has reached.
+Five rules. Four of them are about one file's import block; the fifth is about how far a dependency has reached.
 
 | Rule         | Severity | Fixable | What it reports                                                                                                                               |
 |--------------|----------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------|
@@ -720,49 +489,25 @@ how far a dependency has reached.
 | `unresolved` | ERROR    | no      | a name the file reaches that nothing can place, or that two paths answer to                                                                   |
 | `pollution`  | WARN     | no      | an external dependency reaching more of the tree than one place                                                                               |
 
-A fixable finding carries a `fix` attribute whose value is `splint fix`, and
-`splint fix ./...` clears every one of them. `unresolved` is not fixable: there
-is nothing to write.
+A fixable finding carries a `fix` attribute whose value is `splint fix`, and `splint fix ./...` clears every one of them. `unresolved` is not fixable: there is nothing to write.
 
-`unused` and `unresolved` read different sets on purpose, and each errs the way
-that cannot break a build. `File.Uses` over-collects, so an import it keeps
-alive is never removed. `Declaration.References` and `Declaration.Globals`
-exclude locals, parameters and the names the file declares, so a name they
-report really is unbound. References are collected on function bodies, so a
-package reached only from a struct field is not reported as unresolved; the
-compiler catches that one.
+`unused` and `unresolved` read different sets on purpose, and each errs the way that cannot break a build. `File.Uses` over-collects, so an import it keeps alive is never removed. `Declaration.References` and `Declaration.Globals` exclude locals, parameters and the names the file declares, so a name they report really is unbound. References are collected on function bodies, so a package reached only from a struct field is not reported as unresolved; the compiler catches that one.
 
 ### Pollution
 
-One file is the clean reading. A dependency reached from one file through one
-name is one place to change when it is replaced, and one place a reader has to
-understand to know what the tree took on.
+One file is the clean reading. A dependency reached from one file through one name is one place to change when it is replaced, and one place a reader has to understand to know what the tree took on.
 
-A package of the tree is counted and never reported. A model package imported
-by every consumer under it is what a package structure is for, and a rule that
-called it pollution would be a rule against writing one. The standard library
-is not reported either.
+A package of the tree is counted and never reported. A model package imported by every consumer under it is what a package structure is for, and a rule that called it pollution would be a rule against writing one. The standard library is not reported either.
 
-An external dependency is reported when two or more files of one directory
-import it, or when it reaches half the files of the tree. `per-package`,
-`file-share` and `include-tests` under `imports.pollution` in `.splint.yml`
-move those, and a zero turns either rule off.
+An external dependency is reported when two or more files of one directory import it, or when it reaches half the files of the tree. `per-package`, `file-share` and `include-tests` under `imports.pollution` in `.splint.yml` move those, and a zero turns either rule off.
 
-The count is per directory, so a package and its test half are counted
-together. That means a package whose two test files both reach
-`testify/assert` is reported. Set `include-tests: false` for a tree where that
-reads as noise rather than as a finding.
+The count is per directory, so a package and its test half are counted together. That means a package whose two test files both reach `testify/assert` is reported. Set `include-tests: false` for a tree where that reads as noise rather than as a finding.
 
-`modcheck` counts files, packages and symbols per dependency as well. The two
-ask different questions: modcheck asks what a dependency costs to carry, and
-`pollution` asks how far one import path has spread.
+`modcheck` counts files, packages and symbols per dependency as well. The two ask different questions: modcheck asks what a dependency costs to carry, and `pollution` asks how far one import path has spread.
 
 ## Diff
 
-`splint diff` compares two documents: the exported API of every package, and
-the go.mod behind it. This was `go-fsck diff`, and it is what
-[worktree](https://github.com/titpetric/tools/tree/main/worktree) reads for
-its release verdicts, so the JSON field names are a contract.
+`splint diff` compares two documents: the exported API of every package, and the go.mod behind it. [worktree](https://github.com/titpetric/tools/tree/main/worktree) reads it for its release verdicts, so the JSON field names are a contract.
 
 ```shell
 splint --linters none --output old.json -i /path/to/v1 ./...
@@ -771,42 +516,19 @@ splint diff --old old.json --new new.json
 splint diff --old old.json --new new.json --json
 ```
 
-A symbol is keyed by import path, receiver and name, so it is found across
-revisions whichever file it moved to, and a move between files is no change
-at all. A signature is compared with its parameter names stripped, because
-renaming a parameter changes no caller.
+A symbol is keyed by import path, receiver and name, so it is found across revisions whichever file it moved to, and a move between files is no change at all. A signature is compared with its parameter names stripped, because renaming a parameter changes no caller.
 
-Breaking is a removed or changed exported symbol, or a field moved on an
-exported type; an added symbol is not, an added struct field is not, and an
-added interface method is, because every implementation is now short one.
-`--include-unexported` compares the unexported declarations and the internal
-packages too, reported but never breaking, and a go.mod change is never
-breaking either. `--include-indirect` keeps the indirect requirements in the
-go.mod comparison.
+Breaking is a removed or changed exported symbol, or a field moved on an exported type; an added symbol is not, an added struct field is not, and an added interface method is, because every implementation is now short one. `--include-unexported` compares the unexported declarations and the internal packages too, reported but never breaking, and a go.mod change is never breaking either. `--include-indirect` keeps the indirect requirements in the go.mod comparison.
 
-The rendering is one line per moved symbol under `-`, `~` and `+` markers,
-the fields that moved, the go.mod changes, and a summary line; `-v` adds
-what each symbol reads as, and `--json` writes the result as data.
+The rendering is one line per moved symbol under `-`, `~` and `+` markers, the fields that moved, the go.mod changes, and a summary line; `-v` adds what each symbol reads as, and `--json` writes the result as data.
 
 ## modcheck
 
-`modcheck` is the linter that reaches outside the document. A size, a
-publication date and the requirements of a released version are properties of
-the artifact rather than of the source, so they come from the Go module proxy.
-Nothing is downloaded: the size is the `Content-Length` of a `HEAD` on the
-module zip, the version dates are one small JSON document each, and the
-requirements are the `.mod` file of that version. A machine with no network
-reports the columns that come out of the document and leaves the rest blank.
-
-It replaces the audit output of
-[modcheck](https://github.com/titpetric/exp/tree/main/cmd/modcheck).
+`modcheck` is the linter that reaches outside the document. A size, a publication date and the requirements of a released version are properties of the artifact rather than of the source, so they come from the Go module proxy. Nothing is downloaded: the size is the `Content-Length` of a `HEAD` on the module zip, the version dates are one small JSON document each, and the requirements are the `.mod` file of that version. A machine with no network reports the columns that come out of the document and leaves the rest blank.
 
 ### The size cache
 
-A module version is immutable, so what it weighs is a fact that does not
-expire. The sizes are kept in `~/.cache/splint/sizes.yml`, under the cache
-directory the machine names, and written once when the linter has finished
-asking rather than per module:
+A module version is immutable, so what it weighs is a fact that does not expire. The sizes are kept in `~/.cache/splint/sizes.yml`, under the cache directory the machine names, and written once when the linter has finished asking rather than per module:
 
 ```yaml
 github.com/a-h/templ:
@@ -815,19 +537,11 @@ github.com/a-h/templ:
         v0.3.1020: 1961490
 ```
 
-`size` is the mean of the versions below it, and is what a version the file
-does not hold is answered with. A module is much the same size from one release
-to the next, so an answer within a few percent of the truth costs a round trip
-less than the truth does.
+`size` is the mean of the versions below it, and is what a version the file does not hold is answered with. A module is much the same size from one release to the next, so an answer within a few percent of the truth costs a round trip less than the truth does.
 
-The file is written beside itself and renamed over the old one, and what was
-written is read back before the rename: a cache that does not parse is one the
-next run would throw away, and throwing it away here costs nobody anything.
+The file is written beside itself and renamed over the old one, and what was written is read back before the rename: a cache that does not parse is one the next run would throw away, and throwing it away here costs nobody anything.
 
-`--offline` asks nobody. The sizes come from the cache alone, and the columns
-only the proxy can answer, the reach of a dependency and how far behind it is,
-are left blank rather than reported as nothing. One run fills the cache and
-every run after it can be offline.
+`--offline` asks nobody. The sizes come from the cache alone, and the columns only the proxy can answer, the reach of a dependency and how far behind it is, are left blank rather than reported as nothing. One run fills the cache and every run after it can be offline.
 
 ```
 splint --linters modcheck -stats ./...             # 3.1s cold, 1.8s with the sizes cached
@@ -844,27 +558,17 @@ splint --linters modcheck -stats --offline ./...   # 0.6s, asks nobody
 | `thin`    | info     | a dependency reached from one file through one symbol, and not imported for its side effect anywhere               |
 | `blank`   | warn     | a blank import in a file that wires no binary: not a program, not a test                                           |
 
-A blank import runs the package's init and reaches no symbol. What it does is
-decided by which packages the binary links: a driver registers itself with
-`database/sql`, `net/http/pprof` mounts handlers on the default mux. A program
-decides that for itself, and so does a test binary, so every file of package
-main and every test file may carry one. A library carrying one decides it for
-every consumer, which is what is reported, and the finding names the file it is
-in rather than the go.mod the other four rules name.
+A blank import runs the package's init and reaches no symbol. What it does is decided by which packages the binary links: a driver registers itself with `database/sql`, `net/http/pprof` mounts handlers on the default mux. A program decides that for itself, and so does a test binary, so every file of package main and every test file may carry one. A library carrying one decides it for every consumer, which is what is reported, and the finding names the file it is in rather than the go.mod the other four rules name.
 
 ```
 ::warning file=server/handler.go,title=modcheck/blank::example.com/drivers - example.com/drivers is imported for its side effect from handler.go, which wires no binary: what a program links is decided by the program
 ```
 
-Two are left alone: a package belonging to the tree being read, and `embed`.
-Where a project puts its own registrations is its own arrangement, and a blank
-`embed` is what the compiler asks for to embed into a string or a byte slice.
+Two are left alone: a package belonging to the tree being read, and `embed`. Where a project puts its own registrations is its own arrangement, and a blank `embed` is what the compiler asks for to embed into a string or a byte slice.
 
 ### What a dependency costs
 
-Size is one column. The others are how far the dependency reaches into the tree
-and how much of the build list it brings with it. Four rows of one run over
-etl:
+Size is one column. The others are how far the dependency reaches into the tree and how much of the build list it brings with it. Four rows of one run over etl:
 
 | Import                    | Version | Size     | Deps | Total    | Files | Pkgs | Symbols | Kind   | Behind |
 |---------------------------|---------|----------|------|----------|-------|------|---------|--------|--------|
@@ -884,57 +588,30 @@ What each column counts:
 | `Pkgs`    | packages those files belong to                              |
 | `Symbols` | distinct symbols reached through it                         |
 
-`Deps` and `Total` are walked over the modules this build carries. A module
-required by a dependency and resolved away by this build is not counted, and a
-module two dependencies both require counts for both: each row is what that one
-dependency brings, not a division of the total.
+`Deps` and `Total` are walked over the modules this build carries. A module required by a dependency and resolved away by this build is not counted, and a module two dependencies both require counts for both: each row is what that one dependency brings, not a division of the total.
 
-A dependency any file imports for its side effect is imported for what it
-registers, which is how a database driver is imported. A registration is not
-something a caller can inline, so how little of the rest is reached by name
-says nothing and `thin` does not report it.
+A dependency any file imports for its side effect is imported for what it registers, which is how a database driver is imported. A registration is not something a caller can inline, so how little of the rest is reached by name says nothing and `thin` does not report it.
 
 ### What go.sum records
 
-go.sum carries a hash for every version the module graph offered, not the one
-version per module the build selected. A version whose source is hashed is
-downloaded; a version recorded by its go.mod alone was read for its
-requirements and passed over. Where more than one version of a module is
-recorded, `--stats` prints a second table.
+go.sum carries a hash for every version the module graph offered, not the one version per module the build selected. A version whose source is hashed is downloaded; a version recorded by its go.mod alone was read for its requirements and passed over. Where more than one version of a module is recorded, `--stats` prints a second table.
 
 | Module                      | Versions | Linked               | Size     | Overhead |
 |-----------------------------|----------|----------------------|----------|----------|
 | github.com/stretchr/testify | 4        | v1.12.1              | 203.6 KB | -        |
 | modernc.org/gc              | 2        | v2 v2.6.5, v3 v3.1.5 | 518.2 KB | 65.8 KB  |
 
-9 modules recorded at more than one version, 1 linked more than once, 65.8 KB
-of it linked twice or more.
+9 modules recorded at more than one version, 1 linked more than once, 65.8 KB of it linked twice or more.
 
-The two majors of a module are one row: they are two module paths and one
-library, and a build requiring both downloads both. `Versions` counts every
-version go.sum records of any of them, `Linked` names the ones with a hash of
-their source, `Size` adds those up, and `Overhead` is every linked copy past
-the largest.
+The two majors of a module are one row: they are two module paths and one library, and a build requiring both downloads both. `Versions` counts every version go.sum records of any of them, `Linked` names the ones with a hash of their source, `Size` adds those up, and `Overhead` is every linked copy past the largest.
 
 ## selfcontained
 
-A declaration that reaches only the imports of its own file and what is
-declared beside it in that file is extractable: everything it is built from is
-in one place, which is what `go build one_file.go` asks for. One that reaches a
-name declared in another file of the package is not, and the file it is in does
-not move without the other file.
+A declaration that reaches only the imports of its own file and what is declared beside it in that file is extractable: everything it is built from is in one place, which is what `go build one_file.go` asks for. One that reaches a name declared in another file of the package is not, and the file it is in does not move without the other file.
 
-The measure reads `Declaration.Globals`, which is what a parse recorded of the
-names a declaration reached that its own file neither declares nor binds. A
-name the package declares in another file is a reach; a name the package does
-not declare at all is a local the parse did not see bound, and it counts as
-nothing. That is the fuzz in the measure, and it is why the two parsers do not
-give quite the same figure: over oida they report 170 and 168 coupled symbols
-of 496.
+The measure reads `Declaration.Globals`, which is what a parse recorded of the names a declaration reached that its own file neither declares nor binds. A name the package declares in another file is a reach; a name the package does not declare at all is a local the parse did not see bound, and it counts as nothing. That is the fuzz in the measure, and it is why the two parsers do not give quite the same figure: over oida they report 170 and 168 coupled symbols of 496.
 
-A package of one file is left out, along with generated files. Test files are
-counted apart in a column of their own, because a test reaches what it tests
-and counting the two together reports every package as more coupled than it is.
+A package of one file is left out, along with generated files. Test files are counted apart in a column of their own, because a test reaches what it tests and counting the two together reports every package as more coupled than it is.
 
 ```
 | Package                                       | Files | Types | Types(s) | Funcs | Funcs(s) | Coupling | Tests  |
@@ -947,14 +624,9 @@ and counting the two together reports every package as more coupled than it is.
 23 packages of two or more files, 117 files, 740 symbols, 217 reaching another file, 29.3%.
 ```
 
-`Types(s)` and `Funcs(s)` are the ones reaching nothing outside their file.
-`Coupling` is the share of every symbol of the package, vars and consts
-included, that reaches another file, so a package of one type used everywhere
-beside it reads high.
+`Types(s)` and `Funcs(s)` are the ones reaching nothing outside their file. `Coupling` is the share of every symbol of the package, vars and consts included, that reaches another file, so a package of one type used everywhere beside it reads high.
 
-The second table is the one to act on: the files reaching furthest into the
-rest of their package, counted rather than shared, so a file of two symbols
-does not head it for having both of them coupled.
+The second table is the one to act on: the files reaching furthest into the rest of their package, counted rather than shared, so a file of two symbols does not head it for having both of them coupled.
 
 ```
 | File                              | Symbols | Coupled | Coupling | Test |
@@ -967,11 +639,7 @@ does not head it for having both of them coupled.
 
 ## Statistics
 
-Every linter reports what it measured as well as what it found, because a check
-that counts what it looked at has the count in hand by the time it knows what
-to report. `--stats` prints those and nothing else, one table per linter, a
-blank line apart, each with a line above saying what it is and a line below
-summarising it. What `godoc` measured over the fixture:
+Every linter reports what it measured as well as what it found, because a check that counts what it looked at has the count in hand by the time it knows what to report. `--stats` prints those and nothing else, one table per linter, a blank line apart, each with a line above saying what it is and a line below summarising it. What `godoc` measured over the fixture:
 
 Documentation of every exported symbol, by package.
 
@@ -982,48 +650,26 @@ Documentation of every exported symbol, by package.
 
 14 of 18 exported symbols documented, 77.8%, 4 issues.
 
-A linter picks its own columns. The numbers behind them are
-`model.LintMetrics`, keyed by package or by file, holding the linter's own
-metric type: `filecheck` measures files and everything else measures packages.
+A linter picks its own columns. The numbers behind them are `model.LintMetrics`, keyed by package or by file, holding the linter's own metric type: `filecheck` measures files and everything else measures packages.
 
 ## Coverage
 
-`--append-coverage=FILE` reads a Go coverage profile, the file `go test -coverprofile` writes, and folds what it says into the document the parse
-produced:
+`--append-coverage=FILE` reads a Go coverage profile, the file `go test -coverprofile` writes, and folds what it says into the document the parse produced:
 
 ```bash
 go test -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
-splint -save --append-coverage=pkg.cov ./...
+splint --save --append-coverage=pkg.cov ./...
 ```
 
-`model.Complexity.Coverage` is filled on every function and method, from the
-profile blocks that fall inside the file and the line range the parse recorded
-for it, and on every package, over the declarations in it. Both are weighted by
-statement rather than by block, which is what `go tool cover -func` reports:
-covered statements over total statements. A declaration with no statements
-reports 0, which is what the cover tool answers for it.
+`model.Complexity.Coverage` is filled on every function and method, from the profile blocks that fall inside the file and the line range the parse recorded for it, and on every package, over the declarations in it. Both are weighted by statement rather than by block, which is what `go tool cover -func` reports: covered statements over total statements. A declaration with no statements reports 0, which is what the cover tool answers for it.
 
-A package is given the complexity of its declarations added up at the same
-time. Nothing else fills `model.Package.Complexity`, and a report printing
-coverage beside complexity reads both off the same struct.
+A package is given the complexity of its declarations added up at the same time. Nothing else fills `model.Package.Complexity`, and a report printing coverage beside complexity reads both off the same struct.
 
-The flag belongs to a parse. `--input` reads a document that was extracted
-already, and the two together are refused rather than silently doing one of
-them.
+The flag belongs to a parse. `--input` reads a document that was extracted already, and the two together are refused rather than silently doing one of them.
 
-This replaces `go tool cover -func | summary coverfunc --json` followed by
-`go-fsck coverage -c`, which took the coverage through a summary of the profile
-rather than the profile. The package figure changes with it: the summary
-averaged the function percentages, and this weights them by the statements
-behind them, so a package of one long uncovered function and ten short covered
-ones reads lower here.
+The package figure weights every function by the statements behind it, so a package of one long uncovered function and ten short covered ones reads low.
 
-`splint coverage` renders what was folded in, which was `go-fsck coverage`:
-one markdown row per covered function with its cognitive complexity beside
-the coverage, and one per package with the lines added up. `-v` keeps the
-uncovered functions in, `--json` writes the rows as data, and `--template`
-renders a text/template with both tables, `.Functions` and `.Packages`, in
-place of printing the function table alone.
+`splint coverage` renders what was folded in: one markdown row per covered function with its cognitive complexity beside the coverage, and one per package with the lines added up. `-v` keeps the uncovered functions in, `--json` writes the rows as data, and `--template` renders a text/template with both tables, `.Functions` and `.Packages`, in place of printing the function table alone.
 
 ```bash
 go test -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
@@ -1031,34 +677,23 @@ splint coverage --append-coverage=pkg.cov ./... > docs/testing-coverage.md
 splint coverage --input splint.json --template docs/testing-coverage.md.tpl
 ```
 
-The report reads the same two fields whichever way the document arrived: a
-parse with the profile folded in, or `--input` naming a document that was
-written with one.
+The report reads the same two fields whichever way the document arrived: a parse with the profile folded in, or `--input` naming a document that was written with one.
 
 ## Schemas
 
-`--schema` writes the types of a tree as a JSON Schema draft-07 document rather
-than linting it. It reads a source tree or a document already written for one:
+`--schema` writes the types of a tree as a JSON Schema draft-07 document rather than linting it. It reads a source tree or a document already written for one:
 
 ```shell
 splint --schema ./... > schema.json
-splint --schema --input go-fsck.json > schema.json
+splint --schema --input model.json > schema.json
 splint --schema --strip-prefix example.com/ ./...
 ```
 
-This was `go-fsck jsonschema`. It renders every package of a tree rather than
-the first one it was handed, and a type name two packages both declare is
-qualified with the package, since a schema has one namespace and two `Config`
-types are not the same type. An interface and a test package describe no shape
-and are left out.
+Every package of the tree is rendered, and a type name two packages both declare is qualified with the package, since a schema has one namespace and two `Config` types are not the same type. An interface and a test package describe no shape and are left out.
 
 ## Docs
 
-`splint docs` renders the tree as an API reference rather than linting it,
-which was `go-fsck docs`. The reference is the package godoc, every exported
-type, const and var behind a `<details>` fold, the signature of every
-exported function, and the godoc examples printed whole from the test
-package they live in. Function bodies are not printed.
+`splint docs` renders the tree as an API reference rather than linting it. The reference is the package godoc, every exported type, const and var behind a `<details>` fold, the signature of every exported function, and the godoc examples printed whole from the test package they live in. Function bodies are not printed.
 
 ```shell
 splint docs ./... > docs/api.md
@@ -1068,43 +703,20 @@ splint docs --render imports ./... | plantuml -tsvg -pipe > docs/imports.svg
 splint docs --split --out docs/api --strip-prefix github.com/titpetric ./...
 ```
 
-A parse for the docs keeps the sources whether or not they were asked for,
-the way `--schema` does, so `splint docs -i ./migrate .` is the whole of a
-docs job: no document on disk and nothing to clean up. `--render` picks the
-rendering: markdown is the default, `spec` is the declared symbols alone,
-`imports` and `puml` are plantuml diagrams of what the packages reach,
-`config` is a configuration reference, and `json` is the document itself.
-`--split` writes one markdown file per package under `--out` with a README
-listing them, named after the import path with `--strip-prefix` taken off
-the front. `--hide` leaves named types out of the puml diagram and `--model`
-draws the data model alone.
+A parse for the docs keeps the sources whether or not they were asked for, the way `--schema` does, so `splint docs -i ./migrate .` is the whole of a docs job: no document on disk and nothing to clean up. `--render` picks the rendering: markdown is the default, `spec` is the declared symbols alone, `imports` and `puml` are plantuml diagrams of what the packages reach, `config` is a configuration reference, and `json` is the document itself. `--split` writes one markdown file per package under `--out` with a README listing them, named after the import path with `--strip-prefix` taken off the front. `--hide` leaves named types out of the puml diagram and `--model` draws the data model alone.
 
 ### The config reference
 
-`--root` opens the docs on one type and renders them as a configuration
-reference, which was `schema-gen markdown`: each type under its own heading,
-each field as a bold line carrying its json name and its type, and the field
-doc as the paragraph under it. A field whose type the package declares links
-to that type's section, so a reader walks a nested config from the root; the
-root type prints first and the types it reaches follow in reach order.
-`--title` replaces the root type's heading.
+`--root` opens the docs on one type and renders them as a configuration reference: each type under its own heading, each field as a bold line carrying its json name and its type, and the field doc as the paragraph under it. A field whose type the package declares links to that type's section, so a reader walks a nested config from the root; the root type prints first and the types it reaches follow in reach order. `--title` replaces the root type's heading.
 
 ```shell
 splint docs --root Config --title "# Configuration" -i ./server/config . > docs/config.md
 ```
 
-A `bool` reads as `boolean` and an `interface{}` as `any`, because the
-reference describes a document rather than the Go that decodes it. A type
-with no fields is described by what it is defined as, linked where that is a
-declared type.
+A `bool` reads as `boolean` and an `interface{}` as `any`, because the reference describes a document rather than the Go that decodes it. A type with no fields is described by what it is defined as, linked where that is a declared type.
 
 ## Development
 
-`atkins` formats, tests and installs the command. `task` runs the same three,
-then `splint ./...` over this tree. `task parity` prints how far the two
-parsers are apart, value by value, and `task bench` how far apart they are in
-time.
+`atkins` formats, tests and installs the command. `task` runs the same three, then `splint ./...` over this tree. `task parity` prints how far the two parsers are apart, value by value, and `task bench` how far apart they are in time.
 
-`SPLINT_WORKSPACE` points the harness at where the projects it reads are
-checked out. A project that is not there is skipped, so it reads whatever the
-machine has.
+`SPLINT_WORKSPACE` points the harness at where the projects it reads are checked out. A project that is not there is skipped, so it reads whatever the machine has.

@@ -1,7 +1,6 @@
 // Package config reads .splint.yml, the file a tree states its house rules in.
 //
-// A tree with no such file is formatted by the defaults, which are the group
-// order six of the eight goimports-reviser call sites in this workspace pass.
+// A tree with no such file is formatted by the defaults.
 // The file exists to say the two things the defaults cannot know: which path
 // prefixes the project calls its own, and what a name means when the tree
 // itself does not say.

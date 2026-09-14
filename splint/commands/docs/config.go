@@ -14,9 +14,9 @@ import (
 // type the package declares links to that type's section, which is how a
 // reader walks a nested config from the root.
 //
-// This was "schema-gen markdown". The root type prints first and the types
-// it reaches follow in reach order, so the page reads from the top of the
-// config down; --title replaces the root type's heading.
+// The root type prints first and the types it reaches follow in reach
+// order, so the page reads from the top of the config down; --title
+// replaces the root type's heading.
 func renderConfig(w io.Writer, opts Options, defs model.DefinitionList) error {
 	def := configPackage(defs, opts.Root)
 	if def == nil {

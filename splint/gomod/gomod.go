@@ -45,8 +45,8 @@ func Read(filename string) (*model.Module, error) {
 // until a go.mod turns up.
 //
 // Extraction is pointed at a package directory as often as at a module root,
-// and `go-fsck extract -i model/` has to reach the go.mod a level or more
-// above it. A tree holding no go.mod at all is not an error: it still has
+// and `splint -i model/` has to reach the go.mod a level or more above it. A
+// tree holding no go.mod at all is not an error: it still has
 // packages worth reporting, and they are reported without a module.
 func Find(dir string) (*model.Module, error) {
 	current, err := filepath.Abs(dir)

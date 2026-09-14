@@ -180,8 +180,9 @@ func importPath(modulePath, moduleDir, dir string) string {
 // root as well, but with no separator after the dot: "generic" is a module of
 // its own under this root and its packages read ".generic" and ".generic/sub".
 //
-// The two shapes are not a design, they are what "go-fsck extract" writes, and
-// a document that spelled them differently would not compare against one.
+// The two shapes are a compatibility contract: documents already written
+// spell them this way, and one that spelled them differently would not
+// compare against what is on disk.
 func packagePath(root, moduleDir, dir string) string {
 	if moduleDir == "" || moduleDir == root {
 		rel, err := filepath.Rel(root, dir)
