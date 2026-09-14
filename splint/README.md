@@ -12,6 +12,7 @@ Two earlier tools of ours:
 
 - [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) - the extract/lint/docs/coverage/diff toolchain over the same document model. Every subcommand lives on here, and a document it wrote still loads.
 - [gofsck](https://github.com/titpetric/tools/tree/main/gofsck) - the single-pass package layout analyser. Its six checks (pairing, coverage, grouping, wraphandler, filecheck, visibility) run here as linters.
+- [go-ddd-stats](https://github.com/titpetric/exp/tree/main/cmd/go-ddd-stats) - the per file size report. `splint sizes` writes the same JSON and the same d2 histogram off the document, so the tree is walked once.
 
 And the common tools it stands in for:
 
@@ -687,7 +688,10 @@ The report reads the same two fields whichever way the document arrived: a parse
 ```shell
 splint sizes ./...
 splint sizes --input splint.json
+splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
 ```
+
+`--render d2` writes the histogram as a d2 source document instead, one rectangle per non-empty bucket, which is what the size diagram in a README is rendered from.
 
 Every file the document carries is counted, whatever scope declared it: a document written with `--include-tests` counts the test files, one written without does not.
 

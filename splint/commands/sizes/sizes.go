@@ -139,3 +139,40 @@ func histogram(files []*File) []*Bucket {
 
 	return buckets
 }
+
+// WriteD2 renders the histogram as a d2 source document, one rectangle per
+// non-empty bucket holding the count of files in it, chained in size order. A
+// bucket with no files is a gap in the range and not a measurement, so it is
+// left out.
+//
+// The output goes through the d2 binary, which is what turns it into the
+// diagram a README embeds:
+//
+//	splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
+func WriteD2(w io.Writer, defs model.DefinitionList) error {
+	stats := Data(defs)
+
+	title := fmt.Sprintf("File size distribution (*.go, %d files)", len(stats.Files))
+	if _, err := fmt.Fprintf(w, "title: |md\n  # %s\n| {near: top-center}\n\n", title); err != nil {
+		return err
+	}
+
+	var previous string
+	for i, bucket := range stats.Histogram {
+		if bucket.Count == 0 {
+			continue
+		}
+		id := fmt.Sprintf("b%d", i)
+		label := strings.ReplaceAll(bucket.Size, `"`, "")
+		if _, err := fmt.Fprintf(w, "%s: %q {\n  shape: rectangle\n  count: %d\n}\n", id, label, bucket.Count); err != nil {
+			return err
+		}
+		if previous != "" {
+			if _, err := fmt.Fprintf(w, "%s -> %s\n", previous, id); err != nil {
+				return err
+			}
+		}
+		previous = id
+	}
+	return nil
+}

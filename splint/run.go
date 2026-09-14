@@ -132,6 +132,9 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 	}
 
 	if cfg.command == commandSizes {
+		if cfg.render == "d2" {
+			return exitClean, sizes.WriteD2(w, root.Packages)
+		}
 		return exitClean, sizes.Write(w, root.Packages)
 	}
 

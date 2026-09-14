@@ -151,7 +151,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
 	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
 	fs.StringVar(&strip, "strip-prefix", "", "strip the package prefixes in `LIST` from schema and split file names, comma separated")
-	fs.StringVar(&cfg.render, "render", docs.FormatMarkdown, "write the docs as `FORMAT`: markdown, spec, imports, puml or json")
+	fs.StringVar(&cfg.render, "render", docs.FormatMarkdown, "write the docs as `FORMAT`: markdown, spec, imports, puml or json; sizes takes json or d2")
 	fs.BoolVar(&cfg.split, "split", false, "write the docs as one markdown file per package under --out")
 	fs.StringVar(&cfg.out, "out", ".", "write the split docs under `DIR`")
 	fs.StringVar(&hide, "hide", "", "leave the types in `LIST` out of the puml diagram, comma separated")
