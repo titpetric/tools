@@ -257,11 +257,11 @@ The report ends on what each package of the working tree declares, split into th
 | ./model | 23 / 2 | 70 / 32 | 21.4% |
 ```
 
-`Types` and `Funcs` read exported over internal, counted by the case of the declared name: a method counts as a func, and `(*Tracer).serveHTTP` is internal the way a free function is. `Ratio` is the code inside internal func bodies over the code of the package, blank lines and comments left out of both. Test files are left out, and so is the `internal` tree: Go scopes it to the module already, whatever it exports.
+`Types` and `Funcs` read exported over internal, counted by the case of the declared name: a method counts as a func, and `(*Tracer).serveHTTP` is internal the way a free function is. `Ratio` is the code inside internal func bodies over the func code of the package, blank lines and comments left out of both. Test files are left out, and so is the `internal` tree: Go scopes it to the module already, whatever it exports.
 
 The counts are reported and not judged. There is no share of internal code a package ought to carry: a parser is mostly private and a data model mostly not, and both are as they should be. What the table is for is reading one package against another, and against what the same package was a release ago.
 
-This needs [gofsck](https://github.com/titpetric/tools/tree/main/gofsck) on the path. Without it the section is left out, the way an unreadable API leaves out the tables above.
+This needs [splint](https://github.com/titpetric/tools/tree/main/splint) on the path. Without it the section is left out, the way an unreadable API leaves out the tables above.
 
 ### Counts alone
 

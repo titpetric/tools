@@ -16,8 +16,8 @@ func TestReadVisibilitySkipsWhatItCannotCount(t *testing.T) {
 }
 
 func TestReadVisibilityCountsTheModuleItIsPointedAt(t *testing.T) {
-	if _, err := exec.LookPath("gofsck"); err != nil {
-		t.Skip("gofsck is not installed")
+	if _, err := exec.LookPath("splint"); err != nil {
+		t.Skip("splint is not installed")
 	}
 
 	got := readVisibility(".")
