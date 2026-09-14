@@ -22,6 +22,10 @@ func renderImports(w io.Writer, defs model.DefinitionList) error {
 	imports := model.NewStringSet()
 
 	for _, def := range defs {
+		if skipDocs(def) {
+			continue
+		}
+
 		importMap, _ := def.Imports.Map(def.Imports.All())
 
 		for _, long := range importMap {

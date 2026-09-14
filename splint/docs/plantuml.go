@@ -29,6 +29,12 @@ type dbRelationship struct {
 // without makes the foreign key the only key, which is 1:1. A foreign key no
 // declared type answers to is drawn as a conceptual type.
 func detectDBRelationships(t *model.Declaration, allTypes map[string]*model.Declaration) []dbRelationship {
+	// A declaration in a grouped type block carries its names in Names, and
+	// an arrow from a nameless source is a line plantuml stops on.
+	if t.Name == "" {
+		return nil
+	}
+
 	var relations []dbRelationship
 
 	for _, f := range t.Fields {
@@ -279,7 +285,9 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 							if p, ok := lookup(packageName); ok {
 								addLink(fmt.Sprintf("%q --> %q : .%s", namespace+name, p.Namespace(".")+typeName, f.Name))
 							}
-						} else if _, ok := model.ToType(typeRef); ok {
+						} else if _, ok := model.ToType(typeRef); ok && isTypeName(typeRef) {
+							// An anonymous struct or interface is a shape, not
+							// a declared type an arrow can land on.
 							addLink(fmt.Sprintf("%q --> %q : .%s", namespace+name, namespace+typeRef, f.Name))
 						}
 					}
@@ -346,6 +354,13 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 	fmt.Fprintln(w, "@enduml")
 
 	return nil
+}
+
+// isTypeName reports a reference that names a declared type. An anonymous
+// struct or interface spells its shape out instead, whitespace and braces
+// included, and a diagram has nothing to point an arrow at.
+func isTypeName(name string) bool {
+	return name != "" && !strings.ContainsAny(name, " \t\n{}")
 }
 
 // exportedName reports a name that opens on an upper case letter, which is
