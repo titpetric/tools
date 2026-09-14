@@ -39,7 +39,7 @@ splint --include-tests --save ./...   # keep the test packages in what is writte
 splint ./... --json                   # the findings as JSON, no rendering
 splint ./... --yaml                   # the same, as YAML
 splint --schema ./...                 # write the tree as a JSON Schema
-splint -stats ./...                   # what the linters measured, not what they found
+splint --stats ./...                   # what the linters measured, not what they found
 splint --offline ./...                # never ask the module proxy
 ```
 
@@ -325,7 +325,7 @@ read, so it is the word in either.
 }
 ```
 
-`-stats` is tables rather than lines, because what it writes is numbers. A
+`--stats` is tables rather than lines, because what it writes is numbers. A
 terminal gets them drawn and anything else gets them as markdown, padded the
 way `mdox fmt` pads one so a document holding one is not reformatted the next
 time the docs are built. `-stats --json` and `-stats --yaml` write what each
@@ -443,19 +443,20 @@ Three differences are representational, and are handled rather than counted:
 | Package         | What                                                                                  |
 |-----------------|---------------------------------------------------------------------------------------|
 | `model/`        | the schema, and the linter interfaces over it. No third party imports                 |
-| `analyzer/`     | the `go/ast` parser, moved from go-fsck                                               |
-| `simpleparser/` | the parser that reads bytes                                                           |
+| `parsers/analyzer/`     | the `go/ast` parser, moved from go-fsck                                       |
+| `parsers/simpleparser/` | the parser that reads bytes                                                   |
 | `gomod/`        | reads a go.mod and a go.sum into the model, and catalogues what they require          |
 | `modproxy/`     | asks the Go module proxy what a dependency weighs, how old it is and what it requires |
-| `loader/`       | reads a document back from `.json` or `.yml`                                          |
+| `model/loader/` | reads a document back from `.json` or `.yml`                                          |
 | `coverprofile/` | folds a Go coverage profile into a parsed document                                    |
-| `coverreport/`  | renders the coverage a document carries as tables, or through a template              |
-| `diff/`         | compares two documents: the exported API and the go.mod behind it                     |
-| `docs/`         | renders a document as an API reference: markdown, spec, imports, plantuml             |
+| `refindex/`     | the reverse lookup: which declarations reach a symbol, read off the references        |
+| `commands/coverage/` | renders the coverage a document carries as tables, or through a template         |
+| `commands/diff/`     | compares two documents: the exported API and the go.mod behind it                |
+| `commands/docs/`     | renders a document as an API reference: markdown, spec, imports, plantuml, or one symbol godoc style |
 | `linters/`      | the registry, one subpackage per linter                                               |
 | `importfmt/`    | the house rule for an import block, as a function of the imports and nothing else     |
 | `resolve/`      | what package a bare name refers to, from where it was written                         |
-| `fix/`          | rewrites an import block. The only package here that writes a file                    |
+| `commands/fix/`      | rewrites an import block. The only package here that writes a file               |
 | `config/`       | reads the tree's `.splint.yml`, and keeps the run counter under the user config dir   |
 | `schema/`       | renders a document as a JSON Schema                                                   |
 | `report/`       | what was found: the issues, sorted and counted                                        |
@@ -610,7 +611,7 @@ pointed at:
 
 ```shell
 splint -i testdata ./...
-splint -stats -i testdata ./...
+splint --stats -i testdata ./...
 ```
 
 The root is read whatever it is called. A walk that skipped the directory it
@@ -899,7 +900,7 @@ go.sum carries a hash for every version the module graph offered, not the one
 version per module the build selected. A version whose source is hashed is
 downloaded; a version recorded by its go.mod alone was read for its
 requirements and passed over. Where more than one version of a module is
-recorded, `-stats` prints a second table.
+recorded, `--stats` prints a second table.
 
 | Module                      | Versions | Linked               | Size     | Overhead |
 |-----------------------------|----------|----------------------|----------|----------|
@@ -968,7 +969,7 @@ does not head it for having both of them coupled.
 
 Every linter reports what it measured as well as what it found, because a check
 that counts what it looked at has the count in hand by the time it knows what
-to report. `-stats` prints those and nothing else, one table per linter, a
+to report. `--stats` prints those and nothing else, one table per linter, a
 blank line apart, each with a line above saying what it is and a line below
 summarising it. What `godoc` measured over the fixture:
 
