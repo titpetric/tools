@@ -9,8 +9,10 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// markdownTable renders a table with every column padded to its widest cell.
-func markdownTable(header []string, rows [][]string) string {
+// MarkdownTable renders a table with every column padded to its widest cell,
+// the way mdox fmt pads one, so a document holding it is not reformatted the
+// next time the docs are built.
+func MarkdownTable(header []string, rows [][]string) string {
 	widths := make([]int, len(header))
 	for i, cell := range header {
 		widths[i] = len(cell)
@@ -125,7 +127,7 @@ func MarkdownStats(w io.Writer, reports []model.LintReport) error {
 				}
 				rows = append(rows, escaped)
 			}
-			if _, err := io.WriteString(w, markdownTable(stats.Labels, rows)); err != nil {
+			if _, err := io.WriteString(w, MarkdownTable(stats.Labels, rows)); err != nil {
 				return err
 			}
 
