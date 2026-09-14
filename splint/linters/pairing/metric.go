@@ -16,4 +16,9 @@ type Metric struct {
 	// usually a test outliving the file it was written for.
 	StandaloneFiles int `json:"StandaloneFiles" yaml:"StandaloneFiles"`
 	StandaloneTests int `json:"StandaloneTests" yaml:"StandaloneTests"`
+
+	// TestedElsewhere is how many files have no test beside them and every
+	// exported symbol referenced by a test in another package, which excuses
+	// the file rather than reporting it.
+	TestedElsewhere int
 }

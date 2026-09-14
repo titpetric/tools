@@ -184,7 +184,7 @@ func TestResults_Statistics(t *testing.T) {
 	}
 
 	table := tables[0]
-	if len(table.Labels) != 6 {
+	if len(table.Labels) != 7 {
 		t.Errorf("labels = %v", table.Labels)
 	}
 	if len(table.Rows) != 2 {
@@ -197,7 +197,7 @@ func TestResults_Statistics(t *testing.T) {
 		t.Errorf("row = %v, want one standalone file and one standalone test", got)
 	}
 
-	want := "1 of 2 files have a test beside them across 2 packages, leaving 1 file and 1 test standing alone."
+	want := "1 of 2 files have a test beside them across 2 packages, leaving 1 file and 1 test standing alone, with 0 files tested from another package."
 	if table.Footer != want {
 		t.Errorf("footer = %q, want %q", table.Footer, want)
 	}

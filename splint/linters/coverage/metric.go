@@ -3,7 +3,7 @@ package coverage
 // Metric is what the linter counted in one package.
 type Metric struct {
 	// Exported is how many symbols a consumer can reach, and Covered how many
-	// of them a test is named for.
+	// of them a test references or is named for.
 	Exported int `json:"Exported" yaml:"Exported"`
 	Covered  int `json:"Covered" yaml:"Covered"`
 
@@ -13,6 +13,6 @@ type Metric struct {
 	// covered than the tests it has would suggest.
 	Constructors int `json:"Constructors" yaml:"Constructors"`
 
-	// Uncovered is the findings, one per exported symbol no test is named for.
+	// Uncovered is the findings, one per exported symbol no test reaches.
 	Uncovered int `json:"Uncovered" yaml:"Uncovered"`
 }

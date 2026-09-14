@@ -124,7 +124,7 @@ func TestLinter_Lint(t *testing.T) {
 			if issues[0].Symbol != test.decl.Symbol() {
 				t.Errorf("%s: symbol = %q, want %q", test.title, issues[0].Symbol, test.decl.Symbol())
 			}
-			if want := "exported symbol has no test named " + test.want; issues[0].Message != want {
+			if want := "no test references this symbol, and none is named " + test.want; issues[0].Message != want {
 				t.Errorf("%s: message = %q, want %q", test.title, issues[0].Message, want)
 			}
 			if issues[0].Position.Ref() != "x/x.go:"+strconv.Itoa(test.decl.Line) {

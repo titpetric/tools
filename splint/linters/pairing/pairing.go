@@ -1,5 +1,10 @@
 // Package pairing reports a file with no test beside it.
 //
+// A file is excused without one when every exported symbol it declares is
+// referenced by a test somewhere in the document: the tests of such a file
+// exist, they just sit in another package, which is a layout rather than a
+// gap.
+//
 // It is a port of the gofsck analyzer of the same name, reimplemented against
 // the splint model: the check is the same idea and the reading is different,
 // because a document is not a syntax tree.
@@ -12,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/refindex"
 )
 
 // Name is how the linter is selected and how its issues are labelled.
@@ -65,10 +71,12 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 		found.read(def)
 	}
 
+	index := refindex.Build(root)
+
 	// The groups are reported in the order the document named them, so a run
 	// over the same tree reports the same issues in the same order.
 	for _, key := range order {
-		groups[key].report(&results)
+		groups[key].report(index, &results)
 	}
 
 	return results, nil
@@ -81,13 +89,18 @@ type group struct {
 	named  bool
 	files  map[string]model.File
 	tested map[string]bool
+
+	// symbols are the exported declarations of each file, keyed the way the
+	// files are, so a standalone file can be asked for elsewhere-tested.
+	symbols map[string][]refindex.Key
 }
 
 // newGroup returns a group ready to be filled.
 func newGroup() *group {
 	return &group{
-		files:  map[string]model.File{},
-		tested: map[string]bool{},
+		files:   map[string]model.File{},
+		tested:  map[string]bool{},
+		symbols: map[string][]refindex.Key{},
 	}
 }
 
@@ -113,10 +126,32 @@ func (g *group) read(def *model.Definition) {
 		}
 		g.files[file.Base()] = file
 	}
+
+	// The exported declarations of every non-test file, recorded against the
+	// same key the file is, so report can ask whether the file's whole
+	// surface is tested from somewhere else.
+	for _, decl := range def.Order() {
+		if decl.IsTestScope() || !decl.IsExported() {
+			continue
+		}
+		if file, known := def.Files.Find(decl.File); known && file.Generated {
+			continue
+		}
+		base := strings.TrimSuffix(decl.File, ".go")
+		g.symbols[base] = append(g.symbols[base], refindex.Key{
+			ImportPath: def.Package.ImportPath,
+			Symbol:     decl.Symbol(),
+		})
+	}
 }
 
 // report counts the group and reports the files nothing tests.
-func (g *group) report(results *Results) {
+//
+// A standalone file whose exported symbols are all referenced by tests is
+// counted rather than reported: its tests exist, in whatever package they
+// were written in. A file exporting nothing has no surface to excuse it, and
+// is reported the way it always was.
+func (g *group) report(index *refindex.Index, results *Results) {
 	metric := results.count(g.pkg, len(g.files), len(g.tested))
 
 	paired := 0
@@ -140,6 +175,10 @@ func (g *group) report(results *Results) {
 	metric.StandaloneTests += len(g.tested) - paired
 
 	for _, base := range standalone {
+		if g.testedElsewhere(index, base) {
+			metric.TestedElsewhere++
+			continue
+		}
 		file := g.files[base]
 		results.add(metric, Result{
 			Rule:     RuleUnpaired,
@@ -147,6 +186,21 @@ func (g *group) report(results *Results) {
 			Message:  fmt.Sprintf("%s has no %s_test.go beside it", file.Name, base),
 		})
 	}
+}
+
+// testedElsewhere reports a file whose exported symbols are all referenced by
+// a test, wherever the test sits.
+func (g *group) testedElsewhere(index *refindex.Index, base string) bool {
+	keys := g.symbols[base]
+	if len(keys) == 0 {
+		return false
+	}
+	for _, key := range keys {
+		if !index.TestedDirect(key) {
+			return false
+		}
+	}
+	return true
 }
 
 // position is where a file is, relative to the root of the parse. The file

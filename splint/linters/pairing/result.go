@@ -73,7 +73,7 @@ func (r Results) Metrics() model.LintMetrics {
 // Statistics is the count as one table.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
-	var files, paired, standaloneFiles, standaloneTests int
+	var files, paired, standaloneFiles, standaloneTests, testedElsewhere int
 
 	for _, path := range r.order {
 		metric := r.packages[path]
@@ -81,6 +81,7 @@ func (r Results) Statistics() []model.Statistics {
 		paired += metric.Paired
 		standaloneFiles += metric.StandaloneFiles
 		standaloneTests += metric.StandaloneTests
+		testedElsewhere += metric.TestedElsewhere
 		rows = append(rows, []string{
 			path,
 			strconv.Itoa(metric.Files),
@@ -88,17 +89,18 @@ func (r Results) Statistics() []model.Statistics {
 			strconv.Itoa(metric.Paired),
 			strconv.Itoa(metric.StandaloneFiles),
 			strconv.Itoa(metric.StandaloneTests),
+			strconv.Itoa(metric.TestedElsewhere),
 		})
 	}
 
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
 
 	return []model.Statistics{model.NewStatistics(
-		[]string{"Package", "Files", "Tests", "Paired", "Standalone files", "Standalone tests"},
+		[]string{"Package", "Files", "Tests", "Paired", "Standalone files", "Standalone tests", "Tested elsewhere"},
 		rows,
 		model.HeaderText("Files and the tests named after them, by package."),
-		model.FooterText(fmt.Sprintf("%d of %d files have a test beside them across %s, leaving %s and %s standing alone.",
-			paired, files, plural(len(r.order), "package"), plural(standaloneFiles, "file"), plural(standaloneTests, "test"))),
+		model.FooterText(fmt.Sprintf("%d of %d files have a test beside them across %s, leaving %s and %s standing alone, with %s tested from another package.",
+			paired, files, plural(len(r.order), "package"), plural(standaloneFiles, "file"), plural(standaloneTests, "test"), plural(testedElsewhere, "file"))),
 	)}
 }
 

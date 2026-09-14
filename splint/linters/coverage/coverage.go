@@ -1,4 +1,9 @@
-// Package coverage reports an exported symbol with no test naming it.
+// Package coverage reports an exported symbol no test reaches.
+//
+// A symbol is reached two ways: a test references it, which the document
+// records on the References and Globals of the test's functions, or a test
+// is named for it, TestOpen for Open. Either clears the symbol; a report is
+// of the symbols with neither.
 //
 // It is a port of the gofsck analyzer of the same name, reimplemented against
 // the splint model: the check is the same idea and the reading is different,
@@ -11,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/refindex"
 )
 
 // Name is how the linter is selected and how its issues are labelled.
@@ -19,7 +25,7 @@ const Name = "coverage"
 // RuleUncovered is the one rule this linter reports under.
 const RuleUncovered = "uncovered"
 
-// Linter reports an exported symbol with no test naming it.
+// Linter reports an exported symbol no test reaches.
 type Linter struct{}
 
 // New returns the linter.
@@ -32,8 +38,7 @@ func (l *Linter) Name() string {
 	return Name
 }
 
-// Lint reports the exported symbols of every package that no test is named
-// for.
+// Lint reports the exported symbols of every package that no test reaches.
 //
 // A command exports nothing anyone reaches and a test package is not a surface
 // anyone tests, so neither is read for symbols. Both are still read for tests,
@@ -42,6 +47,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	var results Results
 
 	claimed := claims(root)
+	index := refindex.Build(root)
 
 	for _, def := range root.Packages {
 		if err := ctx.Err(); err != nil {
@@ -69,7 +75,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 				if isConstructor(decl) {
 					constructors++
 				}
-				if covers(tested, decl.Symbol()) {
+				if reached(index, tested, def, decl) {
 					covered++
 					continue
 				}
@@ -108,6 +114,20 @@ func isConstructor(decl *model.Declaration) bool {
 		decl.Receiver == "" &&
 		len(decl.Returns) > 0 &&
 		strings.HasPrefix(decl.Name, "New")
+}
+
+// reached reports a symbol some test gets to: one that references it, read
+// off the index, or one named for it, read off the claims. The reference is
+// the evidence and the name is the convention; either answers for the symbol.
+func reached(index *refindex.Index, claimed map[string]bool, def *model.Definition, decl *model.Declaration) bool {
+	symbol := decl.Symbol()
+	if covers(claimed, symbol) {
+		return true
+	}
+	return index.TestedDirect(refindex.Key{
+		ImportPath: def.Package.ImportPath,
+		Symbol:     symbol,
+	})
 }
 
 // covers reports whether the tests of a package name the symbol.
@@ -187,7 +207,7 @@ func result(pkg model.Package, decl *model.Declaration) Result {
 		Rule:     RuleUncovered,
 		Symbol:   symbol,
 		Position: decl.Position(pkg),
-		Message:  fmt.Sprintf("exported symbol has no test named %s", wanted(symbol)),
+		Message:  fmt.Sprintf("no test references this symbol, and none is named %s", wanted(symbol)),
 	}
 }
 

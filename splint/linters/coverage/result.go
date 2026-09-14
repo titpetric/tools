@@ -72,7 +72,7 @@ func (r Results) Metrics() model.LintMetrics {
 }
 
 // Statistics is the count as one table: what each package exports, and how
-// much of it a test is named for.
+// much of it a test reaches.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var exported, covered, constructors int
@@ -96,8 +96,8 @@ func (r Results) Statistics() []model.Statistics {
 	return []model.Statistics{model.NewStatistics(
 		[]string{"Package", "Exported", "Covered", "Share", "Constructors"},
 		rows,
-		model.HeaderText("Every exported symbol and the test named for it, by package."),
-		model.FooterText(fmt.Sprintf("%d of %d exported symbols have a test named for them, %s, and %d of the total are constructors.",
+		model.HeaderText("Every exported symbol and the test that reaches it, by package."),
+		model.FooterText(fmt.Sprintf("%d of %d exported symbols are reached by a test, %s, and %d of the total are constructors.",
 			covered, exported, percent(covered, exported), constructors)),
 	)}
 }
