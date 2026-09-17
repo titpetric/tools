@@ -621,10 +621,19 @@ func commitLink(v verdict, hash string, styled bool) string {
 	if styled {
 		return colorLines(hash, components.ColorTeal, true)
 	}
-	if v.RepoURL == "" {
+	if v.RepoURL == "" || !commitPublished(v.Commits, hash) {
 		return "`" + hash + "`"
 	}
 	return fmt.Sprintf("[`%s`](%s/commit/%s)", hash, v.RepoURL, hash)
+}
+
+func commitPublished(commits []commitLog, hash string) bool {
+	for _, commit := range commits {
+		if commit.Hash == hash {
+			return commit.Published
+		}
+	}
+	return false
 }
 
 // commitLinks names every commit behind one row, in the order they were made.

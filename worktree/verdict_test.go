@@ -71,6 +71,25 @@ func TestCommitLogCoversTheModuleOnly(t *testing.T) {
 	}
 }
 
+func TestCommitLogMarksOnlyRemoteCommitsPublished(t *testing.T) {
+	root := testRepo(t, "alpha")
+	runGit(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+	writeTestFile(t, filepath.Join(root, "alpha", "alpha.go"), "package alpha\n\n// local\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: local change")
+
+	got := commitLogSinceTag(filepath.Join(root, "alpha"), "")
+	if len(got) != 2 {
+		t.Fatalf("commitLogSinceTag() = %#v, want two commits", got)
+	}
+	if got[0].Published {
+		t.Errorf("local commit is marked published: %#v", got[0])
+	}
+	if !got[1].Published {
+		t.Errorf("remote commit is marked unpublished: %#v", got[1])
+	}
+}
+
 // verdictRepo builds a module with two releases and returns its directory. The
 // second release removes Greet and adds Bye, so it is a breaking one.
 func verdictRepo(t *testing.T) string {
@@ -400,8 +419,8 @@ func sampleVerdict() verdict {
 		Release: releaseMinor,
 		RepoURL: "https://github.com/example/x",
 		Commits: []commitLog{
-			{Hash: "abc1234", Subject: "feat: add Client"},
-			{Hash: "def5678", Subject: "refactor: drop Legacy"},
+			{Hash: "abc1234", Subject: "feat: add Client", Published: true},
+			{Hash: "def5678", Subject: "refactor: drop Legacy", Published: true},
 		},
 		API: apiDiff{
 			Removed: []apiSymbol{{
@@ -644,6 +663,22 @@ func TestRenderVerdictWithoutARemoteLeavesHashesUnlinked(t *testing.T) {
 	}
 	if strings.Contains(got, "](") {
 		t.Errorf("renderVerdict() linked a hash without a remote to link into:\n%s", got)
+	}
+}
+
+func TestRenderVerdictLeavesUnpublishedCommitsUnlinked(t *testing.T) {
+	v := sampleVerdict()
+	v.Commits[0].Published = false
+
+	var out bytes.Buffer
+	renderVerdict(&out, v, false)
+
+	got := out.String()
+	if !strings.Contains(got, "| `abc1234` | feat: add Client |") {
+		t.Errorf("renderVerdict() did not render the unpublished hash plainly:\n%s", got)
+	}
+	if strings.Contains(got, v.RepoURL+"/commit/abc1234") {
+		t.Errorf("renderVerdict() linked an unpublished commit:\n%s", got)
 	}
 }
 

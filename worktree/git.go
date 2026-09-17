@@ -353,8 +353,9 @@ func repoPaths(dir string) (root, rel string, err error) {
 
 // commitLog is one commit of a module, as a release note lists it.
 type commitLog struct {
-	Hash    string
-	Subject string
+	Hash      string
+	Subject   string
+	Published bool
 }
 
 // commitLogSinceTag returns the commits made to the module in dir since tag,
@@ -372,7 +373,7 @@ func commitLogBetween(dir, from, to string) []commitLog {
 		to = "HEAD"
 	}
 
-	args := []string{"log", "--format=%h%x00%s"}
+	args := []string{"log", "--format=%H%x00%h%x00%s"}
 	if from != "" {
 		args = append(args, from+".."+to)
 	} else {
@@ -389,15 +390,38 @@ func commitLogBetween(dir, from, to string) []commitLog {
 		return nil
 	}
 
+	published := publishedCommits(dir)
 	var commits []commitLog
 	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-		hash, subject, ok := strings.Cut(line, "\x00")
+		full, rest, ok := strings.Cut(line, "\x00")
 		if !ok {
 			continue
 		}
-		commits = append(commits, commitLog{Hash: hash, Subject: subject})
+		hash, subject, ok := strings.Cut(rest, "\x00")
+		if !ok {
+			continue
+		}
+		commits = append(commits, commitLog{Hash: hash, Subject: subject, Published: published[full]})
 	}
 	return commits
+}
+
+// publishedCommits returns the commits reachable from a remote-tracking ref.
+// A local-only commit has no browser page yet, even when origin itself has a
+// browsable URL, so verdict must leave its hash unlinked.
+func publishedCommits(dir string) map[string]bool {
+	cmd := exec.Command("git", "rev-list", "--remotes", "--", ".")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	published := make(map[string]bool)
+	for hash := range strings.FieldsSeq(string(out)) {
+		published[hash] = true
+	}
+	return published
 }
 
 // repoURL returns the address a browser opens the repository of dir at, or an
