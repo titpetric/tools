@@ -117,11 +117,14 @@ Releasing a module in that state would tag work nobody reviewed. Under `--apply`
 ```bash
 worktree verdict                            # the repository of the current directory
 worktree verdict ./tools/lessgo             # a repository elsewhere
+worktree verdict .                          # the root package alone
 worktree verdict > NOTES.md                 # markdown, for a release note
 worktree verdict --from v0.4.4 --to v0.5.5  # a range of your choosing
 worktree verdict --all                      # every release the repository has made
 worktree verdict --no-cache                 # read every commit again, cache nothing
 ```
+
+A path of `.` narrows the verdict to the package at the module root, the way the go tool reads the pattern; the implicit default is `./...`, the whole module. A repository whose root package is its public API is judged on that package: a symbol a subpackage loses is a refactor there, not a breaking release, and the API, data model and commit count tables narrow with it.
 
 It draws a table on a terminal and writes markdown when its output goes anywhere else, so the redirected form pastes into GitHub release notes with the commit hashes already linked.
 

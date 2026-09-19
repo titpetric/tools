@@ -185,6 +185,19 @@ func main() {
 			verdicts = []verdict{v}
 		}
 
+		// A path of "." narrows the verdict to the root package, the way the
+		// go tool reads the pattern. "./..." is the whole module, and is what
+		// no path at all already means.
+		if rootScopeArg(opts.FilterArg) {
+			for i := range verdicts {
+				scoped, err := scopeVerdict(verdicts[i], dir)
+				if err != nil {
+					log.Fatalf("failed to narrow the verdict to the root package: %v", err)
+				}
+				verdicts[i] = scoped
+			}
+		}
+
 		if opts.Stats {
 			renderVerdictStats(os.Stdout, verdicts, supportsANSI(os.Stdout))
 			return

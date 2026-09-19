@@ -61,6 +61,10 @@ type verdict struct {
 	GoBefore string
 	GoAfter  string
 
+	// Scope is the package pattern the report was narrowed to, empty for the
+	// whole module, which is the implicit "./...".
+	Scope string
+
 	// RepoURL is the address commits are linked into, empty when the module
 	// has no origin to derive one from.
 	RepoURL string
@@ -425,6 +429,9 @@ func plural(n int, one, many string) string {
 func renderVerdict(w io.Writer, v verdict, styled bool) {
 	writeTitle(w, v.Module+" @ "+v.Version, styled)
 	fmt.Fprintf(w, "%s\n", v.Summary())
+	if v.Scope == scopeRoot {
+		fmt.Fprintf(w, "The API is read from the root package alone.\n")
+	}
 	writeGap(w, styled)
 
 	wrap := 0

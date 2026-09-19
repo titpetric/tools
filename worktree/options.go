@@ -105,10 +105,15 @@ which is what a run with no path reads anyway.`,
 			{"worktree --exec 'go get ./...'", "run a command in every go module"},
 			{"worktree resolve --apply", "release the modules that earned one, in dependency order"},
 			{"worktree verdict --from all", "every release of the repository here, as markdown"},
+			{"worktree verdict --from main .", "what the root package earned since main"},
 			{"worktree patch | sh -x", "tag and push the next patch release"},
 		},
 		Notes: `patch, minor and verdict read the git repository of the current directory,
 or the one the path names. Everything else reads the workspace around it.
+
+verdict also reads "." the way the go tool does: the package at the module
+root alone, for a repository whose root package is its public API. The
+default is "./...", the whole module.
 
 resolve renders the plan and runs nothing until --apply is given.`,
 	}
