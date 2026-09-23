@@ -1,9 +1,15 @@
-// Package pairing reports a file with no test beside it.
+// Package pairing reports a file with no test beside it, and a test with no
+// file beside it.
 //
 // A file is excused without one when every exported symbol it declares is
 // referenced by a test somewhere in the document: the tests of such a file
 // exist, they just sit in another package, which is a layout rather than a
 // gap.
+//
+// A test excuses nothing: foo_test.go names foo.go, and a directory holding
+// only the first is a file that was deleted or renamed with its test left
+// behind. A package whose name says it is test code, such as fstest or a
+// repository's own tests, is the exception.
 //
 // It is a port of the gofsck analyzer of the same name, reimplemented against
 // the splint model: the check is the same idea and the reading is different,
@@ -23,8 +29,14 @@ import (
 // Name is how the linter is selected and how its issues are labelled.
 const Name = "pairing"
 
-// RuleUnpaired is the one rule this linter reports under.
-const RuleUnpaired = "unpaired"
+// The rules this linter reports under.
+const (
+	// RuleUnpaired is a file with no test named after it.
+	RuleUnpaired = "unpaired"
+
+	// RuleOrphan is a test with no file named after it.
+	RuleOrphan = "orphan"
+)
 
 // Linter reports a file with no test beside it.
 type Linter struct{}
@@ -88,7 +100,12 @@ type group struct {
 	pkg    model.Package
 	named  bool
 	files  map[string]model.File
-	tested map[string]bool
+	tested map[string]model.File
+
+	// bases names every file of the directory a test can be named after,
+	// generated files included: a generated file is not judged, and a test
+	// written beside one still names a file that is there.
+	bases map[string]bool
 
 	// symbols are the exported declarations of each file, keyed the way the
 	// files are, so a standalone file can be asked for elsewhere-tested.
@@ -99,7 +116,8 @@ type group struct {
 func newGroup() *group {
 	return &group{
 		files:   map[string]model.File{},
-		tested:  map[string]bool{},
+		tested:  map[string]model.File{},
+		bases:   map[string]bool{},
 		symbols: map[string][]refindex.Key{},
 	}
 }
@@ -117,11 +135,14 @@ func (g *group) read(def *model.Definition) {
 	}
 
 	for _, file := range def.Files {
+		if !file.Test {
+			g.bases[file.Base()] = true
+		}
 		if file.Generated {
 			continue
 		}
 		if file.Test {
-			g.tested[file.Base()] = true
+			g.tested[file.Base()] = file
 			continue
 		}
 		g.files[file.Base()] = file
@@ -145,7 +166,7 @@ func (g *group) read(def *model.Definition) {
 	}
 }
 
-// report counts the group and reports the files nothing tests.
+// report counts the group and reports both halves of the pairing.
 //
 // A standalone file whose exported symbols are all referenced by tests is
 // counted rather than reported: its tests exist, in whatever package they
@@ -157,22 +178,27 @@ func (g *group) report(index *refindex.Index, results *Results) {
 	paired := 0
 	var standalone []string
 	for base := range g.files {
-		if g.tested[base] {
+		if _, known := g.tested[base]; known {
 			paired++
 			continue
 		}
 		standalone = append(standalone, base)
 	}
 
+	var orphans []string
+	for base := range g.tested {
+		if !g.bases[base] {
+			orphans = append(orphans, base)
+		}
+	}
+
 	// A map is walked in no order, so the findings are put back into the order
 	// a reader would list the directory in.
 	sort.Strings(standalone)
+	sort.Strings(orphans)
 
 	metric.Paired += paired
-
-	// A test naming no file is counted and not reported: it is worth knowing
-	// about, and there is no file to hang an issue off.
-	metric.StandaloneTests += len(g.tested) - paired
+	metric.StandaloneTests += len(orphans)
 
 	for _, base := range standalone {
 		if g.testedElsewhere(index, base) {
@@ -186,6 +212,30 @@ func (g *group) report(index *refindex.Index, results *Results) {
 			Message:  fmt.Sprintf("%s has no %s_test.go beside it", file.Name, base),
 		})
 	}
+
+	if excused(g.pkg) {
+		return
+	}
+
+	for _, base := range orphans {
+		file := g.tested[base]
+		results.addTest(Result{
+			Rule:     RuleOrphan,
+			Position: position(g.pkg, file),
+			Message:  fmt.Sprintf("%s has no %s.go beside it", file.Name, base),
+		})
+	}
+}
+
+// excused reports a directory holding test code rather than code, which is
+// where a test named after nothing belongs: fstest, httptest, testing and a
+// repository's own tests each declare a package saying so.
+//
+// The external test scope of any package is called "<name>_test", and the
+// suffix comes off before the name is read: it says where a file compiles,
+// not what the directory is for.
+func excused(pkg model.Package) bool {
+	return strings.Contains(strings.TrimSuffix(pkg.Package, "_test"), "test")
 }
 
 // testedElsewhere reports a file whose exported symbols are all referenced by

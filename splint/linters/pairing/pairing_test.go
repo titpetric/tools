@@ -114,12 +114,13 @@ func TestLinter_Lint_Generated(t *testing.T) {
 	}
 }
 
-// TestLinter_Lint_StandaloneTest covers a test naming a file that is not
-// there, which is counted and has nowhere to be reported.
-func TestLinter_Lint_StandaloneTest(t *testing.T) {
+// TestLinter_Lint_GeneratedPair covers a test written for a generated file.
+// The file is not judged and is still a file, so the test beside it is paired.
+func TestLinter_Lint_GeneratedPair(t *testing.T) {
 	root := document(definition(
 		model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"},
-		model.File{Name: "moved_test.go", Test: true},
+		model.File{Name: "schema_gen.go", Generated: true},
+		model.File{Name: "schema_gen_test.go", Test: true},
 	))
 
 	issues, report := lint(t, root)
@@ -127,9 +128,85 @@ func TestLinter_Lint_StandaloneTest(t *testing.T) {
 		t.Fatalf("reported %d issues, want none: %#v", len(issues), issues)
 	}
 
+	want := pairing.Metric{Tests: 1}
+	if got := metric(t, report, "example.com/x"); got != want {
+		t.Errorf("metric = %+v, want %+v", got, want)
+	}
+}
+
+// TestLinter_Lint_StandaloneTest covers a test naming a file that is not
+// there, which is an error: the file was deleted or renamed and the test that
+// names it was left behind.
+func TestLinter_Lint_StandaloneTest(t *testing.T) {
+	root := document(definition(
+		model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"},
+		model.File{Name: "moved_test.go", Test: true},
+	))
+
+	issues, report := lint(t, root)
+	if len(issues) != 1 {
+		t.Fatalf("reported %d issues, want 1: %#v", len(issues), issues)
+	}
+	if issues[0].Rule != pairing.RuleOrphan {
+		t.Errorf("rule = %q, want %q", issues[0].Rule, pairing.RuleOrphan)
+	}
+	if issues[0].Severity != model.SeverityError {
+		t.Errorf("severity = %v, want %v", issues[0].Severity, model.SeverityError)
+	}
+	if issues[0].Position.Ref() != "x/moved_test.go" {
+		t.Errorf("position = %q, want %q", issues[0].Position.Ref(), "x/moved_test.go")
+	}
+	if issues[0].Message != "moved_test.go has no moved.go beside it" {
+		t.Errorf("message = %q", issues[0].Message)
+	}
+
 	want := pairing.Metric{Tests: 1, StandaloneTests: 1}
 	if got := metric(t, report, "example.com/x"); got != want {
 		t.Errorf("metric = %+v, want %+v", got, want)
+	}
+}
+
+// TestLinter_Lint_TestPackage covers the exception: a directory declaring a
+// package of test code holds tests that are nobody's counterpart. The count
+// still records them, because the exception is about what is reported.
+func TestLinter_Lint_TestPackage(t *testing.T) {
+	for _, name := range []string{"fstest", "testing", "httptest", "tests"} {
+		root := document(definition(
+			model.Package{Package: name, ImportPath: "example.com/" + name, Path: "./" + name},
+			model.File{Name: "helpers_test.go", Test: true},
+		))
+
+		issues, report := lint(t, root)
+		if len(issues) != 0 {
+			t.Errorf("package %s reported %d issues, want none: %#v", name, len(issues), issues)
+		}
+
+		want := pairing.Metric{Tests: 1, StandaloneTests: 1}
+		if got := metric(t, report, "example.com/"+name); got != want {
+			t.Errorf("package %s metric = %+v, want %+v", name, got, want)
+		}
+	}
+}
+
+// TestLinter_Lint_ExternalTestPackage covers the name the exception must not
+// read. Every package has an external test scope called "<name>_test", and the
+// suffix says where a file compiles rather than what the directory is for, so
+// a directory arriving as that half alone is still reported.
+func TestLinter_Lint_ExternalTestPackage(t *testing.T) {
+	root := document(definition(
+		model.Package{Package: "platform_test", ImportPath: "example.com/platform_test", Path: "./platform", TestPackage: true},
+		model.File{Name: "orphan_test.go", Test: true, Package: "platform_test"},
+	))
+
+	issues, _ := lint(t, root)
+	if len(issues) != 1 {
+		t.Fatalf("reported %d issues, want 1: %#v", len(issues), issues)
+	}
+	if issues[0].Rule != pairing.RuleOrphan || issues[0].Severity != model.SeverityError {
+		t.Errorf("issue = %+v, want an orphan error", issues[0])
+	}
+	if issues[0].Position.Ref() != "platform/orphan_test.go" {
+		t.Errorf("position = %q, want %q", issues[0].Position.Ref(), "platform/orphan_test.go")
 	}
 }
 

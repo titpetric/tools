@@ -9,7 +9,8 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Result is one unpaired file, in the terms this linter thinks in.
+// Result is one half of a pairing that has no other half, in the terms this
+// linter thinks in.
 type Result struct {
 	// Rule is which of the linter's rules the finding is under.
 	Rule string
@@ -18,7 +19,7 @@ type Result struct {
 	// the file is wrong, the file is the finding.
 	Position model.Position
 
-	// Message names the test that would have paired with it.
+	// Message names the file that would have paired with it.
 	Message string
 }
 
@@ -27,10 +28,20 @@ func (r Result) Issue() model.Issue {
 	return model.Issue{
 		Linter:   Name,
 		Rule:     r.Rule,
-		Severity: model.SeverityWarn,
+		Severity: severity(r.Rule),
 		Position: r.Position,
 		Message:  r.Message,
 	}
+}
+
+// severity is how much a rule means. A file with no test is a gap in the
+// tests; a test with no file names source that is not there, which is a
+// rename or a deletion that stopped halfway.
+func severity(rule string) model.Severity {
+	if rule == RuleOrphan {
+		return model.SeverityError
+	}
+	return model.SeverityWarn
 }
 
 // Results is what the linter found and what it counted.
@@ -139,9 +150,15 @@ func (r *Results) count(pkg model.Package, files, tests int) *Metric {
 	return metric
 }
 
-// add records one finding against the package it was found in. Every finding
-// is a file standing alone, so the counter is the findings counted.
+// add records one file standing alone against the package it was found in.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 	metric.StandaloneFiles++
+}
+
+// addTest records one test standing alone. StandaloneTests already counts it:
+// the count is of every test naming no file, excused package or not, and the
+// finding is only the ones a reader is asked to act on.
+func (r *Results) addTest(result Result) {
+	r.findings = append(r.findings, result)
 }
