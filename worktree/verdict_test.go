@@ -484,10 +484,12 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"## Commits since v1.0.0",
 		"| [`abc1234`](https://github.com/example/x/commit/abc1234) | feat: add Client |",
 		"## API since v1.0.0",
-		"| Change | Exported | Unexported |",
-		"| Added | type Client struct |  |",
-		"| Changed | Before: Open ()<br>After: Open (string) |",
-		"| Removed | func Legacy () error |  |",
+		// The package has a column of its own, a module holding one of them
+		// included: a symbol with nowhere named is a symbol nobody can find.
+		"| Change | Package | Exported | Unexported |",
+		"| Added | / | type Client struct |  |",
+		"| Changed | / | Before: Open ()<br>After: Open (string) |",
+		"| Removed | / | func Legacy () error |  |",
 		// One table, whatever the release did to however many types.
 		"## Data model since v1.0.0",
 		"| Change | Package | Type | Field |",
@@ -515,12 +517,38 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 	if strings.Contains(got, "\033") {
 		t.Error("renderVerdict() wrote escape codes into markdown")
 	}
-	// A module with one package has nothing for the API table to disambiguate.
-	// The data model table names the package either way, since it has a type
-	// column to keep it apart from.
-	if strings.Contains(got, "| Change | Package | Exported | Unexported |") {
-		t.Errorf("renderVerdict() added a package column for a single package:\n%s", got)
+	// Both tables carry the column, and the first row of each group fills it.
+	for _, table := range []string{"| Change | Package | Exported | Unexported |", "| Change | Package | Type | Field |"} {
+		rows := tableRows(got, table)
+		if len(rows) == 0 {
+			t.Fatalf("renderVerdict() wrote no rows under %q:\n%s", table, got)
+		}
+		if rows[0][1] == "" {
+			t.Errorf("renderVerdict() opened %q on an empty package cell: %v\n%s", table, rows[0], got)
+		}
 	}
+}
+
+// tableRows returns the body rows of the markdown table opening on header, each
+// split into its cells, so one column can be read on its own.
+func tableRows(report, header string) [][]string {
+	at := strings.Index(report, header)
+	if at < 0 {
+		return nil
+	}
+
+	var rows [][]string
+	for _, line := range strings.Split(report[at:], "\n")[1:] {
+		if !strings.HasPrefix(line, "|") {
+			break
+		}
+		if strings.HasPrefix(line, "| --- |") {
+			continue
+		}
+		line = strings.TrimSuffix(strings.TrimPrefix(line, "| "), " |")
+		rows = append(rows, strings.Split(line, " | "))
+	}
+	return rows
 }
 
 // TestRenderVerdictMethodReceivers pins the receiver on a changed method: the
@@ -636,9 +664,9 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	// is named again there.
 	for _, want := range []string{
 		"| Added | / | type Client struct |  |",
-		"|  |  | func Dial () error |",
+		"|  |  |  | func Dial () error |",
 		"|  | /inner | const Name |",
-		"|  |  | const Other |",
+		"|  |  |  | const Other |",
 		"| Removed | / | func Legacy () error |",
 	} {
 		if !strings.Contains(got, want) {
@@ -944,7 +972,7 @@ func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
 	// The API table says the type is there; there is no shape to write for it,
 	// so the section is left out entirely.
 	got := out.String()
-	if !strings.Contains(got, "| Added | type Option func(*Client) |  |") {
+	if !strings.Contains(got, "| Added | / | type Option func(*Client) |  |") {
 		t.Errorf("renderVerdict() lost the type from the API table:\n%s", got)
 	}
 	if strings.Contains(got, "Data model") {
@@ -1246,7 +1274,7 @@ func TestRenderVerdictNamesTheCommitsBehindASymbol(t *testing.T) {
 	renderVerdict(&out, v, false)
 	got := out.String()
 
-	if !strings.Contains(got, "| Change | Exported | Unexported | Commits |") {
+	if !strings.Contains(got, "| Change | Package | Exported | Unexported | Commits |") {
 		t.Fatalf("renderVerdict() wrote no commits column:\n%s", got)
 	}
 	if want := "`" + added + "`, `" + changed + "`"; !strings.Contains(got, want) {

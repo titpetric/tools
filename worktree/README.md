@@ -187,7 +187,7 @@ Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since
 |  | /migrate | func Load (fsys fs.FS, project string) error |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
 ```
 
-The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. A module holding more than one package gains the `Package` column, without which `const Name` three times over says nothing. The symbols of a package are gathered together within their category and only the first of them names it, the same way the data model table reads. Everywhere counts and categories are listed, the order is what the release added, what it reshaped, what it took away.
+The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. The `Package` column is there whatever the module holds, since `const Name` on its own says nothing about where it lives. The symbols of a package are gathered together within their category and only the first of them names it, the same way the data model table reads. Everywhere counts and categories are listed, the order is what the release added, what it reshaped, what it took away.
 
 The `Package` column is the import path below the module, written from the module root down: `/model` is the model package of this module and `/frontend/model` is the other one, where a bare `model` twice over says nothing about which is which. The package at the root of the module is `/`.
 

@@ -711,10 +711,11 @@ type symbolEntry struct {
 // leave the column empty. The table draws no rule between rows, so a group
 // reads as one block under its heading.
 //
-// A module holding more than one package gains a column naming which one a
-// symbol belongs to, without which "const Name" three times over says nothing.
-// The symbols of a package are gathered together and only the first of them
-// names it, the same way the data model table reads.
+// The package a symbol belongs to has a column of its own, whatever the module
+// holds: without it "const Name" says nothing about where it lives, and a
+// module of one package still has to say which one that is. The symbols of a
+// package are gathered together and only the first of them names it, the same
+// way the data model table reads.
 //
 // A range read commit by commit gains a column naming the commits behind each
 // symbol, which is what points a removal at the change behind it.
@@ -746,18 +747,13 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		return nil, nil
 	}
 
-	headers := []string{"Change", "Exported", "Unexported"}
-	widths := []int{len("Removed")}
-	packages := packageColumn(v, entries)
-	if packages {
-		headers = []string{"Change", "Package", "Exported", "Unexported"}
-		width := len("Package")
-		for _, entry := range entries {
-			width = max(width, len(entry.pkg))
-		}
-		widths = append(widths, width)
-		groupByPackage(entries)
+	headers := []string{"Change", "Package", "Exported", "Unexported"}
+	widths := []int{len("Removed"), len("Package")}
+	shortenPackages(v, entries)
+	for _, entry := range entries {
+		widths[1] = max(widths[1], len(entry.pkg))
 	}
+	groupByPackage(entries)
 
 	hashes := make([][]string, 0, len(entries))
 	for _, entry := range entries {
@@ -784,15 +780,13 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 			lastCategory, lastPkg = entry.category, ""
 		}
 
-		row := []string{category}
-		if packages {
-			pkg := entry.pkg
-			if pkg == lastPkg {
-				pkg = ""
-			}
-			lastPkg = entry.pkg
-			row = append(row, colorLines(pkg, components.ColorSeparator, styled))
+		pkg := entry.pkg
+		if pkg == lastPkg {
+			pkg = ""
 		}
+		lastPkg = entry.pkg
+
+		row := []string{category, colorLines(pkg, components.ColorSeparator, styled)}
 		text := fold(entry.text, symbolWidth)
 		if entry.exported {
 			row = append(row, text, "")
@@ -820,17 +814,12 @@ func groupByPackage(entries []symbolEntry) {
 	})
 }
 
-// packageColumn shortens every entry to its path below the module and reports
-// whether the entries span more than one package, which is when naming them is
-// worth a column.
-func packageColumn(v verdict, entries []symbolEntry) bool {
-	seen := make(map[string]bool)
+// shortenPackages rewrites the package of every entry as its path below the
+// module, which is how the table names it.
+func shortenPackages(v verdict, entries []symbolEntry) {
 	for i, entry := range entries {
-		pkg := shortPackage(v.Module, entry.pkg)
-		entries[i].pkg = pkg
-		seen[pkg] = true
+		entries[i].pkg = shortPackage(v.Module, entry.pkg)
 	}
-	return len(seen) > 1
 }
 
 // shortPackage names a package the way the tables refer to it, as its import
