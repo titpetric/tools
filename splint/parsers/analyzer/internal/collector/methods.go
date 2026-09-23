@@ -11,9 +11,12 @@ import (
 
 // majorVersion matches the major version a module path ends in, which is not
 // part of the name the package is reached by: "example.com/thing/v2" is
-// imported as "thing". It is the reading Imports.Map makes, repeated here so
-// a name recorded on References is one the map resolves.
-var majorVersion = regexp.MustCompile(`/v[0-9]+$`)
+// imported as "thing".
+//
+// It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
+// /v1 is a directory of that name: prometheus api/prometheus/v1 is package
+// v1, not package prometheus.
+var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // resolveMethods records the methods a body reaches, which the reference scan
 // cannot see: a selector on a local or on a field names no package, so a

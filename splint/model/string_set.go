@@ -13,9 +13,13 @@ import (
 // part of the name the package is reached by: "example.com/thing/v2" is
 // imported as "thing".
 //
+// It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
+// /v1 is a directory of that name: prometheus api/prometheus/v1 is package
+// v1, not package prometheus.
+//
 // It is compiled once. Compiling it inside the loop, which is where it was,
 // costs more than everything else the loop does.
-var majorVersion = regexp.MustCompile(`/v[0-9]+$`)
+var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // dottedVersion matches the major version gopkg.in writes onto the last
 // segment rather than into one of its own: "gopkg.in/yaml.v3" is imported as

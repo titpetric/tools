@@ -21,6 +21,15 @@ func TestBaseName(t *testing.T) {
 		{"gopkg.in/check.v1", "check"},
 		{"github.com/goccy/go-yaml", "go-yaml"},
 		{"example.com/v2", "example.com"},
+
+		// A major version suffix starts at v2. A path ending in /v0 or
+		// /v1 is a directory of that name, which is how prometheus and
+		// the kubernetes api groups are laid out.
+		{"github.com/prometheus/client_golang/api/prometheus/v1", "v1"},
+		{"k8s.io/api/core/v1", "v1"},
+		{"example.com/x/v0", "v0"},
+		{"example.com/x/v10", "x"},
+		{"example.com/x/v100", "x"},
 	}
 
 	for _, test := range tests {

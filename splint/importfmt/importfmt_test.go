@@ -263,3 +263,35 @@ func TestRefNamesTheImport(t *testing.T) {
 		})
 	}
 }
+
+// TestNormalizeAliasesOnlyAVersionedPath covers which paths get an alias
+// written for them.
+//
+// A major version suffix starts at v2: v0 and v1 modules carry none, so a
+// path ending there is a directory of that name. Reading /v1 as a version
+// renamed prometheus api/prometheus/v1 to prometheus and moved it in the
+// sort, which is a file the fixer changed and should not have.
+func TestNormalizeAliasesOnlyAVersionedPath(t *testing.T) {
+	tests := []struct{ path, name string }{
+		{"github.com/go-pg/pg/v9", "pg"},
+		{"example.com/thing/v2", "thing"},
+		{"example.com/thing/v10", "thing"},
+
+		{"github.com/prometheus/client_golang/api/prometheus/v1", ""},
+		{"k8s.io/api/core/v1", ""},
+		{"example.com/thing/v0", ""},
+		{"github.com/lib/pq", ""},
+
+		// What is left once the version comes off has to be a name Go
+		// would accept, or no alias is written.
+		{"example.com/v2", ""},
+	}
+
+	opts := importfmt.NewOptions()
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			got := importfmt.Normalize(model.ImportSpec{Path: test.path}, opts)
+			assert.Equal(t, test.name, got.Name)
+		})
+	}
+}

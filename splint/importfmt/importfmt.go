@@ -51,7 +51,10 @@ var DefaultOrder = []string{GroupStd, GroupBlanked, GroupGeneral, GroupCompany, 
 
 // majorVersion matches the major version suffix of a module path, which is not
 // part of the name the package is reached by.
-var majorVersion = regexp.MustCompile(`/v[0-9]+$`)
+//
+// It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
+// /v1 is a directory of that name.
+var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // Options is the house rule as a value.
 type Options struct {
