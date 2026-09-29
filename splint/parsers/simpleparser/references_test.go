@@ -21,6 +21,20 @@ func TestSelectors(t *testing.T) {
 		{line: "x := 1.5", want: nil},
 		{line: "f().X", want: nil},
 		{line: "no selector here", want: nil},
+		// A variadic parameter reaches the package of its type. The dot in
+		// front of the name closes a "..." rather than opening a chain.
+		{line: "func New(opts ...vuego.LoadOption) *Service {", want: []selector{
+			{pkg: "vuego", symbol: "LoadOption"},
+		}},
+		// The "..." does not hide what is written beside it either.
+		{line: "func New(baseFS fs.FS, opts ...vuego.LoadOption) *Service {", want: []selector{
+			{pkg: "fs", symbol: "FS"},
+			{pkg: "vuego", symbol: "LoadOption"},
+		}},
+		// Spreading an argument is the same token in the other position, and
+		// reaches nothing on its own.
+		{line: "f(args...)", want: nil},
+		{line: "f(m.Items...)", want: []selector{{pkg: "m", symbol: "Items"}}},
 	}
 
 	for _, test := range tests {

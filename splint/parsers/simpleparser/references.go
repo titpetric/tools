@@ -76,6 +76,16 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 			continue
 		}
 
+		// "..." is one token and is stepped over whole. Read as three dots it
+		// swallows the type written behind it: the last dot takes the package
+		// name as the symbol of a selector with nothing on its left, and the
+		// scan resumes past that name, never reaching the dot that does reach
+		// a package.
+		if strings.HasPrefix(line[i:], "...") {
+			i += 2
+			continue
+		}
+
 		left, start := identifierBefore(line, i)
 		right, end := identifierAfter(line, i+1)
 		if left == "" || right == "" {
@@ -86,7 +96,11 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 		// A selector reached through another selector is not a package. So is
 		// a number: "1.5" has an identifier on neither side, and a call
 		// result, "f().X", has no identifier on the left.
-		if start > 0 && (line[start-1] == '.' || isIdentifierByte(line[start-1])) {
+		//
+		// The dot closing a "..." is none of those. What follows it is the
+		// type of a variadic parameter, and "opts ...pkg.Option" reaches pkg
+		// like any other type does.
+		if start > 0 && !afterEllipsis(line, start) && (line[start-1] == '.' || isIdentifierByte(line[start-1])) {
 			i = end
 			continue
 		}
@@ -94,6 +108,15 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 		fn(left, right)
 		i = end
 	}
+}
+
+// afterEllipsis reports an identifier starting directly behind a "..." token.
+//
+// The last dot of the token sits exactly where the dot of a chain sits, and
+// only what precedes it tells the two apart: "a.B.C" writes one dot in front
+// of B, and "...B.C" writes three.
+func afterEllipsis(line string, start int) bool {
+	return start >= 3 && line[start-3:start] == "..."
 }
 
 // selectors returns every "left.Right" on a line, where both sides are plain
