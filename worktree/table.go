@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,15 +10,6 @@ import (
 
 	"github.com/titpetric/tools/worktree/components"
 )
-
-func supportsANSI(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok || os.Getenv("TERM") == "dumb" {
-		return false
-	}
-	info, err := f.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
-}
 
 func writeSimpleTable(w io.Writer, headers []string, values [][]string, styled bool) {
 	rows := make([]components.Rows, 0, len(values))
