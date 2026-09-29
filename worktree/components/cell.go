@@ -11,6 +11,13 @@ type Cell []string
 // Separator is a sentinel value for a horizontal divider line within a cell.
 const Separator = "\x00sep"
 
+// Divider returns a cell holding nothing but a rule across its column, which
+// parts one block of rows from the next inside a table that draws no rule
+// between its rows.
+func Divider() Cell {
+	return Cell{Separator}
+}
+
 // Rows represents a table row as a slice of cells.
 type Rows []Cell
 

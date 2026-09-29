@@ -32,6 +32,22 @@ func TestCell(t *testing.T) {
 	}
 }
 
+// TestDivider checks the divider is one line of nothing but the sentinel a
+// renderer turns into a rule, so a caller never writes the sentinel itself.
+func TestDivider(t *testing.T) {
+	got := Divider()
+
+	if got.Height() != 1 {
+		t.Fatalf("Divider() = %d lines, want 1: %q", got.Height(), got)
+	}
+	if got.Line(0) != Separator {
+		t.Errorf("Divider() = %q, want the separator sentinel", got.Line(0))
+	}
+	if got.Empty() {
+		t.Error("Divider() reads as an empty cell")
+	}
+}
+
 // TestCell_Line checks a line past the end of a cell reads as empty, which is
 // what lets a short cell sit beside a tall one without the caller counting.
 func TestCell_Line(t *testing.T) {

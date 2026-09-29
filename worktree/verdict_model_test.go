@@ -47,7 +47,7 @@ func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
 	// The API table says the type is there; there is no shape to write for it,
 	// so the section is left out entirely.
 	got := out.String()
-	if !strings.Contains(got, "| Added | / | type Option func(*Client) |  |") {
+	if !strings.Contains(got, "| Added | / | type Option func(*Client) |") {
 		t.Errorf("renderVerdict() lost the type from the API table:\n%s", got)
 	}
 	if strings.Contains(got, "Data model") {

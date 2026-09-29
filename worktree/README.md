@@ -178,20 +178,21 @@ Released v0.6.0: 33 exported symbols were removed and 2 signatures changed since
 
 ## API v0.5.5..v0.6.0
 
-| Change | Package | Exported | Unexported | Commits |
-| --- | --- | --- | --- | --- |
-| Added | /migrate | type Manager |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-|  |  |  | type loader | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-| Removed | /cmd/mig/gen | type Column |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
-|  | /migrate | func Load (fsys fs.FS, project string) error |  | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+| Change | Package | Symbol | Commits |
+| --- | --- | --- | --- |
+| Added | /migrate | type Manager | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  |  | func NewManager (db *sqlx.DB, migrations fs.FS, project string) (*Manager, error) | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  |  | --- |  |
+|  |  | type loader | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+| Removed | /cmd/mig/gen | type Column | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
+|  | /migrate | func Load (fsys fs.FS, project string) error | [`29097b5`](https://github.com/go-bridget/mig/commit/29097b5) |
 ```
 
 The category names the first row of its group and the rows below it leave the column empty; the table draws no rule between rows, so a group reads as one block. The `Package` column is there whatever the module holds, since `const Name` on its own says nothing about where it lives. The symbols of a package are gathered together within their category and only the first of them names it, the same way the data model table reads. Everywhere counts and categories are listed, the order is what the release added, what it reshaped, what it took away.
 
 The `Package` column is the import path below the module, written from the module root down: `/model` is the model package of this module and `/frontend/model` is the other one, where a bare `model` twice over says nothing about which is which. The package at the root of the module is `/`.
 
-A symbol is written in the `Exported` column when a consumer can reach it and in `Unexported` when it cannot, so a reader after what the release costs reads one column and a reader after what the refactor moved reads the other. A release that only moved private code fills one column and leaves the other empty.
+Exported and unexported symbols share the `Symbol` column. Within a package the API comes first and what a consumer cannot reach comes under a divider, so the reader after what the release costs stops at the rule and the reader after what the refactor moved carries on past it. The rule is drawn across the symbol column alone, as `---` in markdown and as a line on a terminal. A package whose symbols are all internal draws no rule: there is nothing above it to part it from, and the whole of its block is internal.
 
 The `External` and `Internal` columns of the commit table count what one commit did on its own, in the order the rest of the report reads: what it added, what it reshaped, what it took away. External is what a consumer can see and Internal what it cannot, which is what tells a release from a refactor. Each commit is compared against the one under it, so a range of twenty commits is twenty comparisons and the commit behind a removal can be picked out of them. A commit that moved neither half leaves the cells empty rather than writing three zeroes, and a commit that touched no file of the module is not listed at all.
 

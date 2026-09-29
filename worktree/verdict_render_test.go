@@ -23,10 +23,10 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"## API since v1.0.0",
 		// The package has a column of its own, a module holding one of them
 		// included: a symbol with nowhere named is a symbol nobody can find.
-		"| Change | Package | Exported | Unexported |",
-		"| Added | / | type Client struct |  |",
+		"| Change | Package | Symbol |",
+		"| Added | / | type Client struct |",
 		"| Changed | / | Before: Open ()<br>After: Open (string) |",
-		"| Removed | / | func Legacy () error |  |",
+		"| Removed | / | func Legacy () error |",
 		// One table, whatever the release did to however many types.
 		"## Data model since v1.0.0",
 		"| Change | Package | Type | Field |",
@@ -55,7 +55,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		t.Error("renderVerdict() wrote escape codes into markdown")
 	}
 	// Both tables carry the column, and the first row of each group fills it.
-	for _, table := range []string{"| Change | Package | Exported | Unexported |", "| Change | Package | Type | Field |"} {
+	for _, table := range []string{"| Change | Package | Symbol |", "| Change | Package | Type | Field |"} {
 		rows := tableRows(got, table)
 		if len(rows) == 0 {
 			t.Fatalf("renderVerdict() wrote no rows under %q:\n%s", table, got)

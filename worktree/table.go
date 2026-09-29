@@ -61,9 +61,12 @@ func writeMarkdownRow(w io.Writer, numCols int, row components.Rows) {
 		var lines []string
 		if i < len(row) {
 			for _, line := range row[i] {
-				if line != components.Separator {
-					lines = append(lines, markdownCell(line))
+				// A rule drawn in box characters does not survive a markdown
+				// table, so the divider is written as the rule markdown has.
+				if line == components.Separator {
+					line = "---"
 				}
+				lines = append(lines, markdownCell(line))
 			}
 		}
 		fmt.Fprintf(w, " %s |", strings.Join(lines, "<br>"))

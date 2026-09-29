@@ -13,9 +13,9 @@ type symbolEntry struct {
 	pkg      string
 	text     string
 
-	// exported reports whether the symbol is API, which is the column the
-	// text is written in: a reader looking for what a release costs reads
-	// one column, and one reading a refactor reads the other.
+	// exported reports whether the symbol is API, which is where in its
+	// package's block the symbol is written: what a release costs a consumer
+	// comes first, and what the refactor moved comes under the divider.
 	exported bool
 
 	// commits are the short hashes of the commits that introduced or moved
@@ -35,6 +35,12 @@ type symbolEntry struct {
 // module of one package still has to say which one that is. The symbols of a
 // package are gathered together and only the first of them names it, the same
 // way the data model table reads.
+//
+// Exported and unexported symbols share the one column. Within a package the
+// API comes first and what a consumer cannot reach comes under a divider, so
+// the reader after what the release costs stops at the rule and the reader
+// after what the refactor moved carries on past it. A package whose symbols
+// are all internal draws no rule: there is nothing above it to part it from.
 //
 // A range read commit by commit gains a column naming the commits behind each
 // symbol, which is what points a removal at the change behind it.
@@ -66,7 +72,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		return nil, nil
 	}
 
-	headers := []string{"Change", "Package", "Exported", "Unexported"}
+	headers := []string{"Change", "Package", "Symbol"}
 	widths := []int{len("Removed"), len("Package")}
 	shortenPackages(entries, v)
 	for _, entry := range entries {
@@ -83,12 +89,12 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		headers = append(headers, "Commits")
 		widths = append(widths, columnWidth("Commits", commits))
 	}
-	// Two symbol columns share what one used to have.
-	symbolWidth := cellWidth(wrap, append(widths, 0)) / 2
+	symbolWidth := cellWidth(wrap, append(widths, 0))
 
 	var (
 		rows                  [][]string
 		lastCategory, lastPkg string
+		exportedAbove         bool
 	)
 	for i, entry := range entries {
 		// A new category opens a group and names itself. The package is written
@@ -100,17 +106,27 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		}
 
 		pkg := entry.pkg
-		if pkg == lastPkg {
+		newBlock := pkg != lastPkg
+		if !newBlock {
 			pkg = ""
+		}
+		if newBlock {
+			exportedAbove = false
 		}
 		lastPkg = entry.pkg
 
-		row := []string{category, colorLines(pkg, components.ColorSeparator, styled)}
-		text := fold(entry.text, symbolWidth)
-		if entry.exported {
-			row = append(row, text, "")
-		} else {
-			row = append(row, "", text)
+		// The rule parts the API of a package from what a consumer cannot
+		// reach. It only goes in once there is something above it to part.
+		if !entry.exported && exportedAbove {
+			rows = append(rows, dividerRow(len(headers)))
+			exportedAbove = false
+		}
+		exportedAbove = exportedAbove || entry.exported
+
+		row := []string{
+			category,
+			colorLines(pkg, components.ColorSeparator, styled),
+			fold(entry.text, symbolWidth),
 		}
 		if commits != nil {
 			row = append(row, commits[i])
@@ -120,16 +136,31 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	return headers, rows
 }
 
+// dividerRow is the row the rule is drawn on, which carries the divider in the
+// symbol column and leaves every other column empty: the rule is there to part
+// two blocks of symbols, not to cut the table in half.
+func dividerRow(columns int) []string {
+	row := make([]string, columns)
+	row[2] = components.Divider().Line(0)
+	return row
+}
+
 // groupByPackage gathers the symbols of a package together within their
-// category, so a column naming the package can leave the repeats empty. The
-// order within a package is the one the comparison reported.
+// category, so a column naming the package can leave the repeats empty.
+//
+// Within a package the API comes before what a consumer cannot reach, since
+// that is what the release costs and what the reader is there for. The order
+// within each of the two halves is the one the comparison reported.
 func groupByPackage(entries []symbolEntry) {
 	rank := map[string]int{"Added": 0, "Changed": 1, "Removed": 2}
 	sort.SliceStable(entries, func(i, j int) bool {
 		if a, b := rank[entries[i].category], rank[entries[j].category]; a != b {
 			return a < b
 		}
-		return entries[i].pkg < entries[j].pkg
+		if entries[i].pkg != entries[j].pkg {
+			return entries[i].pkg < entries[j].pkg
+		}
+		return entries[i].exported && !entries[j].exported
 	})
 }
 
