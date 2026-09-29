@@ -291,3 +291,30 @@ func readTestFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+func TestGoSeriesChanged(t *testing.T) {
+	tests := []struct {
+		before, after string
+		want          bool
+	}{
+		// Another release series is what a consumer feels.
+		{"1.26", "1.27", true},
+		{"1.26.4", "1.27.0", true},
+		{"go1.26", "go1.27", true},
+		{"1.27", "1.26", true},
+		// A point release of the same series changes nothing for them.
+		{"1.27", "1.27", false},
+		{"1.27", "1.27.1", false},
+		{"1.27.1", "1.27.9", false},
+		// Nothing to read on either side is not a change.
+		{"", "1.27", false},
+		{"1.27", "", false},
+		{"nonsense", "1.27", false},
+	}
+
+	for _, test := range tests {
+		if got := goSeriesChanged(test.before, test.after); got != test.want {
+			t.Errorf("goSeriesChanged(%q, %q) = %v, want %v", test.before, test.after, got, test.want)
+		}
+	}
+}

@@ -334,3 +334,105 @@ func TestQualifySignature(t *testing.T) {
 		}
 	}
 }
+
+func TestApiDiffBetweenReadsTwoTagsAndNotTheWorkingTree(t *testing.T) {
+	requireSplint(t)
+
+	alpha := verdictRepo(t)
+	// A working tree that would swamp the answer if it were being read.
+	writeTestFile(t, filepath.Join(alpha, "stray.go"), "package alpha\n\n// Stray is uncommitted.\nfunc Stray() {}\n")
+
+	got := apiDiffBetween(alpha, "alpha/v0.1.0", "alpha/v0.2.0")
+	if got.Skipped != "" {
+		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
+	}
+	if len(got.Added) != 1 || got.Added[0].Name != "Bye" {
+		t.Errorf("apiDiffBetween() Added = %#v, want Bye alone", got.Added)
+	}
+	if !got.Breaking || len(got.Removed) != 1 {
+		t.Errorf("apiDiffBetween() = %#v, want a breaking result removing Greet", got)
+	}
+}
+
+func TestApiDiffBetweenReadsTheExportedShapeOfAnAddedType(t *testing.T) {
+	requireSplint(t)
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	runGit(t, root, "tag", "alpha/v0.1.0")
+
+	// Grouped names declare a field each, and an unexported one is nobody's
+	// promise to keep.
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"),
+		"package alpha\n\n// Tag is a release tag.\ntype Tag struct {\n\tName string `json:\"name\"`\n\n\tMajor, Minor, Patch uint64\n\n\traw string\n}\n")
+
+	got := apiDiffBetween(alpha, "alpha/v0.1.0", "")
+	if got.Skipped != "" {
+		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
+	}
+	if len(got.Added) != 1 {
+		t.Fatalf("apiDiffBetween() Added = %#v, want Tag alone", got.Added)
+	}
+
+	tag := got.Added[0]
+	if tag.Underlying != "struct" {
+		t.Errorf("Tag.Underlying = %q, want struct", tag.Underlying)
+	}
+
+	var names []string
+	for _, field := range tag.Fields {
+		names = append(names, field.Name)
+	}
+	want := []string{"Major", "Minor", "Name", "Patch"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("Tag.Fields = %#v, want %#v", names, want)
+	}
+
+	for _, field := range tag.Fields {
+		if field.Name == "Name" && field.Tag != `json:"name"` {
+			t.Errorf("Name lost its tag: %#v", field)
+		}
+	}
+}
+
+func TestApiDiffBetweenReportsAFieldThatMoved(t *testing.T) {
+	requireSplint(t)
+
+	root := testRepo(t, "alpha")
+	alpha := filepath.Join(root, "alpha")
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"),
+		"package alpha\n\n// Config configures.\ntype Config struct {\n\tAddr string `yaml:\"addr\"`\n\tRetries int\n}\n")
+	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Config")
+	runGit(t, root, "tag", "alpha/v0.1.0")
+
+	writeTestFile(t, filepath.Join(alpha, "alpha.go"),
+		"package alpha\n\n// Config configures.\ntype Config struct {\n\tAddr []string `yaml:\"addr\"`\n\tTimeout int\n}\n")
+
+	got := apiDiffBetween(alpha, "alpha/v0.1.0", "")
+	if got.Skipped != "" {
+		t.Fatalf("apiDiffBetween() skipped: %s", got.Skipped)
+	}
+	if len(got.Types) != 1 {
+		t.Fatalf("apiDiffBetween() Types = %#v, want Config alone", got.Types)
+	}
+
+	change := got.Types[0]
+	if change.Name != "Config" || change.Underlying != "struct" {
+		t.Errorf("Types[0] = {Name: %q, Underlying: %q}, want {Config, struct}", change.Name, change.Underlying)
+	}
+
+	moved := make(map[string]string)
+	for _, field := range change.Fields {
+		moved[field.Name] = field.Change
+	}
+	want := map[string]string{"Addr": fieldChanged, "Retries": fieldRemoved, "Timeout": fieldAdded}
+	if !reflect.DeepEqual(moved, want) {
+		t.Errorf("Config fields = %#v, want %#v", moved, want)
+	}
+
+	// Taking a field away costs a consumer something, so the release is a
+	// minor even though no symbol went away.
+	if !got.Breaking {
+		t.Error("apiDiffBetween() did not call a removed field breaking")
+	}
+}
