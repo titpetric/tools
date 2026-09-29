@@ -158,3 +158,64 @@ func TestEncodeStampsVersion(t *testing.T) {
 		t.Fatalf("Parse(Encode()) version = %d, want %d", got.Version, Version)
 	}
 }
+
+// TestLoad and TestSave cover the pair that go through Path: Load reads the
+// document below the home directory, and Save writes it there, creating the
+// .config directory it lives in.
+func TestLoad(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// No document yet, so the built-in defaults answer.
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if !cfg.Scan.EnableGitignore {
+		t.Error("Load() without a document did not return the defaults")
+	}
+
+	writeTestFile(t, filepath.Join(home, ".config", "worktree.yml"), "version: 1\nscan:\n  ignore_paths: [vendor]\n")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if !reflect.DeepEqual(cfg.Scan.IgnorePaths, []string{"vendor"}) {
+		t.Errorf("Load() = %#v, want the document on disk", cfg.Scan)
+	}
+	// The file is the whole configuration, so a setting it does not name is off.
+	if cfg.Scan.EnableGitignore {
+		t.Error("Load() filled a missing setting in from the defaults")
+	}
+}
+
+func TestSave(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	want := &Config{Scan: Scan{
+		EnableGitRepos: true,
+		IgnorePaths:    []string{"node_modules"},
+		RootMarkers:    []string{"go.work"},
+	}}
+	if err := Save(want); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	path := filepath.Join(home, ".config", "worktree.yml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Save() wrote nothing to %s: %v", path, err)
+	}
+	if !strings.Contains(string(data), "node_modules") {
+		t.Errorf("Save() left the setting out of %s:\n%s", path, data)
+	}
+
+	got, err := Load()
+	if err != nil {
+		t.Fatalf("Load() after Save() error: %v", err)
+	}
+	if !reflect.DeepEqual(got.Scan, want.Scan) {
+		t.Errorf("Load() after Save() = %#v, want %#v", got.Scan, want.Scan)
+	}
+}

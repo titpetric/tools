@@ -340,3 +340,38 @@ func TestModelReportsSaveFailure(t *testing.T) {
 		t.Fatalf("the form still shows the key legend instead of the failure:\n%s", got)
 	}
 }
+
+// TestModel_Saved checks the flag Run reads to decide whether to report a
+// write: a form that has not saved reports false, and one that has reports
+// true, which is what tells a save from a discard once the screen has closed.
+func TestModel_Saved(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "worktree.yml")
+	m := New(Default(), path)
+
+	if m.Saved() {
+		t.Error("Model.Saved() = true on a form that has not saved")
+	}
+
+	// Saving a form with nothing edited writes nothing, so there is no write
+	// to report: Saved stays false and the file is not created.
+	untouched, _ := press(m, key(tea.KeyEnter), key(tea.KeyEnter))
+	if untouched.Saved() {
+		t.Error("Model.Saved() = true after saving a form with nothing edited")
+	}
+	if _, err := os.Stat(path); err == nil {
+		t.Errorf("saving an untouched form wrote %s", path)
+	}
+
+	edited, _ := press(m, key(tea.KeyLeft), key(tea.KeyEnter), key(tea.KeyEnter))
+	if !edited.Saved() {
+		t.Errorf("Model.Saved() = false after saving an edit, status %q", edited.status)
+	}
+}
+
+// TestModel_Init checks the form asks for nothing before it is drawn: the
+// document is already read by the time the screen opens.
+func TestModel_Init(t *testing.T) {
+	if cmd := New(Default(), "worktree.yml").Init(); cmd != nil {
+		t.Errorf("Model.Init() = %v, want no command", cmd)
+	}
+}

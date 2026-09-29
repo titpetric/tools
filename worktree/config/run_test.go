@@ -55,3 +55,43 @@ func TestNewModelForMissingDocument(t *testing.T) {
 		t.Fatalf("status = %q, want none for a document that simply does not exist", model.status)
 	}
 }
+
+// TestRun covers what Run decides before and after the screen: which document
+// the form opens on, and what a run that did not save reports.
+//
+// The screen itself is not opened. tea.NewProgram wants a terminal, and what
+// would be tested through it is the form, which model_test.go drives directly
+// by feeding it key presses.
+func TestRun(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	path, err := Path()
+	if err != nil {
+		t.Fatalf("Path() error: %v", err)
+	}
+	writeTestFile(t, path, "version: 1\nscan:\n  ignore_paths: [vendor]\n")
+
+	// Run opens the form on the document Path names.
+	model, loadErr := newModelFor(path)
+	if loadErr != nil {
+		t.Fatalf("newModelFor() error: %v", loadErr)
+	}
+	if model.path != path {
+		t.Errorf("the form opened on %q, want %q", model.path, path)
+	}
+
+	// A run that does not save returns whatever reading the document cost,
+	// which for a broken file is the parse error the status line also carries.
+	writeTestFile(t, path, "scan: [this is not a mapping]\n")
+	broken, loadErr := newModelFor(path)
+	if loadErr == nil {
+		t.Fatal("newModelFor() read a broken document without complaint")
+	}
+	if broken.status == "" {
+		t.Error("the form opened on a broken document with an empty status line")
+	}
+	if broken.Saved() {
+		t.Error("a form that has not run reports it saved")
+	}
+}
