@@ -159,6 +159,12 @@ type apiDiff struct {
 
 	Breaking bool `json:"breaking"`
 
+	// Deps are the go.mod requirements the release adds, moves to another
+	// version, or drops. Nothing here is breaking: a dependency is not API, so
+	// it is reported and does not decide the version. It is read from the two
+	// models rather than from the tool's own report of them.
+	Deps []DiffResult `json:"-"`
+
 	// Skipped records why the comparison did not run and is empty when it
 	// did. A comparison that could not run is never breaking, so a module
 	// whose API cannot be read gets a patch, with the reason printed.
@@ -406,6 +412,10 @@ func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 // A splint from before the diff verb reads "diff" as a lint pattern and
 // stops on the --old flag it does not define, which is what the flag error
 // detects: the tool is there but the command is not.
+//
+// The go.mod each model carries is compared here rather than asked of the tool,
+// so the requirement report is the same whichever splint is installed, and the
+// rule behind it is one this module tests on its own.
 func diffModels(oldModel, newModel string) apiDiff {
 	out, err := exec.Command("splint", "diff", "--old", oldModel, "--new", newModel, "--json", "--include-unexported").CombinedOutput()
 	if err != nil {
@@ -419,6 +429,7 @@ func diffModels(oldModel, newModel string) apiDiff {
 	if err := json.Unmarshal(out, &diff); err != nil {
 		return apiDiff{Skipped: fmt.Sprintf("splint diff: %v", err)}
 	}
+	diff.Deps = Diff(modelRequires(oldModel), modelRequires(newModel))
 	return diff
 }
 

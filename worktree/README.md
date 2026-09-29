@@ -112,7 +112,7 @@ Releasing a module in that state would tag work nobody reviewed. Under `--apply`
 
 ## Reporting a release
 
-`worktree verdict` writes the report of a single repository: which version it is at or moving to, why, the commits behind it, what became of its exported API, and how the packages of the working tree are split between what they export and what they keep.
+`worktree verdict` writes the report of a single repository: which version it is at or moving to, why, the commits behind it, what became of its exported API, what it changed about depending on it, and how the packages of the working tree are split between what they export and what they keep.
 
 ```bash
 worktree verdict                            # the repository of the current directory
@@ -245,6 +245,35 @@ Adding a method to an interface stops every implementor compiling, where adding 
 A breaking data model change earns a minor the same way a removed symbol does, and the verdict says which: `Minor release: v0.2.0, because 1 exported field moved since v0.1.0.`
 
 This needs a [splint](https://github.com/titpetric/tools/tree/main/splint) that reports the field comparison. An older one reports only the symbols, and the section is left out.
+
+### Dependency changes
+
+A package is only half of what a consumer takes on. The other half is the dependency set it drags in, which decides what the consumer downloads, which minimum versions its own build has to satisfy, and whose code ends up in the binary. So the `go.mod` of the two revisions is compared too, under a **Dependencies** section:
+
+```
+## Dependencies v0.5.5..v0.6.0
+
+| Change | Module | Version |
+| --- | --- | --- |
+| Added | github.com/google/go-cmp | v0.7.0 |
+|  | golang.org/x/sync | v0.23.0 |
+| Changed | golang.org/x/mod | v0.40.0 -> v0.41.0 |
+| Removed | gopkg.in/yaml.v3 | v3.0.1 |
+```
+
+It is built the way the tables above it are: grouped by what the release did, the category naming the first row of its group, and the cells that repeat the row above them left empty. A requirement that moved is written with the version on either side of the move, the way a changed signature is. The module path is written in full, since it is what the requirement is rather than where it lives. A release that touched no `go.mod` gets no section.
+
+Only the requirements the module imports itself are listed. An indirect requirement is written by `go mod tidy` rather than decided on, and a routine tidy rewrites dozens of them, which buries the handful of direct ones that are the release note. A requirement direct on either side of the comparison counts as direct, so one the module took on an import of is reported whichever way it moved.
+
+**Nothing here earns a release a minor.** A dependency is not API: moving one takes nothing away that a compiler will complain about, so the section explains the release rather than deciding it. It is named after the reason instead, as the sentence that follows the verdict:
+
+```
+Patch release: v0.5.6, no exported symbols were removed since v0.5.5. 1 dependency was added and 2 dependencies moved to another version.
+```
+
+The `go` directive is the one entry of a `go.mod` that can stop a build outright, and it is [reported and judged on its own](#aligning-the-go-version) rather than listed here.
+
+The comparison is read from the same two models the API tables are read from, so it costs no extra work and needs nothing of the repository that the API did not already need. A release measured from the start of history is compared against a module requiring nothing, so a first release lists everything it requires as added, the same way it lists everything it exports.
 
 ### Visibility
 

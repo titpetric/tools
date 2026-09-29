@@ -341,8 +341,14 @@ func moduleName(dir string) string {
 	return filepath.Base(abs)
 }
 
-// Summary states the verdict in one sentence, giving the reason behind it.
+// Summary states the verdict in one sentence, giving the reason behind it, and
+// names the dependency movement after it when the release carries any.
 func (v verdict) Summary() string {
+	return v.summaryBase() + v.depNote()
+}
+
+// summaryBase is the verdict itself: the version, and what earned it.
+func (v verdict) summaryBase() string {
 	switch {
 	case v.Released && v.Since == "":
 		return fmt.Sprintf("Released %s: the first release, %s.", v.Version, v.firstRelease())
@@ -450,6 +456,7 @@ func renderVerdict(w io.Writer, v verdict, styled bool) {
 		writeGap(w, styled)
 	}
 	writeDataModel(w, v, styled, wrap)
+	writeDependencies(w, v, styled)
 	writeVisibility(w, v, styled)
 }
 
