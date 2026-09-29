@@ -149,7 +149,7 @@ func (v verdict) between(dir string, tags []string, prefix, from, to string, mod
 // The models are the cache the comparison reads revisions through, and may be
 // nil, in which case the revisions are read for this range alone.
 func (v verdict) report(dir string, tags []string, prefix, from, to string, models *apiModels) (verdict, error) {
-	fromRef, toRef := taggedRef(from, prefix), taggedRef(to, prefix)
+	fromRef, toRef := taggedRef(from, prefix, tags), taggedRef(to, prefix, tags)
 
 	v.Since = from
 	v.Commits = commitLogBetween(dir, fromRef, toRef)
@@ -169,14 +169,26 @@ func (v verdict) report(dir string, tags []string, prefix, from, to string, mode
 // taggedRef turns a version named on the command line into the tag the
 // repository carries for it, and leaves anything else alone so a commit or a
 // branch can be named just as well.
-func taggedRef(ref, prefix string) string {
-	if ref == "" || prefix == "" {
+//
+// The tag may be written differently from the version asked for: with the v the
+// command line left off, or under the subdirectory prefix of a nested module.
+// The version is matched against the tags rather than reprinted, so "0.5.0"
+// finds v0.5.0 and "v0.5.0" finds 0.5.0.
+//
+// A version the repository has no tag for is passed to git as it stands, and
+// comes back as the unreadable revision it is rather than as a silent fallback
+// to something else.
+func taggedRef(ref, prefix string, tags []string) string {
+	version, ok := ParseVersion(ref)
+	if !ok {
 		return ref
 	}
-	if _, ok := ParseVersion(ref); ok {
-		return prefix + ref
+	for _, tag := range tags {
+		if carried, ok := ParseVersion(tag); ok && Compare(carried, version) == 0 {
+			return prefix + tag
+		}
 	}
-	return ref
+	return prefix + ref
 }
 
 // releasesBelow returns the tags naming a release at or below version, so the

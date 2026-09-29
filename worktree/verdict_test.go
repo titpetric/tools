@@ -287,22 +287,34 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 }
 
 func TestTaggedRef(t *testing.T) {
+	tags := []string{"v0.1.0", "v0.2.0"}
 	tests := []struct {
 		ref, prefix, want string
+		tags              []string
 	}{
-		{"v0.1.0", "alpha/", "alpha/v0.1.0"},
-		{"v0.1.0", "", "v0.1.0"},
+		{ref: "v0.1.0", prefix: "alpha/", tags: tags, want: "alpha/v0.1.0"},
+		{ref: "v0.1.0", tags: tags, want: "v0.1.0"},
+		// The version is matched against the tags rather than reprinted, so the
+		// v the command line left off is the one the repository carries.
+		{ref: "0.1.0", tags: tags, want: "v0.1.0"},
+		{ref: "0.1.0", prefix: "alpha/", tags: tags, want: "alpha/v0.1.0"},
+		// A repository tagging without the v is found from either spelling.
+		{ref: "v0.3.0", tags: []string{"0.3.0"}, want: "0.3.0"},
+		// A version no tag carries is passed to git as it stands, so the run
+		// reports an unreadable revision rather than falling back elsewhere.
+		{ref: "v9.9.9", prefix: "alpha/", tags: tags, want: "alpha/v9.9.9"},
+		{ref: "v0.1.0", prefix: "alpha/", want: "alpha/v0.1.0"},
 		// Anything that is not a version is a commit or a branch, and is left
 		// as it was given.
-		{"HEAD", "alpha/", "HEAD"},
-		{"main", "alpha/", "main"},
-		{"29097b5", "alpha/", "29097b5"},
-		{"", "alpha/", ""},
+		{ref: "HEAD", prefix: "alpha/", tags: tags, want: "HEAD"},
+		{ref: "main", prefix: "alpha/", tags: tags, want: "main"},
+		{ref: "29097b5", prefix: "alpha/", tags: tags, want: "29097b5"},
+		{ref: "", prefix: "alpha/", tags: tags, want: ""},
 	}
 
 	for _, test := range tests {
-		if got := taggedRef(test.ref, test.prefix); got != test.want {
-			t.Errorf("taggedRef(%q, %q) = %q, want %q", test.ref, test.prefix, got, test.want)
+		if got := taggedRef(test.ref, test.prefix, test.tags); got != test.want {
+			t.Errorf("taggedRef(%q, %q, %v) = %q, want %q", test.ref, test.prefix, test.tags, got, test.want)
 		}
 	}
 }
