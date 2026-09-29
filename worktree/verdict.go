@@ -120,7 +120,7 @@ func (v verdict) between(dir string, tags []string, prefix, from, to string, mod
 		// Measure from whatever came before the revision asked for, which is
 		// the release below it when it names one.
 		if version, ok := ParseVersion(to); ok {
-			if previous, found := PreviousRelease(releasesBelow(tags, version)); found {
+			if previous, found := PreviousRelease(releasesBelow(version, tags)); found {
 				from = previous.String()
 			}
 		}
@@ -181,7 +181,7 @@ func taggedRef(ref, prefix string) string {
 
 // releasesBelow returns the tags naming a release at or below version, so the
 // release before one already made can be found.
-func releasesBelow(tags []string, version Version) []string {
+func releasesBelow(version Version, tags []string) []string {
 	var below []string
 	for _, tag := range tags {
 		if v, ok := ParseVersion(tag); ok && Compare(v, version) <= 0 {

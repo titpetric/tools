@@ -1,13 +1,10 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 // FileName is the configuration file, relative to the user home directory.
@@ -29,31 +26,6 @@ func homeDir() (string, error) {
 		return "", fmt.Errorf("locate home directory: %w", err)
 	}
 	return home, nil
-}
-
-// Default returns the built-in configuration, the values that apply when no
-// document exists.
-func Default() *Config {
-	cfg, err := Parse(DefaultConfig)
-	if err != nil {
-		// The embedded document is part of the build, so a parse failure is
-		// a programming error rather than something a run can recover from.
-		panic("config: parse embedded config.yml: " + err.Error())
-	}
-	return cfg
-}
-
-// Parse decodes a configuration document. Absent settings are left at their
-// zero value; nothing is filled in from the defaults.
-func Parse(data []byte) (*Config, error) {
-	cfg := &Config{}
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-	if cfg.Version > Version {
-		return nil, fmt.Errorf("config version %d is newer than this build understands (%d)", cfg.Version, Version)
-	}
-	return cfg, nil
 }
 
 // Load reads the configuration document. When the file does not exist the
@@ -109,28 +81,4 @@ func SaveFile(path string, cfg *Config) error {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
-}
-
-// Encode renders the configuration document, with the version this build
-// writes and a header pointing at the setup screen.
-func Encode(cfg *Config) ([]byte, error) {
-	out := *cfg
-	out.Version = Version
-
-	var buf bytes.Buffer
-	buf.WriteString("# worktree configuration, written by \"worktree config\".\n")
-	buf.WriteString("#\n")
-	buf.WriteString("# This file is the complete configuration. The built-in defaults are not\n")
-	buf.WriteString("# applied underneath it, so a setting removed from this file reads as off.\n")
-	buf.WriteString("\n")
-
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(&out); err != nil {
-		return nil, fmt.Errorf("encode config: %w", err)
-	}
-	if err := enc.Close(); err != nil {
-		return nil, fmt.Errorf("encode config: %w", err)
-	}
-	return buf.Bytes(), nil
 }

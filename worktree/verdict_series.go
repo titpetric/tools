@@ -68,7 +68,7 @@ func releaseChain(tags []string, ahead, verbose bool, from, upTo string) []versi
 		steps = releases
 	}
 	if bound, ok := ParseVersion(upTo); ok {
-		releases, steps = releasesAtOrBelow(releases, bound), releasesAtOrBelow(steps, bound)
+		releases, steps = releasesAtOrBelow(bound, releases), releasesAtOrBelow(bound, steps)
 		ahead = false
 	}
 
@@ -77,7 +77,7 @@ func releaseChain(tags []string, ahead, verbose bool, from, upTo string) []versi
 	// commit.
 	start, bounded := ParseVersion(from)
 	if bounded {
-		releases, steps = releasesAtOrAbove(releases, start), releasesAtOrAbove(steps, start)
+		releases, steps = releasesAtOrAbove(start, releases), releasesAtOrAbove(start, steps)
 	}
 
 	if len(releases) == 0 {
@@ -116,7 +116,7 @@ func releaseChain(tags []string, ahead, verbose bool, from, upTo string) []versi
 
 // releasesAtOrBelow returns the releases at or below a version, which is how a
 // chain is bounded by the release it is asked to stop at.
-func releasesAtOrBelow(releases []Version, bound Version) []Version {
+func releasesAtOrBelow(bound Version, releases []Version) []Version {
 	var below []Version
 	for _, release := range releases {
 		if Compare(release, bound) <= 0 {
@@ -128,7 +128,7 @@ func releasesAtOrBelow(releases []Version, bound Version) []Version {
 
 // releasesAtOrAbove returns the releases at or above a version, which is how a
 // chain is bounded by the release it is asked to start from.
-func releasesAtOrAbove(releases []Version, bound Version) []Version {
+func releasesAtOrAbove(bound Version, releases []Version) []Version {
 	var above []Version
 	for _, release := range releases {
 		if Compare(release, bound) >= 0 {

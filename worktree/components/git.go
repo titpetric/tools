@@ -5,13 +5,6 @@ import (
 	"strings"
 )
 
-// Issue holds a parsed GitHub issue.
-type Issue struct {
-	ID    string
-	Title string
-	Date  string
-}
-
 // Git holds git state for rendering cells.
 type Git struct {
 	BranchName     string

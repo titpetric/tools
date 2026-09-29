@@ -9,6 +9,7 @@
 package config
 
 import (
+	"fmt"
 	"slices"
 )
 
@@ -52,4 +53,29 @@ type Scan struct {
 // Ignored reports whether a directory name is listed in IgnorePaths.
 func (s Scan) Ignored(name string) bool {
 	return slices.Contains(s.IgnorePaths, name)
+}
+
+// Default returns the built-in configuration, the values that apply when no
+// document exists.
+func Default() *Config {
+	cfg, err := Parse(DefaultConfig)
+	if err != nil {
+		// The embedded document is part of the build, so a parse failure is
+		// a programming error rather than something a run can recover from.
+		panic("config: parse embedded config.yml: " + err.Error())
+	}
+	return cfg
+}
+
+// Parse decodes a configuration document. Absent settings are left at their
+// zero value; nothing is filled in from the defaults.
+func Parse(data []byte) (*Config, error) {
+	cfg := &Config{}
+	if err := decode(cfg, data); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+	if cfg.Version > Version {
+		return nil, fmt.Errorf("config version %d is newer than this build understands (%d)", cfg.Version, Version)
+	}
+	return cfg, nil
 }

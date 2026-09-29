@@ -317,7 +317,7 @@ func TestResolveAlignsTheGoVersionAcrossModules(t *testing.T) {
 		{Name: "example.com/beta", Path: "./beta", GoVersion: "1.27"},
 	}
 
-	plans, _ := planResolve(modules, versionRefs{})
+	plans, _ := planResolve(versionRefs{}, modules)
 	alpha, beta := plans[0], plans[1]
 
 	if alpha.GoFrom != "1.24" || alpha.GoTo != "1.27" {

@@ -68,7 +68,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 
 	headers := []string{"Change", "Package", "Exported", "Unexported"}
 	widths := []int{len("Removed"), len("Package")}
-	shortenPackages(v, entries)
+	shortenPackages(entries, v)
 	for _, entry := range entries {
 		widths[1] = max(widths[1], len(entry.pkg))
 	}
@@ -135,7 +135,7 @@ func groupByPackage(entries []symbolEntry) {
 
 // shortenPackages rewrites the package of every entry as its path below the
 // module, which is how the table names it.
-func shortenPackages(v verdict, entries []symbolEntry) {
+func shortenPackages(entries []symbolEntry, v verdict) {
 	for i, entry := range entries {
 		entries[i].pkg = shortPackage(v.Module, entry.pkg)
 	}

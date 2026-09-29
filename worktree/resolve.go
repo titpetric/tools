@@ -85,7 +85,7 @@ func (r *resolveRun) cell() string {
 // Modules with nothing to do are left out unless --all asks for them, which is
 // what the flag means everywhere else in the tool.
 func resolve(w io.Writer, modules []moduleInfo, refs versionRefs, opts *Options, styled bool) error {
-	plans, cycles := planResolve(modules, refs)
+	plans, cycles := planResolve(refs, modules)
 
 	for _, mod := range cycles {
 		fmt.Fprintln(w, colorLines("dependency cycle, not resolved: "+components.ShortPath(mod), components.ColorAmber, styled))

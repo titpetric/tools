@@ -128,7 +128,7 @@ func TestPlanResolveOrdersAndPredictsVersions(t *testing.T) {
 	}
 	refs := versionRefs{"example.com/beta": {"example.com/alpha": "v0.1.0"}}
 
-	plans, cycles := planResolve(modules, refs)
+	plans, cycles := planResolve(refs, modules)
 	if len(cycles) != 0 {
 		t.Fatalf("planResolve() cycles = %#v, want none", cycles)
 	}
@@ -166,10 +166,10 @@ func TestPlanResolveOffersAReleasedModuleTheUpdateAnyway(t *testing.T) {
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
 	chdir(t, root)
-	plans, _ := planResolve([]moduleInfo{
+	plans, _ := planResolve(versionRefs{}, []moduleInfo{
 		{Name: "example.com/alpha", Path: "./alpha"},
 		{Name: "example.com/beta", Path: "./beta"},
-	}, versionRefs{})
+	})
 
 	// alpha has no commits and nothing in the workspace to move, but its
 	// dependencies outside the workspace can still have moved, so it is

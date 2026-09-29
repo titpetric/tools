@@ -130,7 +130,7 @@ func resolveOrder(mods []string, uses map[string][]string) (order, cycles []stri
 // planResolve works out what each module needs, walking them in dependency
 // order so that a module already knows the version its dependencies end up at
 // by the time its own requirements are read.
-func planResolve(modules []moduleInfo, refs versionRefs) (plans []resolvePlan, cycles []string) {
+func planResolve(refs versionRefs, modules []moduleInfo) (plans []resolvePlan, cycles []string) {
 	var (
 		names = make([]string, 0, len(modules))
 		dirs  = make(map[string]string, len(modules))
