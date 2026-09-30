@@ -55,11 +55,13 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 			continue
 		}
 
+		generated := generatedFiles(def)
+
 		var found []Result
 		exported := 0
 		for _, decls := range []model.DeclarationList{def.Types, def.Funcs, def.Consts, def.Vars} {
-			exported += countExported(decls)
-			found = append(found, check(def.Package, decls)...)
+			exported += countExported(decls, generated)
+			found = append(found, check(def.Package, decls, generated)...)
 		}
 
 		metric := results.count(def.Package, exported)
@@ -72,12 +74,28 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	return results, nil
 }
 
+// generatedFiles is the set of files in def written by a generator, whose
+// comments are the generator's to write.
+func generatedFiles(def *model.Definition) map[string]bool {
+	var generated map[string]bool
+	for _, file := range def.Files {
+		if !file.Generated {
+			continue
+		}
+		if generated == nil {
+			generated = map[string]bool{}
+		}
+		generated[file.Name] = true
+	}
+	return generated
+}
+
 // countExported is how many symbols of a list a reader can reach, which is
 // what the documentation is measured against.
-func countExported(decls model.DeclarationList) int {
+func countExported(decls model.DeclarationList, generated map[string]bool) int {
 	count := 0
 	for _, decl := range decls {
-		if decl.IsExported() && !decl.IsTestScope() {
+		if decl.IsExported() && !decl.IsTestScope() && !generated[decl.File] {
 			count++
 		}
 	}
@@ -99,10 +117,10 @@ func documentedShort(found []Result) int {
 // Declarations are read in blocks: a run of exported names in the same file,
 // none more than blockGap lines from the one above it, is one const or var
 // block, and a comment on the first of them documents all of them.
-func check(pkg model.Package, decls model.DeclarationList) []Result {
+func check(pkg model.Package, decls model.DeclarationList, generated map[string]bool) []Result {
 	var results []Result
 
-	for _, block := range blocks(decls) {
+	for _, block := range blocks(decls, generated) {
 		if len(block) == 1 {
 			results = append(results, validate(pkg, block[0])...)
 			continue
@@ -123,14 +141,18 @@ func check(pkg model.Package, decls model.DeclarationList) []Result {
 }
 
 // blocks groups the exported declarations that read as one block.
-func blocks(decls model.DeclarationList) []model.DeclarationList {
+//
+// A generated file is left out. Its comment is written by whatever wrote the
+// file, so a finding on it is a finding nobody in this tree can act on: the
+// comment has to come from the generator or not at all.
+func blocks(decls model.DeclarationList, generated map[string]bool) []model.DeclarationList {
 	var (
 		groups  []model.DeclarationList
 		current model.DeclarationList
 	)
 
 	for _, decl := range decls {
-		if !decl.IsExported() || decl.IsTestScope() {
+		if !decl.IsExported() || decl.IsTestScope() || generated[decl.File] {
 			continue
 		}
 		if len(current) > 0 {

@@ -143,6 +143,29 @@ func TestLinterSkipsWhatNobodyReads(t *testing.T) {
 	}
 }
 
+// TestLinterSkipsAGeneratedFile covers the one undocumented symbol nobody in the
+// tree can document: the comment on a generated declaration is the generator's
+// to write, so a finding on it names work that cannot be done here.
+func TestLinterSkipsAGeneratedFile(t *testing.T) {
+	root := document(model.Package{Package: "x", Path: "./x"},
+		model.DeclarationList{
+			{Kind: model.FuncKind, Name: "Sort", File: "sort_i64.go", Line: 6},
+			{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 1},
+		}, nil)
+	root.Packages[0].Files = model.FileList{
+		{Name: "sort_i64.go", Generated: true},
+		{Name: "x.go"},
+	}
+
+	issues := lint(t, root)
+	if len(issues) != 1 {
+		t.Fatalf("reported %d issues, want 1: %#v", len(issues), issues)
+	}
+	if issues[0].Symbol != "Open" {
+		t.Errorf("issue is about %q, want the hand-written file's symbol", issues[0].Symbol)
+	}
+}
+
 func TestLinterName(t *testing.T) {
 	if got := godoc.New().Name(); got != godoc.Name {
 		t.Errorf("Name() = %q, want %q", got, godoc.Name)
