@@ -328,13 +328,66 @@ Several flags invoke tool functionality:
 - `-t` outputs a dependency matrix, with a green `▲` for current and yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)` for commits ahead and a dark-orange `*` for local Git changes; empty rows and columns are omitted, except that projects with local changes are always shown. A footer summarizes these workspace states,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace,
-- `--apply` makes `worktree resolve` perform the plan it would otherwise only render; see [Resolving a release chain](#resolving-a-release-chain).
+- `--apply` makes `worktree resolve` perform the plan it would otherwise only render, and `worktree changelog` write the release notes it would otherwise only list; see [Resolving a release chain](#resolving-a-release-chain) and [Backfilling release notes](#backfilling-release-notes).
 
 Table output uses the rounded, colored terminal format when stdout is an ANSI terminal and falls back to Markdown when redirected or piped.
 
 The `Git State` column lists the untracked paths of a module. A folder holding nothing tracked stands in for everything below it, named in orange with what it holds, `demos/common/ +17 dirs, +91 files, +7921 SLOC`, so a new subtree costs one line rather than one per file. A new file in a folder that is otherwise tracked is still named, with the lines it adds. `-v` and `--all` name every file instead.
 
 The `Go` column holds each module's go directive. The versions are compared as semantic versions, where a missing patch reads as `.0` and a release candidate such as `1.27rc1` sorts below `1.27`. Every module below the highest version the workspace declares is colored orange, the rest teal. Module import paths lose their `github.com/` prefix, so the module column stays narrow.
+
+## Backfilling release notes
+
+`worktree changelog` takes the verdict of every tag and makes it the GitHub release note of that tag. It reads the releases the repository already has and reports what each tag takes, one row per tag, newest first:
+
+```bash
+worktree changelog            # what every tag takes
+worktree changelog --apply    # write the notes of the releases that hold none
+worktree changelog ./lessgo   # a repository elsewhere
+```
+
+```
+| Tag | Status | Note |
+| --- | --- | --- |
+| v0.3.0 | current | The release holds the note already. |
+| v0.2.1 | differs | The release holds a note of its own, which is left as published. |
+| v0.2.0 | fill | The release holds no note.<br>gh release edit v0.2.0 --notes-file - |
+| v0.1.0 | create | No release names the tag.<br>gh release create v0.1.0 --verify-tag --title v0.1.0 --latest=false --notes-file - |
+```
+
+**This is a backfill.** The only releases written to are the ones holding no note: a tag with no release at all, and a release that was published empty. A body somebody already wrote is what a reader of that release has been reading, and a note generated from the history is no reason to take it away, so the two states holding one are reported and left alone.
+
+The `Status` column is what the tag takes:
+
+| Status     | What the remote holds                                                   | What `--apply` does |
+|------------|-------------------------------------------------------------------------|---------------------|
+| `create`   | no release names the tag                                                | creates it          |
+| `fill`     | a release that is there with nothing written in it                      | writes the note     |
+| `current`  | a release whose body is the note already                                | nothing             |
+| `differs`  | a release holding a body of its own, which is not the note              | nothing             |
+| `unpushed` | a tag that exists here and not on the remote, which no release can name | nothing             |
+
+`differs` is read and not acted on. A published note that no longer matches the history is worth knowing about, and what to do about it is a decision nobody wants made for them; `gh release edit <tag> --notes-file -` is the one-liner when the answer is to replace it.
+
+Without `--apply` nothing is written and the `Note` column holds the `gh` command that would be. With it, the command runs and the row carries the green check a resolved module carries; `-v` adds what `gh` printed, which for a created release is its URL.
+
+A tag that cannot be published does not stop the run. The releases are independent, and the tag after a rejected one is no less publishable for it, so every tag is tried and the failures become the exit status.
+
+Each note is one release measured from the release below it, which is `worktree verdict --to <tag>` for every tag in turn. Every revision is unpacked and modelled once for the whole run, the way [a release chain reads history](#reading-history-once), so a repository of forty tags is forty comparisons and not eighty. The [visibility table](#visibility) is left out of a note: it counts the working tree rather than the release, so it would say the same thing in every note and the wrong thing in all but the newest.
+
+`--from` and `--to` bound the tags reported on, naming the releases the run works between, the way they bound a release chain.
+
+What a note is written with:
+
+- a release is created with `--verify-tag`, so `gh` refuses a tag the remote does not carry rather than creating one at the head of the default branch, which for a note about an old release would be a tag pointing at the wrong commit,
+- a release is created stating whether it is the latest one outright, so publishing a note for a release made a year ago does not take the `Latest` badge from the release that holds it,
+- a release published empty has its body written and nothing else: its title, its assets and its place among the releases are left as they are,
+- the note goes to `gh` on standard input, since it runs to thousands of characters and an argument list is no place for one,
+- a note over the 125000 characters GitHub stores is cut at a line boundary, with a line saying where.
+
+The comparison that decides between `current` and `differs` is made line by line rather than byte for byte. GitHub stores a body with CRLF line endings and trims what follows its last line, so a note read back is never the string that was sent, and every note would otherwise read as `differs` the moment it was published.
+
+This needs [gh](https://cli.github.com) on the path, authenticated against the remote. Reading the releases and the tags is one paginated call each; writing is one call per tag that takes one.
 
 ## Configuration
 

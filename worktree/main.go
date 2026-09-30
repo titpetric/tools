@@ -43,14 +43,21 @@ func main() {
 		return
 	}
 
+	// The changelog is the release notes of one repository, read from the same
+	// verdicts, so it reads that repository and not the workspace either.
+	if opts.Changelog {
+		if err := changelog(os.Stdout, commandDir(opts), opts, supportsANSI(os.Stdout)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	// The verdict is a report on one repository, the one the current
 	// directory is in unless another was named, so it does not scan the
 	// workspace either.
 	if opts.Verdict {
-		dir := opts.FilterPath
-		if dir == "" {
-			dir = "."
-		}
+		dir := commandDir(opts)
 		// A chain reports on every release; a single verdict is the one range
 		// it was asked for, which the stats table takes as a run of one.
 		var verdicts []verdict
@@ -329,6 +336,16 @@ func main() {
 	}
 
 	renderTables(os.Stdout, modules, opts, supportsANSI(os.Stdout))
+}
+
+// commandDir returns the directory a single repository command works on, which
+// is the one the path argument names and the current directory when there was
+// none.
+func commandDir(opts *Options) string {
+	if opts.FilterPath == "" {
+		return "."
+	}
+	return opts.FilterPath
 }
 
 // isSubpath reports whether child is equal to or under parent.

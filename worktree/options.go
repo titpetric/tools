@@ -21,6 +21,7 @@ type Options struct {
 	Configure  bool
 	Resolve    bool
 	Verdict    bool
+	Changelog  bool
 	Chain      bool
 	Stats      bool
 	Apply      bool
@@ -44,6 +45,10 @@ const commandResolve = "resolve"
 // commandVerdict reports the release one module has earned, as markdown.
 const commandVerdict = "verdict"
 
+// commandChangelog publishes the verdict of every release as its GitHub
+// release note.
+const commandChangelog = "changelog"
+
 // valueFlags lists the flags that take a value as a separate argument.
 var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true, "-exec": true, "--exec": true}
 
@@ -60,7 +65,7 @@ func (o *Options) bind(fs *flag.FlagSet) {
 	fs.BoolVar(&o.Matrix, "t", false, "output dependency matrix to stdout")
 	fs.BoolVar(&o.Verbose, "v", false, "verbose output: show module details, every untracked file, and commands run during updates")
 	fs.BoolVar(&o.Verbose, "verbose", false, "alias of -v")
-	fs.BoolVar(&o.Apply, "apply", false, "perform the resolution instead of rendering it")
+	fs.BoolVar(&o.Apply, "apply", false, "perform the resolution, or publish the release notes, instead of rendering either")
 	fs.BoolVar(&o.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
 	fs.BoolVar(&o.NoCache, "no-cache", false, "read every commit again instead of the models kept under the user cache directory")
 	fs.StringVar(&o.From, "from", "", "the `REVISION` worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
@@ -94,6 +99,7 @@ which is what a run with no path reads anyway.`,
 			{commandConfig, "open the setup screen, which writes the configuration file"},
 			{commandResolve, "release the selected modules in dependency order"},
 			{commandVerdict, "report the release one module has earned, as markdown"},
+			{commandChangelog, "report the GitHub release note of every tag, and with --apply write the missing ones"},
 			{releasePatch, "print the git commands that cut a patch release of the repository here"},
 			{releaseMinor, "print the git commands that cut a minor release of the repository here"},
 		},
@@ -106,16 +112,21 @@ which is what a run with no path reads anyway.`,
 			{"worktree resolve --apply", "release the modules that earned one, in dependency order"},
 			{"worktree verdict --from all", "every release of the repository here, as markdown"},
 			{"worktree verdict --from main .", "what the root package earned since main"},
+			{"worktree changelog", "the release note of every tag, against the one GitHub holds"},
+			{"worktree changelog --apply", "write the notes of the releases holding none"},
 			{"worktree patch | sh -x", "tag and push the next patch release"},
 		},
-		Notes: `patch, minor and verdict read the git repository of the current directory,
-or the one the path names. Everything else reads the workspace around it.
+		Notes: `patch, minor, verdict and changelog read the git repository of the current
+directory, or the one the path names. Everything else reads the workspace
+around it.
 
 verdict also reads "." the way the go tool does: the package at the module
 root alone, for a repository whose root package is its public API. The
 default is "./...", the whole module.
 
-resolve renders the plan and runs nothing until --apply is given.`,
+resolve and changelog render what they would do and run nothing until
+--apply is given. changelog writes to a release holding no note and never
+to one that does.`,
 	}
 }
 
@@ -173,6 +184,14 @@ func ParseOptions() *Options {
 			return opts
 		case commandVerdict:
 			opts.Verdict = true
+			opts.setChain()
+			opts.setFilter(flag.Arg(1))
+			return opts
+		case commandChangelog:
+			// Every tag gets a note of its own, so there is no chain to ask
+			// for: --from and --to bound the tags reported on, and the keyword
+			// that stands for the whole history is read as no bound at all.
+			opts.Changelog = true
 			opts.setChain()
 			opts.setFilter(flag.Arg(1))
 			return opts
