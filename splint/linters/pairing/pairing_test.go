@@ -211,6 +211,44 @@ func TestLinter_Lint_ExternalTestPackage(t *testing.T) {
 	}
 }
 
+// TestLinter_Lint_TestsDirectory covers the directory the exception reads. A
+// tree that keeps its black box suites under tests/ has nothing there for a
+// test to be named after, so those files are not orphans; a package whose name
+// merely contains the word is not the same thing and is still reported.
+func TestLinter_Lint_TestsDirectory(t *testing.T) {
+	for name, test := range map[string]struct {
+		pkg  model.Package
+		want int
+	}{
+		"tests at the root": {
+			pkg:  model.Package{Package: "runner_test", ImportPath: "example.com/tests/runner", Path: "./tests/runner", TestPackage: true},
+			want: 0,
+		},
+		"tests below a package": {
+			pkg:  model.Package{Package: "engine_test", ImportPath: "example.com/internal/tests/engine", Path: "./internal/tests/engine", TestPackage: true},
+			want: 0,
+		},
+		"a directory named test": {
+			pkg:  model.Package{Package: "vm_test", ImportPath: "example.com/test/vm", Path: "./test/vm", TestPackage: true},
+			want: 0,
+		},
+		"a directory whose name merely holds the word": {
+			pkg:  model.Package{Package: "audit", ImportPath: "example.com/attestation", Path: "./attestation", TestPackage: false},
+			want: 1,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := document(definition(test.pkg,
+				model.File{Name: "orphan_test.go", Test: true, Package: test.pkg.Package},
+			))
+			issues, _ := lint(t, root)
+			if len(issues) != test.want {
+				t.Fatalf("reported %d issues, want %d: %#v", len(issues), test.want, issues)
+			}
+		})
+	}
+}
+
 // TestLinter_Lint_Empty covers a document holding nothing, which is a linter
 // with nothing to say rather than a linter that failed.
 func TestLinter_Lint_Empty(t *testing.T) {

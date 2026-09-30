@@ -8,8 +8,9 @@
 //
 // A test excuses nothing: foo_test.go names foo.go, and a directory holding
 // only the first is a file that was deleted or renamed with its test left
-// behind. A package whose name says it is test code, such as fstest or a
-// repository's own tests, is the exception.
+// behind. The exception is a directory that holds test code and no code: a
+// package whose name says so, such as fstest, and a package under tests/, which
+// is where a tree keeps the black box suites that name no file.
 //
 // It is a port of the gofsck analyzer of the same name, reimplemented against
 // the splint model: the check is the same idea and the reading is different,
@@ -19,6 +20,7 @@ package pairing
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -234,8 +236,29 @@ func (g *group) report(index *refindex.Index, results *Results) {
 // The external test scope of any package is called "<name>_test", and the
 // suffix comes off before the name is read: it says where a file compiles,
 // not what the directory is for.
+//
+// A directory says it too. A tree that keeps its black box suites under tests/
+// has nothing there for a test to be named after, by construction: the package
+// holds tests and no code, so every file in it is an orphan and the rule has
+// nothing to report. The path is read as segments rather than as a prefix, so
+// tests/ at the root and internal/tests/ are both covered, and a package merely
+// called "attestation" is not.
 func excused(pkg model.Package) bool {
-	return strings.Contains(strings.TrimSuffix(pkg.Package, "_test"), "test")
+	if strings.Contains(strings.TrimSuffix(pkg.Package, "_test"), "test") {
+		return true
+	}
+	return inTestDirectory(pkg.Path) || inTestDirectory(pkg.ImportPath)
+}
+
+// inTestDirectory reports a path with a directory named test or tests in it.
+func inTestDirectory(path string) bool {
+	for _, segment := range strings.Split(filepath.ToSlash(path), "/") {
+		switch segment {
+		case "test", "tests":
+			return true
+		}
+	}
+	return false
 }
 
 // testedElsewhere reports a file whose exported symbols are all referenced by
