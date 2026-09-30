@@ -122,7 +122,7 @@ func TestFixGolden(t *testing.T) {
 
 			plan := planFor(t, parser, dir)
 
-			changed, err := fix.Apply(plan)
+			changed, _, err := fix.Apply(plan)
 			require.NoError(t, err)
 
 			// The ast parser is given a cgo file only when the toolchain
@@ -177,9 +177,10 @@ func TestFixIsIdempotent(t *testing.T) {
 
 	plan := planFor(t, simpleparser.ParserName, dir)
 
-	changed, err := fix.Apply(plan)
+	changed, formatted, err := fix.Apply(plan)
 	require.NoError(t, err)
 	assert.Empty(t, changed, "the formatter rewrote a tree it had already written")
+	assert.Empty(t, formatted, "the formatter reformatted a tree it had already written")
 }
 
 // planFor parses a tree and works out what the fixer would write.

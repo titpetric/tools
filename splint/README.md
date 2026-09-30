@@ -67,7 +67,9 @@ Every run parses the tree. `--input` is the one way to read a document that was 
 
 ## splint fix
 
-`splint fix ./...` rewrites the import block of every file that does not hold the one the rules describe. `splint --fix ./...` does the same and then lints the tree the rewrite left, so nothing it cleared is in the report.
+`splint fix ./...` rewrites the import block of every file that does not hold the one the rules describe, and formats every file it reads. `splint --fix ./...` does the same and then lints the tree the rewrite left, so nothing it cleared is in the report.
+
+The formatting is gofmt's, applied through `go/format` after the block is spliced in. It is here because nothing else in the workspace runs gofmt - the shared `atkins go:fmt` task is this command - and because a file whose block is already right was never opened before, which left its struct fields as they were typed. A run says which files it rewrote and which it only formatted, and the `imports.fixed` counter still counts the first. A file that does not parse keeps its block rewrite and is not formatted: a syntax error is the compiler's finding, not this command's. A generated file is left alone down to the bytes.
 
 The fixer reads the tree with the simple parser unless `--parser` names one. A file that is missing an import it needs does not compile, and that is a file the fixer is there to repair; the ast parser resolves a tree through the toolchain, so it is the reading least likely to survive one. Reading the text also costs an order of magnitude less over the same tree, and a formatter is run on every save.
 

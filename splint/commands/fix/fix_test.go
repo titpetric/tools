@@ -78,31 +78,76 @@ func TestApplyKeepsCRLF(t *testing.T) {
 		Edits: []Edit{{Line: 3, EndLine: 6, Text: "import (\n\t\"fmt\"\n\t\"sort\"\n)"}},
 	}}}
 
-	changed, err := Apply(plan)
+	rewritten, formatted, err := Apply(plan)
 	require.NoError(t, err)
-	require.Equal(t, []string{"crlf.go"}, changed)
+	require.Equal(t, []string{"crlf.go"}, rewritten)
+	require.Empty(t, formatted, "a file whose block was rewritten is not counted twice")
 
 	out := read(t, path)
 	assert.NotContains(t, strings.ReplaceAll(out, "\r\n", ""), "\n", "the file came out with both line endings")
 	assert.Equal(t, "package x\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"sort\"\r\n)\r\n\r\nfunc F() {}\r\n", out)
 }
 
-// TestApplyKeepsAFileWithNoTrailingNewline covers a file that ends without
-// one. A formatter that added one would be changing a line nobody asked it to.
-func TestApplyKeepsAFileWithNoTrailingNewline(t *testing.T) {
+// TestApplyEndsAFileWithANewline covers a file that ends without one, which
+// gofmt gives a newline and so does this: the formatting pass is gofmt's, and a
+// file this one wrote is a file gofmt would leave alone.
+func TestApplyEndsAFileWithANewline(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bare.go")
 
 	require.NoError(t, os.WriteFile(path, []byte("package x\n\nimport (\n\t\"sort\"\n\t\"fmt\"\n)\n\nfunc F() {}"), 0o644))
 
-	_, err := Apply(&Plan{Files: []FileFix{{
+	_, _, err := Apply(&Plan{Files: []FileFix{{
 		Path:  path,
 		Name:  "bare.go",
 		Edits: []Edit{{Line: 3, EndLine: 6, Text: "import (\n\t\"fmt\"\n\t\"sort\"\n)"}},
 	}}})
 	require.NoError(t, err)
 
-	assert.False(t, strings.HasSuffix(read(t, path), "\n"), "a trailing newline was added")
+	assert.True(t, strings.HasSuffix(read(t, path), "\n"), "the file came out without a trailing newline")
+}
+
+// TestApplyFormatsAFileWithNoEdits covers the file the fixer never used to
+// open: its import block is what the rules describe, and everything below it is
+// gofmt's business. A plan entry with no edits is the format-only case.
+func TestApplyFormatsAFileWithNoEdits(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fields.go")
+
+	// The block is already right and the struct fields are not aligned, which
+	// is what gofmt does and splint fix did not.
+	source := "package x\n\nimport (\n\t\"fmt\"\n)\n\ntype T struct {\n\tName string\n\tID int\n}\n\nfunc F(t T) { fmt.Println(t.Name) }\n"
+	require.NoError(t, os.WriteFile(path, []byte(source), 0o644))
+
+	rewritten, formatted, err := Apply(&Plan{Files: []FileFix{{Path: path, Name: "fields.go"}}})
+	require.NoError(t, err)
+	assert.Empty(t, rewritten, "no import block changed")
+	assert.Equal(t, []string{"fields.go"}, formatted)
+
+	assert.Contains(t, read(t, path), "Name string\n\tID   int", "the fields came out unaligned")
+}
+
+// TestApplyLeavesAFileThatDoesNotParse covers the file gofmt cannot read: a
+// syntax error is the compiler's finding and not this command's, and the import
+// block is still written.
+func TestApplyLeavesAFileThatDoesNotParse(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "broken.go")
+
+	source := "package x\n\nimport (\n\t\"sort\"\n\t\"fmt\"\n)\n\nfunc F( {}\n"
+	require.NoError(t, os.WriteFile(path, []byte(source), 0o644))
+
+	rewritten, _, err := Apply(&Plan{Files: []FileFix{{
+		Path:  path,
+		Name:  "broken.go",
+		Edits: []Edit{{Line: 3, EndLine: 6, Text: "import (\n\t\"fmt\"\n\t\"sort\"\n)"}},
+	}}})
+	require.NoError(t, err)
+	require.Equal(t, []string{"broken.go"}, rewritten)
+
+	out := read(t, path)
+	assert.Contains(t, out, "import (\n\t\"fmt\"\n\t\"sort\"\n)", "the block was not written")
+	assert.Contains(t, out, "func F( {}", "the unparsable half was rewritten")
 }
 
 // TestApplyKeepsTheFileMode covers a file that is not 0644.
@@ -112,7 +157,7 @@ func TestApplyKeepsTheFileMode(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(path, []byte("package x\n\nimport (\n\t\"sort\"\n\t\"fmt\"\n)\n"), 0o600))
 
-	_, err := Apply(&Plan{Files: []FileFix{{
+	_, _, err := Apply(&Plan{Files: []FileFix{{
 		Path:  path,
 		Name:  "mode.go",
 		Edits: []Edit{{Line: 3, EndLine: 6, Text: "import (\n\t\"fmt\"\n\t\"sort\"\n)"}},
@@ -132,7 +177,7 @@ func TestApplyLeavesNoTemporary(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(path, []byte("package x\n\nimport (\n\t\"sort\"\n\t\"fmt\"\n)\n"), 0o644))
 
-	_, err := Apply(&Plan{Files: []FileFix{{
+	_, _, err := Apply(&Plan{Files: []FileFix{{
 		Path:  path,
 		Name:  "one.go",
 		Edits: []Edit{{Line: 3, EndLine: 6, Text: "import (\n\t\"fmt\"\n\t\"sort\"\n)"}},

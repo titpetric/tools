@@ -68,7 +68,7 @@ func TestFixCommandRewritesTheTree(t *testing.T) {
 		"fixed: main.go",
 		"fixed: service2/storage/store.go",
 		"left alone: broken/broken.go",
-		"13 files rewritten, 1 left alone.",
+		"13 files rewritten, 0 files formatted, 1 left alone.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("splint fix did not report %q:\n%s", want, got)

@@ -1,13 +1,19 @@
 // Package fix rewrites the import block of every file that does not hold the
-// one the house rule says it should.
+// one the house rule says it should, and formats every file it reads.
 //
-// It is the only package here that writes a file. The rule lives in importfmt
-// and the reporting of it in the imports linter, so what this writes is what
-// the linter reports and nothing else: a run that fixes a tree clears exactly
-// the findings a run that lints it produced.
+// It is the only package here that writes a file. The block is the rule this
+// package holds: it lives in importfmt and is reported by the imports linter,
+// so what this writes into a block is what the linter reports and nothing
+// else. The rest of the file is gofmt's, applied through go/format, because
+// nothing else in the workspace runs gofmt and a file whose block is already
+// right was never opened before.
+//
+// A generated file is left alone, down to the bytes. Its shape is the
+// generator's statement and not a choice anybody here made.
 package fix
 
 import (
+	"go/format"
 	"os"
 	"path/filepath"
 	"sort"
@@ -94,13 +100,20 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 				continue
 			}
 
-			// A file with a name nothing can place is reported whether or not
-			// its block would otherwise change: the import it needs is
-			// missing either way, and a run that said nothing about it would
-			// read as a run that found nothing wrong.
-			if decision.Sound() && !decision.Changed(file.ImportDecls) {
+			// A generated file is left out whatever its block holds: what a
+			// generator wrote is the generator's, down to the bytes.
+			if file.Generated {
 				continue
 			}
+
+			// A file whose block is already right is still in the plan, with
+			// no edits, because Apply formats what it is given: the rest of
+			// the file is gofmt's business and nothing else in the workspace
+			// runs gofmt. A file with a name nothing can place is reported
+			// whether or not its block would otherwise change: the import it
+			// needs is missing either way, and a run that said nothing about
+			// it would read as a run that found nothing wrong.
+			settled := decision.Sound() && !decision.Changed(file.ImportDecls)
 
 			path := filepath.Join(root.Root, filepath.FromSlash(def.Package.Path), file.Name)
 			if seen[path] {
@@ -120,13 +133,13 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 				continue
 			}
 
-			plan.Files = append(plan.Files, FileFix{
-				Path:    path,
-				Name:    name(root, path),
-				Edits:   edits(file.ImportDecls.Free(), decision.Text()),
-				Added:   literals(decision.Added),
-				Removed: literals(decision.Removed),
-			})
+			fix := FileFix{Path: path, Name: name(root, path)}
+			if !settled {
+				fix.Edits = edits(file.ImportDecls.Free(), decision.Text())
+				fix.Added = literals(decision.Added)
+				fix.Removed = literals(decision.Removed)
+			}
+			plan.Files = append(plan.Files, fix)
 		}
 	}
 
@@ -191,28 +204,38 @@ func name(root *model.DocumentRoot, path string) string {
 	return filepath.ToSlash(relative)
 }
 
-// Apply writes the plan and returns the files it changed.
+// Apply writes the plan and returns the files whose import block it rewrote and
+// the files it only formatted.
 //
-// A file whose rewrite comes to the bytes already on disk is not written and
-// is not counted: a run over a tree that is already formatted changes nothing
+// A file whose rewrite comes to the bytes already on disk is not written and is
+// in neither list: a run over a tree that is already formatted changes nothing
 // and says so.
-func Apply(plan *Plan) ([]string, error) {
-	var changed []string
-
+func Apply(plan *Plan) (rewritten, formatted []string, err error) {
 	for _, file := range plan.Files {
 		wrote, err := applyFile(file)
 		if err != nil {
-			return changed, err
+			return rewritten, formatted, err
 		}
-		if wrote {
-			changed = append(changed, file.Name)
+		if !wrote {
+			continue
 		}
+		if len(file.Edits) > 0 {
+			rewritten = append(rewritten, file.Name)
+			continue
+		}
+		formatted = append(formatted, file.Name)
 	}
 
-	return changed, nil
+	return rewritten, formatted, nil
 }
 
 // applyFile rewrites one file, and reports whether anything changed.
+//
+// The import block is spliced first and the whole file is formatted after, so a
+// run leaves the file gofmt would have written: the block is the rule this
+// package holds and the rest of the file is gofmt's, which nothing else in the
+// workspace runs. A file with no edits is read and formatted, which is what
+// makes a file whose block is already right come out formatted anyway.
 func applyFile(file FileFix) (bool, error) {
 	data, err := os.ReadFile(file.Path)
 	if err != nil {
@@ -234,8 +257,17 @@ func applyFile(file FileFix) (bool, error) {
 		text = strings.ReplaceAll(text, "\r\n", "\n")
 	}
 
-	out, ok := Splice(text, file.Edits)
-	if !ok || out == text {
+	out := text
+	if len(file.Edits) > 0 {
+		spliced, ok := Splice(text, file.Edits)
+		if !ok {
+			return false, nil
+		}
+		out = spliced
+	}
+	out = formatted(out)
+
+	if out == text {
 		return false, nil
 	}
 	if crlf {
@@ -243,6 +275,20 @@ func applyFile(file FileFix) (bool, error) {
 	}
 
 	return true, write(file.Path, []byte(out), info.Mode().Perm())
+}
+
+// formatted is the text as gofmt would write it, and the text itself when it
+// cannot be parsed.
+//
+// A file that does not parse is not this command's finding: the compiler and
+// the editor both say so already, and refusing to write the import block over a
+// syntax error would leave the one thing this can fix unfixed.
+func formatted(text string) string {
+	out, err := format.Source([]byte(text))
+	if err != nil {
+		return text
+	}
+	return string(out)
 }
 
 // Splice applies the edits to a file and returns the result, from the bottom

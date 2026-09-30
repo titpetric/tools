@@ -31,7 +31,7 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 		return 0, err
 	}
 
-	changed, err := fix.Apply(plan)
+	rewritten, formatted, err := fix.Apply(plan)
 	if err != nil {
 		return 0, err
 	}
@@ -39,11 +39,15 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 	// The count is bookkeeping and the rewrite is the work. A machine whose
 	// counter cannot be written has still had its tree formatted, and failing
 	// the run here would say it had not.
-	if err := settings.AddFixed(len(changed)); err != nil {
+	//
+	// It counts import rewrites alone, because that is what the counter is
+	// called: a file this run only formatted had the block the rules describe
+	// before the run started.
+	if err := settings.AddFixed(len(rewritten)); err != nil {
 		fmt.Fprintf(w, "the rewrite is done and the count is not recorded: %v\n", err)
 	}
 
-	return len(changed), writeFixed(w, plan, changed)
+	return len(rewritten) + len(formatted), writeFixed(w, plan, rewritten, formatted)
 }
 
 // forFixing is the run as the fixer reads the tree, which is with the quick
@@ -75,10 +79,17 @@ func planFor(root *model.DocumentRoot, cfg *config) (*fix.Plan, error) {
 	return fix.Build(root, options, rules.Imports.Aliases), nil
 }
 
-// writeFixed says which files were rewritten and which were left alone.
-func writeFixed(w io.Writer, plan *fix.Plan, changed []string) error {
-	for _, name := range changed {
+// writeFixed says which files had their import block rewritten, which were only
+// formatted, and which were left alone.
+func writeFixed(w io.Writer, plan *fix.Plan, rewritten, formatted []string) error {
+	for _, name := range rewritten {
 		if _, err := fmt.Fprintln(w, "fixed:", name); err != nil {
+			return err
+		}
+	}
+
+	for _, name := range formatted {
+		if _, err := fmt.Fprintln(w, "formatted:", name); err != nil {
 			return err
 		}
 	}
@@ -97,7 +108,8 @@ func writeFixed(w io.Writer, plan *fix.Plan, changed []string) error {
 		}
 	}
 
-	_, err := fmt.Fprintf(w, "%s rewritten, %d left alone.\n", count(len(changed), "file"), len(plan.Skipped))
+	_, err := fmt.Fprintf(w, "%s rewritten, %s formatted, %d left alone.\n",
+		count(len(rewritten), "file"), count(len(formatted), "file"), len(plan.Skipped))
 	return err
 }
 

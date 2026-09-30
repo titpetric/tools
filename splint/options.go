@@ -144,7 +144,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&cfg.parser, "parser", cfg.parser, "read the tree with `NAME`: "+analyzer.ParserName+" or "+simpleparser.ParserName)
 	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
-	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one, then lint what is left")
+	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one and format every file, then lint what is left")
 	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+" beside the tree, and run no linter")
 	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
@@ -332,7 +332,7 @@ func helpSpec(cfg *config) spec {
 		},
 		Commands: []command{
 			{commandLint, "report what the linters found. This is what a command line naming no verb does"},
-			{commandFix, "rewrite the import block of every file that does not hold the one the rules describe"},
+			{commandFix, "rewrite the import block of every file that does not hold the one the rules describe, and format every file"},
 			{commandDocs, "render the tree as an API reference: markdown, a spec, an import list or plantuml"},
 			{commandCoverage, "report the coverage the document carries, per function and per package"},
 			{commandDiff, "compare the exported API and the go.mod of two documents"},
@@ -381,6 +381,11 @@ imports.fixed in splint.yml under the user configuration directory, which is
 where a count of what this machine has done belongs rather than beside the
 tree. It never writes go.mod and never touches a generated file. A file holding a name nothing can place is left alone, and
 splint ./... says which name.
+
+Every file it reads is formatted, which is gofmt through go/format: the block
+is this command's rule and the rest of the file is gofmt's, and nothing else
+here runs it. A run says which files it rewrote and which it only formatted. A
+file that does not parse keeps its block and is not formatted.
 
 The fixer reads the tree with the simple parser unless --parser names one: a
 file that is missing an import it needs does not compile, and that is the file
