@@ -409,4 +409,3 @@ tree -i pointed the parse at.
 Exits 1 when a linter found something, 2 when the run itself failed.`,
 	}
 }
-
