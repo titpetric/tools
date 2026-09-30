@@ -4,6 +4,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/titpetric/tools/splint/filescope"
 	"github.com/titpetric/tools/splint/model"
 )
 
@@ -122,7 +123,8 @@ func (s symbol) canonical() []string {
 }
 
 // collect reads the exported symbols of one package that the rule has anything
-// to say about.
+// to say about, and how many it left alone for sitting in a file that compiles
+// on its own.
 //
 // Types are read for the structs among them: an interface, an alias and a
 // named primitive are all a declaration of a shape rather than of a thing with
@@ -130,14 +132,22 @@ func (s symbol) canonical() []string {
 // they belong to, which is the receiver of a method and the first return of a
 // constructor. A function belonging to no type is left alone, because there is
 // no type to name a file after.
-func collect(def *model.Definition) []symbol {
+func collect(def *model.Definition) ([]symbol, int) {
 	generated := generatedFiles(def)
 	fallback := def.Package.Package + "*.go"
+	scope := filescope.New([]*model.Definition{def})
 
-	var symbols []symbol
+	var (
+		symbols   []symbol
+		contained int
+	)
 
 	for _, decl := range def.Types {
-		if skip(decl, generated) || decl.Type != "" {
+		if decl.Type != "" || decl.IsTestScope() || generated[decl.File] {
+			continue
+		}
+		if scope.SelfContained(decl.File) {
+			contained += countExported(decl.GetNames())
 			continue
 		}
 		for _, name := range decl.GetNames() {
@@ -155,7 +165,11 @@ func collect(def *model.Definition) []symbol {
 	}
 
 	for _, decl := range def.Funcs {
-		if skip(decl, generated) || !isExported(decl.Name) {
+		if decl.IsTestScope() || generated[decl.File] || !isExported(decl.Name) {
+			continue
+		}
+		if scope.SelfContained(decl.File) {
+			contained++
 			continue
 		}
 
@@ -177,13 +191,19 @@ func collect(def *model.Definition) []symbol {
 		})
 	}
 
-	return symbols
+	return symbols, contained
 }
 
-// skip reports a declaration no rule judges: one the toolchain compiles into
-// the test binary, and one a generator wrote.
-func skip(decl *model.Declaration, generated map[string]bool) bool {
-	return decl.IsTestScope() || generated[decl.File]
+// countExported is how many of a declaration's names a reader can reach, for
+// the count of what was left to its own file.
+func countExported(names []string) int {
+	count := 0
+	for _, name := range names {
+		if isExported(name) {
+			count++
+		}
+	}
+	return count
 }
 
 // generatedFiles are the files of a package nobody wrote, which is where the

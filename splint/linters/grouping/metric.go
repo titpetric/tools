@@ -10,4 +10,9 @@ type Metric struct {
 	// how many do not.
 	Passing    int `json:"Passing" yaml:"Passing"`
 	Violations int `json:"Violations" yaml:"Violations"`
+
+	// SelfContained is how many the rule left alone for sitting in a file that
+	// compiles on its own. They are not read, so they are in none of the three
+	// counts above.
+	SelfContained int `json:"SelfContained,omitempty" yaml:"SelfContained,omitempty"`
 }

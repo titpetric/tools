@@ -37,7 +37,9 @@ func (l *Linter) Name() string {
 //
 // A command exports nothing anyone imports, so where it puts a symbol is
 // nobody's business, and a test package is not a surface a reader navigates by
-// filename either.
+// filename either. Neither is a file that compiles on its own: it moves as one
+// unit, so where a symbol sits inside it is the file's own business. filescope
+// is what answers that, and collect leaves those symbols alone.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
 
@@ -49,8 +51,8 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 			continue
 		}
 
-		symbols := collect(def)
-		metric := results.count(def.Package, len(symbols))
+		symbols, contained := collect(def)
+		metric := results.count(def.Package, len(symbols), contained)
 
 		for _, sym := range symbols {
 			expected, total, matched := sym.match()

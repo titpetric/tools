@@ -5,13 +5,8 @@
 // it in the file is extractable: everything it is built from is in one place,
 // which is what `go build one_file.go` asks for. One that reaches a name
 // declared in another file of the package is not, and the file it is in cannot
-// move without that other file.
-//
-// The measure is a fuzzy one and says so. It reads the globals the parse
-// recorded, which are the names a declaration reached that its own file does
-// not declare, and counts the ones the package declares elsewhere. A name
-// neither parser could resolve is a name the package does not declare, and it
-// is not counted.
+// move without that other file. filescope is where that question is answered,
+// and the grouping linter asks it too.
 //
 // A package of one file is left out. There is nothing for it to be coupled to,
 // and every symbol in it would read as self contained for no reason worth
@@ -21,6 +16,7 @@ package selfcontained
 import (
 	"context"
 
+	"github.com/titpetric/tools/splint/filescope"
 	"github.com/titpetric/tools/splint/model"
 )
 
@@ -104,7 +100,7 @@ func measure(results *Results, dir *directory) {
 		return
 	}
 
-	where := index(dir.defs)
+	scope := filescope.New(dir.defs)
 	pkg := results.pkg(dir.importPath)
 
 	// Every file is recorded before anything is counted, so a file declaring
@@ -127,7 +123,7 @@ func measure(results *Results, dir *directory) {
 			metric := results.file(pkg, at(def.Package, decl.File), file)
 			metric.Symbols++
 
-			reaches := coupled(decl, where)
+			reaches := scope.Coupled(decl)
 			if reaches {
 				metric.Coupled++
 			}

@@ -13,7 +13,28 @@ import (
 var zoo = model.Package{Package: "zoo", Path: "./zoo", ImportPath: "example.com/zoo"}
 
 // document wraps lists of declarations into the document a linter reads.
+//
+// Every declaration is given a reach into a second file, because a file that
+// compiles by itself is the file's own business and the rule leaves it alone:
+// a fixture of one declaration reaching nothing is a self-contained file, and
+// every case below would report nothing whatever its filename.
 func document(pkg model.Package, types, funcs model.DeclarationList, files model.FileList) *model.DocumentRoot {
+	const shared = "shared.go"
+
+	for _, decl := range append(append(model.DeclarationList{}, types...), funcs...) {
+		if decl.File == shared {
+			continue
+		}
+		if decl.Globals == nil {
+			decl.Globals = model.StringSet{}
+		}
+		decl.Globals["shared"] = nil
+	}
+
+	types = append(model.DeclarationList{
+		{Kind: model.TypeKind, Name: "shared", File: shared},
+	}, types...)
+
 	return &model.DocumentRoot{Packages: model.DefinitionList{{
 		Package: pkg,
 		Files:   files,
@@ -219,11 +240,11 @@ func TestLinterCountsWhatItRead(t *testing.T) {
 	if len(stats) != 1 {
 		t.Fatalf("Statistics() = %d tables, want 1", len(stats))
 	}
-	if len(stats[0].Labels) != 5 || len(stats[0].Rows) != 1 {
-		t.Fatalf("Statistics() = %d labels and %d rows, want 5 and 1", len(stats[0].Labels), len(stats[0].Rows))
+	if len(stats[0].Labels) != 6 || len(stats[0].Rows) != 1 {
+		t.Fatalf("Statistics() = %d labels and %d rows, want 6 and 1", len(stats[0].Labels), len(stats[0].Rows))
 	}
 
-	want := []string{"example.com/zoo", "3", "1", "2", "33.3%"}
+	want := []string{"example.com/zoo", "3", "1", "2", "0", "33.3%"}
 	for i, cell := range want {
 		if stats[0].Rows[0][i] != cell {
 			t.Errorf("row[%d] = %q, want %q", i, stats[0].Rows[0][i], cell)
@@ -231,6 +252,42 @@ func TestLinterCountsWhatItRead(t *testing.T) {
 	}
 	if stats[0].Header == "" || stats[0].Footer == "" {
 		t.Errorf("Statistics() = %q above and %q below, want both", stats[0].Header, stats[0].Footer)
+	}
+}
+
+// TestLinterLeavesASelfContainedFileAlone covers the file the rule has nothing
+// to say about: one that compiles by itself moves as one unit, so where a
+// symbol sits inside it is the file's own business. The symbols are counted
+// under Own file rather than dropped, so the table says what was left alone.
+func TestLinterLeavesASelfContainedFileAlone(t *testing.T) {
+	// animals.go declares two misplaced types and reaches nothing; zoo.go
+	// reaches one of them, which couples zoo.go and not animals.go.
+	types := model.DeclarationList{
+		{Kind: model.TypeKind, Name: "Elephant", File: "animals.go", Line: 5},
+		{Kind: model.TypeKind, Name: "Giraffe", File: "animals.go", Line: 9},
+		{Kind: model.TypeKind, Name: "Warden", File: "animals.go", Line: 13, Globals: model.StringSet{"Elephant": nil}},
+	}
+	root := &model.DocumentRoot{Packages: model.DefinitionList{{
+		Package: zoo,
+		Files:   model.FileList{{Name: "animals.go"}, {Name: "zoo.go"}},
+		Types:   types,
+	}}}
+	// The coupled declaration is in the other file, so animals.go stands alone
+	// and zoo.go does not.
+	types[2].File = "zoo.go"
+
+	report, err := grouping.New().Lint(context.Background(), root)
+	if err != nil {
+		t.Fatalf("Lint() error = %v", err)
+	}
+
+	if issues := model.Issues(report); len(issues) != 0 {
+		t.Errorf("reported %q in a file that compiles by itself", issues[0].Message)
+	}
+
+	metric := report.Metrics().Packages["example.com/zoo"].(grouping.Metric)
+	if metric.SelfContained != 2 || metric.Symbols != 1 {
+		t.Errorf("Metric = %+v, want the two in animals.go left alone and Warden read", metric)
 	}
 }
 
