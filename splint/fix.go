@@ -8,6 +8,7 @@ import (
 	"github.com/titpetric/tools/splint/commands/fix"
 	settings "github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/importfmt"
+	"github.com/titpetric/tools/splint/linters/filecheck"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
@@ -121,11 +122,12 @@ func count(n int, thing string) string {
 	return fmt.Sprintf("%d %ss", n, thing)
 }
 
-// configure sets the import linter to the rules the tree states, so a report
-// judges a file against the same block the fixer would write into it.
+// configure sets the linters that take settings to the rules the tree states,
+// so a report judges a file against the same import block the fixer would
+// write into it and against the length the tree allowed it.
 //
-// The linter is the one that takes settings and the registry builds it with
-// none, which is how --offline reaches modcheck too.
+// The registry builds every linter with its own defaults and this overwrites
+// the ones the file speaks about, which is how --offline reaches modcheck too.
 func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) error {
 	rules, err := settings.Load(cfg.options.SourcePath)
 	if err != nil {
@@ -133,16 +135,18 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 	}
 
 	for _, linter := range selected {
-		rule, ok := linter.(*imports.Linter)
-		if !ok {
-			continue
-		}
-		rule.Options = rules.ImportOptions(importfmt.Project(root))
-		rule.Aliases = rules.Imports.Aliases
-		rule.Pollution = imports.Pollution{
-			PerPackage: rules.Imports.Pollution.PerPackage,
-			FileShare:  rules.Imports.Pollution.FileShare,
-			Tests:      rules.Imports.Pollution.CountTests(),
+		switch rule := linter.(type) {
+		case *imports.Linter:
+			rule.Options = rules.ImportOptions(importfmt.Project(root))
+			rule.Aliases = rules.Imports.Aliases
+			rule.Pollution = imports.Pollution{
+				PerPackage: rules.Imports.Pollution.PerPackage,
+				FileShare:  rules.Imports.Pollution.FileShare,
+				Tests:      rules.Imports.Pollution.CountTests(),
+			}
+		case *filecheck.Linter:
+			rule.MaxLines = rules.Filecheck.MaxLines
+			rule.Allow = rules.FilecheckAllowances()
 		}
 	}
 

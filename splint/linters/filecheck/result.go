@@ -50,6 +50,13 @@ type Results struct {
 	findings []Result
 	files    map[string]*Metric
 	order    []string
+
+	// max is the ceiling a file no allowance covered was measured against,
+	// and tuned says the tree stated allowances, so the footer names the rule
+	// the count was taken against rather than a number that held for some of
+	// the files.
+	max   int
+	tuned bool
 }
 
 // Linter names the linter the report came from.
@@ -120,9 +127,21 @@ func (r Results) histogram() model.Statistics {
 		[]string{"Lines", "Files", "Share"},
 		rows,
 		model.HeaderText("How the files of the tree are spread by length."),
-		model.FooterText(fmt.Sprintf("%d files, %d lines of code, %d on average, longest %d, %d over %d.",
-			len(r.order), lines, lines/len(r.order), longest, len(r.findings), maxLines)),
+		model.FooterText(fmt.Sprintf("%d files, %d lines of code, %d on average, longest %d, %d over %s.",
+			len(r.order), lines, lines/len(r.order), longest, len(r.findings), r.ceiling())),
 	)
+}
+
+// ceiling is how the footer names what the count was taken against. One number
+// says it for a tree reading every file under the same rule; a tree that gave
+// some of its paths room of their own has no single number to print, and
+// printing the default beside a count that was not taken against it would be
+// the one line of the table that is wrong.
+func (r Results) ceiling() string {
+	if r.tuned {
+		return "the ceiling each runs under"
+	}
+	return strconv.Itoa(r.max)
 }
 
 // longest names the files at the top of the distribution, whether or not they

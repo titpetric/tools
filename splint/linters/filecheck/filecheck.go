@@ -24,21 +24,31 @@ const Name = "filecheck"
 // RuleLong is the one rule this linter reports under.
 const RuleLong = "long"
 
-// maxLines is how many lines a file may run to before it reads as more than
-// one thing. The count has blanks and comments taken out of it already, so
-// this is the code itself, and four hundred lines of code is about where a
+// DefaultMaxLines is how many lines a file may run to before it reads as more
+// than one thing. The count has blanks and comments taken out of it already,
+// so this is the code itself, and four hundred lines of code is about where a
 // reader stops holding a file in their head and starts searching it. A file
 // that has to be searched has more than one subject in it. It is also where
 // the gofsck size histogram turns: its "high" band tops out around five
 // hundred lines counted with the blanks and the comments still in.
-const maxLines = 400
+//
+// It is what a tree with no filecheck section in its .splint.yml is read
+// under, so config names it rather than carrying a second four hundred.
+const DefaultMaxLines = 400
 
 // Linter checks the length of every file.
-type Linter struct{}
+type Linter struct {
+	// MaxLines is the ceiling for a file no Allow entry covers. Zero turns
+	// the rule off for those files.
+	MaxLines int
 
-// New returns the linter.
+	// Allow are the ceilings a tree stated for the paths that earn one.
+	Allow Allowances
+}
+
+// New returns the linter under the default ceiling and no allowances.
 func New() *Linter {
-	return &Linter{}
+	return &Linter{MaxLines: DefaultMaxLines}
 }
 
 // Name is the linter name.
@@ -51,8 +61,12 @@ func (l *Linter) Name() string {
 // Generated files are measured by nobody: their length says something about
 // the generator and nothing about the code, and a protobuf stub would drown
 // the histogram on its own.
+//
+// Every file is measured against the ceiling it runs under rather than against
+// one number, so a file the tree gave room to is counted into the histogram
+// and left out of the findings.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
-	var results Results
+	results := Results{max: l.MaxLines, tuned: len(l.Allow) > 0}
 
 	for _, def := range root.Packages {
 		if err := ctx.Err(); err != nil {
@@ -66,7 +80,12 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 			path := filePath(def.Package, file)
 			metric := results.count(path, file)
-			if metric == nil || file.Lines <= maxLines {
+			if metric == nil {
+				continue
+			}
+
+			ceiling := l.Allow.MaxLinesFor(path, l.MaxLines)
+			if ceiling <= 0 || file.Lines <= ceiling {
 				continue
 			}
 
@@ -75,7 +94,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 				Symbol:   file.Name,
 				Position: model.Position{Package: def.Package.Package, File: path},
 				Message: fmt.Sprintf("file is %d lines of code, over the %d a file doing one thing runs to",
-					file.Lines, maxLines),
+					file.Lines, ceiling),
 			})
 		}
 	}

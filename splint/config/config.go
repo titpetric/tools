@@ -16,6 +16,8 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/titpetric/tools/splint/importfmt"
+	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/pathmatch"
 )
 
 // Filename is the file a tree states its rules in, read from the root of the
@@ -26,6 +28,9 @@ const Filename = ".splint.yml"
 type Config struct {
 	// Imports is the house rule for an import block.
 	Imports Imports `yaml:"imports"`
+
+	// Filecheck is the house rule for how long a file may run to.
+	Filecheck Filecheck `yaml:"filecheck"`
 }
 
 // Imports is the house rule for an import block.
@@ -73,6 +78,43 @@ type Pollution struct {
 	IncludeTests *bool `yaml:"include-tests"`
 }
 
+// Filecheck is the house rule for how long a file may run to.
+//
+// A tree stating nothing here is read under the linter's own ceiling, so the
+// section exists for the tree that has a file no number can name: a recursive
+// descent parser, an interpreter loop, a test file the pairing rule will not
+// let it split. Those are named by path and the rest of the tree is left
+// reported.
+type Filecheck struct {
+	// MaxLines is how many lines of code a file may run to before it is
+	// reported, blanks and comments already taken out. It defaults to 400.
+	// Zero turns the rule off for every file the allow list does not name.
+	MaxLines int `yaml:"max-lines"`
+
+	// Allow are the paths that run under a ceiling of their own. A file no
+	// entry covers runs under MaxLines.
+	Allow []FileAllowance `yaml:"allow,omitempty"`
+}
+
+// FileAllowance is one ceiling and the paths it applies to.
+type FileAllowance struct {
+	// Path is the pattern, matched against the file as a report names it: the
+	// package directory and the filename, with no leading dot or slash. The
+	// syntax is path.Match per segment, so a star stops at a separator, plus
+	// ** for any number of segments. parser/*.go is the files of one
+	// directory and **/*_test.go is every test file of the tree. A pattern
+	// path.Match cannot read is refused when the file is loaded.
+	Path string `yaml:"path"`
+
+	// MaxLines is the ceiling for the files it covers. Zero means the rule
+	// does not apply to them, the way a zero turns off a pollution rule.
+	//
+	// The first entry covering a file is the one that applies, so a list is
+	// read top to bottom and a narrow entry is written above the broad entry
+	// it carves a hole in.
+	MaxLines int `yaml:"max-lines"`
+}
+
 // Default is the configuration a tree with no file is read under.
 func Default() *Config {
 	yes := true
@@ -82,6 +124,7 @@ func Default() *Config {
 			SetAlias:  &yes,
 			Pollution: Pollution{PerPackage: 2, FileShare: 0.5, IncludeTests: &yes},
 		},
+		Filecheck: Filecheck{MaxLines: filecheck.DefaultMaxLines},
 	}
 }
 
@@ -113,7 +156,45 @@ func Load(dir string) (*Config, error) {
 		cfg.Imports.Order = append([]string(nil), importfmt.DefaultOrder...)
 	}
 
+	if err := cfg.Filecheck.validate(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+
 	return cfg, nil
+}
+
+// validate refuses a rule no reader can have meant. A ceiling is a count of
+// lines, a pattern is a pattern, and an entry naming no path would quietly
+// cover nothing for the life of the file.
+func (f Filecheck) validate() error {
+	if f.MaxLines < 0 {
+		return fmt.Errorf("filecheck.max-lines is %d, which is not a number of lines", f.MaxLines)
+	}
+
+	for index, entry := range f.Allow {
+		if entry.Path == "" {
+			return fmt.Errorf("filecheck.allow[%d] names no path", index)
+		}
+		if err := pathmatch.Valid(entry.Path); err != nil {
+			return fmt.Errorf("filecheck.allow[%d]: %q is not a path pattern: %w", index, entry.Path, err)
+		}
+		if entry.MaxLines < 0 {
+			return fmt.Errorf("filecheck.allow[%d]: max-lines is %d, which is not a number of lines", index, entry.MaxLines)
+		}
+	}
+
+	return nil
+}
+
+// FilecheckAllowances is the file length rule as the linter takes it. The two
+// types carry the same two fields and are declared apart on purpose: config
+// describes a document a person writes, and a linter is handed data.
+func (c *Config) FilecheckAllowances() filecheck.Allowances {
+	out := make(filecheck.Allowances, 0, len(c.Filecheck.Allow))
+	for _, entry := range c.Filecheck.Allow {
+		out = append(out, filecheck.Allowance{Path: entry.Path, MaxLines: entry.MaxLines})
+	}
+	return out
 }
 
 // ImportOptions is the import rule as importfmt takes it. The module path is

@@ -21,8 +21,14 @@ func document(files ...model.File) *model.DocumentRoot {
 // report owes the framework on the way through.
 func lint(t *testing.T, root *model.DocumentRoot) model.LintReport {
 	t.Helper()
+	return lintWith(t, filecheck.New(), root)
+}
 
-	report, err := filecheck.New().Lint(context.Background(), root)
+// lintWith is the same against a linter the caller has configured.
+func lintWith(t *testing.T, linter *filecheck.Linter, root *model.DocumentRoot) model.LintReport {
+	t.Helper()
+
+	report, err := linter.Lint(context.Background(), root)
 	if err != nil {
 		t.Fatalf("Lint() error = %v", err)
 	}
@@ -79,6 +85,112 @@ func TestLinter_Lint(t *testing.T) {
 				t.Errorf("position = %q, want the file under its package", issues[0].Position.Ref())
 			}
 		})
+	}
+}
+
+// TestLinter_New_IsTheDefaultCeiling pins what a tree with no filecheck
+// section is read under, which is the number config defaults to as well.
+func TestLinter_New_IsTheDefaultCeiling(t *testing.T) {
+	linter := filecheck.New()
+	if linter.MaxLines != filecheck.DefaultMaxLines {
+		t.Errorf("MaxLines = %d, want %d", linter.MaxLines, filecheck.DefaultMaxLines)
+	}
+	if len(linter.Allow) != 0 {
+		t.Errorf("Allow = %v, want nothing until a tree states it", linter.Allow)
+	}
+}
+
+// TestLinter_Lint_Allowance covers the three answers an allow list gives: a
+// raised ceiling leaves a long file alone and still reports one past it, a
+// zero turns the rule off whatever the length, and a file no entry covers is
+// judged by the default.
+//
+// The test files are named first because first match wins and parser*.go
+// covers parser_test.go too. That is the ordering an author writes, and
+// getting it backwards here is what the entry order is for.
+func TestLinter_Lint_Allowance(t *testing.T) {
+	linter := filecheck.New()
+	linter.Allow = filecheck.Allowances{
+		{Path: "**/*_test.go", MaxLines: 0},
+		{Path: "frontend/view/parser*.go", MaxLines: 1500},
+	}
+
+	issues := model.Issues(lintWith(t, linter, document(
+		model.File{Name: "parser.go", Lines: 1444, Size: 43000},
+		model.File{Name: "parser_huge.go", Lines: 1600, Size: 48000},
+		model.File{Name: "parser_test.go", Lines: 2400, Size: 72000, Test: true},
+		model.File{Name: "page.go", Lines: 401, Size: 12000},
+		model.File{Name: "short.go", Lines: 40, Size: 1200},
+	)))
+
+	reported := map[string]string{}
+	for _, issue := range issues {
+		reported[issue.Symbol] = issue.Message
+	}
+
+	if _, found := reported["parser.go"]; found {
+		t.Error("reported a file the tree gave room to")
+	}
+	if _, found := reported["parser_test.go"]; found {
+		t.Error("reported a file whose entry is a zero, which turns the rule off")
+	}
+	if _, found := reported["short.go"]; found {
+		t.Error("reported a short file")
+	}
+
+	// The message has to name the ceiling that applied. A file over a raised
+	// ceiling reported against the default would be a finding a reader cannot
+	// act on: the number is not the one in their file.
+	message, found := reported["parser_huge.go"]
+	if !found {
+		t.Fatalf("reported %v, want the file past its raised ceiling", reported)
+	}
+	if !strings.Contains(message, "over the 1500") {
+		t.Errorf("message = %q, want the 1500 the entry raised it to", message)
+	}
+
+	message, found = reported["page.go"]
+	if !found {
+		t.Fatalf("reported %v, want the file no entry covers", reported)
+	}
+	if !strings.Contains(message, "over the 400") {
+		t.Errorf("message = %q, want the default ceiling", message)
+	}
+}
+
+// TestLinter_Lint_MaxLinesZero turns the rule off for the whole tree, which is
+// the same zero the pollution rules read, and leaves the measurement standing:
+// a tree that stopped judging length still wants the histogram.
+func TestLinter_Lint_MaxLinesZero(t *testing.T) {
+	linter := filecheck.New()
+	linter.MaxLines = 0
+
+	report := lintWith(t, linter, document(model.File{Name: "page.go", Lines: 5000, Size: 150000}))
+	if report.Len() != 0 {
+		t.Errorf("reported %d issues under a zero ceiling", report.Len())
+	}
+	if len(report.Metrics().Files) != 1 {
+		t.Errorf("measured %v, want the file counted anyway", report.Metrics().FileKeys())
+	}
+}
+
+// TestLinter_Lint_FooterNamesTheRule reads the one line of the histogram that
+// quotes the threshold. A tree reading every file under one number prints it;
+// a tree with allowances has no single number to print, and printing the
+// default beside a count not taken against it would be wrong.
+func TestLinter_Lint_FooterNamesTheRule(t *testing.T) {
+	files := []model.File{{Name: "page.go", Lines: 900, Size: 27000}}
+
+	plain := lintWith(t, filecheck.New(), document(files...)).Statistics()[0]
+	if !strings.Contains(plain.Footer, "1 over 400.") {
+		t.Errorf("footer = %q, want the default ceiling named", plain.Footer)
+	}
+
+	tuned := filecheck.New()
+	tuned.Allow = filecheck.Allowances{{Path: "parser/*.go", MaxLines: 1500}}
+	stats := lintWith(t, tuned, document(files...)).Statistics()[0]
+	if !strings.Contains(stats.Footer, "1 over the ceiling each runs under.") {
+		t.Errorf("footer = %q, want the rule named rather than one number", stats.Footer)
 	}
 }
 

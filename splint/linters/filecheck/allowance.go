@@ -1,0 +1,53 @@
+package filecheck
+
+import (
+	"github.com/titpetric/tools/splint/pathmatch"
+)
+
+// Allowance is a ceiling a tree stated for the files one pattern covers.
+//
+// It exists because the rule is about a file doing one thing and the number is
+// a proxy for it. A recursive descent parser and a bytecode interpreter loop
+// are each one thing at a length no general number can name, and splitting one
+// on a line a linter picked is a worse file than the long one. Naming the path
+// in a committed file says which files those are, and leaves a new long file
+// reported.
+type Allowance struct {
+	// Path is the pattern the ceiling applies to, matched by pathmatch
+	// against the file as a report names it: the package directory and the
+	// filename, with no leading dot or slash. The syntax is path.Match per
+	// segment, where a star stops at a separator, plus ** for any number of
+	// segments, so parser/*.go is one directory and **/*_test.go is every
+	// test file of the tree.
+	Path string
+
+	// MaxLines is the ceiling for the files it covers. Zero means the rule
+	// does not apply to them, the way a zero turns off the pollution rules.
+	MaxLines int
+}
+
+// Allowances are the ceilings a tree stated, in the order it stated them.
+type Allowances []Allowance
+
+// MaxLinesFor is the ceiling a file runs under: the first entry whose pattern
+// covers it, and fallback when none does.
+//
+// First match wins rather than the most specific one. A list is read top to
+// bottom, so the order an author wrote is the order it is applied, and a
+// narrow entry is written above the broad entry it carves a hole in. Most
+// specific would need a definition of specific, which for two globs is a
+// guess: parser/*.go and **/*_test.go both cover parser/parser_test.go and
+// neither contains the other.
+//
+// A pattern a loader would have refused matches nothing here rather than
+// failing the run. The loader is where a malformed pattern is reported, and a
+// linter handed one has no reader to report it to.
+func (a Allowances) MaxLinesFor(path string, fallback int) int {
+	for _, entry := range a {
+		matched, err := pathmatch.Match(entry.Path, path)
+		if err == nil && matched {
+			return entry.MaxLines
+		}
+	}
+	return fallback
+}
