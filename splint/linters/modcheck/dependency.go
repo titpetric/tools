@@ -15,6 +15,12 @@ type Dependency struct {
 	// of it is actually used: a dependency reached from forty files through
 	// two symbols is a candidate for a wrapper, and one reached from two files
 	// through forty is a dependency in earnest.
+	//
+	// Files is counted from the import list and Symbols from the names the
+	// declarations of a package write, in a body and in a type position alike.
+	// The two agree on what reaching means: a file naming nothing of a module
+	// but the type of one field imports it, so it counts, and the name it
+	// writes there counts as the symbol it is.
 	Files    int `json:"Files" yaml:"Files"`
 	Packages int `json:"Packages" yaml:"Packages"`
 	Symbols  int `json:"Symbols" yaml:"Symbols"`
@@ -60,6 +66,12 @@ type Dependency struct {
 	// blank reports a module some file imports for its side effect. A
 	// registration is not a symbol and cannot be inlined, so a dependency
 	// carrying one is not thin however little of it is reached by name.
+	//
+	// It answers whether an import is written for a side effect and not
+	// whether that is worth reporting, so the exemptions the blank rule makes
+	// are not made here: a file of a program may blank import a driver without
+	// being told off for it, and the dependency is still one nothing can
+	// inline.
 	blank bool
 }
 

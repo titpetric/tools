@@ -599,6 +599,8 @@ What each column counts:
 
 `Deps` and `Total` are walked over the modules this build carries. A module required by a dependency and resolved away by this build is not counted, and a module two dependencies both require counts for both: each row is what that one dependency brings, not a division of the total.
 
+A symbol is reached by name or as a type, and both count. A call in a body names it as a selector, and a struct field, a parameter, a result or the type of a var names it as a type; a package whose whole use of a module is a `*pdo.PDO` field that every method drives its queries through reaches it as surely as a caller does. `Files` counts files and not imports, so one file reaching two packages of one module is one file: it is one place to change when the module goes.
+
 A dependency any file imports for its side effect is imported for what it registers, which is how a database driver is imported. A registration is not something a caller can inline, so how little of the rest is reached by name says nothing and `thin` does not report it.
 
 ### What go.sum records

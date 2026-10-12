@@ -126,7 +126,7 @@ func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalog
 			}
 
 			for _, literal := range def.Imports[file] {
-				if !strings.HasPrefix(literal, "_ ") {
+				if !blankImport(literal) {
 					continue
 				}
 
@@ -166,6 +166,18 @@ func where(def *model.Definition, file string) string {
 // reference is recorded under back to the path it names, which is the only way
 // a reference can be attributed: a reference says "chi.NewRouter", and which
 // module chi is depends on what the file imported.
+//
+// A symbol is reached two ways and both are counted. A body names it as a
+// selector, which the document records as a reference; a declaration names it
+// as a type, which the document records as the type string of a field, a
+// parameter or a result and as no reference at all. Counting only the first
+// reads a struct holding a *pdo.PDO and driving every query through it as a
+// module reached once, which is the opposite of what it is.
+//
+// Which file imports what is read here too, because that is the pass that sees
+// every import literal. A side effect import is a property of the dependency
+// and is recorded on it, so the rule that reads it does not depend on the rule
+// that reports it having run first.
 func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Catalogue) (map[string]*Dependency, error) {
 	deps := map[string]*Dependency{}
 
@@ -197,16 +209,30 @@ func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Cat
 		for file, imports := range def.Imports {
 			test := def.Package.TestPackage || strings.HasSuffix(file, "_test.go")
 
+			// A file reaching two packages of one module is one file that
+			// imports the module: "pdo" and "pdo/driver" side by side is one
+			// place to change when the module goes. Counting the literals
+			// instead reads a file importing a module and blank importing its
+			// driver as two files, which is the one shape the side effect
+			// exemption below exists for.
+			counted := map[string]bool{}
+
 			for _, literal := range imports {
 				require, ok := catalogue.Owner(importPath(literal))
 				if !ok {
 					continue
 				}
 				dep := get(require)
-				dep.Files++
+				if !counted[require.Path] {
+					counted[require.Path] = true
+					dep.Files++
+				}
 				dep.packages[def.Package.ImportPath] = true
 				if !test {
 					dep.testOnly = false
+				}
+				if blankImport(literal) {
+					dep.blank = true
 				}
 			}
 		}
@@ -225,6 +251,27 @@ func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Cat
 				for _, symbol := range symbols {
 					dep.symbols[name+"."+symbol] = true
 				}
+			}
+		}
+
+		// Every declaration of the package, because a type is named in all of
+		// them: a struct declares the fields, a func the parameters and the
+		// results, and a var or a const the type of what it binds.
+		for _, decl := range def.Order() {
+			for _, typ := range typePositions(decl) {
+				name, symbol, ok := qualified(typ)
+				if !ok {
+					continue
+				}
+				path, known := byName[name]
+				if !known {
+					continue
+				}
+				require, ok := catalogue.Owner(path)
+				if !ok {
+					continue
+				}
+				get(require).symbols[name+"."+symbol] = true
 			}
 		}
 	}
@@ -256,6 +303,61 @@ func importPath(literal string) string {
 		literal = literal[at+1:]
 	}
 	return strings.Trim(literal, `"`)
+}
+
+// blankImport reports an import literal written for its side effect alone,
+// which Definition.Imports records with the blank alias in front of the path.
+func blankImport(literal string) bool {
+	return strings.HasPrefix(literal, "_ ")
+}
+
+// typePositions are the type strings a declaration names, which is everything
+// it reaches that is not a call.
+//
+// Type is what a var, a const or a named type is declared as, Fields are the
+// fields of a struct and the methods of an interface, and Arguments and
+// Returns are the parameter and result lists of a func. None of them is a
+// reference: the document collects those from bodies.
+func typePositions(decl *model.Declaration) []string {
+	types := make([]string, 0, len(decl.Fields)+len(decl.Arguments)+len(decl.Returns)+1)
+
+	if decl.Type != "" {
+		types = append(types, decl.Type)
+	}
+	for _, field := range decl.Fields {
+		if field != nil && field.Type != "" {
+			types = append(types, field.Type)
+		}
+	}
+	types = append(types, decl.Arguments...)
+	types = append(types, decl.Returns...)
+
+	return types
+}
+
+// qualified splits a type string into the name a file reaches a package by and
+// the symbol of that package it names, and reports whether it names one.
+//
+// model.TypeRef is what reduces the type to the name: it takes off a pointer,
+// a variadic, a slice or map layer and a generic instantiation, so "*pdo.PDO",
+// "[]pdo.Row" and "map[string]*pdo.PDO" all come out as a qualified name. What
+// it cannot reduce to one, a func type or a struct written out in place, names
+// no single symbol and is not counted. model.IsPackageName is the identifier
+// test both halves have to pass, which is what keeps a signature recorded as
+// an interface method's type from reading as a qualified name.
+func qualified(typ string) (name, symbol string, ok bool) {
+	ref := model.TypeRef(typ)
+
+	dot := strings.IndexByte(ref, '.')
+	if dot < 0 {
+		return "", "", false
+	}
+
+	name, symbol = ref[:dot], ref[dot+1:]
+	if !model.IsPackageName(name) || !model.IsPackageName(symbol) {
+		return "", "", false
+	}
+	return name, symbol, true
 }
 
 // report records what is worth saying out loud rather than only counting.
