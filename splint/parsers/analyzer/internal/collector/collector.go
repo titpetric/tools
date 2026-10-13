@@ -378,19 +378,20 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 	source := v.getSource(file, decl)
 
 	declaration := &Declaration{
-		Doc:        strings.TrimSpace(v.getSource(file, decl.Doc)),
-		Kind:       model.FuncKind,
-		File:       v.relativeFile(filename),
-		Line:       v.fset.Position(decl.Pos()).Line,
-		Name:       decl.Name.Name,
-		TypeParams: typeParamNames(decl.Type.TypeParams),
-		Arguments:  args,
-		Returns:    returns,
-		Signature:  v.functionDef(decl),
-		References: collectFuncReferences(decl),
-		Globals:    v.globals(filename, decl),
-		Source:     source,
-		Complexity: complexity(v.fset, decl),
+		Doc:           strings.TrimSpace(v.getSource(file, decl.Doc)),
+		Kind:          model.FuncKind,
+		File:          v.relativeFile(filename),
+		Line:          v.fset.Position(decl.Pos()).Line,
+		Name:          decl.Name.Name,
+		TypeParams:    typeParamNames(decl.Type.TypeParams),
+		Arguments:     args,
+		ArgumentCount: argumentCount(decl.Type.Params),
+		Returns:       returns,
+		Signature:     v.functionDef(decl),
+		References:    collectFuncReferences(decl),
+		Globals:       v.globals(filename, decl),
+		Source:        source,
+		Complexity:    complexity(v.fset, decl),
 	}
 
 	if decl.Recv != nil {
@@ -456,6 +457,24 @@ func (p *collector) symbolType(file *ast.File, expr ast.Expr) string {
 		return "any"
 	}
 	return p.getSource(file, expr)
+}
+
+// argumentCount is how many parameters a caller passes: one per name in a
+// field, and one for a field that names none. functionBindings answers the
+// distinct types instead, so the two cannot be read off each other.
+func argumentCount(params *ast.FieldList) int {
+	if params == nil {
+		return 0
+	}
+	count := 0
+	for _, field := range params.List {
+		if len(field.Names) == 0 {
+			count++
+			continue
+		}
+		count += len(field.Names)
+	}
+	return count
 }
 
 func (p *collector) functionBindings(file *ast.File, decl *ast.FuncDecl) (args []string, returns []string) {

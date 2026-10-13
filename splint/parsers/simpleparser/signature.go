@@ -281,6 +281,21 @@ func groupTypes(groups []paramGroup) []string {
 	return types
 }
 
+// groupArity counts the parameters the groups declare, which is what a caller
+// passes: a group names one parameter per name, and a group with no name at
+// all is still one parameter.
+func groupArity(groups []paramGroup) int {
+	count := 0
+	for _, group := range groups {
+		if len(group.Names) == 0 {
+			count++
+			continue
+		}
+		count += len(group.Names)
+	}
+	return count
+}
+
 // signature renders the declaration the way the model records it: the name,
 // the parameter groups in parens, and the results after them, bracketed when
 // there is more than one.

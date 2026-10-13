@@ -173,13 +173,14 @@ func parseFuncHeader(header string) *model.Declaration {
 	results := resultGroups(trimBody(rest[close+1:]))
 
 	return &model.Declaration{
-		Kind:       model.FuncKind,
-		Name:       name,
-		TypeParams: typeParams,
-		Receiver:   symbolType(receiver),
-		Arguments:  groupTypes(params),
-		Returns:    groupTypes(results),
-		Signature:  signature(name, params, results),
+		Kind:          model.FuncKind,
+		Name:          name,
+		TypeParams:    typeParams,
+		Receiver:      symbolType(receiver),
+		Arguments:     groupTypes(params),
+		ArgumentCount: groupArity(params),
+		Returns:       groupTypes(results),
+		Signature:     signature(name, params, results),
 	}
 }
 

@@ -109,6 +109,26 @@ func TestGroupTypes(t *testing.T) {
 	}
 }
 
+// TestGroupArity covers the number groupTypes cannot answer: how many
+// parameters a caller passes. A group names one per name, a group with no name
+// is still one, and the two numbers part company as soon as a type repeats.
+func TestGroupArity(t *testing.T) {
+	tests := map[string]int{
+		"":                                       0,
+		"a string":                               1,
+		"a string, b string, n int":              3,
+		"year int, month time.Month, day int":    3,
+		"year int, month time.Month, day, h int": 4,
+		"string, error":                          2,
+		"s string, rest ...string":               2,
+	}
+	for params, want := range tests {
+		if got := groupArity(paramGroups(params)); got != want {
+			t.Errorf("groupArity(%q) = %d, want %d", params, got, want)
+		}
+	}
+}
+
 func TestSymbolType(t *testing.T) {
 	tests := map[string]string{
 		"int":              "int",

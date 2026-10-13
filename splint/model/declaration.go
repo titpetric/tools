@@ -42,6 +42,14 @@ type Declaration struct {
 	Arguments []string `json:"Arguments,omitempty" yaml:"Arguments,omitempty"`
 	Returns   []string `json:"Returns,omitempty" yaml:"Returns,omitempty"`
 
+	// ArgumentCount is how many parameters a caller passes. Arguments holds
+	// the distinct types and no duplicate, which is what a reader of the
+	// dependency model wants; it is not the length of the parameter list.
+	// date(year int, month time.Month, day, hour, min, sec int) has seven
+	// parameters and two entries in Arguments, and a rule about the order of
+	// two arguments has to be able to tell those apart.
+	ArgumentCount int `json:"ArgumentCount,omitempty" yaml:"ArgumentCount,omitempty"`
+
 	// TypeParams are the names a generic func binds between its name and its
 	// parameter list: Eval[T any] binds T. A name in here is a stand-in the
 	// caller fills rather than a type the package declares, which is what lets

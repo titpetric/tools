@@ -307,10 +307,54 @@ func TestFuncArgsLinter_MoreThanTwoArgumentsSkipped(t *testing.T) {
 	}
 }
 
+// TestFuncArgsLinterReadsTheParameterCount covers the difference between the
+// two numbers a declaration carries. Arguments holds the distinct types and no
+// duplicate, so time.Date(year int, month time.Month, day, hour, min, sec,
+// nsec int) records two of them for seven parameters. Reading that list's
+// length as the arity made the linter ask for the pair reversed, which would
+// put the month before the year in a function that mirrors time.Date
+// one for one.
+func TestFuncArgsLinterReadsTheParameterCount(t *testing.T) {
+	linter := New()
+	defs := model.DefinitionList{
+		{
+			Package: model.Package{Path: "test"},
+			Funcs: []*model.Declaration{
+				{
+					Name:          "Date",
+					Kind:          model.FuncKind,
+					Arguments:     []string{"int", "time.Month"},
+					ArgumentCount: 7,
+					File:          "test.go",
+					Line:          1,
+				},
+			},
+		},
+	}
+	report := lint(t, linter, defs)
+	if report.Len() != 0 {
+		t.Errorf("expected 0 issues for a seven parameter func, got %d", report.Len())
+	}
+}
+
 // lint runs the linter over a list of packages, which is what every case here
 // builds by hand.
+//
+// A declaration that states no ArgumentCount gets one parameter per type in
+// Arguments, which is what every case above means. A case where the two differ
+// says so itself: the linter skips a declaration whose count is zero, so
+// filling it here is what keeps an expectation of no findings from passing
+// because nothing was read.
 func lint(t *testing.T, linter *Linter, defs model.DefinitionList) model.LintReport {
 	t.Helper()
+
+	for _, def := range defs {
+		for _, decl := range def.Funcs {
+			if decl.ArgumentCount == 0 {
+				decl.ArgumentCount = len(decl.Arguments)
+			}
+		}
+	}
 
 	report, err := linter.Lint(context.Background(), &model.DocumentRoot{Packages: defs})
 	if err != nil {

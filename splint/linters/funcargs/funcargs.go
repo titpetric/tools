@@ -48,6 +48,11 @@ func (l *Linter) Name() string {
 // Only a function taking exactly two arguments is considered. The order of one
 // pair is unambiguous; for three or more the expected order is a heuristic
 // sort, and a heuristic reports too much to be worth reading.
+//
+// Two arguments means two parameters, which is ArgumentCount and not the
+// length of Arguments: that list holds the distinct types, so a function of
+// seven parameters sharing two types used to read as a pair and be told to
+// reverse itself.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	l.defs = root.Packages
 	l.results = Results{}
@@ -62,7 +67,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 			if decl.IsTestScope() {
 				continue
 			}
-			if len(decl.Arguments) == 2 {
+			if decl.ArgumentCount == 2 && len(decl.Arguments) == 2 {
 				considered = append(considered, decl)
 			}
 		}
