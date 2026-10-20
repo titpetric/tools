@@ -43,8 +43,8 @@ func Encode(v any) string {
 //
 // A formatter that read one thing from the ast parser and another from the
 // quick one would rewrite a file differently depending on a flag nobody
-// passed, so the two are compared here rather than each being checked against
-// what it was expected to say.
+// passed, so this test compares the two with each other and holds neither to
+// a hand-written expectation.
 func TestImportDeclsAcrossParsers(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "go.mod"), "module example.com/scattered\n\ngo 1.27.0\n")
@@ -90,18 +90,17 @@ func TestImportDeclsAcrossParsers(t *testing.T) {
 	assert.Equal(t, "A note belonging to no import at all.", astFile.ImportDecls[0].Tail)
 	assert.Equal(t, "", astFile.ImportDecls[1].Tail)
 
-	// The package clause is what tells a white box test file from a black box
-	// one, which is what decides whether a file may import the package it is
-	// beside.
+	// The package clause tells a white box test file from a black box one,
+	// and that decides whether a file may import the package beside it.
 	assert.Equal(t, "scattered", astFile.Package)
 
-	// Uses over-collects on purpose, so the three package names are in it and
+	// Uses over-collects, so the three package names are in it and
 	// nothing that is not a selector is.
 	assert.Equal(t, []string{"fmt", "json", "strings"}, astFile.Uses)
 }
 
 // TestImportDeclsAreNotFilledUnlessAsked keeps the parity harness honest: a
-// parse that did not ask for the import declarations produces the document it
+// parse without IncludeImports produces the document it
 // always produced.
 func TestImportDeclsAreNotFilledUnlessAsked(t *testing.T) {
 	dir := t.TempDir()

@@ -36,8 +36,8 @@ func TestAddFixedAccumulates(t *testing.T) {
 	assert.Equal(t, 7, stats.Imports.Fixed)
 }
 
-// TestAddFixedKeepsComments is why the counter is written through the node
-// tree rather than re-encoded from the struct.
+// TestAddFixedKeepsComments is why AddFixed writes the counter through the
+// node tree and never re-encodes it from the struct.
 func TestAddFixedKeepsComments(t *testing.T) {
 	userConfig(t)
 

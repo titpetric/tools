@@ -20,8 +20,8 @@ func TestTable(t *testing.T) {
 		t.Fatalf("table() wrote %d lines, want a border, a heading, a rule, two rows and a border:\n%s", len(lines), out.String())
 	}
 
-	// Every line is the same width once the colour is taken off, which is what
-	// makes it a box rather than a ragged edge.
+	// Every line is the same width once ansi.StringWidth ignores the colour, and
+	// that makes it a box with no ragged edge.
 	width := ansi.StringWidth(lines[0])
 	for i, line := range lines {
 		if got := ansi.StringWidth(line); got != width {
@@ -29,14 +29,14 @@ func TestTable(t *testing.T) {
 		}
 	}
 
-	// The widest cell decides the column, not the heading.
+	// The widest cell decides the column, and the heading does not.
 	if !strings.Contains(lines[0], "─────") || !strings.Contains(ansi.Strip(lines[4]), "./simpleparser") {
 		t.Errorf("table() = \n%s", out.String())
 	}
 }
 
 // TestTableMeasuresWhatIsSeen covers a cell that is already painted: the
-// escape codes are not width, and a table that counted them would be ragged.
+// escape codes are not width, and a table that counted them would run ragged.
 func TestTableMeasuresWhatIsSeen(t *testing.T) {
 	var out bytes.Buffer
 	table(&out, []string{"Severity"}, [][]string{
@@ -70,7 +70,7 @@ func TestPaint(t *testing.T) {
 	if got := paint("x", colorTeal); got != colorTeal+"x"+colorReset {
 		t.Errorf("paint() = %q", got)
 	}
-	// Nothing to paint, or nothing to paint it with, is left alone.
+	// Nothing to paint, or nothing to paint it with, passes through unchanged.
 	if got := paint("x", ""); got != "x" {
 		t.Errorf("paint() = %q", got)
 	}

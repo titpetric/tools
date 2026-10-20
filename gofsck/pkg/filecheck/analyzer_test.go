@@ -35,7 +35,7 @@ func TestAnalyzer_Analyze(t *testing.T) {
 	assert.Greater(t, goGroup.Files, 0)
 	assert.Len(t, goGroup.Histogram, numBuckets)
 
-	// Rating should be between 0 and 100
+	// Rating must fall between 0 and 100
 	assert.GreaterOrEqual(t, report.Rating, 0.0)
 	assert.LessOrEqual(t, report.Rating, 100.0)
 }

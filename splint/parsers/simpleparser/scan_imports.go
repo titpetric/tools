@@ -10,11 +10,11 @@ import (
 // scanImports reads an import declaration, single or parenthesised, and
 // returns the line it ended on.
 //
-// Two things are recorded from one walk. The literal is what the model has
+// One walk records two things. The literal is what the model has
 // always carried: the path in quotes, and an alias in front of it separated by
 // a space, but only when the alias says something the path does not. The
-// declaration is the same imports as they are written, with their lines, their
-// comments and the blank lines between them, which is what a formatter has to
+// declaration is the same imports as the file writes them, with their lines, their
+// comments and the blank lines between them, the shape a formatter has to
 // be able to put back.
 func (f *file) scanImports(src *source, line int) int {
 	code := src.codeLine(line)
@@ -39,7 +39,7 @@ func (f *file) scanImports(src *source, line int) int {
 	}
 
 	// A block written on one line holds its imports between the parens of that
-	// line rather than on the lines below it.
+	// line and not on the lines below it.
 	if end == line {
 		for _, entry := range between(src, line, open) {
 			spec, ok := f.addImport(src, line, entry)
@@ -54,8 +54,8 @@ func (f *file) scanImports(src *source, line int) int {
 	}
 
 	blank := false
-	// consumed are the comment lines a spec took as its doc. What is left over
-	// belongs to no import and is kept as the declaration's tail.
+	// consumed are the comment lines a spec took as its doc. What remains
+	// belongs to no import and stays as the declaration's tail.
 	consumed := map[int]bool{}
 
 	for i := line + 1; i < end; i++ {
@@ -88,7 +88,7 @@ func (f *file) scanImports(src *source, line int) int {
 }
 
 // orphanComments are the comment lines of a block that no import took as its
-// doc, markers trimmed and in the order they were written.
+// doc, markers trimmed and in source order.
 func orphanComments(src *source, line, end int, consumed map[int]bool) string {
 	var out []string
 
@@ -108,10 +108,10 @@ func orphanComments(src *source, line, end int, consumed map[int]bool) string {
 // importBlockEnd returns the line holding the paren that closes an import
 // declaration opened at line, counting depth from the paren at open.
 //
-// blockEnd looks for a closer at column zero, which is where gofmt puts it.
-// This does not: the tree a formatter is pointed at is the tree nobody has
-// formatted, and a block whose closing paren is indented ends where the paren
-// is rather than at the end of the file. Reading it as the end of the file is
+// blockEnd looks for a closer at column zero, where gofmt puts it.
+// This does not: a formatter runs on the tree nobody has
+// formatted, and a block with an indented closing paren ends where the paren
+// sits and not at the end of the file. Reading it as the end of the file is
 // how a rewrite comes to replace the whole file with an import block.
 func importBlockEnd(src *source, line, open int) int {
 	depth := 0
@@ -136,7 +136,7 @@ func importBlockEnd(src *source, line, open int) int {
 	}
 
 	// Nothing closed it, which is a file that does not compile. The
-	// declaration is reported as the one line it opened on, so nothing
+	// parser reports the declaration as the one line it opened on, so nothing
 	// downstream replaces a range that reaches the end of the file.
 	return line
 }
@@ -144,8 +144,8 @@ func importBlockEnd(src *source, line, open int) int {
 // between are the entries a one line block holds between its parens, which a
 // file writing more than one separates with a semicolon.
 //
-// The parens are found on the stripped view, where a paren inside a string is
-// not one, and the entries are cut out of the line as it was written. Stripping
+// The scan finds the parens on the stripped view, where a paren inside a string is
+// not one, and cuts the entries out of the raw line. Stripping
 // blanks in place, so the two views share their columns.
 func between(src *source, line, open int) []string {
 	code := src.codeLine(line)
@@ -170,7 +170,7 @@ func between(src *source, line, open int) []string {
 	return out
 }
 
-// addImport records one import entry, as it is written inside the block, and
+// addImport records one import entry, as the block spells it, and
 // returns the spec it describes.
 func (f *file) addImport(src *source, line int, entry string) (model.ImportSpec, bool) {
 	alias, quoted := splitImport(entry)
@@ -186,7 +186,7 @@ func (f *file) addImport(src *source, line int, entry string) (model.ImportSpec,
 	case "", name:
 		// No alias, or one that repeats what the path already says.
 	case "_":
-		// A blank import is reached by no name at all, and the underscore is
+		// A blank import goes by no name at all, and the underscore is
 		// what says so: without it the literal reads as an import like any
 		// other, and a rule about side effects has nothing to read.
 		literal = "_ " + quoted
@@ -204,8 +204,8 @@ func (f *file) addImport(src *source, line int, entry string) (model.ImportSpec,
 		f.aliases[name] = true
 	}
 
-	// The comment is recorded the way a doc comment is, markers trimmed, which
-	// is what the ast parser's CommentGroup.Text gives and therefore the only
+	// The parser records the comment the way it records a doc comment, markers trimmed,
+	// the same as the ast parser's CommentGroup.Text returns and so the only
 	// form the two parsers can agree on.
 	_, comment := src.split(line)
 	if comment != "" {

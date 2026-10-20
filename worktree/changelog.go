@@ -11,13 +11,13 @@ import (
 	"github.com/titpetric/tools/worktree/components"
 )
 
-// What the release note of one tag takes, which is what a changelog run reports
-// a row per.
+// What the release note of one tag takes; a changelog run reports one row per
+// tag with this status.
 //
-// Only an empty release is written to. A body somebody already published is
-// what a reader of that release has been reading, and a note generated from the
-// history is no reason to take it away, so the two states holding one are
-// reported and left alone.
+// The run writes to empty releases only. Readers of a release read the body
+// somebody published, and a note generated from the history is no reason to
+// take it away, so the run reports the two states holding one and leaves them
+// alone.
 const (
 	// changelogCreate is a tag the remote carries no release for, which --apply
 	// creates.
@@ -30,32 +30,32 @@ const (
 	// changelogCurrent is a release whose body is the note already.
 	changelogCurrent = "current"
 
-	// changelogDiffers is a release holding a body that is not the note, which
-	// is left as it was published.
+	// changelogDiffers is a release holding a body other than the note, which
+	// the run leaves as published.
 	changelogDiffers = "differs"
 
-	// changelogUnpushed is a tag that exists here and not on the remote, which
-	// no release can be made for.
+	// changelogUnpushed is a tag that exists here and not on the remote, so no
+	// release can exist for it.
 	changelogUnpushed = "unpushed"
 )
 
-// changelogStatuses are the states a row reports, which is what the status
-// column is sized on.
+// changelogStatuses are the states a row reports; the status column takes its
+// width from them.
 var changelogStatuses = []string{changelogCreate, changelogFill, changelogCurrent, changelogDiffers, changelogUnpushed}
 
 // changelogWrites are the states --apply acts on, which is a release that holds
 // no note of its own.
 var changelogWrites = map[string]bool{changelogCreate: true, changelogFill: true}
 
-// ghBodyLimit is the longest release body GitHub stores, in characters. A note
-// over it is cut rather than refused, since a truncated note still reads.
+// ghBodyLimit is the longest release body GitHub stores, in characters. The run
+// cuts a longer note and still publishes it, since a truncated note still reads.
 const ghBodyLimit = 125000
 
 // changelogEntry is the release note of one tag: the note the report writes for
 // it, and what the remote holds against it.
 type changelogEntry struct {
 	// Tag is the tag as the repository carries it, the "<subdir>/" prefix of a
-	// nested module included, which is the name the release is known by.
+	// nested module included, the name the release goes by.
 	Tag string
 
 	// Body is the note, which is the markdown worktree verdict writes for the
@@ -74,13 +74,13 @@ type changelogEntry struct {
 // row per tag, and under --apply writes the notes of the releases that hold
 // none: the tags with no release at all, and the releases published empty.
 //
-// A release that already holds a body is never written to. It is what a reader
-// of that release has been reading, and a note generated from the history is
-// no reason to take it away.
+// changelog never writes to a release that already holds a body. Readers of
+// that release read that body, and a note generated from the history is no
+// reason to take it away.
 //
-// Every release is read through one model cache, the way the release chain
-// reads one, so a tag that ends one range and starts the next is unpacked and
-// modelled once rather than twice.
+// changelog reads every release through one model cache, the way the release
+// chain reads one, so a tag that ends one range and starts the next gets
+// unpacked and modelled once.
 //
 // --from and --to bound the tags reported on, naming the releases the run works
 // between, the same way they bound a release chain.
@@ -160,13 +160,13 @@ func changelog(w io.Writer, dir string, opts *Options, styled bool) error {
 	return nil
 }
 
-// changelogRanges returns the ranges the notes are written from, one per
-// release, newest first. Every tag gets a note of its own, measured from the
-// release below it: a note belongs to the tag it is published under, so the
-// series the release chain collapses patches into is no use here.
+// changelogRanges returns the ranges the notes come from, one per release,
+// newest first. Every tag gets a note of its own, measured from the release
+// below it: a note belongs to the tag it publishes under, so the series the
+// release chain collapses patches into is no use here.
 //
-// The working tree is dropped, since it is not a release and has no tag to
-// publish a note under.
+// changelogRanges drops the working tree, since the working tree is no release
+// and has no tag to publish a note under.
 func changelogRanges(tags []string, from, upTo string) []versionRange {
 	var ranges []versionRange
 	for _, r := range releaseChain(tags, false, true, from, upTo) {
@@ -177,8 +177,8 @@ func changelogRanges(tags []string, from, upTo string) []versionRange {
 	return ranges
 }
 
-// changelogTags names the tag of every range, which is what the tag column is
-// sized on.
+// changelogTags names the tag of every range; the tag column takes its width
+// from them.
 func changelogTags(ranges []versionRange, prefix string) []string {
 	tags := make([]string, 0, len(ranges))
 	for _, r := range ranges {
@@ -189,8 +189,9 @@ func changelogTags(ranges []versionRange, prefix string) []string {
 
 // changelogBody renders the release note of one verdict, which is the markdown
 // worktree verdict writes with the visibility table left out: that table counts
-// the working tree rather than the release, so it would say the same thing in
-// every note and the wrong thing in all but the newest.
+// the working tree and ignores the release, so it would say the same thing in
+// every note, and in all but the newest note its counts would not match the
+// release.
 func changelogBody(v verdict) string {
 	v.Visibility = visibilityReport{}
 
@@ -199,9 +200,9 @@ func changelogBody(v verdict) string {
 	return limitBody(strings.TrimSpace(out.String()) + "\n")
 }
 
-// limitBody cuts a note GitHub would refuse to store, at a line boundary, and
-// says so where it was cut. The limit is counted in bytes against a limit in
-// characters, which errs on the short side and never on the refused one.
+// limitBody cuts a note too long for GitHub to store at a line boundary, and
+// says so at the cut. limitBody counts bytes against a limit in characters,
+// which errs on the short side and never on the rejected one.
 func limitBody(body string) string {
 	if len(body) <= ghBodyLimit {
 		return body
@@ -220,14 +221,16 @@ func limitBody(body string) string {
 // changelogStatus reports what a tag's note takes, given the release the remote
 // carries under the tag and whether the tag is on the remote at all.
 //
-// A release that is there is filled whatever the tag says, since a draft is
-// published against a tag that does not have to exist yet. A tag with no
-// release and no place on the remote is reported and left alone.
+// The run fills an existing release whatever the tag says, since GitHub
+// publishes a draft against a tag that does not have to exist yet. The run
+// reports a tag with no release and no place on the remote and leaves it
+// alone.
 //
-// A release holding a body of its own is compared against the note and left
-// either way. The comparison earns the run no work and is reported for the
-// reader: a note that no longer matches the history is worth knowing about,
-// and what to do about it is a decision nobody wants made for them.
+// changelogStatus compares a release holding a body of its own against the
+// note and leaves the release alone either way. The comparison earns the run
+// no work and shows up in the report for the reader: a published note out of
+// step with the history tells the reader to look, and what to do about it
+// stays the reader's decision.
 func changelogStatus(body string, release ghRelease, found, pushed bool) string {
 	switch {
 	case !found && !pushed:
@@ -246,8 +249,9 @@ func changelogStatus(body string, release ghRelease, found, pushed bool) string 
 // sameBody reports whether a release body holds the note already.
 //
 // GitHub stores a body with CRLF line endings and trims what follows the last
-// line of it, so the two are compared line by line rather than byte for byte.
-// Without this every note reads as out of date the moment it is published.
+// line of it, so sameBody compares the normalized lines of both and ignores
+// byte differences. Without this every note reads as out of date the moment it
+// goes out.
 func sameBody(a, b string) bool {
 	return normalizeBody(a) == normalizeBody(b)
 }
@@ -266,9 +270,9 @@ func normalizeBody(body string) string {
 }
 
 // changelogColor paints the status column: amber for a tag with a note to
-// write, red for one no note can be written for, green for a release already
-// holding the note, and grey for one holding a note of its own, which is read
-// and not acted on.
+// write, red for one with no possible note, green for a release already
+// holding the note, and grey for one holding a note of its own, which the run
+// reads and does not act on.
 func changelogColor(status string) string {
 	switch {
 	case changelogWrites[status]:
@@ -300,29 +304,29 @@ func changelogReason(status string) string {
 }
 
 // changelogRun collects the lines of one row's note column, and writes the note
-// to the remote when --apply was given.
+// to the remote under --apply.
 //
-// The gh command is run with its working directory set to the repository it
+// The gh command runs with its working directory set to the repository it
 // belongs to, so no step ever changes the directory worktree itself is in.
 type changelogRun struct {
 	apply   bool
 	verbose bool
 	styled  bool
 
-	// wrap is the width the cell is folded at, and is zero when the output is
+	// wrap is the width the cell folds at, and is zero when the output is
 	// not going to a terminal and folding it would only get in the way.
 	wrap int
 
-	// lines are the cell of the tag being reported on.
+	// lines are the cell of the tag in the current row.
 	lines []string
 }
 
 // write records what a row takes and performs it under --apply. It reports
 // whether the row came out right, which a tag with nothing to write does.
 //
-// A note that fails does not stop the run: the releases are independent, and
-// the tag after a rejected one is no less publishable for it. The failures are
-// counted and become the exit status once every tag has been through.
+// A failed note does not stop the run: the releases are independent, and the
+// tag after a rejected one is no less publishable for it. The run counts the
+// failures, and the count becomes the exit status once every tag has been through.
 func (r *changelogRun) write(dir string, entry changelogEntry) (ok bool) {
 	r.add(components.ColorSeparator, "%s", changelogReason(entry.Status))
 	if !changelogWrites[entry.Status] {

@@ -66,7 +66,7 @@ func TestDeclarationListSort_Stable(t *testing.T) {
 		makeDecl("Walk", ""),
 	}
 
-	// Sort multiple times
+	// Sort five times
 	for i := 0; i < 5; i++ {
 		dl := make(DeclarationList, len(original))
 		copy(dl, original)
@@ -79,7 +79,7 @@ func TestDeclarationListSort_Stable(t *testing.T) {
 		}{
 			{"Find", ""},                // no receiver first
 			{"Walk", ""},                // no receiver
-			{"Equal", "Declaration"},    // receiver
+			{"Equal", "Declaration"},    // has a receiver
 			{"GetNames", "Declaration"}, // same receiver, sorted by name
 			{"String", "Ref"},           // different receiver
 		}

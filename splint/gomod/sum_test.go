@@ -65,7 +65,7 @@ func TestReadCarriesSums(t *testing.T) {
 	}
 }
 
-// TestReadWithoutSums covers a module that has never been built. It has no
+// TestReadWithoutSums covers a module that nobody has built yet. It has no
 // go.sum, and that is not an error.
 func TestReadWithoutSums(t *testing.T) {
 	dir := writeModule(t, "module example.com/x\n\ngo 1.24.0\n")

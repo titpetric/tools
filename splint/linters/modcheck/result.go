@@ -26,7 +26,7 @@ type Result struct {
 	Message string
 
 	// Position is the file the finding is in, and is empty for a finding about
-	// the module rather than about a line of source.
+	// the module and not about a line of source.
 	Position model.Position
 }
 
@@ -56,12 +56,12 @@ type Results struct {
 	findings []Result
 
 	// deps is every dependency, keyed by module path, and modules is how many
-	// go.mod files the document was parsed from.
+	// go.mod files the document comes from.
 	deps    map[string]*Dependency
 	modules int
 
-	// sums is every version go.sum records, which is what the versions of one
-	// module are counted from, and sizes is what the proxy answered about
+	// sums is every version go.sum records, the source the versions of one
+	// module count from, and sizes is what the proxy answered about
 	// each, keyed "path@version".
 	sums  []model.Sum
 	sizes map[string]int64
@@ -73,7 +73,7 @@ func (r *Results) add(result Result) {
 }
 
 // ask fills in what only the proxy knows, and leaves it blank when the proxy
-// could not be reached. A report is worth having either way.
+// stays out of reach. A report is worth having either way.
 func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[string]*Dependency) {
 	if proxy == nil || len(deps) == 0 {
 		return
@@ -101,8 +101,8 @@ func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[stri
 		}
 	}
 
-	// The versions go.sum records are asked one question and not four: what a
-	// copy of the source weighs. When it was published and what it requires
+	// The linter puts one question to the versions go.sum records, not four: what a
+	// copy of the source weighs. The publish date and the requires list
 	// say nothing about that.
 	unasked := r.unasked()
 	for path, size := range proxy.SizeAll(ctx, unasked) {
@@ -116,7 +116,7 @@ func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[stri
 // did not already cover, keyed by path.
 //
 // A module linked at two majors is two downloads under two paths, and neither
-// need be a requirement of the module being read: the second major can arrive
+// need be a required module of the module under read: the second major can arrive
 // through a dependency. Asking about them is what puts a size on the copies.
 func (r *Results) unasked() map[string]string {
 	out := map[string]string{}
@@ -142,11 +142,11 @@ func (r *Results) unasked() map[string]string {
 //
 // The walk stops at the modules this build carries. A dependency requires
 // things this build resolved away, and counting those would report a cost
-// nobody pays; what is worth knowing is how much of the build list is here
-// because of one requirement.
+// nobody pays; the useful number is how much of the build list is here
+// because of one require line.
 func reach(deps map[string]*Dependency) {
-	// A run that asked nobody knows nothing about the graph, and a reach of
-	// nothing is a measurement rather than an absence. It is left blank.
+	// A run that queried nobody knows nothing about the graph, and a reach of
+	// nothing would read as a measurement where none exists. The column stays blank.
 	answered := false
 	for _, dep := range deps {
 		if len(dep.requires) > 0 {
@@ -192,7 +192,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -205,9 +205,9 @@ func (r Results) All() iter.Seq[model.Issue] {
 
 // Metrics is what the linter measured, one entry per dependency.
 //
-// The key is the module path, which is what a dependency is called everywhere
-// else. They are packages rather than files because a module is neither: of
-// the two halves the model offers, a dependency is much closer to a package
+// The key is the module path, the name a dependency carries everywhere
+// else. They are packages and not files because a module is neither: of
+// the two halves the model exposes, a dependency is much closer to a package
 // than to a file on disk.
 func (r Results) Metrics() model.LintMetrics {
 	metrics := model.LintMetrics{}
@@ -317,8 +317,8 @@ func repeatedFooter(modules, linked int, overhead int64) string {
 }
 
 // reached renders how many modules a dependency brings with it, and reads as
-// nothing where the graph was not read: a run that asked nobody reports no
-// reach rather than a reach of nothing.
+// nothing where the linter never read the graph: a run that queried nobody reports no
+// reach, and no reach of nothing.
 func reached(count int, weight int64) string {
 	if weight == 0 {
 		return "-"
@@ -326,7 +326,7 @@ func reached(count int, weight int64) string {
 	return strconv.Itoa(count)
 }
 
-// footer is the one line a reader takes away. The size is left out when the
+// footer is the one line a reader takes away. The footer leaves the size out when the
 // proxy answered for nothing, since a total of nothing is not a total.
 func footer(deps, shipped, unused int, size int64) string {
 	out := fmt.Sprintf("%d dependencies, %d linked by a consumer", deps, shipped)

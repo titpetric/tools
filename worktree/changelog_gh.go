@@ -10,8 +10,8 @@ import (
 
 // ghRelease is one release of a GitHub repository, as the API reports it.
 type ghRelease struct {
-	// TagName is the tag the release is named by, which is what a note is
-	// matched to its release on.
+	// TagName is the tag that names the release, the key that matches a note
+	// to its release.
 	TagName string `json:"tag_name"`
 
 	// Name is the title shown above the body, and Body is the note itself.
@@ -19,7 +19,7 @@ type ghRelease struct {
 	Body string `json:"body"`
 
 	// Draft reports a release nobody but the repository's own writers can see.
-	// A draft is still a release to write into rather than one to create again.
+	// A draft is still a release to write into, and the run does not create it again.
 	Draft bool `json:"draft"`
 }
 
@@ -31,9 +31,9 @@ type ghTag struct {
 // ghReleases returns the releases the remote of dir carries, keyed on the tag
 // each one names.
 //
-// The whole list is read in one paginated call rather than one call per tag: a
-// repository with forty tags is forty round trips otherwise, and the body is
-// what a note is compared against, which "gh release list" does not report.
+// ghReleases reads the whole list in one paginated call, and makes no call per
+// tag: a repository with forty tags is forty round trips otherwise, and the run
+// compares each note against the body, which "gh release list" does not report.
 func ghReleases(dir string) (map[string]ghRelease, error) {
 	out, err := ghJSON(dir, "api", "--paginate", "repos/{owner}/{repo}/releases?per_page=100")
 	if err != nil {
@@ -59,7 +59,7 @@ func parseGHReleases(data []byte) (map[string]ghRelease, error) {
 
 // ghTags returns the tags the remote of dir carries.
 //
-// A tag that was never pushed can hold no release: gh would create the tag at
+// A tag missing from the remote can hold no release: gh would create the tag at
 // the head of the default branch, which for a note about an old release is a
 // tag pointing at the wrong commit.
 func ghTags(dir string) (map[string]bool, error) {
@@ -108,7 +108,7 @@ func ghJSON(dir string, args ...string) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// releaseNote is the note of one release as it is written to the remote.
+// releaseNote is the note of one release in the form the run writes to the remote.
 type releaseNote struct {
 	// Tag names the release, and Title is the heading shown above the body.
 	Tag   string
@@ -117,8 +117,8 @@ type releaseNote struct {
 	// Body is the note, which is the markdown a verdict writes.
 	Body string
 
-	// Create tells a release that has to be made from one that is already
-	// there and only needs its body rewritten.
+	// Create tells a release the run has to create from one that already
+	// exists and only needs its body rewritten.
 	Create bool
 
 	// Latest reports that the release carries the "Latest" badge, which is the
@@ -131,14 +131,14 @@ type releaseNote struct {
 // The body is not among them: it goes to gh on standard input, since a note
 // runs to thousands of characters and an argument list is no place for one.
 //
-// A release is created with --verify-tag, so gh refuses a tag the remote does
-// not carry rather than creating one at the head of the default branch, which
+// args creates a release with --verify-tag, so gh refuses a tag the remote does
+// not carry and does not create one at the head of the default branch, which
 // is what it does otherwise and is never what a note about an old release
 // wants. An edit names no tag and can create none, so it does not need the
 // flag, and passing it would refuse the draft of a tag that is not pushed yet.
 //
-// Whether the release is the latest one is stated outright on every release
-// created, so writing a note for a release made a year ago does not take the
+// Every release args creates states outright whether it counts as the latest,
+// so writing a note for a release made a year ago does not take the
 // badge from the release that holds it.
 func (n releaseNote) args() []string {
 	if !n.Create {

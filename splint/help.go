@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// The palette a help page is painted in, which is the one the reports beside
-// it are painted in: a heading is bold amber, a name is teal, and what a name
+// The palette a help page uses, the same one the reports beside it use: a
+// heading is bold amber, a name is teal, and what a name
 // defaults to is grey.
 const (
 	helpReset   = "\033[0m"
@@ -19,14 +19,14 @@ const (
 	helpDim     = "\033[38;5;245m"
 )
 
-// spec is a help page: what the tool is, how it is called, what it takes, and
-// what a run of it looks like.
+// spec is a help page: what the tool is, how a user calls it, what it takes,
+// and what a run of it looks like.
 //
-// A section with nothing in it is left out, so a tool with no subcommands has
-// no Commands heading rather than an empty one.
+// The page drops a section with nothing in it, so a tool with no subcommands
+// has no Commands heading at all.
 type spec struct {
-	// Name is the command as it is typed, and Tagline is the one line that
-	// says what it is for.
+	// Name is the command as a user types it, and Tagline is the one line that
+	// states its purpose.
 	Name    string
 	Tagline string
 
@@ -38,11 +38,11 @@ type spec struct {
 	// Commands are the subcommands, in the order a reader meets them.
 	Commands []command
 
-	// Flags is the parser itself, walked rather than repeated: a flag is
-	// documented by having been defined.
+	// Flags is the parser itself, walked and never repeated: defining a flag
+	// documents it.
 	Flags *pflag.FlagSet
 
-	// Examples are runs worth copying, and Notes is what is left to say.
+	// Examples are runs worth copying, and Notes holds what remains to say.
 	Examples []example
 	Notes    string
 }
@@ -53,14 +53,14 @@ type command struct {
 	About string
 }
 
-// example is one run and what it is for.
+// example is one run and its purpose.
 type example struct {
 	Command string
 	About   string
 }
 
 // flagDoc is one flag as a page reads it: the name, the one letter form when
-// it has one, what its value is called, what it defaults to, and what it
+// it has one, the name of its value, what it defaults to, and what it
 // does.
 type flagDoc struct {
 	Name        string
@@ -182,7 +182,7 @@ func helpMarkdown(w io.Writer, s spec) error {
 	return err
 }
 
-// spelled is the flag as it is typed, the short form first where there is
+// spelled is the flag as a user types it, the short form first where there is
 // one, with the name of its value after it where it takes one.
 func (f flagDoc) spelled() string {
 	name := "--" + f.Name
@@ -198,7 +198,7 @@ func (f flagDoc) spelled() string {
 // flagDocs reads the flags off the parser, in the order it walks them, which
 // is the order a reader looks them up in.
 //
-// A default that is the zero of its type says nothing, so it is left out: a
+// A default that is the zero of its type says nothing, so the page omits it: a
 // bool that is off and a string that is empty are what a flag not given
 // already means.
 func flagDocs(fs *pflag.FlagSet) []flagDoc {
@@ -228,8 +228,8 @@ func flagDocs(fs *pflag.FlagSet) []flagDoc {
 	return out
 }
 
-// code writes a cell as code, and writes an empty cell as nothing rather than
-// as an empty pair of backticks.
+// code writes a cell as code, and writes an empty cell as an empty string with
+// no pair of backticks.
 func code(value string) string {
 	if value == "" {
 		return ""
@@ -237,9 +237,9 @@ func code(value string) string {
 	return "`" + value + "`"
 }
 
-// isTerminal reports whether a writer is a terminal, which is what decides
-// whether the page carries colour. A dumb terminal is not one: it is what a
-// pager or an editor sets when it wants plain text.
+// isTerminal reports whether a writer is a terminal; that decides whether the
+// page carries colour. A dumb terminal does not count: a pager or an editor
+// sets TERM=dumb to get plain text.
 func isTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok || os.Getenv("TERM") == "dumb" {

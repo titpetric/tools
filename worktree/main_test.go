@@ -71,8 +71,8 @@ func TestParseOptionsVerbose(t *testing.T) {
 	}
 }
 
-// TestParseOptionsVerboseLongFlag checks that the spelled out --verbose is
-// accepted, since that is how the flag reads in the documentation.
+// TestParseOptionsVerboseLongFlag checks that parseOptions accepts the spelled
+// out --verbose, since that is how the flag reads in the documentation.
 func TestParseOptionsVerboseLongFlag(t *testing.T) {
 	originalArgs := os.Args
 	originalFlags := flag.CommandLine
@@ -90,7 +90,7 @@ func TestParseOptionsVerboseLongFlag(t *testing.T) {
 	}
 }
 
-// TestParseOptionsConfigure checks the config subcommand opens the setup
+// TestParseOptionsConfigure checks the `config` subcommand opens the setup
 // screen and is not mistaken for a path filter.
 func TestParseOptionsConfigure(t *testing.T) {
 	originalArgs := os.Args

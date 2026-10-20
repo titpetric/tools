@@ -26,8 +26,8 @@ func TestExecModulesRendersTable(t *testing.T) {
 	}
 }
 
-// TestExecModulesShowsOutput checks that the command's stdout and stderr end up
-// in the status cell without asking for -v.
+// TestExecModulesShowsOutput checks that the command's stdout and stderr land
+// in the status cell without -v.
 func TestExecModulesShowsOutput(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/app\n\ngo 1.25\n")

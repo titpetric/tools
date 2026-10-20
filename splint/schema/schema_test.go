@@ -73,7 +73,7 @@ func TestConvert(t *testing.T) {
 		t.Errorf("verbose is %q, want boolean", got)
 	}
 
-	// A name two packages both declare is qualified with the package: a schema
+	// A name two packages both declare carries the package as a qualifier: a schema
 	// has one namespace and two Config types are not the same thing.
 	if _, ok := got.Definitions["server.Config"]; !ok {
 		t.Errorf("definitions = %v, want the second Config qualified", keys(got.Definitions))

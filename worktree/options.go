@@ -36,7 +36,7 @@ type Options struct {
 	Skipped    int
 }
 
-// commandConfig opens the setup screen instead of scanning the workspace.
+// commandConfig opens the setup screen and skips the workspace scan.
 const commandConfig = "config"
 
 // commandResolve releases the selected modules in dependency order.
@@ -52,9 +52,9 @@ const commandChangelog = "changelog"
 // valueFlags lists the flags that take a value as a separate argument.
 var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true, "-exec": true, "--exec": true}
 
-// bind defines the command-line flags on a flag set, and gives that set the
-// help page as its usage, so -h and --help print the page rather than the
-// defaults the flag package would list.
+// bind defines the command-line flags on a flag set, and sets the help page as
+// its usage, so -h and --help print the page in place of the defaults the flag
+// package would list.
 func (o *Options) bind(fs *flag.FlagSet) {
 	fs.BoolVar(&o.Update, "u", false, "update the workspace dependencies that are behind their latest tag, and tidy")
 	fs.BoolVar(&o.UpdateAll, "U", false, "update every dependency with go get -u ./..., including ones outside the workspace")
@@ -188,9 +188,9 @@ func ParseOptions() *Options {
 			opts.setFilter(flag.Arg(1))
 			return opts
 		case commandChangelog:
-			// Every tag gets a note of its own, so there is no chain to ask
-			// for: --from and --to bound the tags reported on, and the keyword
-			// that stands for the whole history is read as no bound at all.
+			// Every tag gets a note of its own, so no chain applies: --from
+			// and --to bound the tags in the report, and the keyword that
+			// stands for the whole history reads as no bound at all.
 			opts.Changelog = true
 			opts.setChain()
 			opts.setFilter(flag.Arg(1))
@@ -205,21 +205,21 @@ func ParseOptions() *Options {
 	return opts
 }
 
-// chainKeywords are the values of --from that ask for every release rather than
-// name one revision. They all say the same thing, which is "start at the
+// chainKeywords are the values of --from that select every release and name no
+// single revision. They all say the same thing, which is "start at the
 // beginning": a version below every tag, or the whole history the repository
 // standing at HEAD has behind it.
 var chainKeywords = map[string]bool{"all": true, "0": true, "0.0.0": true, "v0.0.0": true, "head": true}
 
-// chainKeyword reports whether a --from value asks for the whole release chain.
+// chainKeyword reports whether a --from value selects the whole release chain.
 func chainKeyword(from string) bool {
 	return chainKeywords[strings.ToLower(strings.TrimSpace(from))]
 }
 
-// setChain records that the verdict covers every release rather than one range,
-// which --all asks for outright and --from asks for with a keyword. The keyword
-// is cleared once it is read, so nothing downstream is handed a version that
-// names no revision.
+// setChain records that the verdict covers every release and not one range,
+// which --all selects outright and --from selects with a keyword. setChain
+// clears the keyword after reading it, so nothing downstream receives a
+// version that names no revision.
 func (o *Options) setChain() {
 	if chainKeyword(o.From) {
 		o.Chain, o.From = true, ""
@@ -230,8 +230,8 @@ func (o *Options) setChain() {
 }
 
 // setFilter records the optional path filter, which selects the modules a
-// command works on. An argument naming an existing directory is resolved to an
-// absolute path so it can be matched against the module directories, and
+// command works on. setFilter resolves an argument naming an existing directory
+// to an absolute path to match it against the module directories, and
 // "./..." means the whole workspace, which is no filter at all.
 func (o *Options) setFilter(arg string) {
 	if arg == "" || arg == "./..." {

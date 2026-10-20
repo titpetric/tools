@@ -8,12 +8,12 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// symbol is one exported declaration in the terms the filename rules are
-// written in: a name, the type it belongs to, and the file it was found in.
+// symbol is one exported declaration in the terms of the filename
+// rules: a name, the type it belongs to, and the file that holds it.
 //
 // A method belongs to its receiver and a constructor belongs to what it
-// returns, so both arrive here with a receiver set and are checked the same
-// way. A type belongs to nothing and carries the name alone.
+// returns, so both arrive here with a receiver set and go through the same
+// check. A type belongs to nothing and carries the name alone.
 type symbol struct {
 	// kind is "type" or "func", and is what the message calls the symbol.
 	kind string
@@ -23,8 +23,8 @@ type symbol struct {
 	name     string
 	receiver string
 
-	// file is the base filename it was found in, which is what the rules are
-	// written against, and position is the same file as a reader opens it.
+	// file is the base filename that holds it, the name the rules
+	// test against, and position is the same file as a reader opens it.
 	file     string
 	position model.Position
 
@@ -42,12 +42,12 @@ func (s symbol) String() string {
 }
 
 // match returns the filenames a reader would have expected the symbol in, how
-// many filenames were accepted in all, and whether the file it is actually in
+// many filenames the rules accept in total, and whether the file holding it
 // is one of them.
 //
-// A type is checked as a receiver with no name, which is what makes the walk
-// below read the same for both. The first pass asks for the whole name; the
-// ones after it break the receiver and then the name into words and ask again,
+// A type enters the walk as a receiver with no name, so the walk
+// below reads the same for both. The first pass tries the whole name; the
+// ones after it break the receiver and then the name into words and try again,
 // because a file named for one word of a compound symbol is a file the symbol
 // belongs in.
 func (s symbol) match() (expected []string, total int, matched bool) {
@@ -100,9 +100,9 @@ func (s symbol) match() (expected []string, total int, matched bool) {
 // canonical are the filenames worth naming in a message: the receiver and the
 // name together, each of them alone, and nothing else.
 //
-// The full list a symbol is accepted in runs to a dozen names and reading it
-// would say less than reading three. The count is reported alongside so the
-// message does not pretend these are all of them.
+// The full list of names a symbol may sit in runs to a dozen, and reading it
+// would say less than reading three. The message carries the count alongside so it
+// does not pretend these are the whole list.
 func (s symbol) canonical() []string {
 	name, receiver := s.name, s.receiver
 	if receiver == "" {
@@ -126,11 +126,11 @@ func (s symbol) canonical() []string {
 // to say about, and how many it left alone for sitting in a file that compiles
 // on its own.
 //
-// Types are read for the structs among them: an interface, an alias and a
-// named primitive are all a declaration of a shape rather than of a thing with
-// behaviour, and none of them earns a file. Functions are read for the type
+// The rule reads types for the structs among them: an interface, an alias and a
+// named primitive each declare a shape and no thing with
+// behaviour, and none of them earns a file. The rule reads functions for the type
 // they belong to, which is the receiver of a method and the first return of a
-// constructor. A function belonging to no type is left alone, because there is
+// constructor. The rule leaves a function belonging to no type alone, because there is
 // no type to name a file after.
 func collect(def *model.Definition) ([]symbol, int) {
 	generated := generatedFiles(def)
@@ -195,7 +195,7 @@ func collect(def *model.Definition) ([]symbol, int) {
 }
 
 // countExported is how many of a declaration's names a reader can reach, for
-// the count of what was left to its own file.
+// the count of what the rule left to its own file.
 func countExported(names []string) int {
 	count := 0
 	for _, name := range names {
@@ -206,8 +206,8 @@ func countExported(names []string) int {
 	return count
 }
 
-// generatedFiles are the files of a package nobody wrote, which is where the
-// filename says what the generator was pointed at rather than what the symbol
+// generatedFiles are the files of a package nobody wrote; there the
+// filename says what the generator aimed at and says nothing of what the symbol
 // is.
 func generatedFiles(def *model.Definition) map[string]bool {
 	files := map[string]bool{}
@@ -229,14 +229,14 @@ func receiverName(receiver string) string {
 	return name
 }
 
-// returnName is the type a constructor is named for, which is the first thing
+// returnName is the type a constructor takes its name from: the first thing
 // it returns.
 //
 // Only a plain type counts. A slice, a map, a channel or an instantiated
-// generic is a shape built out of a type rather than the type itself, and a
+// generic is a shape built out of a type and no type itself, and a
 // function returning one is not the constructor of anything. Neither is a
 // generic function returning one of its own type parameters: the T that
-// Exec[T] returns is whatever the caller asked for, not a type to name a
+// Exec[T] returns is whatever the caller picks, and no type to name a
 // file after.
 func returnName(decl *model.Declaration) string {
 	if len(decl.Returns) == 0 {

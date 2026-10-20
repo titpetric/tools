@@ -22,8 +22,8 @@ func TestNewModelForReadsTheDocument(t *testing.T) {
 	}
 }
 
-// TestNewModelForOpensOnDefaults checks a document that cannot be parsed still
-// opens the screen, which is where it gets fixed, with the reason showing.
+// TestNewModelForOpensOnDefaults checks a document that fails to parse still
+// opens the screen, where the user fixes it, with the reason showing.
 func TestNewModelForOpensOnDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "worktree.yml")
 	writeTestFile(t, path, "scan: [not a mapping\n")
@@ -59,9 +59,9 @@ func TestNewModelForMissingDocument(t *testing.T) {
 // TestRun covers what Run decides before and after the screen: which document
 // the form opens on, and what a run that did not save reports.
 //
-// The screen itself is not opened. tea.NewProgram wants a terminal, and what
-// would be tested through it is the form, which model_test.go drives directly
-// by feeding it key presses.
+// The test does not open the screen itself. tea.NewProgram needs a terminal,
+// and the part a test reaches through that program is the form, which model_test.go
+// drives directly by feeding it key presses.
 func TestRun(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

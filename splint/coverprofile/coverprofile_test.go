@@ -124,7 +124,7 @@ func TestOverlaySumsComplexity(t *testing.T) {
 }
 
 // TestOverlayOfAnotherPackage covers a profile naming a file of a package the
-// document does not hold: the blocks are keyed by import path, so they reach
+// document does not hold: the index keys blocks by import path, so they reach
 // nothing here.
 func TestOverlayOfAnotherPackage(t *testing.T) {
 	root := document()
@@ -164,8 +164,8 @@ func TestApply(t *testing.T) {
 	}
 }
 
-// TestApplyMissingFile covers the profile that is not there, which is named in
-// the error so a pipeline says which step did not write it.
+// TestApplyMissingFile covers the profile that is not there: the error names
+// it, so a pipeline says which step did not write it.
 func TestApplyMissingFile(t *testing.T) {
 	err := coverprofile.Apply(document(), filepath.Join(t.TempDir(), "nowhere.cov"))
 	if err == nil {

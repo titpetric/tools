@@ -9,14 +9,14 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Canonical renders a package as a tree keyed by what a thing is rather than
-// by where it sits in a list.
+// Canonical renders a package as a tree keyed by what a thing is, and never by
+// where it sits in a list.
 //
 // The declaration lists become maps keyed on the symbol, so a comparison lines
 // two documents up by identity: one extra declaration is one difference, where
 // a positional walk would shift every declaration after it and report a
-// hundred. Everything else is left exactly as it encodes, so a key nobody
-// thought about is still walked.
+// hundred. Everything else stays exactly as it encodes, so the walk still
+// covers a key nobody thought about.
 func Canonical(def *model.Definition) map[string]any {
 	tree, ok := encode(def).(map[string]any)
 	if !ok {
@@ -37,7 +37,7 @@ func Canonical(def *model.Definition) map[string]any {
 // keyed turns a list of declarations into a map from symbol to declaration.
 //
 // A key that two declarations share, which is a file declaring the same name
-// twice, keeps both under numbered keys rather than losing one: a comparison
+// twice, keeps both under numbered keys and loses neither: a comparison
 // that silently dropped a declaration would be reporting agreement it had not
 // established.
 func keyed(declarations []any) KeyedList {
@@ -70,7 +70,7 @@ func keyed(declarations []any) KeyedList {
 //
 // The line is not part of it. A declaration that moved down a file is the same
 // declaration, and keying on the line would report it as one removed and one
-// added rather than as a line that changed.
+// added, when only a line changed.
 func symbolKey(decl map[string]any) string {
 	parts := []string{text(decl["File"])}
 
@@ -94,7 +94,7 @@ func symbolKey(decl map[string]any) string {
 	return strings.Join(parts, ".")
 }
 
-// text renders a value as the string it is, and as nothing when it is absent.
+// text renders a value as its string, and as an empty string when absent.
 func text(value any) string {
 	if value == nil {
 		return ""

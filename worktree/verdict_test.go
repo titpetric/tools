@@ -10,7 +10,7 @@ import (
 )
 
 // verdictRepo builds a module with two releases and returns its directory. The
-// second release removes Greet and adds Bye, so it is a breaking one.
+// second release removes Greet and adds Bye, so that release breaks the API.
 func verdictRepo(t *testing.T) string {
 	t.Helper()
 
@@ -77,8 +77,8 @@ func TestReadVerdictProposesAReleaseWhenBehind(t *testing.T) {
 	}
 }
 
-// The first release has no earlier one to be compared against, so everything it
-// exports is reported as added.
+// The first release has no earlier one to compare against, so the report lists
+// everything it exports as added.
 func TestReadVerdictWithOneTagAddsEverythingItExports(t *testing.T) {
 	requireSplint(t)
 
@@ -125,8 +125,8 @@ func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
 		t.Error("readVerdict() without a tag reported no commits, want the whole history")
 	}
 
-	// Everything the working tree exports is an addition, since the release is
-	// measured against a module holding nothing at all.
+	// Everything the working tree exports is an addition, since the release
+	// compares against a module holding nothing at all.
 	var names []string
 	for _, symbol := range got.API.Added {
 		names = append(names, symbol.Name)
@@ -138,7 +138,7 @@ func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
 		t.Errorf("readVerdict() Release = %q, want a patch: a first release takes nothing away", got.Release)
 	}
 
-	// The fields of an added type are read as additions of their own, so the
+	// The fields of an added type count as additions of their own, so the
 	// first release states the shape it declares.
 	if fields := len(dataModelEntries(got)); fields != 1 {
 		t.Errorf("dataModelEntries() = %d entries, want the one field of Tag", fields)
@@ -241,7 +241,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	requireSplint(t)
 
 	alpha := verdictRepo(t)
-	// A working tree the report must not read, since a range was named.
+	// A working tree the report must not read, since the call names a range.
 	writeTestFile(t, filepath.Join(alpha, "stray.go"), "package alpha\n\n// Stray is uncommitted.\nfunc Stray() {}\n")
 
 	got, err := readVerdict(alpha, "v0.1.0", "v0.2.0", false)
@@ -294,18 +294,19 @@ func TestTaggedRef(t *testing.T) {
 	}{
 		{ref: "v0.1.0", prefix: "alpha/", tags: tags, want: "alpha/v0.1.0"},
 		{ref: "v0.1.0", tags: tags, want: "v0.1.0"},
-		// The version is matched against the tags rather than reprinted, so the
-		// v the command line left off is the one the repository carries.
+		// taggedRef matches the version against the tags and does not reprint
+		// it, so the v the command line left off is the one the repository
+		// carries.
 		{ref: "0.1.0", tags: tags, want: "v0.1.0"},
 		{ref: "0.1.0", prefix: "alpha/", tags: tags, want: "alpha/v0.1.0"},
-		// A repository tagging without the v is found from either spelling.
+		// Either spelling finds the tag of a repository tagging without the v.
 		{ref: "v0.3.0", tags: []string{"0.3.0"}, want: "0.3.0"},
-		// A version no tag carries is passed to git as it stands, so the run
-		// reports an unreadable revision rather than falling back elsewhere.
+		// taggedRef passes a version no tag carries to git as it stands, so the
+		// run reports an unreadable revision and falls back to nothing.
 		{ref: "v9.9.9", prefix: "alpha/", tags: tags, want: "alpha/v9.9.9"},
 		{ref: "v0.1.0", prefix: "alpha/", want: "alpha/v0.1.0"},
-		// Anything that is not a version is a commit or a branch, and is left
-		// as it was given.
+		// Anything other than a version is a commit or a branch, and stays as
+		// the caller wrote it.
 		{ref: "HEAD", prefix: "alpha/", tags: tags, want: "HEAD"},
 		{ref: "main", prefix: "alpha/", tags: tags, want: "main"},
 		{ref: "29097b5", prefix: "alpha/", tags: tags, want: "29097b5"},
@@ -370,8 +371,9 @@ func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
 		t.Fatalf("readVerdict() Commits = %#v, want the three commits since the tag", got.Commits)
 	}
 
-	// The commits are newest first, so the range reads bottom up: Greet is
-	// added, the docs are written, and the signature moves.
+	// The commits are newest first, so the range reads bottom up: one commit
+	// adds Greet, the next writes its documentation, and the last moves the
+	// signature.
 	want := []string{"+0/~1/-0", "", "+1/~0/-0"}
 	for i, commit := range got.Commits {
 		diff, ok := got.CommitAPI[commit.Hash]
@@ -390,8 +392,8 @@ func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
 }
 
 // twoModelsRepo builds a module holding two packages named model, one below
-// the root and one below the front end, which is what the package column has
-// to tell apart.
+// the root and one below the front end, the pair the package column has to
+// tell apart.
 func twoModelsRepo(t *testing.T) string {
 	t.Helper()
 

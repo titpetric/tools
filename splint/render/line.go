@@ -6,18 +6,18 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Line is one issue, written the one way issues are written:
+// Line is one issue, in the single shape every issue takes:
 //
 //	WARN: undocumented.go:9: godoc/missing: Undocumented - exported symbol lacks a godoc comment
 //
 // The level opens it, the position and the rule follow the shape a compiler
-// writes, and the symbol prefixes the message it is about. A finding about a
-// file rather than a symbol is the message alone after the rule.
+// writes, and the symbol prefixes the message about it. A finding about a
+// whole file carries the message alone after the rule.
 func Line(issue model.Issue) string {
 	return compose(issue, false)
 }
 
-// compose writes one issue, painted where it is going to a terminal.
+// compose writes one issue, painted when the output goes to a terminal.
 //
 // The parts carry the colour and the punctuation between them does not, so a
 // line reads the same with the escapes stripped out of it as without: what a

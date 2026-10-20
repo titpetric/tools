@@ -24,16 +24,16 @@ func TestReadGoVersion(t *testing.T) {
 }
 
 // TestDiff reads the two go.mod fixtures and pins every case the comparison
-// has to tell apart, which is what the pair of them is written to hold: a
-// requirement added, one dropped, one moved to another version, one that held,
-// and the indirect ones that are left out of the report.
+// has to tell apart, the cases the pair of them holds: a dependency added,
+// one dropped, one moved to another version, one that held, and the indirect
+// ones the report leaves out.
 func TestDiff(t *testing.T) {
 	before, after := testdataRequires(t, "go-before.mod"), testdataRequires(t, "go-after.mod")
 
 	want := []DiffResult{
 		{Path: "github.com/google/go-cmp", Change: fieldAdded, New: "v0.7.0"},
 		{Path: "golang.org/x/mod", Change: fieldChanged, Old: "v0.40.0", New: "v0.41.0"},
-		// Indirect before and direct after, so it is reported: a requirement
+		// Indirect before and direct after, so Diff reports it: a dependency
 		// direct on either side is one the module decided on.
 		{Path: "golang.org/x/sync", Change: fieldChanged, Old: "v0.22.0", New: "v0.23.0"},
 		{Path: "gopkg.in/yaml.v3", Change: fieldRemoved, Old: "v3.0.1"},
@@ -58,7 +58,7 @@ func TestDiff(t *testing.T) {
 }
 
 // TestDiffResultVersion covers the version cell of each category, which is the
-// one place a change reads as two versions rather than one.
+// one place a change reads as two versions and not one.
 func TestDiffResultVersion(t *testing.T) {
 	tests := map[DiffResult]string{
 		{Change: fieldAdded, New: "v1.1.0"}:                  "v1.1.0",

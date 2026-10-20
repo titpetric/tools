@@ -22,11 +22,11 @@ func TestSelectors(t *testing.T) {
 		{line: "f().X", want: nil},
 		{line: "no selector here", want: nil},
 		// A variadic parameter reaches the package of its type. The dot in
-		// front of the name closes a "..." rather than opening a chain.
+		// front of the name closes a "..." and opens no chain.
 		{line: "func New(opts ...vuego.LoadOption) *Service {", want: []selector{
 			{pkg: "vuego", symbol: "LoadOption"},
 		}},
-		// The "..." does not hide what is written beside it either.
+		// The "..." does not hide the text beside it either.
 		{line: "func New(baseFS fs.FS, opts ...vuego.LoadOption) *Service {", want: []selector{
 			{pkg: "fs", symbol: "FS"},
 			{pkg: "vuego", symbol: "LoadOption"},
@@ -45,7 +45,7 @@ func TestSelectors(t *testing.T) {
 }
 
 // TestFileReferences covers the two things that decide a reference: the name
-// has to be one the file imports, and the symbol has to be exported.
+// has to be one the file imports, and the symbol has to carry a capital.
 func TestFileReferences(t *testing.T) {
 	src := newSource("x.go", []byte(`package p
 

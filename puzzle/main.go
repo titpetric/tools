@@ -34,8 +34,8 @@ var options struct {
 	Help            bool
 }
 
-// bindFlags defines the command line on a parser. The help page is written
-// from the same parser, so a flag is documented by having been defined.
+// bindFlags defines the command line on a parser. The help page reads the
+// same parser, so defining a flag documents it.
 func bindFlags(fs *flag.FlagSet) {
 	fs.StringVar(&options.Style, "style", "default", "render with `STYLE`: default or matrix")
 	fs.BoolVar(&options.WholeWordColor, "whole", false, "color per word instead of per character")
@@ -84,7 +84,7 @@ func main() {
 	fs := flag.NewFlagSet("puzzle", flag.ContinueOnError)
 
 	// helpSpec is the only help this command writes, so the parser's own usage
-	// is discarded rather than printed.
+	// goes to io.Discard.
 	fs.SetOutput(io.Discard)
 	fs.Usage = func() {}
 	bindFlags(fs)

@@ -27,8 +27,7 @@ func TestSplitTop(t *testing.T) {
 
 func TestNamedList(t *testing.T) {
 	tests := map[string]bool{
-		// The last item decides for the whole list, which is what Go requires
-		// of it.
+		// The last item decides for the whole list, as Go requires.
 		"a, b int":                   true,
 		"name string":                true,
 		"ctx context.Context, n int": true,
@@ -83,7 +82,7 @@ func TestSignature(t *testing.T) {
 		{name: "Open", params: "name string", results: "error", want: "Open (name string) error"},
 		{name: "Open", params: "a, b int", results: "", want: "Open (a,b int)"},
 		{name: "Trace", params: "id string", results: "(Trace, bool)", want: "Trace (id string) (Trace, bool)"},
-		// A named result is written as its type, and a group sharing one type
+		// A named result reads as its type, and a group sharing one type
 		// is one result: "(name, host string)" is a single field to the
 		// collector, so it prints one type and not two.
 		{name: "groupKey", params: "trace Trace", results: "(name, host string)", want: "groupKey (trace Trace) string"},
@@ -135,7 +134,7 @@ func TestSymbolType(t *testing.T) {
 		"*Client":          "*Client",
 		"interface{}":      "any",
 		"interface{ A() }": "any",
-		// An array is written as a slice of its element, which is what the
+		// An array reads as a slice of its element, matching what the
 		// collector prints.
 		"[16]byte":       "[]byte",
 		"[]byte":         "[]byte",

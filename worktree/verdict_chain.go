@@ -8,10 +8,10 @@ import (
 // readVerdicts reports on every release the module in dir has made, one verdict
 // per section of its release chain, newest first.
 //
-// Every revision is read through one model cache, so a release that ends one
-// section and starts the next is unpacked and modelled once rather than twice.
-// The cached flag is whether that cache is backed by the one on disk, which
-// carries the commits of a run into the next one, and --no-cache turns off.
+// readVerdicts reads every revision through one model cache, so it unpacks and
+// models a release that ends one section and starts the next only once.
+// The cached flag says whether the disk cache backs that cache, carrying the
+// commits of a run into the next one; --no-cache turns it off.
 func readVerdicts(dir string, verbose bool, from, upTo string, cached bool) ([]verdict, error) {
 	tags, prefix, err := moduleTags(dir)
 	if err != nil {

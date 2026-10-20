@@ -12,13 +12,13 @@ type Declaration struct {
 	File string `json:"File" yaml:"File"`
 	Line int    `json:"Line,omitempty" yaml:"Line,omitempty"`
 
-	// This is not encoded to json, it's computed on load.
+	// Encoding to json skips this field; loading computes it.
 	Imports []string `json:"-" yaml:"-"`
 
 	// References are the packages the declaration reaches through an import of
-	// its own file, keyed by the name the import is written under: json ->
-	// Encode. A file is the scope an import is resolved in, so the same symbol
-	// reached from two files is recorded on both.
+	// its own file, keyed by the name the import spells: json -> Encode. An
+	// import resolves within the scope of one file, so the parse records the
+	// same symbol reached from two files on both.
 	References StringSet `json:"References,omitempty" yaml:"References,omitempty"`
 
 	// Globals are the package level names the declaration reaches that its own
@@ -26,7 +26,7 @@ type Declaration struct {
 	// symbols; a selector on a package level variable is a key with the name
 	// after the dot.
 	//
-	// It is what says how far a declaration reaches inside its own package: a
+	// This field says how far a declaration reaches inside its own package: a
 	// declaration with none of them names only its imports and what is beside
 	// it in the file.
 	Globals StringSet `json:"Globals,omitempty" yaml:"Globals,omitempty"`
@@ -43,8 +43,8 @@ type Declaration struct {
 	Returns   []string `json:"Returns,omitempty" yaml:"Returns,omitempty"`
 
 	// ArgumentCount is how many parameters a caller passes. Arguments holds
-	// the distinct types and no duplicate, which is what a reader of the
-	// dependency model wants; it is not the length of the parameter list.
+	// the distinct types and no duplicate, for a reader of the dependency
+	// model; its length can differ from the length of the parameter list.
 	// date(year int, month time.Month, day, hour, min, sec int) has seven
 	// parameters and two entries in Arguments, and a rule about the order of
 	// two arguments has to be able to tell those apart.
@@ -52,8 +52,8 @@ type Declaration struct {
 
 	// TypeParams are the names a generic func binds between its name and its
 	// parameter list: Eval[T any] binds T. A name in here is a stand-in the
-	// caller fills rather than a type the package declares, which is what lets
-	// a reader of the model tell Exec[T]() (T, error) from a constructor.
+	// caller fills, and no type the package declares; that lets a reader of
+	// the model tell Exec[T]() (T, error) from a constructor.
 	TypeParams []string `json:"TypeParams,omitempty" yaml:"TypeParams,omitempty"`
 
 	Signature string `json:"Signature,omitempty" yaml:"Signature,omitempty"`
@@ -71,7 +71,7 @@ func (f *Declaration) HasReceiver() bool {
 }
 
 // HasTypeParam reports whether name is one of the declaration's type
-// parameters rather than a type of its own.
+// parameters, and false for a declared type.
 func (f *Declaration) HasTypeParam(name string) bool {
 	for _, param := range f.TypeParams {
 		if param == name {

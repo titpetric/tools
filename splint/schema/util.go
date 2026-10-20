@@ -228,10 +228,10 @@ func buildAliasMap(imports []string) map[string]string {
 	return aliasMap
 }
 
-// ptr returns a pointer to a value, which is what a schema field holding an
-// optional number needs.
+// ptr returns a pointer to a value, as a schema field holding an optional
+// number needs.
 //
-// It is unexported: a generic helper this small is the package's own business,
+// ptr stays unexported: a generic helper this small is the package's own business,
 // and the grouping rules would otherwise ask it to have a file to itself.
 func ptr[T any](v T) *T {
 	return &v

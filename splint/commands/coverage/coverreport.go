@@ -1,10 +1,10 @@
 // Package coverreport renders the coverage a document carries as tables.
 //
-// The coverage itself is folded in by coverprofile when the document is
-// parsed. What is rendered here is the report over it: one row per function
-// with the coverage and the cognitive complexity beside it, and one row per
-// package with the lines added up. A template turns the two tables into a
-// page; without one the function table alone is printed.
+// coverprofile folds the coverage itself in when it parses the document. This
+// package renders the report over it: one row per function with the coverage
+// and the cognitive complexity beside it, and one row per package with the
+// lines added up. A template turns the two tables into a page; without one the
+// report prints the function table alone.
 package coverage
 
 import (
@@ -19,7 +19,7 @@ import (
 	"github.com/titpetric/tools/splint/render"
 )
 
-// The row markers. A function passes when it is trivial or covered: no
+// The row markers. A function passes when trivial or covered: no
 // measured complexity, coverage above 80%, or some coverage on a function of
 // cognitive complexity five or less.
 const (
@@ -27,15 +27,15 @@ const (
 	markFail = "❌"
 )
 
-// Options is what one report was asked for.
+// Options holds the settings of one report.
 type Options struct {
 	// Template names a text/template file rendered with .Functions and
-	// .Packages, the two tables as markdown. Without one, the function table
-	// alone is printed.
+	// .Packages, the two tables as markdown. Without one, Write prints the
+	// function table alone.
 	Template string
 
-	// Verbose keeps the functions with no coverage in the report, which are
-	// left out otherwise.
+	// Verbose keeps the functions with no coverage in the report; the report
+	// leaves them out otherwise.
 	Verbose bool
 }
 
@@ -48,7 +48,7 @@ type Row struct {
 }
 
 // Data returns the function rows of the report, sorted by package and
-// function. Without verbose, a function with no coverage is left out.
+// function. Without verbose, Data leaves out a function with no coverage.
 func Data(root *model.DocumentRoot, verbose bool) []Row {
 	var result []Row
 
@@ -86,8 +86,8 @@ func Data(root *model.DocumentRoot, verbose bool) []Row {
 	return result
 }
 
-// Write renders the report to w: the template with both tables when one is
-// named, and the function table alone otherwise.
+// Write renders the report to w: the template with both tables when Options
+// names one, and the function table alone otherwise.
 func Write(w io.Writer, root *model.DocumentRoot, opts Options) error {
 	module := modulePath(root.Packages)
 
@@ -139,8 +139,8 @@ func functionTable(rows []Row, module string) string {
 	return strings.TrimSpace(render.MarkdownTable([]string{"Status", "Package", "Function", "Coverage", "Cognitive"}, cells))
 }
 
-// packageTable is the per package table, read off model.Package.Complexity,
-// which is what coverprofile fills when the profile is folded in.
+// packageTable is the per package table, read off model.Package.Complexity.
+// coverprofile fills that field when it folds the profile in.
 func packageTable(defs model.DefinitionList, module string) string {
 	packages := make([]model.Package, 0, len(defs))
 	for _, def := range defs {
@@ -203,10 +203,10 @@ func modulePath(defs model.DefinitionList) string {
 	return path
 }
 
-// relativePackage renames an import path to what it is called inside its own
-// module. A report of one module repeats the module path on every row, where
-// what tells two rows apart is what follows it; the root package has nothing
-// following it and is named ".", as a path relative to the module root is.
+// relativePackage renames an import path to its name inside its own module. A
+// report of one module repeats the module path on every row, where what tells
+// two rows apart is what follows it; the root package has nothing following it
+// and takes the name ".", as a path relative to the module root does.
 func relativePackage(module, importPath string) string {
 	if module == "" {
 		return importPath
@@ -221,10 +221,9 @@ func relativePackage(module, importPath string) string {
 }
 
 // collapseColumn blanks a cell that repeats the row above it, so a column
-// reads as the groups it holds rather than as the same value written out
-// once per row. The rows are already sorted by that column, so a value
-// reappearing after a different one is a different group and is written
-// again.
+// reads as the groups it holds. The rows arrive sorted by that column, so a
+// value reappearing after a different one starts a different group and
+// collapseColumn writes it again.
 func collapseColumn(rows [][]string, column int) {
 	previous := ""
 	for _, row := range rows {

@@ -1,13 +1,12 @@
-// Package pathmatch matches a file path against a glob written in a config
+// Package pathmatch matches a file path against a glob from a configuration
 // file.
 //
 // path.Match is the syntax, and a star in it stops at a separator: parser/*.go
 // is the files of one directory and says nothing about the directories under
-// it. A config file names a kind of file rather than a directory listing, and
-// the kind a tree wants to name is usually at every depth, so a pattern here
-// reads ** as any number of segments. That is the spelling .gitignore, the
-// shells and every CI config use for the same idea, so it is the one an author
-// writes without being told.
+// it. A configuration file names a kind of file, and the kind a tree names
+// lives at every depth in the common case, so a pattern here reads ** as any
+// number of segments. .gitignore, the shells and every CI configuration spell
+// the same idea that way, so an author writes it with no prompting.
 package pathmatch
 
 import (
@@ -18,18 +17,18 @@ import (
 // doubleStar is the segment that stands for any number of segments.
 const doubleStar = "**"
 
-// Match reports whether name is covered by pattern.
+// Match reports whether pattern covers name.
 //
-// The pattern is read in segments and every segment but ** is matched with
+// Match reads the pattern in segments and matches every segment but ** with
 // path.Match, so what one segment accepts is exactly what path.Match accepts:
 // a star for any run of characters, a question mark for one, a character class
 // in brackets. A ** segment matches any number of segments including none,
-// which is what makes **/*_test.go reach a test file at any depth and one in
-// the root as well.
+// so **/*_test.go reaches a test file at any depth and one in the root as
+// well.
 //
-// A malformed pattern returns path.ErrBadPattern, and the whole pattern is
-// read before anything is matched, so the error does not depend on which name
-// it was asked about.
+// A malformed pattern returns path.ErrBadPattern, and Match reads the whole
+// pattern before it matches anything, so the error does not depend on the
+// name it gets.
 func Match(pattern, name string) (bool, error) {
 	if err := Valid(pattern); err != nil {
 		return false, err
@@ -37,9 +36,9 @@ func Match(pattern, name string) (bool, error) {
 	return match(strings.Split(pattern, "/"), strings.Split(name, "/")), nil
 }
 
-// Valid reports a pattern Match can read. It is the check a loader runs, so a
-// typo in a config file is refused where it was written rather than left to
-// match nothing for the life of the file.
+// Valid reports a pattern Match can read. A loader runs this check, so the
+// loader refuses a typo in a configuration file at its source, and the typo
+// never matches nothing for the life of the file.
 func Valid(pattern string) error {
 	for _, segment := range strings.Split(pattern, "/") {
 		if segment == doubleStar {
@@ -53,13 +52,13 @@ func Valid(pattern string) error {
 }
 
 // match walks the two segment lists. Valid has already read the pattern, so
-// nothing here can be malformed and path.Match cannot fail.
+// nothing here holds a malformed pattern and path.Match cannot fail.
 func match(pattern, name []string) bool {
 	for len(pattern) > 0 {
 		if pattern[0] == doubleStar {
 			// ** stands for any number of segments, so every tail of the name
-			// is offered to the rest of the pattern. The shortest tail is
-			// tried first, which is the one where ** stands for nothing.
+			// goes to the rest of the pattern. The shortest tail goes first,
+			// and in that one ** stands for nothing.
 			rest := pattern[1:]
 			if len(rest) == 0 {
 				return true

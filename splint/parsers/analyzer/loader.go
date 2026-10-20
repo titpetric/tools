@@ -17,9 +17,9 @@ import (
 
 // Load reads one package into its definitions.
 //
-// A file carrying a build tag is skipped: the loaded syntax is what the
+// Load skips a file carrying a build tag: the loaded syntax is what the
 // default build constraints selected, and a tagged file that came through with
-// it would be read under constraints it was not written for.
+// it would read under constraints its author never meant.
 func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 	if in == nil || in.Syntax == nil {
 		return nil, fmt.Errorf("no syntax loaded for package: %s", in.Package)
@@ -57,8 +57,8 @@ func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 		facts = append(facts, fileFacts(fset, file, src, options.IncludeImports))
 	}
 
-	// The loader asked for types, so the collector resolves an identifier
-	// against the package scope rather than guessing at it.
+	// The loader requests types, so the collector resolves an identifier
+	// against the package scope and never guesses at it.
 	sink := collector.NewCollector(fset, pkg.TypesInfo, pkg.Types)
 
 	insp := inspector.New(files)

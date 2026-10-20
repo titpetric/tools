@@ -14,7 +14,7 @@ type Result struct {
 	// Rule is which of the linter's rules the finding is under.
 	Rule string
 
-	// Symbol is what the finding is about, and Position where it is.
+	// Symbol is what the finding is about, and Position its location.
 	Symbol   string
 	Position model.Position
 
@@ -51,7 +51,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -125,14 +125,13 @@ func (r *Results) count(pkg model.Package, exported, covered, constructors int) 
 	return metric
 }
 
-// add records one finding against the package it was found in.
+// add records one finding against the package that holds it.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 	metric.Uncovered++
 }
 
-// percent renders a share, and reads as nothing when there was nothing to take
-// a share of.
+// percent renders a share, and reads as nothing when the whole is zero.
 func percent(part, whole int) string {
 	if whole == 0 {
 		return "-"

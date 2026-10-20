@@ -2,7 +2,7 @@ package godoc
 
 // Metric is what the linter counted in one package.
 type Metric struct {
-	// Exported is how many symbols were read, and Documented how many of them
+	// Exported is how many symbols the linter read, and Documented how many of them
 	// carried a comment that says what it should.
 	Exported   int `json:"Exported" yaml:"Exported"`
 	Documented int `json:"Documented" yaml:"Documented"`

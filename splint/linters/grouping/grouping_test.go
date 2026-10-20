@@ -8,13 +8,13 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// zoo is the package the fixtures below are declared in, so a file named for
-// the package is zoo.go and every other name has to be earned.
+// zoo is the package that holds the fixtures below, so a file named for
+// the package is zoo.go and every other name has to earn its place.
 var zoo = model.Package{Package: "zoo", Path: "./zoo", ImportPath: "example.com/zoo"}
 
 // document wraps lists of declarations into the document a linter reads.
 //
-// Every declaration is given a reach into a second file, because a file that
+// Every declaration gets a reach into a second file, because a file that
 // compiles by itself is the file's own business and the rule leaves it alone:
 // a fixture of one declaration reaching nothing is a self-contained file, and
 // every case below would report nothing whatever its filename.
@@ -64,7 +64,7 @@ func lint(t *testing.T, root *model.DocumentRoot) []model.Issue {
 
 // TestLinterReportsATypeAwayFromItsFile covers the whole of the rule for a
 // type: the name is the filename, and the file named for the package holds
-// whatever has not been split out of it yet.
+// whatever nobody has split out of it yet.
 func TestLinterReportsATypeAwayFromItsFile(t *testing.T) {
 	tests := []struct {
 		file   string
@@ -203,7 +203,7 @@ func TestLinterSkipsWhatItDoesNotJudge(t *testing.T) {
 		t.Errorf("reported %d issues on an unexported type", len(issues))
 	}
 
-	// An interface and a named primitive declare a shape rather than a thing
+	// An interface and a named primitive declare a shape and no thing
 	// with behaviour, and neither earns a file of its own.
 	for _, kind := range []string{"interface", "string"} {
 		decls := misplaced("Elephant", "animals.go")
@@ -215,7 +215,7 @@ func TestLinterSkipsWhatItDoesNotJudge(t *testing.T) {
 }
 
 // TestLinterCountsWhatItRead covers the numbers, which are a split of the
-// symbols read rather than a count of the findings.
+// symbols read and no count of the findings.
 func TestLinterCountsWhatItRead(t *testing.T) {
 	types := model.DeclarationList{
 		{Kind: model.TypeKind, Name: "Elephant", File: "elephant.go", Line: 5},
@@ -257,8 +257,8 @@ func TestLinterCountsWhatItRead(t *testing.T) {
 
 // TestLinterLeavesASelfContainedFileAlone covers the file the rule has nothing
 // to say about: one that compiles by itself moves as one unit, so where a
-// symbol sits inside it is the file's own business. The symbols are counted
-// under Own file rather than dropped, so the table says what was left alone.
+// symbol sits inside is the file's own business. The linter counts the symbols
+// under Own file and keeps them, so the table shows what the rule left alone.
 func TestLinterLeavesASelfContainedFileAlone(t *testing.T) {
 	// animals.go declares two misplaced types and reaches nothing; zoo.go
 	// reaches one of them, which couples zoo.go and not animals.go.

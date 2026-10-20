@@ -38,8 +38,8 @@ func TestPadAndTruncate(t *testing.T) {
 	}
 }
 
-// TestFitMarksACut checks a description too long for its column is shown as
-// shortened rather than as written that way.
+// TestFitMarksACut checks a description too long for its column carries a cut
+// mark, so it does not read as written that way.
 func TestFitMarksACut(t *testing.T) {
 	got := fit("a description longer than its column", 12)
 	if printableWidth(got) != 12 {
@@ -53,8 +53,8 @@ func TestFitMarksACut(t *testing.T) {
 	}
 }
 
-// TestPadMeasuresPrintableWidth checks styled text is padded by what it shows
-// rather than by how many bytes it holds.
+// TestPadMeasuresPrintableWidth checks pad measures styled text by what it
+// shows and ignores how many bytes it holds.
 func TestPadMeasuresPrintableWidth(t *testing.T) {
 	got := pad(styleValue+"ab"+styleReset, 5)
 	if printableWidth(got) != 5 {
@@ -75,7 +75,7 @@ func TestCaption(t *testing.T) {
 	}
 }
 
-// TestCaretText checks the caret is drawn where the typing goes, and that a
+// TestCaretText checks the view draws the caret where the typing goes, and that a
 // text longer than its column scrolls to keep the caret in view.
 func TestCaretText(t *testing.T) {
 	if got, want := ansi.Strip(caretText("abc", 1, 10)), pad("a"+caretGlyph+"bc", 10); got != want {
@@ -138,8 +138,8 @@ func TestViewShowsEverySetting(t *testing.T) {
 	}
 }
 
-// TestViewShowsListsWhileTyping checks a list is shown where it stands while
-// it is edited, with the rest of the form still readable beside it.
+// TestViewShowsListsWhileTyping checks the view shows a list where it stands
+// during an edit, with the rest of the form still readable beside it.
 func TestViewShowsListsWhileTyping(t *testing.T) {
 	m := New(Default(), "")
 	m.focus(2)
@@ -189,8 +189,8 @@ func TestViewLegendFollowsTheFocus(t *testing.T) {
 }
 
 // TestRenderIsRectangular checks every row of the frame is the same width in
-// every state, so the form lines up where it is printed and does not move
-// while it is filled in.
+// every state, so the form lines up where it prints and does not move while
+// the user fills it in.
 func TestRenderIsRectangular(t *testing.T) {
 	for _, test := range []struct {
 		name  string
@@ -228,7 +228,7 @@ func TestRenderIsRectangular(t *testing.T) {
 }
 
 // TestRenderIsInline checks the form is only as tall as it has rows to show,
-// rather than filling the terminal.
+// and does not fill the terminal.
 func TestRenderIsInline(t *testing.T) {
 	m := New(Default(), "/home/test/.config/worktree.yml")
 	m.height = 50
@@ -244,7 +244,7 @@ func TestRenderIsInline(t *testing.T) {
 }
 
 // TestRenderHasNoBackground checks the form only sets foreground colours, so
-// it draws over the terminal background rather than painting its own.
+// it draws over the terminal background and paints none of its own.
 func TestRenderHasNoBackground(t *testing.T) {
 	m := New(Default(), "/home/test/.config/worktree.yml")
 
@@ -253,8 +253,8 @@ func TestRenderHasNoBackground(t *testing.T) {
 	}
 }
 
-// TestRenderCaptions checks the title and the file being edited are carried in
-// the frame rather than costing rows of their own.
+// TestRenderCaptions checks the frame carries the title and the edited file,
+// so they cost no rows of their own.
 func TestRenderCaptions(t *testing.T) {
 	t.Setenv("HOME", "/home/test")
 	m := New(Default(), "/home/test/.config/worktree.yml")

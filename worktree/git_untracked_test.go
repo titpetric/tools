@@ -8,8 +8,8 @@ import (
 )
 
 // TestCollapseUntrackedFoldsASubtree checks that the files of a directory
-// holding nothing tracked are summed into the one entry standing in for them,
-// while a file git names on its own is carried over as it is.
+// holding nothing tracked add up into the one entry standing in for them,
+// while a file git names on its own passes through unchanged.
 func TestCollapseUntrackedFoldsASubtree(t *testing.T) {
 	files := []untrackedEntry{
 		{Path: "demos/common/src/Auth.php", Files: 1, Lines: 117},
@@ -32,8 +32,8 @@ func TestCollapseUntrackedFoldsASubtree(t *testing.T) {
 }
 
 // TestCollapseUntrackedKeepsAnUnlistedFile checks that a collapsed path the
-// full listing does not hold still produces an entry, rather than being
-// dropped from the output.
+// full listing does not hold still produces an entry and stays in the
+// output.
 func TestCollapseUntrackedKeepsAnUnlistedFile(t *testing.T) {
 	got := collapseUntracked([]string{"PLAN.md"}, nil)
 	want := []untrackedEntry{{Path: "PLAN.md", Files: 1}}

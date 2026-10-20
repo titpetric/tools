@@ -8,11 +8,11 @@ import (
 )
 
 // supportsANSI reports whether w is a terminal that will read escape codes as
-// escape codes, which is what decides between the drawn tables and markdown.
+// escape codes, the test that picks between the drawn tables and markdown.
 //
-// The question is asked of the device rather than of its mode: every character
+// supportsANSI checks the device itself and ignores its mode: every character
 // device reads as one under os.ModeCharDevice, so a run redirected to /dev/null
-// would otherwise be written to in colour.
+// would otherwise get colour.
 func supportsANSI(w io.Writer) bool {
 	f, ok := w.(*os.File)
 	if !ok || os.Getenv("TERM") == "dumb" {
@@ -36,8 +36,8 @@ func terminalWidth(w io.Writer) int {
 }
 
 // cellWidth returns the width left for the open last column of a table whose
-// leading columns have the given widths. A terminal too narrow to fold into is
-// reported as zero, which leaves the cell unfolded.
+// leading columns have the given widths. It reports zero for a terminal too
+// narrow to fold into, which leaves the cell unfolded.
 func cellWidth(terminal int, widths []int) int {
 	if terminal <= 0 {
 		return 0

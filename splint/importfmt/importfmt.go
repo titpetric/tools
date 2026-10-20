@@ -27,30 +27,30 @@ const (
 	GroupStd = "std"
 
 	// GroupBlanked is an import written for its side effect, and GroupDotted
-	// one that puts the package's names in the file's scope. Neither is
-	// reached by a name, so both are grouped by how they are written rather
-	// than by where they come from.
+	// one that puts the package's names in the file's scope. No name reaches
+	// either, so their spelling decides their group and their origin does
+	// not.
 	GroupBlanked = "blanked"
 	GroupDotted  = "dotted"
 
 	// GroupGeneral is a third party dependency, GroupCompany one under a
 	// prefix the project calls its own, and GroupProject one of the module
-	// being formatted.
+	// under format.
 	GroupGeneral = "general"
 	GroupCompany = "company"
 	GroupProject = "project"
 )
 
-// DefaultOrder is the order the groups are written in.
+// DefaultOrder is the order of the groups in a block.
 //
-// It is the order six of the eight goimports-reviser call sites in this
-// workspace pass, including the shared atkins go skill: blank imports sit
+// Six of the eight goimports-reviser call sites in this
+// workspace pass this order, including the shared atkins go skill: blank imports sit
 // second, directly under the standard library, where a reader looking for what
 // a file registers finds them without reading the rest.
 var DefaultOrder = []string{GroupStd, GroupBlanked, GroupGeneral, GroupCompany, GroupProject, GroupDotted}
 
 // majorVersion matches the major version suffix of a module path, which is not
-// part of the name the package is reached by.
+// part of the name code reaches the package by.
 //
 // It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
 // /v1 is a directory of that name.
@@ -58,8 +58,8 @@ var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // Options is the house rule as a value.
 type Options struct {
-	// Order is the groups, in the order they are written. A group left out is
-	// written after the ones named, in DefaultOrder sequence, so an order that
+	// Order is the groups, in the order Canonical writes them. A group left out
+	// follows the ones named, in DefaultOrder sequence, so an order that
 	// forgets a group still writes every import.
 	Order []string
 
@@ -71,7 +71,7 @@ type Options struct {
 	Project string
 
 	// SetAlias writes an alias for a path ending in a major version, so
-	// "github.com/go-pg/pg/v9" is written as pg rather than read as v9.
+	// "github.com/go-pg/pg/v9" reads as pg and never as v9.
 	SetAlias bool
 }
 
@@ -134,8 +134,8 @@ func standard(importPath string) bool {
 	return !strings.Contains(first, ".")
 }
 
-// under reports a path equal to a prefix or below it. The prefix may be
-// written with or without a trailing slash.
+// under reports a path equal to a prefix or below it. The prefix may carry a
+// trailing slash or not.
 func under(importPath, prefix string) bool {
 	prefix = strings.TrimSuffix(prefix, "/")
 	if prefix == "" {
@@ -147,7 +147,7 @@ func under(importPath, prefix string) bool {
 // Normalize is one import written the way the house writes it.
 //
 // An alias repeating the last segment of the path says nothing the path does
-// not, and comes off. A path ending in a major version is reached by a name
+// not, and comes off. Code reaches a path ending in a major version by a name
 // the path does not spell, so it gets one.
 func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 	switch spec.Name {
@@ -157,8 +157,8 @@ func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 		spec.Name = ""
 	}
 
-	// A versioned path is reached by a name it does not spell, so it gets one,
-	// but only where the path implies a name at all: what is left of
+	// Code reaches a versioned path by a name it does not spell, so it gets one,
+	// but only where the path implies a name at all: what remains of
 	// "example.com/v2" once the version comes off is "example.com", and
 	// writing that as an alias produces a file that does not parse.
 	if opts.SetAlias && spec.Name == "" && majorVersion.MatchString(spec.Path) {
@@ -173,7 +173,7 @@ func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 // Canonical is the imports in the order and the form the house writes them:
 // normalized, deduplicated, grouped and sorted within each group.
 //
-// Break is set on the first spec of every group after the first, so a caller
+// Canonical sets Break on the first spec of every group after the first, so a caller
 // rendering the result puts the blank lines where the groups end.
 func Canonical(specs []model.ImportSpec, opts Options) []model.ImportSpec {
 	order := opts.order()
@@ -226,18 +226,18 @@ func Canonical(specs []model.ImportSpec, opts Options) []model.ImportSpec {
 
 // Format renders the imports as the declaration a file should hold.
 //
-// It is always the parenthesised form. A file writing one import on one line
+// The result always takes the parenthesised form. A file writing one import on one line
 // and a file writing six in a block then read the same, and two declarations
 // merging into one has nowhere else to go.
 func Format(specs []model.ImportSpec, opts Options) string {
 	return Render(Canonical(specs, opts), "")
 }
 
-// Render writes the specs as a declaration, in the order they are given and
+// Render writes the specs as a declaration, in the order of the slice and
 // with the aliases they carry, followed by the comment lines that belong to no
 // import.
 //
-// It is the half of Format that does no deciding. A caller holding the imports
+// Render is the half of Format that does no deciding. A caller holding the imports
 // a file actually writes renders them with this and compares the result
 // against Format of the same imports: the two strings differ exactly when the
 // file does not follow the rule.
@@ -322,8 +322,8 @@ func Parse(literal string) (model.ImportSpec, bool) {
 }
 
 // FormatLiterals renders a list of import literals as the declaration a file
-// should hold. It is Format over the form Definition.Imports records, which is
-// the form a caller holding a list of strings already has.
+// should hold. FormatLiterals is Format over the form Definition.Imports
+// records, the form a caller holding a list of strings already has.
 func FormatLiterals(literals []string, opts Options) string {
 	specs := make([]model.ImportSpec, 0, len(literals))
 	for _, literal := range literals {

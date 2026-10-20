@@ -10,23 +10,23 @@ import (
 )
 
 // majorVersion matches the major version a module path ends in, which is not
-// part of the name the package is reached by: "example.com/thing/v2" is
-// imported as "thing".
+// part of the name that reaches the package: a file imports
+// "example.com/thing/v2" as "thing".
 //
 // It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
 // /v1 is a directory of that name: prometheus api/prometheus/v1 is package
 // v1, not package prometheus.
 //
-// It is compiled once. Compiling it inside the loop, which is where it was,
-// costs more than everything else the loop does.
+// The package compiles it once. Compiling it inside the loop costs more than
+// everything else the loop does.
 var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // dottedVersion matches the major version gopkg.in writes onto the last
-// segment rather than into one of its own: "gopkg.in/yaml.v3" is imported as
+// segment, with no segment of its own: a file imports "gopkg.in/yaml.v3" as
 // yaml.
 var dottedVersion = regexp.MustCompile(`\.v[0-9]+$`)
 
-// StringSet provides a key based unique string slice.
+// StringSet is a key based unique string slice.
 type StringSet map[string][]string
 
 func NewStringSet() StringSet {
@@ -67,9 +67,9 @@ func (i *StringSet) Add(key string, lits ...string) {
 // Get returns the values under a key, in order.
 //
 // The copy is the point: sorting the stored slice would reorder the document
-// that carries it, so reading a model back from a file would not give the
-// model that was written. A reader wanting them in order gets them; the
-// document keeps the order it was written in.
+// that carries it, so reading a model back from a file would not return the
+// model the writer stored. A reader wanting them in order gets them; the
+// document keeps its source order.
 func (i StringSet) Get(key string) []string {
 	values, ok := i[key]
 	if !ok || values == nil {
@@ -84,10 +84,10 @@ func (i StringSet) Get(key string) []string {
 
 // All returns every value of the set, its keys walked in order.
 //
-// The order is the point. A map is walked at random, and a reader of this is
-// deciding something: which of two imports a colliding name was seen under
-// first, for one. A run that answered differently each time would be reporting
-// the same collision two ways.
+// The order is the point. Go walks a map at random, and a reader of this
+// decides something: which of two imports a colliding name appears under
+// first, for one. A run that answered differently each time would report the
+// same collision two ways.
 func (i StringSet) All() []string {
 	result := []string{}
 	for _, key := range i.Keys() {
@@ -120,8 +120,8 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 	for _, imported := range imports {
 		var short, long string
 
-		// An import written with a name in front of it is reached by that
-		// name, whatever the path says.
+		// That name reaches an import written with a name in front of it,
+		// whatever the path says.
 		aliased := strings.Contains(imported, " ")
 		if aliased {
 			line := strings.Split(imported, " ")
@@ -135,17 +135,17 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 			continue
 		}
 
-		// A blank import is reached by no name, so there is no name to map and
-		// no collision it can be part of. It is recorded as an import all the
-		// same, which is what a rule about side effects reads.
+		// No name reaches a blank import, so there is no name to map and no
+		// collision it can be part of. Map records it as an import all the
+		// same, and a rule about side effects reads that record.
 		if short == "_" {
 			continue
 		}
 
-		// A major version is not a package name: "example.com/x/v2" is
-		// imported as x. An alias overrides that, because an alias is what the
-		// file actually writes: tea "charm.land/bubbletea/v2" is reached as
-		// tea and never as bubbletea.
+		// A major version is not a package name: a file imports
+		// "example.com/x/v2" as x. An alias overrides that, because the file
+		// writes the alias: tea reaches tea "charm.land/bubbletea/v2", and
+		// bubbletea never does.
 		if !aliased && majorVersion.MatchString(long) {
 			short = path.Base(majorVersion.ReplaceAllString(long, ""))
 		}
@@ -168,7 +168,7 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 
 		if ok && val != long {
 			warning := "Import conflict for %s, "
-			// Sort val/long so shorter is left hand side
+			// Sort val/long so the shorter one sits on the left hand side
 			if len(val) < len(long) {
 				warning += val + " != " + long
 			} else {

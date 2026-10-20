@@ -10,7 +10,7 @@ import (
 
 // TestAllowances_MaxLinesFor reads the resolution on its own: which entry wins,
 // what a file no entry covers runs under, and that a zero survives as a zero
-// rather than falling through to the default.
+// and never falls through to the default.
 func TestAllowances_MaxLinesFor(t *testing.T) {
 	allow := filecheck.Allowances{
 		{Path: "parser/*.go", MaxLines: 1500},
@@ -63,7 +63,7 @@ func TestAllowances_MaxLinesFor_Empty(t *testing.T) {
 }
 
 // TestAllowances_MaxLinesFor_BadPattern proves a pattern the loader would have
-// refused covers nothing rather than failing a run. The loader reports it; a
+// refused covers nothing and keeps a run going. The loader reports it; a
 // linter handed one has no reader to report it to.
 func TestAllowances_MaxLinesFor_BadPattern(t *testing.T) {
 	allow := filecheck.Allowances{{Path: "parser/[", MaxLines: 1500}}

@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The box the tables are drawn in, which is the one worktree draws.
+// The box around the tables, the same one worktree draws.
 const (
 	boxTopLeft     = "╭"
 	boxTopRight    = "╮"
@@ -26,8 +26,8 @@ const (
 // table draws a table: a top border, the headings, a rule, the rows, and a
 // bottom border.
 //
-// A cell is measured by what it takes on screen rather than by its length, so
-// a coloured cell lines up with a plain one: the escape codes are not width.
+// table measures a cell by its width on screen and ignores its length, so a
+// coloured cell lines up with a plain one: the escape codes are not width.
 func table(w io.Writer, labels []string, rows [][]string, colors []string) {
 	widths := columnWidths(labels, rows)
 

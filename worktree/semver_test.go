@@ -166,7 +166,7 @@ func TestReleases(t *testing.T) {
 		got = append(got, v.String())
 	}
 	// Ascending, prereleases and tags that aren't versions dropped, and 0.10
-	// above 0.2 because the numbers are compared rather than the text.
+	// above 0.2 because the sort compares the numbers and not the text.
 	want := []string{"v0.1.0", "v0.2.0", "v0.2.1", "v0.10.0"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Releases() = %#v, want %#v", got, want)

@@ -12,8 +12,8 @@ import (
 	"github.com/titpetric/tools/splint/linters/filecheck"
 )
 
-// TestLoadDefaults covers a tree with no file, which is read under the
-// defaults and reports no error.
+// TestLoadDefaults covers a tree with no file, which gets the defaults and
+// reports no error.
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := config.Load(t.TempDir())
 	require.NoError(t, err)
@@ -31,9 +31,9 @@ func TestLoadDefaults(t *testing.T) {
 	assert.True(t, opts.SetAlias)
 }
 
-// TestLoadFilecheckUnstated is the case the section was added without
-// breaking: a file that speaks about the imports and nothing else is read
-// under the same ceiling as a tree with no file at all.
+// TestLoadFilecheckUnstated is the case the section must not break: a file
+// that speaks about the imports and nothing else gets the same ceiling as a
+// tree with no file at all.
 func TestLoadFilecheckUnstated(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(config.Path(dir), []byte(`imports:
@@ -47,7 +47,7 @@ func TestLoadFilecheckUnstated(t *testing.T) {
 	assert.Empty(t, cfg.FilecheckAllowances())
 }
 
-// TestLoadFilecheck reads the section the consumer asked for, and checks it
+// TestLoadFilecheck reads the section the consumer requested, and checks it
 // resolves the way the field docs say: the stated default for a file no entry
 // covers, the entry's own ceiling for one it does, and a zero kept as a zero.
 func TestLoadFilecheck(t *testing.T) {
@@ -93,9 +93,10 @@ func TestLoadFilecheckOffForTheTree(t *testing.T) {
 	assert.Equal(t, 0, cfg.Filecheck.MaxLines)
 }
 
-// TestLoadFilecheckRefusesAMalformedEntry proves a typo is reported where it
-// was written. A pattern nothing can read would otherwise cover no file for
-// the life of the file, and a tree would believe it had stated a rule.
+// TestLoadFilecheckRefusesAMalformedEntry proves Load reports a typo at its
+// source. A pattern nothing can read would otherwise cover no file for the
+// life of the file, and the authors of the tree would think they had stated a
+// rule.
 func TestLoadFilecheckRefusesAMalformedEntry(t *testing.T) {
 	tests := []struct {
 		title string

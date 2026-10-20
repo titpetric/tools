@@ -29,7 +29,7 @@ func longFile(count int) string {
 }
 
 // longTree writes a tree holding one file over any stated ceiling, under the
-// directory name the allow pattern in each test is written against.
+// directory name each test writes its allow pattern against.
 func longTree(t *testing.T, dir, name, config string) string {
 	t.Helper()
 
@@ -75,9 +75,9 @@ func TestFilecheckCeilingIsTheDefaultWithNoConfig(t *testing.T) {
 	}
 }
 
-// TestFilecheckCeilingFromTheConfig covers the wiring the consumer asked for:
+// TestFilecheckCeilingFromTheConfig covers the wiring the consumer requested:
 // a path named in .splint.yml runs under its own ceiling, and the message says
-// which ceiling applied rather than the default it was not judged against.
+// which ceiling applied, and that ceiling differs from the default.
 func TestFilecheckCeilingFromTheConfig(t *testing.T) {
 	root := longTree(t, "parser", "parser.go", `filecheck:
   allow:
@@ -88,7 +88,7 @@ func TestFilecheckCeilingFromTheConfig(t *testing.T) {
 		t.Errorf("a file the config allowed was reported:\n%s", report)
 	}
 
-	// The same tree with a ceiling the file does not fit under is reported,
+	// The same tree with a ceiling the file does not fit under fails the run,
 	// and the number in the message is the one that applied.
 	tight := longTree(t, "parser", "parser.go", `filecheck:
   allow:
@@ -115,8 +115,8 @@ func TestFilecheckCeilingOffForAPath(t *testing.T) {
 }
 
 // TestFilecheckCeilingLeavesTheRestOfTheTree covers the half of the contract
-// that keeps the rule a rule: a path no entry covers is judged against the
-// default, so naming a parser does not stop a new long file being reported.
+// that keeps the rule a rule: the default ceiling applies to a path no entry
+// covers, so naming a parser does not stop the report on a new long file.
 func TestFilecheckCeilingLeavesTheRestOfTheTree(t *testing.T) {
 	root := longTree(t, "runner", "runner.go", `filecheck:
   allow:
@@ -133,8 +133,8 @@ func TestFilecheckCeilingLeavesTheRestOfTheTree(t *testing.T) {
 }
 
 // TestFilecheckConfigRefusedAtTheRoot covers a malformed pattern stopping the
-// run where it was written. A pattern nothing can read would otherwise cover
-// no file for the life of the file, and a tree would believe it stated a rule.
+// run at the file holding it. A pattern nothing can read would otherwise cover
+// no file for the life of the file, and a tree would appear to state a rule.
 func TestFilecheckConfigRefusedAtTheRoot(t *testing.T) {
 	root := longTree(t, "parser", "parser.go", `filecheck:
   allow:

@@ -29,12 +29,12 @@ import (
 
 	want := []string{
 		`"fmt"`,
-		// An alias that differs from the base name is recorded with it.
+		// The parser keeps an alias that differs from the base name.
 		`rand "math/rand/v2"`,
-		// One that repeats the base name says nothing and is dropped.
+		// One that repeats the base name says nothing and the parser drops it.
 		`"strings"`,
-		// A blank import is reached by no name, and the underscore is what
-		// records that: it is an import for its side effect alone.
+		// A blank import goes by no name, and the underscore is what
+		// records that: the import exists for its side effect alone.
 		`_ "embed"`,
 		// A dot import puts the package's names in this file's scope, which
 		// the literal records even though no name reaches it.
@@ -45,8 +45,8 @@ import (
 		t.Errorf("Imports = %#v, want %#v", file.Imports, want)
 	}
 
-	// A blank or dot import is reached by no name, so neither is a name a
-	// reference can be recognised under.
+	// A blank or dot import goes by no name, so neither is a name a
+	// reference can match.
 	for _, name := range []string{"fmt", "rand", "strings", "alias"} {
 		if !file.aliases[name] {
 			t.Errorf("aliases missing %q: %#v", name, file.aliases)

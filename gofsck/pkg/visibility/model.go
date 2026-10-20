@@ -3,7 +3,7 @@ package visibility
 // Report contains the exported and internal symbol counts of every package
 // analyzed.
 type Report struct {
-	// Total is how many packages were measured.
+	// Total is how many packages the analyzer measured.
 	Total int `json:"total"`
 
 	Packages []PackageReport `json:"packages"`
@@ -12,8 +12,8 @@ type Report struct {
 // PackageReport counts what one package exports against what it keeps to
 // itself, and how much of the package is the code behind the internal half.
 type PackageReport struct {
-	// Package is the package path relative to the module, spelled the way it
-	// is passed on the command line: "./" or "./frontend".
+	// Package is the package path relative to the module, spelled the way the
+	// command line names it: "./" or "./frontend".
 	Package string `json:"package"`
 
 	// ExportedTypes and InternalTypes count declared types by the case of
@@ -22,7 +22,7 @@ type PackageReport struct {
 	InternalTypes int `json:"internal_types"`
 
 	// ExportedFuncs and InternalFuncs count funcs and methods alike, by the
-	// case of the name they are declared under.
+	// case of the name that declares them.
 	ExportedFuncs int `json:"exported_funcs"`
 	InternalFuncs int `json:"internal_funcs"`
 

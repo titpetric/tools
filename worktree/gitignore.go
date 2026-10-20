@@ -12,8 +12,8 @@ import (
 
 // ignoreRule is a single parsed .gitignore pattern.
 type ignoreRule struct {
-	// segments is the pattern split on "/". Patterns without a slash are
-	// normalized to a leading "**" so they match at any depth.
+	// segments is the pattern split on "/". Patterns without a slash gain
+	// a leading "**" so they match at any depth.
 	segments []string
 	negate   bool
 	dirOnly  bool
@@ -29,15 +29,15 @@ func (r ignoreRule) match(rel string, isDir bool) bool {
 }
 
 // matchSegments matches a pattern against a path, both split on "/". A "**"
-// segment spans any number of path segments, other segments are matched with
+// segment spans any number of path segments, other segments match with
 // path.Match, which never matches across a separator.
 func matchSegments(pattern, name []string) bool {
 	if len(pattern) == 0 {
 		return len(name) == 0
 	}
 	if pattern[0] == "**" {
-		// A trailing "**" matches the contents of a directory, not the
-		// directory itself.
+		// A trailing "**" matches the contents of a directory and never
+		// the directory itself.
 		if len(pattern) == 1 {
 			return len(name) > 0
 		}
@@ -130,12 +130,12 @@ func readIgnoreFile(dir string) *ignoreFile {
 }
 
 // ignoreStack is the set of .gitignore files that apply to the directory
-// currently being walked, ordered from the outermost to the innermost.
+// the walk visits now, ordered from the outermost to the innermost.
 type ignoreStack []*ignoreFile
 
 // prune drops the .gitignore files of directories that the walked path is not
 // below. The walk visits siblings after descending into a directory, so the
-// stack has to be unwound before the rules are used again.
+// stack has to unwind before the rules apply again.
 func (s ignoreStack) prune(walkPath string) ignoreStack {
 	walkPath = filepath.ToSlash(walkPath)
 	for len(s) > 0 && !isSlashSubpath(s[len(s)-1].dir, walkPath) {
@@ -152,8 +152,8 @@ func (s ignoreStack) push(dir string) ignoreStack {
 	return s
 }
 
-// ignored reports whether the walked path is excluded by any .gitignore on the
-// stack. The innermost file wins, and within a file the last matching pattern
+// ignored reports whether any .gitignore on the stack excludes the walked path
+// itself. The innermost file wins, and within a file the last matching pattern
 // wins, as in git.
 func (s ignoreStack) ignored(walkPath string, isDir bool) bool {
 	walkPath = filepath.ToSlash(walkPath)
@@ -192,7 +192,7 @@ func isSlashSubpath(parent, child string) bool {
 }
 
 // scanner applies the configured scan rules to a workspace walk. It holds the
-// .gitignore files that apply to the directory being visited, so the walk
+// .gitignore files that apply to the directory the walk visits, so the walk
 // functions that use it stay a plain filepath.Walk callback.
 type scanner struct {
 	scan    config.Scan
@@ -206,10 +206,10 @@ func newScanner(scan config.Scan, root string) *scanner {
 	return &scanner{scan: scan, root: root}
 }
 
-// skip reports whether the walked path is excluded, and records the
-// .gitignore of a directory that is not. The walk must call this for every
-// path it visits, in walk order, because the ignore stack is unwound from the
-// path being visited.
+// skip reports whether the scan rules exclude the walked path, and records
+// the .gitignore of a directory they keep. The walk must call this for every
+// path it visits, in walk order, because the ignore stack unwinds from the
+// visited path.
 func (s *scanner) skip(path string, isDir bool) bool {
 	if s.scan.EnableGitignore {
 		s.ignores = s.ignores.prune(path)
@@ -221,8 +221,8 @@ func (s *scanner) skip(path string, isDir bool) bool {
 		if isDir && filepath.Base(path) == "testdata" {
 			return true
 		}
-		// A directory named in ignore_paths is excluded whatever the
-		// .gitignore files say, so the listing can be kept clean with the
+		// skip excludes a directory named in ignore_paths whatever the
+		// .gitignore files say, so the listing stays clean with the
 		// gitignore rules turned off.
 		if isDir && s.scan.Ignored(filepath.Base(path)) {
 			return true

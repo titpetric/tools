@@ -9,8 +9,8 @@ import (
 )
 
 // TestHelp renders the page a pipe reads, and asks it for the headings and for
-// every flag the parser defines: the page is written from the parser, so a
-// flag added later is documented by having been defined.
+// every flag the parser defines: writeHelp builds the page from the parser,
+// so defining a flag later documents it.
 func TestHelp(t *testing.T) {
 	out := &strings.Builder{}
 	assert.NoError(t, writeHelp(out, helpSpec(flag.CommandLine)))

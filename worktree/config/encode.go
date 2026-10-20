@@ -31,8 +31,8 @@ func Encode(cfg *Config) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// decode reads a configuration document into cfg. It is the other half of
-// Encode, and lives beside it so the yaml codec is reached from one file.
+// decode reads a configuration document into cfg. It pairs with Encode and
+// lives beside it, so one file holds every call into the yaml codec.
 func decode(cfg *Config, data []byte) error {
 	return yaml.Unmarshal(data, cfg)
 }

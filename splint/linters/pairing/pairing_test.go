@@ -116,7 +116,7 @@ func TestLinter_Lint_Generated(t *testing.T) {
 }
 
 // TestLinter_Lint_GeneratedPair covers a test written for a generated file.
-// The file is not judged and is still a file, so the test beside it is paired.
+// The linter does not judge the file, yet the file exists, so the test beside it pairs.
 func TestLinter_Lint_GeneratedPair(t *testing.T) {
 	root := document(definition(
 		model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"},
@@ -136,8 +136,8 @@ func TestLinter_Lint_GeneratedPair(t *testing.T) {
 }
 
 // TestLinter_Lint_StandaloneTest covers a test naming a file that is not
-// there, which is an error: the file was deleted or renamed and the test that
-// names it was left behind.
+// there, which is an error: somebody deleted or renamed the file and the test that
+// names it stayed behind.
 func TestLinter_Lint_StandaloneTest(t *testing.T) {
 	root := document(definition(
 		model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"},
@@ -169,7 +169,7 @@ func TestLinter_Lint_StandaloneTest(t *testing.T) {
 
 // TestLinter_Lint_TestPackage covers the exception: a directory declaring a
 // package of test code holds tests that are nobody's counterpart. The count
-// still records them, because the exception is about what is reported.
+// still records them, because the exception covers what the linter reports.
 func TestLinter_Lint_TestPackage(t *testing.T) {
 	for _, name := range []string{"fstest", "testing", "httptest", "tests"} {
 		root := document(definition(
@@ -191,7 +191,7 @@ func TestLinter_Lint_TestPackage(t *testing.T) {
 
 // TestLinter_Lint_ExternalTestPackage covers the name the exception must not
 // read. Every package has an external test scope called "<name>_test", and the
-// suffix says where a file compiles rather than what the directory is for, so
+// suffix says where a file compiles and not what the directory is for, so
 // a directory arriving as that half alone is still reported.
 func TestLinter_Lint_ExternalTestPackage(t *testing.T) {
 	root := document(definition(
@@ -213,7 +213,7 @@ func TestLinter_Lint_ExternalTestPackage(t *testing.T) {
 
 // TestLinter_Lint_TestsDirectory covers the directory the exception reads. A
 // tree that keeps its black box suites under tests/ has nothing there for a
-// test to be named after, so those files are not orphans; a package whose name
+// test to take its name from, so those files are not orphans; a package whose name
 // merely contains the word is not the same thing and is still reported.
 func TestLinter_Lint_TestsDirectory(t *testing.T) {
 	for name, test := range map[string]struct {
@@ -250,7 +250,7 @@ func TestLinter_Lint_TestsDirectory(t *testing.T) {
 }
 
 // TestLinter_Lint_Empty covers a document holding nothing, which is a linter
-// with nothing to say rather than a linter that failed.
+// with nothing to say, and no failure.
 func TestLinter_Lint_Empty(t *testing.T) {
 	issues, report := lint(t, document())
 	if len(issues) != 0 {
@@ -267,7 +267,7 @@ func TestLinter_Lint_Empty(t *testing.T) {
 }
 
 // TestLinter_Lint_Cancelled covers the context the framework hands in: a run
-// that was cancelled reports the cancellation rather than a partial answer.
+// that the caller cancels reports the cancellation and no partial answer.
 func TestLinter_Lint_Cancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -322,7 +322,7 @@ func TestResults_Statistics(t *testing.T) {
 	}
 }
 
-// TestLinter_Name covers the name the linter is selected by.
+// TestLinter_Name covers the name that selects the linter.
 func TestLinter_Name(t *testing.T) {
 	if got := pairing.New().Name(); got != pairing.Name {
 		t.Errorf("Name() = %q, want %q", got, pairing.Name)
@@ -359,8 +359,8 @@ func elsewhere(referenced string) *model.DocumentRoot {
 }
 
 // TestLinter_Lint_TestedElsewhere covers the excuse: a standalone file whose
-// exported surface is referenced by a test in another package is counted
-// rather than reported, and one whose surface is not stays a finding.
+// exported surface a test in another package references counts
+// and stays out of the report, and one whose surface no test reaches stays a finding.
 func TestLinter_Lint_TestedElsewhere(t *testing.T) {
 	issues, report := lint(t, elsewhere("Load"))
 	for _, issue := range issues {

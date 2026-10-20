@@ -59,7 +59,7 @@ func TestAnalyzer(t *testing.T) {
 	}
 
 	// The test is mainly checking that the analyzer runs without panic
-	// The actual error message format is tested implicitly
+	// The test covers the actual error message format implicitly
 	// If we get any diagnostics, they should start with the expected prefix
 	for file, expectedMsgs := range expected {
 		actualMsgs, ok := actual[file]

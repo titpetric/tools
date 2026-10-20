@@ -10,7 +10,7 @@ import (
 //
 // There is more than one way to fill it. The ast parser builds a syntax tree
 // and is exact; the simple parser reads lines and braces, is faster, and keeps
-// going through source that does not compile. Both are constructed as
+// going through source that does not compile. A caller constructs both as
 // New(Options) and both return this, so which one a program uses is an import
 // and nothing more.
 type Parser interface {

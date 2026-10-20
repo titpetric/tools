@@ -72,7 +72,7 @@ func TestWriteRoundTrip(t *testing.T) {
 	}
 }
 
-// TestDecodeBareList covers a go-fsck.json written before there was a root.
+// TestDecodeBareList covers a go-fsck.json with no root.
 func TestDecodeBareList(t *testing.T) {
 	data := []byte(`[{"ID":"example.com/x","Package":"x","ImportPath":"example.com/x","Path":".","TestPackage":false,"Module":{"Path":"example.com/x"}}]`)
 
@@ -80,7 +80,7 @@ func TestDecodeBareList(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, model.SchemaVersion, got.SchemaVersion)
 	assert.Len(t, got.Packages, 1)
-	// The module repeated on every package is lifted to the root.
+	// Decode lifts the module repeated on every package to the root.
 	assert.Len(t, got.Modules, 1)
 	assert.Equal(t, "example.com/x", got.Modules[0].Path)
 }

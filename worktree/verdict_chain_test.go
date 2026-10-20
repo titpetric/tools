@@ -11,8 +11,8 @@ import (
 )
 
 // chainRepo builds a nested module released three times, and returns its
-// directory. The tags carry the "alpha/" prefix a module below the root of its
-// repository is released under.
+// directory. The tags carry the "alpha/" prefix that releases of a module below
+// the root of its repository take.
 func chainRepo(t *testing.T) string {
 	t.Helper()
 
@@ -69,8 +69,8 @@ func TestReadVerdictsCoversEveryRelease(t *testing.T) {
 	}
 
 	// The first section has the whole history behind it, and everything the
-	// release exports is an addition, since there is no earlier release for it
-	// to be measured against.
+	// release exports is an addition, since no earlier release exists to
+	// measure it against.
 	first := got[len(got)-1]
 	if len(first.Commits) == 0 {
 		t.Error("the first release reported no commits, want the history behind it")

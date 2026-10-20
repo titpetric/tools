@@ -10,8 +10,8 @@ import (
 )
 
 // MarkdownTable renders a table with every column padded to its widest cell,
-// the way mdox fmt pads one, so a document holding it is not reformatted the
-// next time the docs are built.
+// the way mdox fmt pads one, so the next documentation build leaves a
+// document holding it unchanged.
 func MarkdownTable(header []string, rows [][]string) string {
 	widths := make([]int, len(header))
 	for i, cell := range header {
@@ -60,7 +60,7 @@ func markdownRow(cells []string, widths []int) string {
 	return out.String()
 }
 
-// escape keeps a cell from breaking the table it is in: a pipe in a message
+// escape keeps a cell from breaking its table: a pipe in a message
 // would open a column that is not there.
 func escape(cell string) string {
 	cell = strings.ReplaceAll(cell, "|", "\\|")
@@ -74,8 +74,8 @@ func summary(report *report.Report) string {
 		plural(len(report.Linters), "linter", "linters"))
 }
 
-// empty is what a clean run says, which names the linters that found nothing
-// rather than printing a blank.
+// empty is what a clean run says: it names the linters that found nothing and
+// never prints a blank.
 func empty(report *report.Report) string {
 	if len(report.Linters) == 0 {
 		return "No linters ran."
@@ -91,7 +91,7 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// severityName is the level as a word, which is what slog calls it.
+// severityName is the level as a word, the name slog uses for it.
 func severityName(severity model.Severity) string {
 	return severity.String()
 }
@@ -99,8 +99,8 @@ func severityName(severity model.Severity) string {
 // MarkdownStats writes the statistics of every linter as padded markdown
 // tables, one per linter, a blank line apart.
 //
-// The header prints above the table and the footer below it, which is where a
-// linter writes the one line a reader takes away.
+// The header prints above the table and the footer below it, and a linter
+// writes the one line a reader takes away in the footer.
 func MarkdownStats(w io.Writer, reports []model.LintReport) error {
 	first := true
 

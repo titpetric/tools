@@ -31,8 +31,8 @@ func TestLinterReadsReturnOrder(t *testing.T) {
 		returns []string
 		want    bool
 	}{
-		// The value first, then the bool that says whether it is there, then
-		// the error that says why it is not.
+		// The value first, then the bool that says whether the value exists, then
+		// the error that says why it does not.
 		{returns: []string{"User", "error"}, want: false},
 		{returns: []string{"User", "bool"}, want: false},
 		{returns: []string{"User", "bool", "error"}, want: false},

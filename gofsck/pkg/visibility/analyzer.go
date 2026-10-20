@@ -21,14 +21,14 @@ func New() *Analyzer {
 
 // Analyze examines packages and returns their visibility counts.
 //
-// A symbol is exported or internal by the case of its own name, so a method
+// The case of its own name makes a symbol exported or internal, so a method
 // counts as a func and (*Tracer).serveHTTP counts as internal the way a free
-// function does. Test files and their packages are left out: a package is
-// measured by what it ships.
+// function does. Analyze leaves out test files and their packages: what a
+// package ships is its measure.
 //
-// The counts are reported and not judged. There is no share of internal code a
-// package ought to carry: a parser is mostly private and a data model mostly
-// not, and both are as they should be.
+// Analyze reports the counts and does not judge them. There is no share of
+// internal code a package ought to carry: a parser keeps most of itself
+// private and a data model exports most of itself, and both are fine.
 func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 	reports := make(map[string]*PackageReport)
 	seen := make(map[string]bool)
@@ -102,7 +102,7 @@ func countFile(report *PackageReport, fset *token.FileSet, file *ast.File, blank
 }
 
 // codeLines counts the lines of a range that carry code, so blank lines and
-// the comments above and inside a declaration are left out.
+// the comments above and inside a declaration do not count.
 func codeLines(fset *token.FileSet, file *ast.File, blank map[int]bool, from, to token.Pos) int {
 	comments := make(map[int]bool)
 	for _, group := range file.Comments {
@@ -128,7 +128,7 @@ func codeLines(fset *token.FileSet, file *ast.File, blank map[int]bool, from, to
 }
 
 // blankLines returns the lines of a file that hold nothing but whitespace. A
-// file that cannot be read reports none, so its code counts in full.
+// file nobody can read reports none, so its code counts in full.
 func blankLines(name string) map[int]bool {
 	blank := make(map[int]bool)
 	data, err := os.ReadFile(name)
@@ -145,7 +145,7 @@ func blankLines(name string) map[int]bool {
 
 // skipPackage reports whether a package is one the count would distort:
 // commands, the synthetic test packages, anything loaded without syntax, and
-// the internal tree, which is scoped to the module whatever it exports.
+// the internal tree, which stays scoped to the module whatever it exports.
 func skipPackage(pkg *packages.Package) bool {
 	return pkg.Name == "main" ||
 		strings.HasSuffix(pkg.Name, "_test") ||
@@ -166,7 +166,7 @@ func internalPath(pkgPath string) bool {
 }
 
 // packageLabel is the package path relative to its module, spelled the way a
-// package is passed on the command line: "./" for the module root, "./frontend"
+// command line names a package: "./" for the module root, "./frontend"
 // for a package below it.
 func packageLabel(pkg *packages.Package) string {
 	if pkg.Module == nil || pkg.Module.Path == "" {

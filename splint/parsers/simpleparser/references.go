@@ -9,29 +9,29 @@ import (
 )
 
 // references reads the package symbols a body reaches, which is every
-// "pkg.Symbol" where pkg is a name the file imports and Symbol is exported.
+// "pkg.Symbol" where pkg is a name the file imports and Symbol carries a capital.
 //
 // A selector reaches a package when nothing in scope answers to the name: not
 // a parameter, not a local of the body, and not something the file declares at
-// the top level. That is the rule go/parser applies, and it is file scoped,
-// which is why a package level var shared between two files is a reference in
+// the top level. That is the rule go/parser applies, and the rule is file scoped,
+// so a package level var shared between two files is a reference in
 // the file that does not declare it.
 //
 // What the file cannot decide is which of these are imports and which are the
-// package's own, since that is settled against the import table of the whole
-// package. splitGlobals does it once every file has been read.
+// package's own, since the import table of the whole package settles
+// that. splitGlobals does it once the parser has read every file.
 //
 // The shadowed names are the parameters and the receiver, which are locals
-// whatever else they are called: "func Run(config config.Config)" reaches its
-// argument in the body and not the package it is named after.
+// whatever else they name: "func Run(store store.Store)" reaches its
+// argument in the body and not the package that shares its name.
 func (f *file) references(src *source, from, column, to int, shadowed []string) model.StringSet {
 	var refs model.StringSet
 
 	locals := bodyLocals(src, from, to)
 
 	for i := from; i <= to && i < src.len(); i++ {
-		// The body of a one line func starts partway along the line it is
-		// declared on, and what precedes it is the signature: a type named
+		// The body of a one line func starts partway along its declaring
+		// line, and what precedes the body is the signature: a type named
 		// there is not something the body reached.
 		code := src.codeLine(i)
 		if i == from && column > 0 && column < len(code) {
@@ -43,7 +43,7 @@ func (f *file) references(src *source, from, column, to int, shadowed []string) 
 				return
 			}
 			// A name this file declares, or one the signature binds, is
-			// something written here rather than a package reached from here.
+			// something written here, and no package reached from here.
 			if f.names[pkg] || locals[pkg] || slices.Contains(shadowed, pkg) {
 				return
 			}
@@ -59,7 +59,7 @@ func (f *file) references(src *source, from, column, to int, shadowed []string) 
 	return refs
 }
 
-// selector is one "pkg.Symbol" as it was written.
+// selector is one "pkg.Symbol" as the source spells it.
 type selector struct {
 	pkg    string
 	symbol string
@@ -67,7 +67,7 @@ type selector struct {
 
 // eachSelector calls fn for every "left.Right" on a line.
 //
-// It yields rather than returning a list: the caller consumes each one and
+// It calls fn and returns no list: the caller consumes each one and
 // keeps none, so a slice per line of every body is a slice per line thrown
 // away.
 func eachSelector(line string, fn func(pkg, symbol string)) {
@@ -76,7 +76,7 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 			continue
 		}
 
-		// "..." is one token and is stepped over whole. Read as three dots it
+		// "..." is one token and the scan steps over it whole. Read as three dots it
 		// swallows the type written behind it: the last dot takes the package
 		// name as the symbol of a selector with nothing on its left, and the
 		// scan resumes past that name, never reaching the dot that does reach
@@ -97,8 +97,8 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 		// a number: "1.5" has an identifier on neither side, and a call
 		// result, "f().X", has no identifier on the left.
 		//
-		// The dot closing a "..." is none of those. What follows it is the
-		// type of a variadic parameter, and "opts ...pkg.Option" reaches pkg
+		// The dot closing a "..." is none of those. What follows that dot is the
+		// variadic's parameter type, and "opts ...pkg.Option" reaches pkg
 		// like any other type does.
 		if start > 0 && !afterEllipsis(line, start) && (line[start-1] == '.' || isIdentifierByte(line[start-1])) {
 			i = end
@@ -120,14 +120,14 @@ func afterEllipsis(line string, start int) bool {
 }
 
 // selectors returns every "left.Right" on a line, where both sides are plain
-// identifiers, in the order they were written.
+// identifiers, in source order.
 //
 // A line reaching one package twice reports both: "http.Error(w, msg,
 // http.StatusNotFound)" names two symbols of one package, and a set keyed on
 // the package would keep one of them.
 //
 // A chained selector reports only its first pair: "a.B.C" reaches package a
-// through B, and B.C is a field of whatever B returned rather than a second
+// through B, and B.C is a field of whatever B returned, never a second
 // package.
 func selectors(line string) []selector {
 	var found []selector
@@ -185,7 +185,7 @@ func isIdentifierByte(c byte) bool {
 	return false
 }
 
-// exported reports whether a name is visible outside the package it is in.
+// exported reports whether a name is visible outside its own package.
 func exported(name string) bool {
 	for _, r := range name {
 		return unicode.IsUpper(r)
@@ -194,7 +194,7 @@ func exported(name string) bool {
 }
 
 // trimTypeParams drops the type parameter list from a generic declaration,
-// leaving the name it is declared under.
+// leaving the name the declaration uses.
 func trimTypeParams(name string) string {
 	if bracket := strings.Index(name, "["); bracket >= 0 {
 		return strings.TrimSpace(name[:bracket])
@@ -203,7 +203,7 @@ func trimTypeParams(name string) string {
 }
 
 // bodyLocals are the names a function body binds, which shadow whatever else
-// they are called.
+// they name.
 //
 // It reads the two forms a body declares with, "x :=" and "var x", and the
 // range clause, which is enough for the names that turn up on the left of a
@@ -258,7 +258,7 @@ func bindLocals(locals map[string]bool, src *source, i int, block *bool) {
 	}
 
 	// A func literal binds its parameters for the length of its body,
-	// which is where a callback's arguments come from.
+	// the source of a callback's arguments.
 	for _, open := range literalParams(code) {
 		for _, group := range paramGroups(open) {
 			for _, name := range group.Names {
@@ -276,7 +276,7 @@ func bindLocals(locals map[string]bool, src *source, i int, block *bool) {
 			spec = spec[:eq]
 		}
 		// A declaration writes the type after the names, so the first
-		// word of each part is the name and the rest is what it is.
+		// word of each part is the name and the rest is its type.
 		for _, part := range splitTop(spec, ',') {
 			if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {
 				locals[fields[0]] = true
@@ -288,8 +288,8 @@ func bindLocals(locals map[string]bool, src *source, i int, block *bool) {
 // addLocal records one bound name.
 //
 // The name is the last word of what precedes the binding, since a statement
-// binding one is often introduced by a keyword: "if info, err := os.Stat(x)"
-// binds info and err, and "if" is not a name. A declaration writes the type
+// binding one often opens with a keyword: "if fi, err := os.Stat(x)"
+// binds fi and err, and "if" is not a name. A declaration writes the type
 // after the name instead, "var out io.Writer", which the caller trims first.
 func addLocal(locals map[string]bool, name string) {
 	fields := strings.Fields(strings.TrimSpace(name))

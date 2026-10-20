@@ -67,7 +67,7 @@ func TestSetGoVersion(t *testing.T) {
 		t.Fatalf("go.mod lost its requirements:\n%s", got)
 	}
 
-	// A module already at the version is left alone.
+	// setGoVersion leaves a module already at the version alone.
 	if before, err = setGoVersion(root, "1.27"); err != nil || before != "1.27" {
 		t.Fatalf("setGoVersion() = %q, %v, want %q, nil", before, err, "1.27")
 	}
@@ -178,8 +178,8 @@ func TestUpdateDepsSetsGoVersion(t *testing.T) {
 }
 
 // TestUpdateDepsSkipsMatchingGoVersion checks that a module already declaring
-// the requested version is reported as up to date without running the go tool.
-// The module imports a package that can not be resolved with GOPROXY=off, so a
+// the requested version reports as up to date without running the go tool.
+// The module imports a package that fails to resolve with GOPROXY=off, so a
 // go command that did run would report a failure.
 func TestUpdateDepsSkipsMatchingGoVersion(t *testing.T) {
 	root := t.TempDir()
@@ -202,7 +202,7 @@ func TestUpdateDepsSkipsMatchingGoVersion(t *testing.T) {
 		t.Fatalf("go.mod rewritten:\n%s\nwant:\n%s", got, want)
 	}
 
-	// With -u the module's stale requirements are updated regardless of its
+	// With -u the run updates the module's stale requirements regardless of its
 	// go directive.
 	writeTestFile(t, path, "module example.com/app\n\ngo 1.26\n\nrequire example.com/lib v1.0.0\n")
 	output.Reset()

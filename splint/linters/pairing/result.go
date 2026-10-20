@@ -61,7 +61,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -127,8 +127,8 @@ func plural(count int, word string) string {
 // count records what one package held, and returns what to record against.
 //
 // The key is the import path of the half a consumer imports, so the metrics of
-// a package and of its test package land on the one entry rather than on an
-// "x" and an "x_test" a reader has to add up.
+// a package and of its test package land on the one entry, and a reader has no
+// "x" and "x_test" pair to add up.
 func (r *Results) count(pkg model.Package, files, tests int) *Metric {
 	if r.packages == nil {
 		r.packages = map[string]*Metric{}
@@ -150,7 +150,7 @@ func (r *Results) count(pkg model.Package, files, tests int) *Metric {
 	return metric
 }
 
-// add records one file standing alone against the package it was found in.
+// add records one file standing alone against the package that holds it.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 	metric.StandaloneFiles++
@@ -158,7 +158,7 @@ func (r *Results) add(metric *Metric, result Result) {
 
 // addTest records one test standing alone. StandaloneTests already counts it:
 // the count is of every test naming no file, excused package or not, and the
-// finding is only the ones a reader is asked to act on.
+// finding covers only the ones a reader can act on.
 func (r *Results) addTest(result Result) {
 	r.findings = append(r.findings, result)
 }

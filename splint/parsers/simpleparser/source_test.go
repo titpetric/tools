@@ -6,11 +6,11 @@ import (
 )
 
 // TestStrip covers what the stripped view is for: a brace, a keyword or a
-// backtick that is inside a string or a comment must not be read as code.
+// backtick that is inside a string or a comment never reads as code.
 //
-// The assertion is on the shape rather than on a column count. Every byte that
-// is not code becomes a space and the length never changes, which is what lets
-// a position in the stripped line be used against the line as written.
+// The assertion is on the shape and not on a column count. Every byte that
+// is not code becomes a space and the length never changes, so a position
+// in the stripped line works against the raw line.
 func TestStrip(t *testing.T) {
 	tests := []struct {
 		line string
@@ -35,7 +35,7 @@ func TestStrip(t *testing.T) {
 		if fields := strings.Join(strings.Fields(got), " "); fields != test.code {
 			t.Errorf("strip(%q) left %q, want the code %q", test.line, fields, test.code)
 		}
-		// Nothing but code survives, so no quote, tick or slash is left.
+		// Nothing but code survives, so no quote, tick or slash remains.
 		if strings.ContainsAny(got, "`\"'") || strings.Contains(got, "//") {
 			t.Errorf("strip(%q) = %q, which still holds a literal or a comment", test.line, got)
 		}
@@ -108,8 +108,8 @@ func TestSourceInsideARawString(t *testing.T) {
 }
 
 func TestSourceSplit(t *testing.T) {
-	// A backtick inside a comment is not a struct tag, which is the whole
-	// reason the comment position is recorded.
+	// A backtick inside a comment is not a struct tag, and that is the whole
+	// reason the source records the comment position.
 	src := newSource("x.go", []byte("\tParent string // `extends Name`, for printing\n"))
 
 	code, comment := src.split(0)
@@ -127,7 +127,7 @@ func TestSourceText(t *testing.T) {
 	if got := src.text(0, 1); got != "one\ntwo" {
 		t.Errorf("text(0, 1) = %q", got)
 	}
-	// A range past the end is clipped rather than refused.
+	// The text call clips a range past the end, and does not refuse it.
 	if got := src.text(2, 99); got != "three\n" {
 		t.Errorf("text(2, 99) = %q", got)
 	}

@@ -19,7 +19,7 @@ func TestUsage(t *testing.T) {
 
 // TestUsage_Compact checks the compact cell is one line of two counts, and
 // that one dependent being behind colours the count even when the rest are
-// current: the column is there to be scanned for what needs moving.
+// current: readers scan the column for what needs moving.
 func TestUsage_Compact(t *testing.T) {
 	u := Usage{
 		UsedBy: []Dependent{{Name: "alpha"}, {Name: "beta", Outdated: true}},
@@ -43,7 +43,7 @@ func TestUsage_Compact(t *testing.T) {
 }
 
 // TestUsage_Verbose checks the verbose cell names every dependency, one line
-// per direction, and colours each dependent by whether it is behind.
+// per direction, and colours each dependent by whether its version is behind.
 func TestUsage_Verbose(t *testing.T) {
 	u := Usage{
 		UsedBy: []Dependent{{Name: "alpha"}, {Name: "beta", Outdated: true}},
@@ -63,7 +63,7 @@ func TestUsage_Verbose(t *testing.T) {
 		}
 	}
 
-	// One direction alone is one line, not a line and a blank.
+	// One direction alone is one line, with no blank line after it.
 	if got := (Usage{Uses: []string{"gamma"}}).Verbose(); got.Height() != 1 {
 		t.Errorf("Usage.Verbose() of uses alone = %d lines, want 1: %q", got.Height(), got)
 	}

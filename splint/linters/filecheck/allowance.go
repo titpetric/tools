@@ -32,15 +32,15 @@ type Allowances []Allowance
 // MaxLinesFor is the ceiling a file runs under: the first entry whose pattern
 // covers it, and fallback when none does.
 //
-// First match wins rather than the most specific one. A list is read top to
-// bottom, so the order an author wrote is the order it is applied, and a
-// narrow entry is written above the broad entry it carves a hole in. Most
+// The first match wins, and the most specific one does not. A reader takes a list top to
+// bottom, so the order an author wrote is the order of application, and a
+// narrow entry sits above the broad entry it carves a hole in. Most
 // specific would need a definition of specific, which for two globs is a
 // guess: parser/*.go and **/*_test.go both cover parser/parser_test.go and
 // neither contains the other.
 //
-// A pattern a loader would have refused matches nothing here rather than
-// failing the run. The loader is where a malformed pattern is reported, and a
+// A pattern a loader would have refused matches nothing here and leaves the
+// run alone. The loader reports a malformed pattern, and a
 // linter handed one has no reader to report it to.
 func (a Allowances) MaxLinesFor(path string, fallback int) int {
 	for _, entry := range a {

@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestDefaultConfig checks the embedded document is the reference it claims to
-// be: it parses, it is what Default returns, and it names every setting the
-// form can edit, since it is what a reader is pointed at to learn the file.
+// TestDefaultConfig checks the embedded document holds up as the reference: it
+// parses, Default returns it, and it names every setting the form can edit,
+// since readers learn the file from it.
 func TestDefaultConfig(t *testing.T) {
 	if len(DefaultConfig) == 0 {
 		t.Fatal("DefaultConfig is empty, so config.yml was not embedded")
@@ -28,7 +28,7 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
-// lastKey returns the leaf of a dotted setting key, which is what the document
+// lastKey returns the leaf of a dotted setting key, the name the document
 // writes under its section.
 func lastKey(key string) string {
 	if _, after, found := strings.Cut(key, "."); found {

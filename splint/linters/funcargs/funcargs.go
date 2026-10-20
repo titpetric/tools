@@ -11,7 +11,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "func-args"
 
 // The rules this linter reports under.
@@ -22,14 +22,14 @@ const (
 
 // Linter checks the argument order of every two argument function.
 type Linter struct {
-	// defs is the document being linted, kept so a parameter type can be
-	// looked up: whether a named type is an interface decides where it sorts.
+	// defs is the document under lint, kept so a lookup can find a parameter
+	// type: whether a named type is an interface decides where it sorts.
 	defs model.DefinitionList
 
 	results Results
 
-	// metric is the package being read, which is what a finding is counted
-	// against.
+	// metric is the package under read, and the linter counts each finding
+	// against it.
 	metric *Metric
 }
 
@@ -45,14 +45,14 @@ func (l *Linter) Name() string {
 
 // Lint reports the argument order of every function in the document.
 //
-// Only a function taking exactly two arguments is considered. The order of one
+// The linter considers a function taking exactly two arguments alone. The order of one
 // pair is unambiguous; for three or more the expected order is a heuristic
 // sort, and a heuristic reports too much to be worth reading.
 //
 // Two arguments means two parameters, which is ArgumentCount and not the
 // length of Arguments: that list holds the distinct types, so a function of
-// seven parameters sharing two types used to read as a pair and be told to
-// reverse itself.
+// seven parameters sharing two types would read as a pair, and the linter
+// would tell it to reverse itself.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	l.defs = root.Packages
 	l.results = Results{}
@@ -99,7 +99,7 @@ func (l *Linter) report(def *model.Definition, decl *model.Declaration, rule, me
 
 // check validates one function's argument order, and reports the first thing
 // it finds wrong: a run of findings about one signature says the same thing
-// several ways.
+// three ways.
 func (l *Linter) check(def *model.Definition, decl *model.Declaration) {
 	args := decl.Arguments
 
@@ -151,7 +151,7 @@ func (l *Linter) check(def *model.Definition, decl *model.Declaration) {
 	}
 }
 
-// hasDuplicateTypes checks if there are multiple parameters of the same type.
+// hasDuplicateTypes checks if two or more parameters share a type.
 func hasDuplicateTypes(args []string) bool {
 	seen := make(map[string]bool)
 	for _, arg := range args {
@@ -283,7 +283,7 @@ func hasVariadicArgs(args []string) bool {
 	return false
 }
 
-// allBuiltinTypes checks if all arguments are built-in types.
+// allBuiltinTypes checks if each argument has a built-in type.
 func allBuiltinTypes(args []string) bool {
 	builtins := map[string]bool{
 		"string": true, "int": true, "int8": true, "int16": true, "int32": true, "int64": true,
@@ -330,7 +330,7 @@ func isChanType(arg string) bool {
 // isStructType checks if a type looks like a struct (has a dot or starts with capital).
 func isStructType(arg string) bool {
 	clean := strings.TrimPrefix(arg, "*")
-	// Structs typically have dots (package.Type) or are capitalized
+	// Structs typically have dots (package.Type) or a capital first letter
 	return strings.Contains(clean, ".") || (len(clean) > 0 && clean[0] >= 'A' && clean[0] <= 'Z')
 }
 
@@ -372,7 +372,7 @@ func getExpectedOrder(args []string) []string {
 	return getExpectedOrderWithDefs(args, nil)
 }
 
-// getExpectedOrderWithDefs returns arguments in expected order, using definition info for interface detection.
+// getExpectedOrderWithDefs returns arguments in expected order, using definition information for interface detection.
 func getExpectedOrderWithDefs(args []string, defs model.DefinitionList) []string {
 	result := make([]string, 0, len(args))
 

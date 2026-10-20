@@ -1,15 +1,15 @@
 package schema
 
-// RequiredFieldsConfig defines which fields are required for each type.
+// RequiredFieldsConfig lists the required fields of each type.
 type RequiredFieldsConfig struct {
 	Fields map[string][]string
 }
 
-// NewDefaultConfig just returns a sample required-fields config
+// NewDefaultConfig just returns a sample required-fields configuration
 func NewDefaultConfig() *RequiredFieldsConfig {
 	return &RequiredFieldsConfig{
 		Fields: map[string][]string{
-			//"User":  {"ID", "Name"}, // Only ID and Name are required for User
+			//"User":  {"ID", "Name"}, // User requires only ID and Name
 			//"Inner": {"Name"},
 		},
 	}

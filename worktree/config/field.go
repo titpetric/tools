@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-// Field is one editable setting of a configuration document. The value is
-// held as a pointer into the Config the field was built from, so a saved form
-// writes straight through into the document.
+// Field is one editable setting of a configuration document. The field holds
+// its value as a pointer into the Config it came from, so a saved form writes
+// straight through into the document.
 //
-// Exactly one of Bool and List is set, which is what IsList reports.
+// Exactly one of Bool and List holds a value; IsList reports which.
 type Field struct {
 	// Title is the label the form shows.
 	Title string
@@ -27,19 +27,20 @@ type Field struct {
 	List *[]string
 }
 
-// IsList reports whether the field holds a string list rather than a boolean.
+// IsList reports whether the field holds a string list. A false result means
+// the field holds a boolean.
 func (f Field) IsList() bool {
 	return f.List != nil
 }
 
 // value is the edited state of one setting. The form keeps one per field and
 // writes them into the document only when it saves, so leaving the form
-// discards the edits rather than the document having to be reloaded.
+// discards the edits and the document needs no reload.
 type value struct {
 	// flag is the state of a boolean setting.
 	flag bool
 
-	// text is a string list as it is typed, entries separated by commas.
+	// text is a string list as the user types it, entries separated by commas.
 	text string
 }
 

@@ -1,16 +1,16 @@
 // Package refindex answers which declarations reach a symbol, read off the
 // references a document already carries.
 //
-// The index is built once from a document and asked many times: the coverage
-// linter asks whether any test reaches a symbol, the pairing linter asks the
-// same for every symbol of a file, and splint docs prints what the index
-// holds for one symbol.
+// Build reads a document once and the index answers many queries: the
+// coverage linter checks whether any test reaches a symbol, the pairing
+// linter checks the same for every symbol of a file, and splint docs prints
+// what the index holds for one symbol.
 //
 // The reading is the References and Globals of every function: a Reference
 // resolves through the imports of the file that wrote it, and a Global
 // resolves against the package beside it, which for a test definition is the
 // product half of the same directory. A method recorded as Type.Method also
-// marks its type, because a type whose method is reached is reached.
+// marks its type, because reaching a method of a type reaches the type.
 package refindex
 
 import (
@@ -29,8 +29,8 @@ type Key struct {
 
 // Ref is one declaration that reaches a symbol.
 type Ref struct {
-	// Decl is the referencing function, and Pkg the package it sits in, which
-	// is what says where it is.
+	// Decl is the referencing function, and Pkg the package it sits in, and
+	// Pkg says where the function lives.
 	Decl *model.Declaration
 	Pkg  model.Package
 
@@ -55,7 +55,7 @@ func Build(root *model.DocumentRoot) *Index {
 
 	// The product half of a directory is what a test's globals resolve
 	// against: a test arrives as a definition of its own, and the bare names
-	// it reaches are declared by the definition beside it.
+	// it reaches belong to the definition beside it.
 	product := map[string]string{}
 	for _, def := range root.Packages {
 		if !def.Package.TestPackage {
@@ -71,9 +71,8 @@ func Build(root *model.DocumentRoot) *Index {
 
 		// The package wide map is the reading Clean splits References by, so
 		// a key one file reaches through another file's import still
-		// resolves. The file's own map is tried first: it is the scope the
-		// reference was written in, and the one an alias collision cannot
-		// cross.
+		// resolves. The file's own map comes first: it holds the scope the
+		// reference sits in, and the one an alias collision cannot cross.
 		all, _ := def.Imports.Map(def.Imports.All())
 
 		for _, decl := range def.Funcs {
@@ -147,7 +146,7 @@ func (ix *Index) TestRefs(key Key) []Ref {
 }
 
 // TestedDirect reports a symbol some test reaches by name: it appears in the
-// references of a test function, however the test came to hold it.
+// references of a test function, whatever way the test came to hold it.
 func (ix *Index) TestedDirect(key Key) bool {
 	for _, ref := range ix.refs[key] {
 		if ref.Test {
@@ -159,8 +158,8 @@ func (ix *Index) TestedDirect(key Key) bool {
 
 // TestedTransitive reports a symbol some test reaches through the product
 // code: directly, or through a chain of product declarations that reference
-// it. It is the looser reading — a symbol reached by a tested caller is not
-// necessarily executed by that caller's test — and no linter asks it by
+// it. This reading is the looser one, since a tested caller reaching a symbol
+// does not mean that caller's test runs the symbol, and no linter uses it by
 // default.
 func (ix *Index) TestedTransitive(key Key) bool {
 	return ix.transitive(key, map[Key]bool{})

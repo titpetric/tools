@@ -10,9 +10,9 @@ import (
 )
 
 // newTypeMark flags a type the release introduces, so a field of a new type
-// reads apart from one added to a type that was already there. It is the mark
-// the dependency matrix uses, and for the same reason: something that is there
-// now and was not before.
+// reads apart from one added to an existing type. The dependency matrix uses
+// the same mark, for the same reason: something present now and absent
+// before.
 const newTypeMark = dependencyMark
 
 // fieldEntry is one exported field as a row of the data model table.
@@ -21,8 +21,8 @@ type fieldEntry struct {
 	pkg      string
 	typeName string
 
-	// newType reports that the type itself is new, rather than one that was
-	// already there gaining a field.
+	// newType reports that the type itself is new, and not an existing type
+	// gaining a field.
 	newType bool
 
 	text string
@@ -35,8 +35,8 @@ type fieldEntry struct {
 // writeDataModel writes what became of the exported fields of every type the
 // release touches, which is the shape of the data a consumer reads and writes.
 //
-// It is one table rather than one per type: a release touching a dozen types
-// otherwise writes a dozen tables that line up with none of the others.
+// writeDataModel writes one table for all types: a release touching a dozen
+// types otherwise writes a dozen tables that line up with none of the others.
 func writeDataModel(w io.Writer, v verdict, styled bool, wrap int) {
 	headers, rows := dataModelRows(v, styled, wrap)
 	if len(rows) == 0 {
@@ -50,9 +50,9 @@ func writeDataModel(w io.Writer, v verdict, styled bool, wrap int) {
 // dataModelRows returns one row per field, in the order the report reads the
 // categories: what the release adds first, what it takes away last.
 //
-// A cell repeating the one above it is left empty, so a type reads as one block
-// of its fields. The category starts a group and the package and type are
-// restated under it, since a group opening on three empty cells says nothing.
+// A cell repeating the one above it stays empty, so a type reads as one block
+// of its fields. The category starts a group and the rows restate the package
+// and type under it, since a group opening on three empty cells says nothing.
 func dataModelRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	entries := dataModelEntries(v)
 	if len(entries) == 0 {
@@ -82,8 +82,8 @@ func dataModelRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		lastCategory, lastPkg, lastType string
 	)
 	for i, entry := range entries {
-		// A new category opens a group, and names itself. The package and type
-		// are written again under it, however far the group above them reached,
+		// A new category opens a group, and names itself. The rows repeat the
+		// package and type under it, no matter how far the group above them reached,
 		// since a group opening on empty cells says nothing.
 		category := ""
 		if entry.category != lastCategory {
@@ -138,9 +138,9 @@ func dataModelRow(entry fieldEntry, category string, styled bool, width int) []s
 // dataModelEntries returns every field the release moved, the added ones first,
 // and within a category ordered by package, type and name.
 //
-// The fields of a type the release adds are read as additions of their own, so
-// the report carries the shape it declares rather than only that it exists.
-// Unexported members are left out: they are not part of the API.
+// The fields of a type the release adds count as additions of their own, so
+// the report carries the shape it declares, beyond the bare fact it exists.
+// Unexported members stay out: they are not part of the API.
 func dataModelEntries(v verdict) []fieldEntry {
 	touched := v.commitsByField()
 
@@ -189,7 +189,7 @@ func dataModelEntries(v verdict) []fieldEntry {
 	return entries
 }
 
-// typeReads names a type with the shape it is declared with.
+// typeReads names a type with the shape of its declaration.
 func typeReads(name, underlying string) string {
 	if underlying == "" {
 		return "type " + name
@@ -198,7 +198,7 @@ func typeReads(name, underlying string) string {
 }
 
 // addedTypes returns the types the release adds that declare an exported field,
-// which is what there is to write a shape for. A type with none, such as a func
+// the only types with a shape to write. A type with none, such as a func
 // type or a named string, is already said by its row in the API table.
 func addedTypes(diff apiDiff) []apiSymbol {
 	var types []apiSymbol
@@ -213,14 +213,14 @@ func addedTypes(diff apiDiff) []apiSymbol {
 // fieldText renders a field as the table lists it: its name, and the shape it
 // has or the two shapes it moved between.
 //
-// The name leads, since it has no column of its own, and is written once for a
-// field that moved: a field is matched to the one it was by name, so the name
-// is the one thing that cannot have changed.
+// The name leads, since it has no column of its own, and appears once for a
+// field that moved: fieldText pairs a field with its earlier self by name, so
+// the name is the one thing that cannot have changed.
 //
-// A tag is part of the shape, since it is what a stored document decodes
-// through, and is written alongside the type whenever either side carries one.
+// A tag is part of the shape, since a stored document decodes through it, and
+// fieldText writes it alongside the type whenever either side carries one.
 //
-// A change to the tag alone is named as one, "Children: added json tag":
+// fieldText names a change to the tag alone as one, "Children: added json tag":
 // writing the unchanged type on both sides of an arrow buries what moved, and
 // reads as a field losing its name.
 func fieldText(change apiFieldChange) string {
@@ -324,13 +324,13 @@ func fieldReads(field apiField) string {
 }
 
 // fieldLabel writes the name in front of a shape, unless the shape opens on it
-// already. An interface method carries its name in the signature it is recorded
-// under, as "Put (key string) error", where the type of a struct field does
-// not.
+// already. An interface method carries its name in the signature the model
+// records it under, as "Put (key string) error", where the struct field's type
+// does not.
 //
-// The parameter list is what the name is recognised by, not the name alone: a
-// field is often typed after itself, and "Mode Mode" is a field named Mode of
-// type Mode rather than a name written twice.
+// fieldLabel recognises the name by the parameter list, not the name alone: a
+// field often takes its own name as its type, and "Mode Mode" is a field named
+// Mode of type Mode, and not one name typed twice.
 func fieldLabel(name, shape string) string {
 	if strings.HasPrefix(shape, name+" (") {
 		return shape

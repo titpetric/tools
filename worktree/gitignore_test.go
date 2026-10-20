@@ -95,8 +95,8 @@ func TestIgnoreStackPruneUnwindsToSibling(t *testing.T) {
 }
 
 // TestScannerAppliesIgnorePathsWithoutGitignore checks a configured ignore
-// path excludes a directory whether or not the .gitignore rules are on, and
-// that the root of the walk is never excluded.
+// path excludes a directory whether the .gitignore rules are on or off, and
+// that skip always keeps the root of the walk.
 func TestScannerAppliesIgnorePathsWithoutGitignore(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, filepath.Join(root, ".gitignore"), "build\n")
@@ -113,14 +113,14 @@ func TestScannerAppliesIgnorePathsWithoutGitignore(t *testing.T) {
 	if s.skip(filepath.Join(root, "build"), true) {
 		t.Fatal("scanner applied a .gitignore rule with the rules turned off")
 	}
-	// An ignore path names a directory, so a file of that name is kept.
+	// An ignore path names a directory, so skip keeps a file of that name.
 	if s.skip(filepath.Join(root, "node_modules"), false) {
 		t.Fatal("scanner excluded a file matching an ignore path")
 	}
 }
 
-// TestScannerSkipsTestdata checks a testdata directory is excluded without
-// being configured, and that a walk started inside one still runs.
+// TestScannerSkipsTestdata checks skip excludes a testdata directory with no
+// configuration, and that a walk started inside one still runs.
 func TestScannerSkipsTestdata(t *testing.T) {
 	root := t.TempDir()
 	s := newScanner(config.Scan{}, root)
@@ -131,7 +131,7 @@ func TestScannerSkipsTestdata(t *testing.T) {
 	if !s.skip(filepath.Join(root, "apps", "testdata"), true) {
 		t.Fatal("scanner descended into a nested testdata directory")
 	}
-	// The name only excludes a directory, so a file called testdata is kept.
+	// The name only excludes a directory, so skip keeps a file called testdata.
 	if s.skip(filepath.Join(root, "testdata"), false) {
 		t.Fatal("scanner excluded a file named testdata")
 	}

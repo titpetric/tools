@@ -34,8 +34,8 @@ func (p *collector) collectStructFields(out *model.Declaration, file *ast.File, 
 					}
 				}
 			case *ast.Ident:
-				// A named type, e.g. type X string. Recording the type it is
-				// defined as is what makes a change of it, from string to int,
+				// A named type, e.g. type X string. Recording the underlying
+				// type makes a change of it, from string to int,
 				// something a reader of the model can see.
 				out.Type = val.Name
 			default:
@@ -94,9 +94,9 @@ func (p *collector) parseStruct(structInfo *model.Declaration, file *ast.File, s
 
 		fieldType := p.symbolType(file, field.Type)
 
-		// One declaration may name several fields, as in "Major, Minor uint64",
+		// One declaration may name two or more fields, as in "Major, Minor uint64",
 		// and each of them is a field of its own. An embedded field names none,
-		// and is recorded with an empty name, which is how the renderers tell it
+		// and the collector records it with an empty name, so the renderers tell it
 		// from a named one.
 		for _, goName := range fieldNames(field) {
 			jsonName := JSONTagName(tagValue)
@@ -136,8 +136,8 @@ func (p *collector) parseStruct(structInfo *model.Declaration, file *ast.File, s
 }
 
 // fieldNames returns the names one field declaration declares. An embedded
-// field declares none, and is reported as the single empty name it is recorded
-// under.
+// field declares none, and the function returns the single empty name the
+// collector records it under.
 func fieldNames(field *ast.Field) []string {
 	if len(field.Names) == 0 {
 		return []string{""}

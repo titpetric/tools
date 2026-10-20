@@ -112,7 +112,7 @@ func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
 		t.Errorf("Summary() = %q, want %q", got.Summary(), want)
 	}
 
-	// Once that release is made, a point release of the same series is not
+	// Once that release exists, a point release of the same series is not
 	// worth another minor.
 	runGit(t, root, "tag", "alpha/v0.2.0")
 	writeTestFile(t, filepath.Join(alpha, "go.mod"), "module example.com/alpha\n\ngo 1.27.3\n")

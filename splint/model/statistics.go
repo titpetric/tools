@@ -2,9 +2,9 @@ package model
 
 // Statistics is one table a linter reports.
 //
-// It is a rendering rather than a measurement: the numbers themselves are in
-// LintMetrics, and this is how they read. A linter decides its own columns,
-// because what is worth a column is what the linter measured.
+// Statistics is a rendering and holds no measurement: the numbers themselves
+// sit in LintMetrics, and this is how they read. A linter decides its own
+// columns, because what is worth a column is what the linter measured.
 type Statistics struct {
 	// Labels are the column headings.
 	Labels []string `json:"Labels" yaml:"Labels"`
@@ -41,8 +41,8 @@ func NewStatistics(labels []string, rows [][]string, options ...StatisticsOption
 	return out
 }
 
-// Empty reports a table with no rows, which is a linter that had nothing to
-// count rather than one that counted nothing.
+// Empty reports a table with no rows: a linter that had nothing to count, as
+// distinct from one whose count came out zero.
 func (s Statistics) Empty() bool {
 	return len(s.Rows) == 0
 }

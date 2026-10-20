@@ -61,7 +61,7 @@ func TestFindProjectsSkipsIgnoredDirectories(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.25\n")
 	writeTestFile(t, filepath.Join(root, ".gitignore"), "vendor/\n/tmp\n!apps/vendor\n")
 
-	// Git repositories and Go modules inside an ignored folder are skipped.
+	// The walk skips git repositories and Go modules inside an ignored folder.
 	if err := os.MkdirAll(filepath.Join(root, "vendor", "example.com", "lib", ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestFindProjectsWithoutGitignore(t *testing.T) {
 		GitRepo:  true,
 	}
 
-	// With the rules on, the checkout is hidden.
+	// With the rules on, the listing hides the checkout.
 	got, err := findProjects(root, scan)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestFindProjectsWithoutGitignore(t *testing.T) {
 		t.Fatalf("findProjects() = %#v, want %#v", got, want)
 	}
 
-	// With them off, it is listed.
+	// With them off, the listing shows it.
 	scan.EnableGitignore = false
 	got, err = findProjects(root, scan)
 	if err != nil {
@@ -133,8 +133,8 @@ func TestFindProjectsWithoutGitignore(t *testing.T) {
 }
 
 // TestFindProjectsSkipsIgnorePaths checks the configured ignore paths exclude
-// a directory no .gitignore mentions, which is how a listing is kept clean
-// once the .gitignore rules are off.
+// a directory no .gitignore mentions, so a listing stays clean once the
+// .gitignore rules are off.
 func TestFindProjectsSkipsIgnorePaths(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.25\n")
@@ -206,7 +206,7 @@ func TestFindProjectsWithoutGitRepos(t *testing.T) {
 }
 
 // TestFindScanRootUsesConfiguredMarkers checks the root markers come from the
-// configuration, and that a walk with none starts where it was asked to.
+// configuration, and that a walk with none starts in the directory it receives.
 func TestFindScanRootUsesConfiguredMarkers(t *testing.T) {
 	root := t.TempDir()
 	start := filepath.Join(root, "nested", "deep")

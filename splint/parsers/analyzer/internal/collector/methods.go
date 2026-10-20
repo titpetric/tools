@@ -10,8 +10,8 @@ import (
 )
 
 // majorVersion matches the major version a module path ends in, which is not
-// part of the name the package is reached by: "example.com/thing/v2" is
-// imported as "thing".
+// part of the name a file reaches the package by: a file imports "example.com/thing/v2"
+// as "thing".
 //
 // It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
 // /v1 is a directory of that name: prometheus api/prometheus/v1 is package
@@ -20,11 +20,11 @@ var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // resolveMethods records the methods a body reaches, which the reference scan
 // cannot see: a selector on a local or on a field names no package, so a
-// method reached through one is recorded nowhere without the type checker.
+// method reached through one leaves no record without the type checker.
 //
-// A method on a type of the declaration's own package goes onto Globals in
+// A method on a type from the declaration's own package goes onto Globals in
 // the shape Globals already documents: the package level name reached is the
-// type, and the method is the name after the dot. A method on a type of an
+// type, and the method is the name after the dot. A method on a type from an
 // imported package goes onto References under the name the file imports the
 // package by, as Type.Method. A file that does not import the declaring
 // package records nothing, because References are what a declaration reaches
@@ -48,8 +48,8 @@ func (v *collector) resolveMethods(file *ast.File, filename string, fn *ast.Func
 			return true
 		}
 
-		// An instantiated generic reads as the declaration it was
-		// instantiated from, which is the symbol the document holds.
+		// An instantiated generic reads as the declaration it
+		// instantiates, the symbol the document holds.
 		obj = obj.Origin()
 
 		recv := obj.Signature().Recv()

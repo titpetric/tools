@@ -5,7 +5,7 @@ type Field struct {
 	// Name is the name of the field.
 	Name string `json:"Name" yaml:"Name"`
 
-	// Type is the literal type of the Go field.
+	// Type is the Go field's type, as written.
 	Type string `json:"Type,omitempty" yaml:"Type,omitempty"`
 
 	// Path is the go path of this field starting from root object.

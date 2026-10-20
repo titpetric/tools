@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestShortName and TestShortPath cover the two ways a module path is
-// shortened for a column: to its last segment, and to everything after the
-// host, which is what keeps the module column narrow without losing the owner.
+// TestShortName and TestShortPath cover the two ways a column shortens a
+// module path: to its last segment, and to everything after the host, the
+// form that keeps the module column narrow without losing the owner.
 func TestShortName(t *testing.T) {
 	for in, want := range map[string]string{
 		"github.com/titpetric/tools/worktree": "worktree",

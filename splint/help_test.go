@@ -7,8 +7,8 @@ import (
 )
 
 // TestHelpMarkdown covers the page a document holds and a program reads: every
-// flag the parser defines is in it, which is what makes the page complete by
-// construction rather than by somebody remembering to add one.
+// flag the parser defines is in it, so the page is complete by construction
+// and nobody has to remember to add one.
 func TestHelpMarkdown(t *testing.T) {
 	cfg, err := parseOptions(nil)
 	if err != nil {

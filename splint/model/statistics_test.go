@@ -20,7 +20,7 @@ func TestNewStatistics(t *testing.T) {
 	}
 
 	// A table with no rows is a linter that had nothing to count, which a
-	// renderer leaves out rather than drawing an empty box.
+	// renderer leaves out and draws no empty box for.
 	if !NewStatistics(labels, nil).Empty() {
 		t.Error("Empty() said a table with no rows is not empty")
 	}

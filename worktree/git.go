@@ -170,7 +170,7 @@ func commitMessagesSinceTag(dir, tag string) []string {
 // repoPaths returns the root of the git repository holding dir and the path of
 // dir below it, which is "." when dir is the root itself.
 //
-// Commands taking a path are run from the root with that path, never from the
+// Commands taking a path run from the root with that path, never from the
 // directory itself: git reads a pathspec, and the tree of "<rev>:<path>", as
 // relative to the current directory, so running them a level down would look
 // for the path twice over.
@@ -201,8 +201,8 @@ type commitLog struct {
 }
 
 // commitLogSinceTag returns the commits made to the module in dir since tag,
-// newest first. With no tag the whole history of the module is returned, which
-// is what a first release covers.
+// newest first. With no tag it returns the whole history of the module, the
+// span a first release covers.
 func commitLogSinceTag(dir, tag string) []commitLog {
 	return commitLogBetween(dir, tag, "HEAD")
 }
@@ -221,8 +221,8 @@ func commitLogBetween(dir, from, to string) []commitLog {
 	} else {
 		args = append(args, to)
 	}
-	// The pathspec is read relative to the working directory, so this is the
-	// module's own history rather than the whole repository's.
+	// git reads the pathspec relative to the working directory, so this lists
+	// the module's own history and not the whole repository's.
 	args = append(args, "--", ".")
 
 	cmd := exec.Command("git", args...)
@@ -269,17 +269,17 @@ func publishedCommits(dir string) map[string]bool {
 // repoURL returns the address a browser opens the repository of dir at, or an
 // empty string when there is no origin to derive one from.
 //
-// Only "git remote get-url" is ever run: reading the address of a remote is
-// all that is wanted here, and nothing about the repository's remotes is
-// written.
+// repoURL only ever runs "git remote get-url": reading the address of a
+// remote covers the need here, and it writes nothing about the repository's
+// remotes.
 func repoURL(dir string) string {
 	return browsableRemote(firstCommandLine(dir, "git", "remote", "get-url", "origin"))
 }
 
 // browsableRemote rewrites a git remote as the https address of the same
 // repository. The scp form "git@host:path" and an ssh URL both become
-// "https://host/path"; anything else that is not already http is left out,
-// since there is nothing to link to.
+// "https://host/path"; browsableRemote drops anything else that is not
+// already http, since there is nothing to link to.
 func browsableRemote(remote string) string {
 	remote = strings.TrimSuffix(strings.TrimSpace(remote), ".git")
 	switch {

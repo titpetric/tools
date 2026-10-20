@@ -33,14 +33,14 @@ type requireInfo struct {
 	path    string
 	version string
 
-	// indirect reports a requirement the module does not import itself, and
-	// carries only to pin what a dependency of a dependency resolves to. It is
-	// the "// indirect" comment go mod tidy writes.
+	// indirect reports a dependency the module does not import itself, and
+	// carries only to pin what a dependency of a dependency resolves to. It
+	// mirrors the "// indirect" comment go mod tidy writes.
 	indirect bool
 }
 
-// versionRefs maps module path → dependency path → version.
+// versionRefs maps module path -> dependency path -> version.
 type versionRefs map[string]map[string]string
 
-// latestTags maps module path → latest tag.
+// latestTags maps module path -> latest tag.
 type latestTags map[string]string

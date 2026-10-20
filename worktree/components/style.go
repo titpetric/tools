@@ -15,12 +15,12 @@ const (
 	ColorYellow     = "\033[38;5;220m"
 	ColorRed        = "\033[38;5;167m"
 
-	// ColorSection is the heading that opens a section of a report. It is bold,
-	// and no table is drawn in it, so the heading is told apart from the column
+	// ColorSection is the heading that opens a section of a report. The heading
+	// prints bold and outside any table, so it stands apart from the column
 	// headings of the table below it.
 	ColorSection = "\033[1;38;5;220m"
 
-	// ColorTitle is the line a report opens on, which names what the whole of
-	// it is about and is the brightest thing in it.
+	// ColorTitle is the line a report opens on, which names the subject of the
+	// whole report and stands out as the brightest thing in it.
 	ColorTitle = "\033[1;38;5;255m"
 )

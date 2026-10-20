@@ -6,8 +6,8 @@ import (
 )
 
 // TestGoVersion checks a module below the highest go directive the workspace
-// declares is coloured amber, and that a module declaring none writes no cell
-// rather than an empty one.
+// declares prints in amber, and that a module declaring none writes no cell,
+// so no empty cell takes its place.
 func TestGoVersion(t *testing.T) {
 	if got := GoVersion("", false); got != nil {
 		t.Errorf("GoVersion(\"\") = %q, want no cell", got)

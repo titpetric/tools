@@ -1,14 +1,14 @@
 package model
 
-// Module holds the go.mod of the module a package was extracted from.
+// Module holds the go.mod of the module the parse extracted a package from.
 //
 // A package is only half of what a consumer takes on. The other half is the
-// dependency set it drags in, and a release that moves a requirement to
+// dependency set it drags in, and a release that moves a required module to
 // another major version, or replaces one with a fork, changes what it costs to
 // depend on the package even though no symbol moved. Carrying the go.mod in
-// the model is what lets two revisions be compared on that.
+// the model lets a reader compare two revisions on that.
 //
-// The lists are sorted, so a go.mod that only had its blocks reordered
+// The parse sorts the lists, so a go.mod with only its blocks reordered
 // produces the same model.
 type Module struct {
 	// Path is the module path, as the module directive declares it.
@@ -29,7 +29,7 @@ type Module struct {
 	// Replaces are the replace directives.
 	Replaces []Replace `json:"Replaces,omitempty" yaml:"Replaces,omitempty"`
 
-	// Sums are the versions go.sum records, which is every version the module
-	// graph offered rather than the one requirement each was resolved to.
+	// Sums are the versions go.sum records: every version the module graph
+	// offered, beyond the one version each required module resolves to.
 	Sums []Sum `json:"Sums,omitempty" yaml:"Sums,omitempty"`
 }

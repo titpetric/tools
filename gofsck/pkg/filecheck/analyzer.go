@@ -16,7 +16,7 @@ var bucketThresholds = []int64{1024, 2048, 4096, 8192, 16384, 32768, 65536}
 
 const numBuckets = 8
 
-// ratingThreshold is the byte size (16KB) above which files are considered "very high" complexity.
+// ratingThreshold is the byte size (16KB) above which the linter rates a file at the "Severe" complexity level.
 const ratingThreshold = 16384
 
 // Analyzer performs file size statistics analysis on a set of packages.

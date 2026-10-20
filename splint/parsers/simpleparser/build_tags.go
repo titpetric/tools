@@ -14,9 +14,9 @@ import (
 // Both are what the toolchain applies before a compiler ever sees the file, so
 // a parser that read them anyway would describe a package nobody builds.
 //
-// The constraint is evaluated with go/build/constraint, which parses the
-// expression without building anything: a tag other than the platform is
-// treated as unset, which is what a plain "go build" does with it.
+// go/build/constraint evaluates the constraint, parsing the
+// expression without building anything: a tag other than the platform reads
+// as unset, the same as a plain "go build" does with it.
 func Included(name string, source []byte) bool {
 	if !platformMatches(name) {
 		return false
@@ -35,7 +35,7 @@ func Included(name string, source []byte) bool {
 func constraintOf(source []byte) constraint.Expr {
 	var plusBuild constraint.Expr
 
-	// Only the header is read. Splitting the whole file to find a line that
+	// The scan reads the header alone. Splitting the whole file to find a line that
 	// has to be in the first few is most of the cost of reading one.
 	for rest := source; len(rest) > 0; {
 		var line []byte
@@ -53,7 +53,7 @@ func constraintOf(source []byte) constraint.Expr {
 			continue
 		}
 
-		// The //go:build line wins outright, which is what the toolchain does
+		// The //go:build line wins outright, as the toolchain does
 		// with a file carrying both.
 		if expr, err := constraint.Parse(trimmed); err == nil {
 			if constraint.IsGoBuild(trimmed) {
@@ -102,7 +102,7 @@ func platformMatches(name string) bool {
 // satisfied reports whether a build tag holds for this build.
 //
 // The platform tags answer for themselves and "unix" for the platforms it
-// covers; every other tag is unset, which is what a plain build leaves it.
+// covers; every other tag is unset, the state a plain build leaves it in.
 func satisfied(tag string) bool {
 	switch tag {
 	case runtime.GOOS, runtime.GOARCH:
@@ -114,7 +114,7 @@ func satisfied(tag string) bool {
 	}
 
 	if strings.HasPrefix(tag, "go1.") {
-		// The language version this is built with is at least the one the
+		// The language version of this build is at least the one the
 		// module declares, so a version tag holds.
 		return true
 	}

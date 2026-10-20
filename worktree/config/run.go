@@ -12,8 +12,8 @@ import (
 //
 // A document that fails to parse still opens the screen, since that is where
 // it gets fixed, but it opens on the built-in defaults with the parse error in
-// the status line. Nothing is written until the screen is told to save, so a
-// hand written file is never quietly replaced.
+// the status line. Run writes nothing until the user saves on the screen, so a
+// hand written file never gets quietly replaced.
 func Run(w io.Writer) error {
 	path, err := Path()
 	if err != nil {
@@ -34,9 +34,9 @@ func Run(w io.Writer) error {
 }
 
 // newModelFor builds the setup screen for the document at path, falling back
-// to the built-in defaults when it cannot be parsed. The parse error is
-// returned as well as put in the status line, so a run that does not save can
-// report it.
+// to the built-in defaults when the document fails to parse. newModelFor
+// returns the parse error and puts it in the status line, so a run that does
+// not save can report it.
 func newModelFor(path string) (Model, error) {
 	cfg, err := LoadFile(path)
 	if err != nil {

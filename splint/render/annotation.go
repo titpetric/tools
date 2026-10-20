@@ -14,15 +14,15 @@ import (
 //
 //	::warning file=frontend/view/page.go,line=42,title=godoc/missing::Page - exported symbol lacks a godoc comment
 //
-// A log line is read by a person and a workflow command is read by the runner,
-// which turns it into an annotation on the file and the line of a pull request
+// A person reads a log line and the runner reads a workflow command, and the
+// runner turns it into an annotation on the file and the line of a pull request
 // review. Nothing else in a log does that: a compiler shaped line becomes an
-// annotation only where a problem matcher was registered for it, and this is
-// what needs no matcher.
+// annotation only where a workflow registers a problem matcher for it, and
+// this form needs no matcher.
 //
 // GitHub shows ten warnings and ten errors per step and fifty annotations per
-// job, and drops the rest without saying so, which is why the exit code and
-// the statistics are what a gate reads rather than the count of these.
+// job, and drops the rest without saying so, so a gate reads the exit code and
+// the statistics and ignores the count of these.
 //
 // The reference is
 // https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands
@@ -65,7 +65,7 @@ func Annotation(issue model.Issue) string {
 		strings.Join(properties, ","), escapeData(message))
 }
 
-// annotationKind is the command a level is reported under. GitHub has three
+// annotationKind is the command that reports a level. GitHub has three
 // and slog has four: debug is not an annotation, and reads as the notice the
 // level below a warning reads as.
 func annotationKind(severity model.Severity) string {
@@ -78,7 +78,7 @@ func annotationKind(severity model.Severity) string {
 	return "notice"
 }
 
-// escapeData is what a message is written as: the runner reads a command up to
+// escapeData is the escaped form of a message: the runner reads a command up to
 // the first line ending, and a percent opens an escape.
 func escapeData(value string) string {
 	return strings.NewReplacer(
@@ -88,7 +88,7 @@ func escapeData(value string) string {
 	).Replace(value)
 }
 
-// escapeProperty is what a property value is written as: the same, and the
+// escapeProperty is the escaped form of a property value: the same, and the
 // two characters that separate the properties from each other and from the
 // message.
 func escapeProperty(value string) string {

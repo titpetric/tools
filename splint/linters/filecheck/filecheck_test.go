@@ -89,7 +89,7 @@ func TestLinter_Lint(t *testing.T) {
 }
 
 // TestLinter_New_IsTheDefaultCeiling pins what a tree with no filecheck
-// section is read under, which is the number config defaults to as well.
+// section runs under, which is the number the configuration defaults to as well.
 func TestLinter_New_IsTheDefaultCeiling(t *testing.T) {
 	linter := filecheck.New()
 	if linter.MaxLines != filecheck.DefaultMaxLines {
@@ -100,12 +100,12 @@ func TestLinter_New_IsTheDefaultCeiling(t *testing.T) {
 	}
 }
 
-// TestLinter_Lint_Allowance covers the three answers an allow list gives: a
+// TestLinter_Lint_Allowance covers the three answers an allow list returns: a
 // raised ceiling leaves a long file alone and still reports one past it, a
-// zero turns the rule off whatever the length, and a file no entry covers is
-// judged by the default.
+// zero turns the rule off whatever the length, and the default covers a
+// file no entry names.
 //
-// The test files are named first because first match wins and parser*.go
+// The test files come first because first match wins and parser*.go
 // covers parser_test.go too. That is the ordering an author writes, and
 // getting it backwards here is what the entry order is for.
 func TestLinter_Lint_Allowance(t *testing.T) {
@@ -160,7 +160,7 @@ func TestLinter_Lint_Allowance(t *testing.T) {
 
 // TestLinter_Lint_MaxLinesZero turns the rule off for the whole tree, which is
 // the same zero the pollution rules read, and leaves the measurement standing:
-// a tree that stopped judging length still wants the histogram.
+// a tree that stopped judging length still keeps the histogram.
 func TestLinter_Lint_MaxLinesZero(t *testing.T) {
 	linter := filecheck.New()
 	linter.MaxLines = 0
@@ -254,7 +254,7 @@ func TestLinter_Lint_OnTheRootPackage(t *testing.T) {
 	}
 }
 
-// TestLinter_Lint_Metrics checks that what is measured survives to the metrics
+// TestLinter_Lint_Metrics checks that each measurement survives to the metrics
 // keyed the way a Position names a file.
 func TestLinter_Lint_Metrics(t *testing.T) {
 	report := lint(t, document(
@@ -329,7 +329,7 @@ func TestLinter_Lint_Statistics(t *testing.T) {
 }
 
 // TestLinter_Lint_OnNothing proves an empty document reports and measures
-// nothing rather than a table of zeroes.
+// nothing, with no table of zeroes.
 func TestLinter_Lint_OnNothing(t *testing.T) {
 	report := lint(t, &model.DocumentRoot{})
 
@@ -344,8 +344,8 @@ func TestLinter_Lint_OnNothing(t *testing.T) {
 	}
 }
 
-// TestLinter_Lint_Cancelled proves the linter gives up when the context does,
-// which is what makes a run over a large tree interruptible.
+// TestLinter_Lint_Cancelled proves the linter stops when the context does,
+// so a run over a large tree can stop on interrupt.
 func TestLinter_Lint_Cancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

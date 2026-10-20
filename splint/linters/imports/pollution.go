@@ -13,8 +13,8 @@ import (
 // Spread is how far one import path has reached into the tree.
 //
 // One file is the clean reading. A dependency reached from one file through
-// one name is one place to change when it is replaced, and one place a reader
-// has to understand to know what the tree took on.
+// one name is one place to change on replacement, and one place a reader
+// reads to learn what the tree took on.
 type Spread struct {
 	// Path is the import path.
 	Path string
@@ -25,16 +25,16 @@ type Spread struct {
 	Packages int
 	Worst    int
 
-	// WorstPackage is the package Worst was counted in.
+	// WorstPackage is the package that holds the Worst count.
 	WorstPackage string
 
-	// Local reports a package of the tree rather than a dependency of it.
+	// Local reports a package of the tree, as opposed to a dependency of it.
 	Local bool
 
 	// Std reports a package of the standard library.
 	Std bool
 
-	// packages is what the counts are taken from, kept so a file importing a
+	// packages is the source of the counts, kept so a file importing a
 	// path twice counts once.
 	packages map[string]map[string]bool
 }
@@ -48,8 +48,8 @@ func (s *Spread) External() bool {
 // spread reports the external dependencies that have reached more of the tree
 // than one place, and records what every import path reached.
 //
-// A package of the tree is counted and never reported. A model package
-// imported by every consumer under it is what a package structure is for, and
+// The linter counts a package of the tree and never reports it. A model package
+// that every consumer below it imports is the point of a package structure, and
 // a rule that called it pollution would be a rule against writing one.
 func (l *Linter) spread(root *model.DocumentRoot, results *Results) {
 	catalogue := gomod.NewCatalogue(root)
@@ -76,7 +76,7 @@ func (l *Linter) spread(root *model.DocumentRoot, results *Results) {
 					byPath[spec.Path] = entry
 				}
 
-				// The count is per directory rather than per import path. A
+				// The count is per directory, not per import path. A
 				// package and its test half are two definitions of one
 				// directory, and a reader asking how many files of a package
 				// reach a dependency counts the tests among them.
@@ -145,7 +145,7 @@ func plural(n int, thing string) string {
 	return fmt.Sprintf("%d %ss", n, thing)
 }
 
-// polluted is why a dependency is reported, and is empty for one that is not.
+// polluted is why the linter reports a dependency, and is empty for one it does not.
 func (l *Linter) polluted(entry *Spread, files int) string {
 	var reasons []string
 

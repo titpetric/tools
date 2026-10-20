@@ -11,7 +11,7 @@ import (
 )
 
 // writeModule writes a go.mod into a temporary directory and returns the
-// directory, which is what the search walks up from.
+// directory, and the search walks up from it.
 func writeModule(t *testing.T, contents string) string {
 	t.Helper()
 
@@ -84,7 +84,7 @@ func TestFindWalksUp(t *testing.T) {
 
 func TestFindReportsNoModuleWithoutError(t *testing.T) {
 	// A source tree with no go.mod still holds packages worth extracting, so
-	// the absence is reported rather than raised.
+	// Find reports the absence and returns no error.
 	got, err := gomod.Find(t.TempDir())
 	if err != nil {
 		t.Fatalf("gomod.Find() error: %v", err)

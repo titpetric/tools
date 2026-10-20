@@ -22,7 +22,7 @@ func TestAnalyzer_Analyze(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, report)
-	// Symbols map will always be initialized (may be empty)
+	// Analyze always initializes the Symbols map (it may be empty)
 	assert.NotNil(t, report.Symbols)
 	// Uncovered and StandaloneTests can be nil if empty
 	if report.Uncovered != nil {

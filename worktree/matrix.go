@@ -13,7 +13,7 @@ import (
 const dependencyMark = "▲"
 
 // matrixMinWidth is the narrowest a dependency column gets, five cells wide
-// once the single space of padding on each side is counted.
+// counting the single space of padding on each side.
 const matrixMinWidth = 3
 
 func renderDependencyMatrix(w io.Writer, modules []moduleInfo, refs versionRefs, tags latestTags, styled bool) {

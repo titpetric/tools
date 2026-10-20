@@ -80,7 +80,7 @@ func TestResolveRendersThePlanAndStopsOnADirtyModule(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "alpha", "alpha.go"), "package alpha\n\n// changed\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: change")
 
-	// alpha is left holding a change resolve does not commit, so the run has
+	// alpha keeps holding a change resolve does not commit, so the run has
 	// to stop there and never reach beta.
 	writeTestFile(t, filepath.Join(root, "alpha", "stray.go"), "package alpha\n")
 
@@ -100,8 +100,8 @@ func TestResolveRendersThePlanAndStopsOnADirtyModule(t *testing.T) {
 		"| ./alpha | example.com/alpha | v0.1.0 (+1) → v0.1.1 |",
 		"go get -u ./...",
 		"go mod tidy",
-		// The module has no go.sum, so only the file that exists is named,
-		// and the message reads as the one argument it is.
+		// The module has no go.sum, so the command names only the file that
+		// exists, and the message reads as one argument.
 		"git add -- go.mod",
 		"git commit -m 'alpha: update go.mod' -- go.mod",
 		"?? stray.go",
@@ -114,7 +114,7 @@ func TestResolveRendersThePlanAndStopsOnADirtyModule(t *testing.T) {
 		}
 	}
 
-	// Nothing after the stop is proposed, since it would pin a tag that
+	// The plan proposes nothing after the stop, since it would pin a tag that
 	// never gets created.
 	if strings.Contains(got, "git tag") {
 		t.Errorf("resolve() proposed a release for a module it stopped at:\n%s", got)
@@ -141,7 +141,7 @@ func TestResolveLeavesOutModulesWithNothingToDo(t *testing.T) {
 		t.Errorf("resolve() listed a module with nothing to do:\n%s", got)
 	}
 
-	// --all is what asks for them, as it does everywhere else in the tool.
+	// --all lists them, as it does everywhere else in the tool.
 	out.Reset()
 	if err := resolve(&out, modules, versionRefs{}, &Options{All: true}, false); err != nil {
 		t.Fatalf("resolve() error: %v", err)
@@ -190,8 +190,8 @@ func TestResolveTidiesAfterEveryGet(t *testing.T) {
 		t.Fatalf("resolve() error: %v", err)
 	}
 
-	// Each go get is tidied straight after it, so the requirement it replaced
-	// is out of go.mod before the next one is asked for.
+	// A tidy follows each go get straight away, so the require line it
+	// replaced leaves go.mod before the next go get runs.
 	want := "go get -u ./...<br>go mod tidy<br>go get example.com/alpha@v0.1.1<br>go mod tidy<br>"
 	if got := out.String(); !strings.Contains(got, want) {
 		t.Errorf("resolve() output missing %q:\n%s", want, got)
@@ -230,8 +230,8 @@ func TestModPathsNamesTheFilesThatExist(t *testing.T) {
 		t.Fatalf("modPaths() = %#v, want [go.mod]", got)
 	}
 
-	// A go.sum the update creates is untracked, which is why it is staged
-	// rather than left to a pathspec that would not match it.
+	// git does not track a go.sum the update creates, so commit stages it first;
+	// a pathspec alone would not match it.
 	writeTestFile(t, filepath.Join(dir, "go.sum"), "\n")
 	if got := modPaths(dir); !reflect.DeepEqual(got, []string{"go.mod", "go.sum"}) {
 		t.Fatalf("modPaths() = %#v, want [go.mod go.sum]", got)
@@ -307,7 +307,7 @@ func TestResolveAlignsTheGoVersionAcrossModules(t *testing.T) {
 	runGit(t, root, "tag", "alpha/v0.1.0")
 	runGit(t, root, "tag", "beta/v0.2.0")
 
-	// beta declares the newer version, so alpha is brought up to it.
+	// beta declares the newer version, so alpha moves up to it.
 	writeTestFile(t, filepath.Join(root, "beta", "go.mod"), "module example.com/beta\n\ngo 1.27\n")
 	runGit(t, root, "commit", "--quiet", "-am", "beta: move to go 1.27")
 

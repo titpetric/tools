@@ -26,7 +26,7 @@ type Issue struct {
 	// Severity is how much the issue means.
 	Severity Severity `json:"Severity" yaml:"Severity"`
 
-	// Position is where it is.
+	// Position is the location of the issue.
 	Position Position `json:"Position" yaml:"Position"`
 
 	// Symbol is the declaration the issue is about, receiver and name, and is
@@ -36,9 +36,8 @@ type Issue struct {
 	// Message is the issue in a sentence.
 	Message string `json:"Message" yaml:"Message"`
 
-	// Attrs carries whatever else the linter has to say, which is how a rule
-	// reports a count or a suggestion without the schema growing a field per
-	// rule.
+	// Attrs carries whatever else the linter has to say, so a rule reports a
+	// count or a suggestion without the schema growing a field per rule.
 	Attrs map[string]string `json:"Attrs,omitempty" yaml:"Attrs,omitempty"`
 }
 
@@ -51,7 +50,7 @@ func (i Issue) RuleName() string {
 	return i.Linter + "/" + i.Rule
 }
 
-// Attr returns one attribute, and whether it was set.
+// Attr returns one attribute, and whether the issue sets it.
 func (i Issue) Attr(key string) (string, bool) {
 	value, ok := i.Attrs[key]
 	return value, ok

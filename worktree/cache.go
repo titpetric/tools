@@ -12,29 +12,29 @@ import (
 )
 
 // verdictCacheSchema is the layout of what a cache entry holds. Raise it when
-// the content changes shape, so entries written by an older worktree are read
-// under another name rather than misread under this one.
+// the content changes shape, so the cache looks up entries an older worktree
+// wrote under another name and never misreads them under this one.
 const verdictCacheSchema = 2
 
-// verdictCache keeps the extracted model of a commit on disk, so history is
-// modelled once and every later run reads it back.
+// verdictCache keeps the extracted model of a commit on disk, so splint
+// models history once and every later run reads it back.
 //
 // A commit is immutable, and so is the model of one: the same commit read by
-// the same splint is the same model, whichever range asked for it. That is
-// what makes the entry safe to keep between runs, and what the key is built
-// from. The working tree is the one revision that can change under a run, and
-// is never cached.
+// the same splint makes the same model, whichever range requested it. That
+// makes the entry safe to keep between runs, and the key comes from the same
+// material. The working tree is the one revision that can change under a run,
+// and the cache never holds it.
 //
 // Everything about the cache degrades to doing without it. A cache directory
-// that cannot be made, an entry that cannot be written, a revision that cannot
-// be resolved: each of them means the model is extracted the slow way, and
+// mkdir fails on, an entry the write fails for, a revision git cannot
+// resolve: each of them means splint extracts the model the slow way, and
 // none of them is an error a report stops for.
 type verdictCache struct {
 	// dir is the directory entries live in, empty when there is no cache to
 	// read or write.
 	dir string
 
-	// tool identifies the splint binary the entries were written by, so a
+	// tool identifies the splint binary that wrote the entries, so a
 	// newer one does not read models the older one wrote.
 	tool string
 
@@ -44,7 +44,8 @@ type verdictCache struct {
 }
 
 // openVerdictCache opens the cache below the user cache directory, or returns
-// a cache that holds nothing when it is turned off or cannot be opened.
+// a cache that holds nothing when enabled is false or the directory fails to
+// open.
 func openVerdictCache(enabled bool) *verdictCache {
 	cache := &verdictCache{refs: map[string]string{}}
 	if !enabled {
@@ -65,8 +66,9 @@ func openVerdictCache(enabled bool) *verdictCache {
 }
 
 // splintIdentity names the extraction tool as its path, size and modification
-// time, which is what a reinstall changes. A model is only as stable as the
-// tool that wrote it, so an entry written by another one is not read back.
+// time, the details a reinstall changes. A model is only as stable as the
+// tool that wrote it, so the cache never reads back an entry another one
+// wrote.
 func splintIdentity() string {
 	path, err := exec.LookPath("splint")
 	if err != nil {
@@ -79,12 +81,12 @@ func splintIdentity() string {
 	return path + "\x00" + strconv.FormatInt(info.Size(), 10) + "\x00" + strconv.FormatInt(info.ModTime().UnixNano(), 10)
 }
 
-// path returns the file the model of one revision of the module in dir is kept
-// under, or an empty string when there is nothing to keep it in.
+// path returns the file that holds the model of one revision of the module in
+// dir, or an empty string when there is nothing to keep it in.
 //
 // The key is the material that decides what the model holds: the module, the
 // commit the revision resolves to, the tool that reads it and the layout of
-// the entry. A tag is resolved first, since a tag can be moved and a commit
+// the entry. path resolves a tag first, since a tag can move and a commit
 // cannot.
 func (c *verdictCache) path(dir, ref string) string {
 	if c.dir == "" || ref == "" {
@@ -106,7 +108,7 @@ func (c *verdictCache) path(dir, ref string) string {
 
 // resolve returns the commit a revision names, remembering it for the rest of
 // the run. A revision the repository does not carry resolves to nothing, and
-// is read without the cache.
+// the caller reads it without the cache.
 func (c *verdictCache) resolve(dir, ref string) string {
 	key := dir + "\x00" + ref
 	if commit, ok := c.refs[key]; ok {
@@ -118,7 +120,7 @@ func (c *verdictCache) resolve(dir, ref string) string {
 	return commit
 }
 
-// load copies a cached model to dest and reports whether there was one.
+// load copies a cached model to dest and reports whether one exists.
 func (c *verdictCache) load(path, dest string) bool {
 	if path == "" {
 		return false
@@ -132,8 +134,8 @@ func (c *verdictCache) load(path, dest string) bool {
 // store keeps a model under path, and says nothing when it cannot: a cache
 // that is full, read only or gone is a slower run and not a failed one.
 //
-// The entry is written beside itself and renamed into place, so a run reading
-// the cache while another writes it sees the whole model or none of it.
+// store writes the entry beside itself and renames it into place, so a run
+// reading the cache while another writes it sees the whole model or none of it.
 func (c *verdictCache) store(path, model string) {
 	if path == "" {
 		return

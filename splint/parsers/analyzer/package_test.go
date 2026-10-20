@@ -13,7 +13,7 @@ func TestListPackages(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, targets)
 
-	// Every listed package carries the syntax it will be read from, and the
+	// Every listed package carries the syntax the read takes, and the
 	// model entry the read fills in.
 	for _, target := range targets {
 		assert.NotNil(t, target.Syntax, target.Package.ImportPath)

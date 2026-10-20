@@ -1,7 +1,7 @@
 package components
 
 // GoVersion formats the go directive of a go.mod. An outdated version, one
-// below the highest the workspace declares, is coloured amber.
+// below the highest the workspace declares, prints in amber.
 func GoVersion(version string, outdated bool) Cell {
 	if version == "" {
 		return nil

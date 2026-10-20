@@ -10,14 +10,14 @@ import (
 )
 
 // coupledFiles is how many of the most coupled files the second table names.
-// It is a list to act on rather than an inventory.
+// The list is one to act on, and no inventory.
 const coupledFiles = 10
 
 // Results is what the linter measured. It finds nothing, which the framework
 // allows: an empty report and the tables.
 type Results struct {
 	// files is what each file measured, keyed by the path a position names,
-	// and order is the order they were measured in.
+	// and order is the order the linter measured them in.
 	files map[string]*Metric
 	order []string
 
@@ -27,7 +27,7 @@ type Results struct {
 	byPath   map[string]*packageMetric
 }
 
-// packageMetric is one package directory and the files it is made of.
+// packageMetric is one package directory and the files inside it.
 type packageMetric struct {
 	importPath string
 	files      []string
@@ -51,7 +51,7 @@ func (r *Results) pkg(importPath string) *packageMetric {
 // file returns what a file measured, adding it on first sight.
 //
 // A directory holding an external test package is two definitions of one path,
-// so a file is recorded once however many definitions name it.
+// so the linter records a file once, whatever the count of definitions naming it.
 func (r *Results) file(pkg *packageMetric, at model.Position, file model.File) *Metric {
 	path := at.Ref()
 
@@ -80,7 +80,7 @@ func (r Results) Len() int {
 	return 0
 }
 
-// All yields nothing: the linter measures and does not judge.
+// All returns nothing: the linter measures and does not judge.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {}
 }

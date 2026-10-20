@@ -44,8 +44,8 @@ func TestRenderVerdictWritesNoShapeForATypeWithoutFields(t *testing.T) {
 	var out bytes.Buffer
 	renderVerdict(&out, v, false)
 
-	// The API table says the type is there; there is no shape to write for it,
-	// so the section is left out entirely.
+	// The API table says the type exists; it has no shape to write, so the
+	// report omits the section entirely.
 	got := out.String()
 	if !strings.Contains(got, "| Added | / | type Option func(*Client) |") {
 		t.Errorf("renderVerdict() lost the type from the API table:\n%s", got)
@@ -104,7 +104,7 @@ func TestRenderVerdictDataModelIsOneTable(t *testing.T) {
 	}
 
 	// A category opens a group, and restates the package and type under it
-	// however far the group above them reached.
+	// no matter how far the group above them reached.
 	if strings.Contains(got, "| Removed |  |") {
 		t.Errorf("renderVerdict() opened a category on an empty package cell:\n%s", got)
 	}
@@ -130,7 +130,7 @@ func TestFieldText(t *testing.T) {
 		change: apiFieldChange{Name: "Retries", Change: fieldRemoved, Old: &apiField{Name: "Retries", Type: "int"}},
 		want:   "Retries int",
 	}, {
-		// The name is written once: a field is matched to the one it was by
+		// The name shows once: fieldText pairs a field with its earlier self by
 		// name, so the name is the one thing that cannot have changed.
 		title: "a field that moved has both shapes under one name",
 		change: apiFieldChange{
@@ -140,9 +140,9 @@ func TestFieldText(t *testing.T) {
 		},
 		want: "Addr string -> []string",
 	}, {
-		// A tag change on an unchanged type is named as one, rather than
-		// writing the same type on both sides of an arrow and leaving the
-		// reader to diff the tags by eye.
+		// The row names a tag change on an unchanged type as one, and does not
+		// write the same type on both sides of an arrow and leave the reader
+		// to diff the tags by eye.
 		title: "a rewritten tag value is named key by key",
 		change: apiFieldChange{
 			Name: "Addr", Change: fieldChanged,
@@ -183,8 +183,8 @@ func TestFieldText(t *testing.T) {
 		},
 		want: "Raw string `not a tag` -> string `json:\"raw\"`",
 	}, {
-		// An interface method carries its name in the signature it is recorded
-		// under, so the name is not written in front of it twice.
+		// An interface method carries its name in the signature the model
+		// records it under, so the name does not lead it a second time.
 		title: "an interface method is not named twice",
 		change: apiFieldChange{
 			Name: "Put", Change: fieldAdded,
@@ -246,7 +246,7 @@ func TestFieldReadsEmbedded(t *testing.T) {
 	if got := fieldReads(embedded); got != "embeds *UnimplementedStorage" {
 		t.Errorf("fieldReads(embedded) = %q", got)
 	}
-	// An embed is read as the type it is declared with, pointer and all: the
+	// An embed reads as its declared type, pointer and all: the
 	// name splint reaches it by drops the star and says less.
 	value := apiField{Name: "Base", Type: "platform.Base", Embedded: true}
 	if got := fieldReads(value); got != "embeds platform.Base" {

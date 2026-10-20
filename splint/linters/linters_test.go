@@ -59,7 +59,7 @@ func TestNamed(t *testing.T) {
 		t.Errorf("Named(godoc) = %#v, %v", selected, unknown)
 	}
 
-	// A name nothing answers to is reported rather than ignored, so a typo in
+	// The linter reports a name nothing answers to, so a typo in
 	// a flag is not a linter silently not running.
 	selected, unknown = linters.Named("godoc", "nosuch")
 	if len(selected) != 1 {

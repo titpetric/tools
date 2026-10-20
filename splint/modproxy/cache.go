@@ -10,7 +10,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// CacheName is the file the sizes are kept in, under the user's cache
+// CacheName is the file that holds the sizes, under the user's cache
 // directory: "~/.cache/splint/sizes.yml" on a machine that sets nothing.
 const CacheName = "splint/sizes.yml"
 
@@ -18,13 +18,13 @@ const CacheName = "splint/sizes.yml"
 //
 // A version is immutable, so its size is a fact that does not expire and is
 // worth keeping: a tree of forty dependencies is forty requests the next run
-// does not make. Nothing else the proxy answers is cached. A published date is
-// immutable too and is read once per report; the latest version is not
+// does not make. The cache holds nothing else the proxy answers. A published
+// date is immutable too and a report reads it once; the latest version is not
 // immutable at all.
 //
 // A module carries the size of every version asked about and one size for the
-// module itself, which is what a version the file does not hold is answered
-// with. Modules do not change size much from one release to the next, and an
+// module itself, and the cache reports that size for a version the file does
+// not hold. Modules do not change size much from one release to the next, and an
 // answer within a few percent is worth more than a round trip.
 type Cache struct {
 	// Path is the file read and written. A cache with no path answers from
@@ -36,18 +36,18 @@ type Cache struct {
 	dirty   bool
 }
 
-// cachedModule is what is known about one module.
+// cachedModule holds what the cache knows of one module.
 type cachedModule struct {
 	// Size is the size of a version the file does not hold, which is the mean
 	// of the ones it does.
 	Size int64 `yaml:"size"`
 
-	// Versions is the size of each version that has been asked about, keyed by
+	// Versions is the size of each version a caller has asked about, keyed by
 	// the version string.
 	Versions map[string]int64 `yaml:"versions,omitempty"`
 }
 
-// DefaultCachePath is where the sizes are kept, and is empty when the machine
+// DefaultCachePath is where the sizes live, and is empty when the machine
 // has no cache directory to put them in.
 func DefaultCachePath() string {
 	dir, err := os.UserCacheDir()
@@ -58,11 +58,11 @@ func DefaultCachePath() string {
 }
 
 // OpenCache reads the cache at a path, and returns an empty one for a file
-// that is not there or cannot be read.
+// that is not there or that nobody can read.
 //
 // A cache is an optimisation and never a failure: a file written by a newer
-// version, a half written file, a file nobody can read, all of them answer
-// nothing and are written over on the next save.
+// version, a half written file, a file nobody can read, each answers nothing
+// and the next save writes over it.
 func OpenCache(path string) *Cache {
 	cache := &Cache{Path: path, modules: map[string]*cachedModule{}}
 
@@ -87,8 +87,8 @@ func OpenCache(path string) *Cache {
 
 // Size is what a version weighs, and whether the cache knows.
 //
-// A version the file holds is answered exactly. One it does not is answered
-// with the size of the module, which is the mean of the versions it does hold.
+// Size reports a version the file holds exactly. For one it does not hold,
+// Size reports the size of the module, the mean of the versions it does hold.
 func (c *Cache) Size(path, version string) (int64, bool) {
 	if c == nil {
 		return 0, false
@@ -111,8 +111,8 @@ func (c *Cache) Size(path, version string) (int64, bool) {
 	return 0, false
 }
 
-// Add records what a version weighs. A size of nothing is what the proxy
-// answers when it could not be reached, and is not recorded.
+// Add records what a version weighs. The proxy answers a size of nothing when
+// the network fails, and Add records no such size.
 func (c *Cache) Add(path, version string, size int64) {
 	if c == nil || size <= 0 || path == "" || version == "" {
 		return
@@ -139,11 +139,11 @@ func (c *Cache) Add(path, version string, size int64) {
 	c.dirty = true
 }
 
-// Save writes the cache, and writes nothing when nothing was learned.
+// Save writes the cache, and writes nothing when the run learned nothing.
 //
-// The file is written beside itself and renamed over the old one, so a reader
-// sees one file or the other and never half of a write. What was written is
-// read back before the rename: a file that does not parse is a file the next
+// Save writes the file beside itself and renames it over the old one, so a
+// reader sees one file or the other and never half of a write. Save reads the
+// new file back before the rename: a file that does not parse is a file the next
 // run would throw away, and throwing it away here costs nobody a round trip.
 func (c *Cache) Save() error {
 	if c == nil || c.Path == "" {
@@ -185,8 +185,7 @@ func (c *Cache) Save() error {
 	return nil
 }
 
-// validate reads a written cache back and checks it says what it was written
-// with.
+// validate reads a written cache back and checks it holds what Save wrote.
 func validate(path string, modules int) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -204,8 +203,8 @@ func validate(path string, modules int) error {
 	return nil
 }
 
-// mean is the average size of the versions of one module, which is what a
-// version nobody asked about is answered with.
+// mean is the average size of the versions of one module, and the cache
+// reports it for a version nobody asked about.
 func mean(versions map[string]int64) int64 {
 	var total, count int64
 
@@ -223,8 +222,8 @@ func mean(versions map[string]int64) int64 {
 	return total / count
 }
 
-// Modules returns the module paths the cache holds, in order. It is what a
-// test reads and what a reader of the file sees.
+// Modules returns the module paths the cache holds, in order. A test reads it,
+// and a reader of the file sees the same list.
 func (c *Cache) Modules() []string {
 	if c == nil {
 		return nil

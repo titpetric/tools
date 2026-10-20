@@ -10,7 +10,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// house is the rule this repository is formatted under: the standard order,
+// house is the rule this repository follows: the standard order,
 // titpetric as the company prefix, and splint as the project.
 func house() importfmt.Options {
 	opts := importfmt.NewOptions()
@@ -23,7 +23,7 @@ func house() importfmt.Options {
 // should hold instead.
 //
 // The input is the literal form Definition.Imports records, so a case reads
-// the way an import is written.
+// the way a file writes an import.
 func TestFormatLiterals(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -242,8 +242,9 @@ func TestParse(t *testing.T) {
 	}
 }
 
-// TestRefNamesTheImport covers the name a file reaches an import by, which is
-// what decides whether the import is used and what a missing one resolves to.
+// TestRefNamesTheImport covers the name a file reaches an import by, and that
+// name decides whether the file uses the import and what a missing one
+// resolves to.
 func TestRefNamesTheImport(t *testing.T) {
 	tests := []struct {
 		spec model.ImportSpec
@@ -282,8 +283,8 @@ func TestNormalizeAliasesOnlyAVersionedPath(t *testing.T) {
 		{"example.com/thing/v0", ""},
 		{"github.com/lib/pq", ""},
 
-		// What is left once the version comes off has to be a name Go
-		// would accept, or no alias is written.
+		// What remains once the version comes off has to be a name Go
+		// would accept, or Normalize writes no alias.
 		{"example.com/v2", ""},
 	}
 

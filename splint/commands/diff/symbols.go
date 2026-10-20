@@ -9,9 +9,9 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// declKind is the kind a symbol is reported under, taken from the list of the
-// definition it was collected from rather than from the declaration itself:
-// a struct type is declared as "struct" but reads as a type.
+// declKind is the kind the report lists a symbol under. It comes from the list
+// of the definition holding the symbol, and the declaration itself plays no
+// part: a struct type declaration says "struct" but reads as a type.
 const (
 	kindType  = "type"
 	kindConst = "const"
@@ -19,34 +19,35 @@ const (
 	kindFunc  = "func"
 )
 
-// The shapes a type is reported under. A struct is the shape the model records
-// nothing for, since it describes it by its fields instead.
+// The shapes the report lists a type under. The model records nothing for a
+// struct shape, since it describes a struct by its fields.
 const (
 	underlyingStruct    = "struct"
 	underlyingInterface = "interface"
 )
 
-// entry is one exported declaration, as it is reported and as it is compared.
+// entry is one exported declaration, in the form the report lists and the
+// comparison reads.
 type entry struct {
 	symbol Symbol
 
-	// normalized is the signature with parameter names removed, which is what
-	// two revisions of a func are compared on, and the shape a type is
-	// declared with, which is what two revisions of a type are compared on.
+	// normalized holds the signature with parameter names removed, the form
+	// the comparison matches two revisions of a func on, and the shape of a
+	// type declaration, the form it matches two revisions of a type on.
 	normalized string
 
 	// fields are the exported fields of a struct, or the methods of an
-	// interface, by name. It is nil for every other kind.
+	// interface, by name. Every other kind leaves it nil.
 	fields map[string]Field
 }
 
 // symbols returns the declarations of defs, keyed so that the same declaration
 // in two revisions of a package produces the same key.
 //
-// Test packages and commands are left out. Internal packages and unexported
-// declarations are left out too unless asked for: neither is part of the API
-// another module can depend on, and both are reported separately when a
-// caller wants to see a refactor rather than a release.
+// symbols skips test packages and commands. It skips internal packages and
+// unexported declarations too unless the include flags hold true: neither
+// belongs to the API another module can depend on, and the report lists both
+// separately when a caller reviews a refactor in place of a release.
 func symbols(defs []*model.Definition, includeInternal, includeUnexported bool) map[string]entry {
 	result := make(map[string]entry)
 	for _, def := range defs {
@@ -93,8 +94,8 @@ func symbols(defs []*model.Definition, includeInternal, includeUnexported bool) 
 						symbol.Fields = exportedFields(decl)
 
 						// The shape reads as the declaration writes it, so a
-						// type that changes it is reported the way a func that
-						// changes its signature is.
+						// type that changes shape lands in the report the way a
+						// func that changes its signature does.
 						normalized = "type " + name + " " + symbol.Underlying
 						fields = fieldIndex(symbol.Fields)
 					}
@@ -109,7 +110,7 @@ func symbols(defs []*model.Definition, includeInternal, includeUnexported bool) 
 // declNames returns the names of a declaration, each qualified with
 // its receiver type.
 //
-// Names are filtered one by one rather than through Declaration.IsExported,
+// declNames filters the names one by one and skips Declaration.IsExported,
 // which reports on the whole group: an unexported name sharing a "const (...)"
 // block with an exported one would otherwise come along with it.
 func declNames(decl *model.Declaration, includeUnexported bool) []string {
@@ -128,8 +129,8 @@ func declNames(decl *model.Declaration, includeUnexported bool) []string {
 	return names
 }
 
-// underlying returns the shape a type is declared with: the type it is defined
-// as, "interface" for an interface, and "struct" for a struct.
+// underlying returns the shape a type declaration states: the type the
+// definition names, "interface" for an interface, and "struct" for a struct.
 //
 // The model records no type for a struct, describing it by its fields instead,
 // so an empty one reads as a struct. Every other shape names itself.
@@ -141,8 +142,8 @@ func underlying(decl *model.Declaration) string {
 }
 
 // exportedFields returns the exported fields of a struct, or the methods of an
-// interface, in name order. Unexported fields are left out: they are not
-// something another module can reach, so they are not a promise to keep.
+// interface, in name order. exportedFields skips unexported fields: another
+// module cannot reach them, so they are not a promise to keep.
 func exportedFields(decl *model.Declaration) []Field {
 	var fields []Field
 	for _, field := range decl.Fields {
@@ -161,11 +162,12 @@ func exportedFields(decl *model.Declaration) []Field {
 	return fields
 }
 
-// fieldName returns the name a field is reached by, and whether it is embedded.
+// fieldName returns the name a selector reaches a field by, and whether the
+// field embeds a type.
 //
-// An embedded field is recorded with no name of its own, and is reached by the
-// last identifier of the type it embeds: "platform.Module" is reached as
-// "Module". An embedded exported type is part of the API, since it promotes its
+// The model records an embedded field with no name of its own, and a selector
+// reaches it by the last identifier of the type it embeds: "platform.Module"
+// reads as "Module". An embedded exported type is part of the API, since it promotes its
 // method set into the one embedding it.
 func fieldName(field *model.Field) (name string, embedded bool) {
 	if field.Name != "" {
@@ -179,8 +181,8 @@ func fieldName(field *model.Field) (name string, embedded bool) {
 	return name, true
 }
 
-// fieldIndex keys a field list by name, which is what two revisions of a type
-// are compared through.
+// fieldIndex keys a field list by name, the key the comparison matches two
+// revisions of a type through.
 func fieldIndex(fields []Field) map[string]Field {
 	index := make(map[string]Field, len(fields))
 	for _, field := range fields {
@@ -189,8 +191,8 @@ func fieldIndex(fields []Field) map[string]Field {
 	return index
 }
 
-// signature renders a func the way it is declared, which is what a reader
-// wants to see listed. The receiver keeps the pointer the source gave it, so
+// signature renders a func the way its declaration reads, the form the
+// listing shows a reader. The receiver keeps the pointer the source gave it, so
 // it reads as the method set does.
 func signature(decl *model.Declaration) string {
 	if decl.Receiver != "" {
@@ -199,12 +201,12 @@ func signature(decl *model.Declaration) string {
 	return "func " + decl.Signature
 }
 
-// sourceWithoutDoc returns a declaration as it is written, with the doc comment
-// lines above it removed. Only the run of comments the declaration opens with
-// is dropped, so a comment inside the body stays where it is.
+// sourceWithoutDoc returns a declaration as the source writes it, with the doc
+// comment lines above it removed. It drops only the run of comments the
+// declaration opens with, so a comment inside the body stays in place.
 //
-// The model holds no source at all unless it was extracted with
-// --include-sources, in which case there is nothing to return.
+// The model holds no source at all unless the extraction ran with
+// --include-sources, in which case sourceWithoutDoc returns nothing.
 func sourceWithoutDoc(source string) string {
 	source = strings.TrimSpace(source)
 	for strings.HasPrefix(source, "//") {
@@ -230,11 +232,11 @@ func isInternal(importPath string) bool {
 
 // normalizeSignature drops the parameter names of a signature, so that renaming
 // a parameter does not read as an API change while changing its type does.
-// Signatures are collected as "Name (params) result", where a named parameter
+// The model records signatures as "Name (params) result", where a named parameter
 // is "a,b Type" and an unnamed one is the type alone.
 //
 // Names nested inside a parameter type, as in "fn func(path string) error",
-// are left alone; renaming one of those still reads as a change.
+// stay untouched; renaming one of those still reads as a change.
 func normalizeSignature(signature string) string {
 	open := strings.IndexByte(signature, '(')
 	if open < 0 {
@@ -253,7 +255,7 @@ func normalizeSignature(signature string) string {
 }
 
 // matchParen returns the index of the parenthesis closing the one at open, or
-// -1 when the signature is unbalanced.
+// -1 when the signature has no closing match.
 func matchParen(s string, open int) int {
 	depth := 0
 	for i := open; i < len(s); i++ {
@@ -272,7 +274,7 @@ func matchParen(s string, open int) int {
 
 // splitParams splits a parameter list on the ", " separating one parameter from
 // the next, leaving the ones nested inside a type such as "func(a, b int)"
-// where they are. The names of a single parameter are joined without a space,
+// in place. The model joins the names of a single parameter without a space,
 // so "a,b int" stays whole.
 func splitParams(params string) []string {
 	if strings.TrimSpace(params) == "" {
@@ -302,7 +304,7 @@ func splitParams(params string) []string {
 }
 
 // stripParamName removes the leading name list of a parameter. A parameter
-// with no name is its type alone, and is returned as it stands.
+// with no name is its type alone, and stripParamName returns it unchanged.
 func stripParamName(param string) string {
 	param = strings.TrimSpace(param)
 	space := strings.IndexByte(param, ' ')
@@ -312,8 +314,8 @@ func stripParamName(param string) string {
 	return param[space+1:]
 }
 
-// isNameList reports whether s is the comma separated name list of a parameter
-// rather than the start of a type. Keywords are not identifiers, so a type such
+// isNameList reports whether s is the comma separated name list of a parameter,
+// as opposed to the start of a type. Keywords are not identifiers, so a type such
 // as "chan int" or "struct { A int }" is not mistaken for a named parameter.
 func isNameList(s string) bool {
 	if s == "" {
@@ -327,8 +329,9 @@ func isNameList(s string) bool {
 	return true
 }
 
-// exportedSymbol reports whether a declaration is part of the API: the name is
-// exported, every name it is qualified by is, and the package is importable.
+// exportedSymbol reports whether a declaration is part of the API: the name
+// and every name qualifying it start with an upper case letter, and other
+// modules can import the package.
 func exportedSymbol(importPath, name string) bool {
 	if isInternal(importPath) {
 		return false

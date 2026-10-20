@@ -6,9 +6,9 @@ import (
 	"github.com/titpetric/tools/splint/tests"
 )
 
-// TestDiffFindsWhatIsNotEnumerated is the point of the comparison: a key
-// nobody wrote a check for is still compared, and a key only one side carries
-// is a difference rather than a silence.
+// TestDiffFindsWhatIsNotEnumerated is the point of the comparison: Diff still
+// compares a key nobody wrote a check for, and a key only one side carries is
+// a difference and never a silence.
 func TestDiffFindsWhatIsNotEnumerated(t *testing.T) {
 	left := map[string]any{
 		"Name":    "Open",
@@ -58,8 +58,8 @@ func TestDiffReportsALengthChange(t *testing.T) {
 	}
 }
 
-// TestDiffNormalise covers how a difference that is known and explained is
-// taken out of the comparison without taking the field out of it.
+// TestDiffNormalise covers how normalise takes a known and explained
+// difference out of the comparison without taking the field out of it.
 func TestDiffNormalise(t *testing.T) {
 	left := map[string]any{"Source": "a   b", "Other": "a   b"}
 	right := map[string]any{"Source": "a b", "Other": "a b"}
@@ -92,8 +92,8 @@ func TestDiffOnAKeyedList(t *testing.T) {
 		got[difference.Path] = difference.Left + " != " + difference.Right
 	}
 
-	// A list keyed by identity reports one difference per symbol rather than
-	// shifting every element after the one that moved.
+	// A list keyed by identity reports one difference per symbol and does not
+	// shift every element after the one that moved.
 	want := map[string]string{
 		"Funcs[x.go.Open].Line": "1 != 2",
 		"Funcs[x.go.Close]":     "present != <absent>",
@@ -133,7 +133,7 @@ func TestScalars(t *testing.T) {
 		"f": tests.KeyedList{"g": map[string]any{"h": true}},
 	}
 
-	// Six leaves: a, three of b, d, and h. A nil is absent rather than a value.
+	// Six leaves: a, three of b, d, and h. A nil counts as absent and not as a value.
 	if got := tests.Scalars(value); got != 6 {
 		t.Errorf("Scalars() = %d, want 6", got)
 	}

@@ -35,13 +35,13 @@ func reached(add func(*model.Definition)) *model.DocumentRoot {
 }
 
 // TestLinter_LintTypePositionIsASymbol covers the dependency reached as a type
-// rather than as a call.
+// and not as a call.
 //
-// A reference is collected from a body, so a module named in a field, a
-// parameter or a result is reached and recorded nowhere a reference can be
-// read from. Counting the body alone reads a struct built around a *db.Conn
+// The document collects a reference from a body, so a module named in a field, a
+// parameter or a result counts as reached and sits nowhere a reference
+// lives. Counting the body alone reads a struct built around a *db.Conn
 // and driving everything through it as a module reached once by name, which is
-// the cheapest thing to inline and the furthest from what it is.
+// the cheapest thing to inline and the furthest from the truth.
 func TestLinter_LintTypePositionIsASymbol(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -106,7 +106,7 @@ func TestLinter_LintTypePositionIsASymbol(t *testing.T) {
 
 // TestLinter_LintTypePositionUnderAnAlias covers the type named through the
 // name the file imports the package under. A type reads "sql.Conn" and which
-// module sql is is decided by the import, the same as for a call.
+// module sql names comes from the import, the same as for a call.
 func TestLinter_LintTypePositionUnderAnAlias(t *testing.T) {
 	root := reached(func(def *model.Definition) {
 		def.Imports = model.StringSet{"a.go": {`sql "example.com/db"`}}
@@ -157,12 +157,12 @@ func TestLinter_LintThinStaysThin(t *testing.T) {
 
 // TestLinter_LintBlankImportIsNotThinInOneFile covers the shape the exemption
 // is for: the one file that imports the driver writes the import twice, once
-// for the init and once for the name, which is how a driver offering an error
-// type of its own is reached.
+// for the init and once for the name, the way a driver with its own error
+// type reaches the code.
 //
-// That is one file and one symbol, which is what the thin rule fires on, and
+// That is one file and one symbol, the shape the thin rule fires on, and
 // the registration is what keeps it quiet. Nothing else can: the counts say
-// the dependency is cheap and it is not.
+// the dependency is cheap and the truth says otherwise.
 func TestLinter_LintBlankImportIsNotThinInOneFile(t *testing.T) {
 	root := &model.DocumentRoot{
 		Modules: []*model.Module{{

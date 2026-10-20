@@ -20,7 +20,7 @@ func TestLintMetrics(t *testing.T) {
 		t.Error("Empty() said the zero value holds something")
 	}
 
-	// The zero value takes an entry without being made first, since a linter
+	// The zero value takes an entry without a call to make first, since a linter
 	// that measures one thing should not have to say so up front.
 	metrics.AddPackage("example.com/x", metric{Files: 3, Passed: 2})
 	metrics.AddFile("x/y.go", metric{Files: 1})
@@ -54,7 +54,7 @@ func TestLintMetricsKeysAreOrdered(t *testing.T) {
 }
 
 // TestLintMetricsEncode covers what the metrics are for: a linter's own type
-// carried out to a document without the framework knowing what it is.
+// carried out to a document without the framework reading its type.
 func TestLintMetricsEncode(t *testing.T) {
 	metrics := LintMetrics{}
 	metrics.AddPackage("example.com/x", metric{Files: 3, Passed: 2})
@@ -68,7 +68,7 @@ func TestLintMetricsEncode(t *testing.T) {
 	if !strings.Contains(got, `"Files":3`) || !strings.Contains(got, `"Passed":2`) {
 		t.Errorf("Marshal() = %s", got)
 	}
-	// A half nobody filled is left out rather than written as null.
+	// The encoding leaves out a half nobody filled and writes no null for it.
 	if strings.Contains(got, "Files\":{}") || strings.Contains(got, `"Files":null`) {
 		t.Errorf("Marshal() wrote an empty half: %s", got)
 	}

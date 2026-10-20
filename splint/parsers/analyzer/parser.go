@@ -19,7 +19,7 @@ const ParserName = "astparser"
 // reading: the toolchain resolves the packages, so what comes out is what the
 // compiler sees.
 //
-// It is the slower of the two and the one that stops on source that does not
+// The parser is the slower of the two and the one that stops on source that does not
 // build. Its opposite number is simpleparser, constructed the same way and
 // returning the same document.
 type Parser struct {
@@ -34,12 +34,12 @@ func New(options splint.Options) *Parser {
 // Parse reads the tree and returns the document.
 //
 // The parse moves the process into the tree it reads, because the toolchain
-// resolves a pattern from the working directory and a loaded file is read from
-// a path relative to it. The directory is put back when the parse is over: a
+// resolves a pattern from the working directory and the loader reads a file from
+// a path relative to it. The parse restores the directory when it ends: a
 // process left standing in the tree resolved every relative path its caller
 // still held a second time against that tree, so "-i migrate -save" wrote
 // migrate/migrate/splint.json and "-output splint.json" wrote into migrate
-// rather than into the directory the command was typed in.
+// and missed the directory the user typed the command in.
 func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 	root, err := filepath.Abs(p.options.SourcePath)
 	if err != nil {
@@ -112,8 +112,8 @@ func (p *Parser) walkModules(ctx context.Context, doc *model.DocumentRoot, root 
 			return nil, err
 		}
 
-		// The go.mod was already located by ListModules, so there is nothing
-		// left to search for; a module whose go.mod will not parse is reported
+		// ListModules already located the go.mod, so there is nothing
+		// left to search for; the parser reports a module whose go.mod will not parse
 		// without one, the same as a tree that has none.
 		if module, err := ReadModule(m.Filename); err == nil {
 			setModule(defs, module)
@@ -157,8 +157,8 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 			return nil, err
 		}
 
-		// A white box test is compiled into the package it tests, so the
-		// listing names it the same. It is a different scope and is named as
+		// The toolchain compiles a white box test into the package it tests, so the
+		// listing names it the same. The scope differs, and the parser names it as
 		// one here.
 		if pkg.TestPackage && !strings.HasSuffix(pkg.Package, "_test") {
 			pkg.Package += "_test"
@@ -179,7 +179,7 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 	return defs, nil
 }
 
-// trim drops what the options did not ask for: the sources, and whichever half
+// trim drops what the options leave out: the sources, and whichever half
 // of the files the package is not.
 func (p *Parser) trim(defs []*model.Definition) {
 	for _, def := range defs {
@@ -206,7 +206,7 @@ func setModule(defs []*model.Definition, module *model.Module) {
 	}
 }
 
-// unique merges the definitions that name the same package, which is what the
+// unique merges the definitions that name the same package, the shape the
 // two halves of a package with a white box test arrive as.
 func unique(defs []*model.Definition) []*model.Definition {
 	result := make([]*model.Definition, 0, len(defs))

@@ -1,19 +1,19 @@
 # filecheck - a file size statistics linter
 
 The aim of the linter is to gauge complexity by filesize / file count.
-This is driven by estimates of what kind of contexts humans handle well,
-and the current LLM coding agents limitations.
+Estimates of what kind of contexts humans handle well, and the limitations
+of the current LLM coding agents, drive that aim.
 
 ## Markdown performance
 
-| Cognitive Level | File Size  | Tokens  | Human          | Small LLM (≤7B CPU) | Mid LLM (13B–30B) | Agentic (Claude / Cursor) | Behavior                 |
+| Cognitive Level | File Size  | Tokens  | Human          | Small LLM (≤7B CPU) | Mid LLM (13B-30B) | Agentic (Claude / Cursor) | Behavior                 |
 | --------------- | ---------- | ------- | -------------- | ------------------- | ----------------- | ------------------------- | ------------------------ |
-| **Low**         | 2–8 KB     | 1K–2K   | Ideal          | Excellent           | Excellent         | Excellent                 | Full comprehension       |
-| **Moderate**    | 8–20 KB    | 2K–5K   | Comfortable    | Good                | Excellent         | Excellent                 | Reliable reasoning       |
-| **High**        | 20–50 KB   | 5K–12K  | Upper bound    | Struggles           | Good              | Very good                 | Partial compression      |
-| **Very High**   | 50–100 KB  | 12K–25K | Strained       | Poor                | Degraded          | Good                      | Summarization dominates  |
-| **Extreme**     | 100–300 KB | 25K–75K | Not tractable  | Unusable            | Poor              | Partial                   | Retrieval-like reasoning |
-| **Beyond**      | 300 KB+    | 75K+    | Reference only | —                   | —                 | Degraded                  | Search + extract only    |
+| **Low**         | 2-8 KB     | 1K-2K   | Ideal          | Best                | Best              | Best                      | Full comprehension       |
+| **Moderate**    | 8-20 KB    | 2K-5K   | Comfortable    | Good                | Best              | Best                      | Reliable reasoning       |
+| **High**        | 20-50 KB   | 5K-12K  | Upper bound    | Struggles           | Good              | Strong                    | Partial compression      |
+| **Severe**      | 50-100 KB  | 12K-25K | Strained       | Poor                | Degraded          | Good                      | Summarization dominates  |
+| **Extreme**     | 100-300 KB | 25K-75K | Not tractable  | Unusable            | Poor              | Partial                   | Retrieval-like reasoning |
+| **Beyond**      | 300 KB+    | 75K+    | Reference only | -                   | -                 | Degraded                  | Search + extract only    |
 
 As a benchmark, my technical blog and personal estimates tell me the above to be true.
 
@@ -21,14 +21,14 @@ As a benchmark, my technical blog and personal estimates tell me the above to be
 
 ## Coding performance
 
-| Cognitive Level | File Size | SLOC     | Tokens  | Human              | Small LLM (≤7B CPU) | Mid LLM (13B–30B) | Agentic (Claude / Cursor) | Behavior               |
+| Cognitive Level | File Size | SLOC     | Tokens  | Human              | Small LLM (≤7B CPU) | Mid LLM (13B-30B) | Agentic (Claude / Cursor) | Behavior               |
 | --------------- | --------- | -------- | ------- | ------------------ | ------------------- | ----------------- | ------------------------- | ---------------------- |
-| **Low**         | 2–6 KB    | 50–150   | 1K–3K   | Ideal              | Excellent           | Excellent         | Excellent                 | Full logical reasoning |
-| **Moderate**    | 6–12 KB   | 150–300  | 3K–6K   | Comfortable        | Good                | Excellent         | Excellent                 | Reliable analysis      |
-| **High**        | 12–20 KB  | 300–500  | 6K–10K  | Upper bound        | Struggles           | Good              | Very good                 | Misses edge cases      |
-| **Very High**   | 20–40 KB  | 500–800  | 10K–16K | Strained           | Poor                | Degraded          | Good (partial)            | Dependency loss begins |
-| **Extreme**     | 40–60 KB  | 800–1200 | 16K–25K | Not viable         | Unusable            | Poor              | Degraded                  | Local reasoning only   |
-| **Beyond**      | 60 KB+    | 1200+    | 25K+    | Requires splitting | —                   | —                 | Weak                      | Fails without chunking |
+| **Low**         | 2-6 KB    | 50-150   | 1K-3K   | Ideal              | Best                | Best              | Best                      | Full logical reasoning |
+| **Moderate**    | 6-12 KB   | 150-300  | 3K-6K   | Comfortable        | Good                | Best              | Best                      | Reliable analysis      |
+| **High**        | 12-20 KB  | 300-500  | 6K-10K  | Upper bound        | Struggles           | Good              | Strong                    | Misses edge cases      |
+| **Severe**      | 20-40 KB  | 500-800  | 10K-16K | Strained           | Poor                | Degraded          | Good (partial)            | Dependency loss begins |
+| **Extreme**     | 40-60 KB  | 800-1200 | 16K-25K | Not viable         | Unusable            | Poor              | Degraded                  | Local reasoning only   |
+| **Beyond**      | 60 KB+    | 1200+    | 25K+    | Requires splitting | -                   | -                 | Weak                      | Fails without chunking |
 
 ### Go standard library
 
@@ -41,16 +41,16 @@ This is a human authored, tested and partitioned modular monolith codebase.
 ![Platform App](assets/titpetric-platform-app.svg)
 
 This is an unpublished, LLM authored DB administration tooling. Aside
-prompting some file and folder structure, enforce linters, no real
-measures have been taken to optimize for file size. Its agent emerged
+prompting some file and folder structure, enforce linters, nobody took
+real measures to optimize for file size. Its agent emerged
 from limited context and a screenshot of Lovable.
 
 ![GoDBAdmin](assets/titpetric-godbadmin.svg)
 
 ## Observations
 
-- Most markdown files end up being in the same upper bounds as human comprehension.
-- I've authored books, the **extreme** category is real when you have hundreds of pages to edit.
+- Most markdown files fall within the same upper bounds as human comprehension.
+- Speaking as a book author, the **extreme** category is real when you have hundreds of pages to edit.
 - My own rules generally aim for 10-20KB for both markdown and code.
 
 Smaller models have limited context size, so text-oriented agentic
@@ -63,12 +63,12 @@ packages and symbols, `gopls` for code structure and some typical
 actions like moving or renaming symbols. It can reason by function
 signature alone to sort a definition to a different file.
 
-So, for best results, panic when you approach 20KB and split the files
+So, for best results, panic when a file approaches twenty kilobytes and split the files
 into smaller files over time.
 
 ## Linter output
 
-Linter basically sums all the files and gives a histogram of cognitive
+Linter basically sums all the files and reports a histogram of cognitive
 levels required for individual files over the scope of a go module. It
 reports two dimensions, simply:
 

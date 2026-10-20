@@ -17,7 +17,7 @@ func TestRenderPUML(t *testing.T) {
 		// One package per group, labelled with the path above the module.
 		`package "titpetric/tools"`,
 		`package "go-bridget"`,
-		// A description is written as the bold name over the rest of it.
+		// The description reads as the bold name over the rest of it.
 		`<b>worktree</b>\nShow workspace details`,
 		// Each component links into the repository holding it.
 		"[[https://github.com/titpetric/tools/tree/main/worktree",
@@ -27,7 +27,7 @@ func TestRenderPUML(t *testing.T) {
 		}
 	}
 
-	// Every dependency is an arrow, whether or not it crosses a package: the
+	// Every dependency is an arrow, whether it crosses a package or not: the
 	// plantuml layout draws those without becoming unreadable.
 	for _, want := range []string{
 		pumlAlias("github.com/titpetric/tools/worktree"),
@@ -53,8 +53,8 @@ func TestRenderPUMLWithNoModules(t *testing.T) {
 }
 
 // TestPumlAlias checks a module path becomes an identifier plantuml accepts:
-// every separator is replaced, since a dot or a slash in an alias is read as
-// syntax.
+// pumlAlias replaces every separator, since plantuml reads a dot or a slash in
+// an alias as syntax.
 func TestPumlAlias(t *testing.T) {
 	for in, want := range map[string]string{
 		"github.com/titpetric/tools": "github_com_titpetric_tools",

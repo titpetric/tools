@@ -27,7 +27,7 @@ import (
 // has ever downloaded: thousands of modules written by people who never heard
 // of this formatter, in every shape a Go file comes in.
 //
-// It is what a formatter has to be tested against. A fixture holds the cases
+// A formatter needs tests against it. A fixture holds the cases
 // somebody thought of; the cache holds the ones nobody did.
 const (
 	// corpusModules is how many modules a run reads, newest path order first.
@@ -41,15 +41,15 @@ const (
 // TestCorpusDoesNotCorruptSource runs the fixer over the module cache and
 // checks that nothing but the import declarations changed.
 //
-// Nothing is written. The plan is applied in memory and the result is compared
-// against the source it came from on the two things a formatter must never
+// The test writes nothing. It applies the plan in memory and compares the
+// result against the source it came from on the two things a formatter must never
 // touch: the file still parses, and every declaration that is not an import
 // prints exactly as it did before. A rewrite that deleted a function, moved a
 // brace or truncated a file fails on the second.
 //
-// The imports are checked separately, against what the plan said it would add
-// and remove. An import path appearing or vanishing without the plan saying so
-// is a file that no longer builds.
+// The test checks the imports separately, against what the plan said it would
+// add and remove. An import path appearing or vanishing without the plan
+// saying so is a file that stops building.
 func TestCorpusDoesNotCorruptSource(t *testing.T) {
 	cache := modcache(t)
 
@@ -84,7 +84,7 @@ func TestCorpusDoesNotCorruptSource(t *testing.T) {
 			out, ok := fix.Splice(string(source), file.Edits)
 			if !ok {
 				// The edit did not land on an import declaration and nothing
-				// would have been written. That is the guard doing its job.
+				// would reach the disk. That is the guard doing its job.
 				continue
 			}
 			if out == string(source) {
@@ -134,7 +134,7 @@ func checkFile(t *testing.T, module string, file fix.FileFix, before, after stri
 }
 
 // firstDifference is where two renderings part, with a little either side, so
-// a failure names a line rather than printing two files.
+// a failure names a line and never prints two files.
 func firstDifference(before, after string) string {
 	at := 0
 	for at < len(before) && at < len(after) && before[at] == after[at] {
@@ -151,13 +151,14 @@ func firstDifference(before, after string) string {
 }
 
 // shape is what a file holds: every declaration that is not an import, printed
-// so two files can be compared on them, and the imports as "name path" pairs.
+// so a comparison of two files can use them, and the imports as "name path"
+// pairs.
 //
-// The name is the one the file reaches the import by, which is the alias when
-// there is one and the last segment of the path when there is not. That pair
-// is what decides whether the file compiles: an alias added to a versioned
-// path, or a redundant one taken off, changes how the import is written and
-// not what it is called.
+// The name is the one the file reaches the import by: the alias when there is
+// one and the last segment of the path when there is not. That pair decides
+// whether the file compiles: an alias added to a versioned path, or a
+// redundant one taken off, changes the spelling of the import and not its
+// name.
 func shape(source string) (string, []string, error) {
 	fset := token.NewFileSet()
 
@@ -202,7 +203,7 @@ func shape(source string) (string, []string, error) {
 	return out.String(), imports, nil
 }
 
-// expected is the import set a rewrite should leave: what was there, without
+// expected is the import set a rewrite should leave: the original set, without
 // what the plan removed, with what it added.
 func expected(before []string, added, removed []string) []string {
 	drop := map[string]bool{}
@@ -278,7 +279,7 @@ func planCorpus(dir, module string) (*fix.Plan, error) {
 	}
 
 	// The sorting keys come from the module itself: its own path is the
-	// project group, and every module of the cache is read under its own.
+	// project group, and the test reads every module of the cache under its own.
 	settings := config.Default()
 	settings.Imports.Project = module
 
@@ -334,8 +335,8 @@ func corpusLimit(t *testing.T) int {
 // corpus are the module directories of the cache, in path order, up to limit.
 //
 // A module is a directory holding a go.mod. The cache nests them under the
-// host and the path, and the download cache under it holds zips rather than
-// source, so that one is left out.
+// host and the path, and the download cache under it holds zips and no
+// source, so corpus skips that one.
 func corpus(t *testing.T, cache string, limit int) []string {
 	t.Helper()
 

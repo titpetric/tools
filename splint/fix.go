@@ -17,10 +17,10 @@ import (
 // runFix rewrites the import block of every file that does not hold the one
 // the rules describe, and says what it did.
 //
-// It parses the tree itself rather than taking the document the report is
-// written from. The rewrite changes the tree, so a document read before it is
-// a document of a tree that no longer exists, and a report written off one
-// would name lines that have moved.
+// It parses the tree itself and ignores the document the report reads. The
+// rewrite changes the tree, so a document read before the rewrite describes a
+// tree that has since changed, and a report built on one would name lines that
+// have moved.
 func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 	root, err := document(ctx, forFixing(cfg))
 	if err != nil {
@@ -38,11 +38,11 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 	}
 
 	// The count is bookkeeping and the rewrite is the work. A machine whose
-	// counter cannot be written has still had its tree formatted, and failing
+	// counter refuses the write has still had its tree formatted, and failing
 	// the run here would say it had not.
 	//
-	// It counts import rewrites alone, because that is what the counter is
-	// called: a file this run only formatted had the block the rules describe
+	// It counts import rewrites alone, because the counter carries that name:
+	// a file this run only formatted had the block the rules describe
 	// before the run started.
 	if err := settings.AddFixed(len(rewritten)); err != nil {
 		fmt.Fprintf(w, "the rewrite is done and the count is not recorded: %v\n", err)
@@ -55,10 +55,10 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 // parser unless the command line named one.
 //
 // The ast parser resolves a tree through the toolchain, and a file that is
-// missing an import it needs does not compile: the tree the fixer is pointed
-// at is the tree least likely to type check. The quick parser reads the text,
-// so what is written is what it reports. It is also an order of magnitude
-// faster over the same tree, and a formatter is run on every save.
+// missing an import it needs does not compile: the tree the fixer points at
+// is the tree least likely to type check. The quick parser reads the text,
+// so it reports what the file holds. The quick parser also runs ten times
+// faster over the same tree, and an editor runs a formatter on every save.
 func forFixing(cfg *config) *config {
 	if cfg.parserNamed {
 		return cfg
@@ -80,8 +80,8 @@ func planFor(root *model.DocumentRoot, cfg *config) (*fix.Plan, error) {
 	return fix.Build(root, options, rules.Imports.Aliases), nil
 }
 
-// writeFixed says which files had their import block rewritten, which were only
-// formatted, and which were left alone.
+// writeFixed says which files had their import block rewritten, which had only
+// formatting, and which the fixer left alone.
 func writeFixed(w io.Writer, plan *fix.Plan, rewritten, formatted []string) error {
 	for _, name := range rewritten {
 		if _, err := fmt.Fprintln(w, "fixed:", name); err != nil {
@@ -114,7 +114,7 @@ func writeFixed(w io.Writer, plan *fix.Plan, rewritten, formatted []string) erro
 	return err
 }
 
-// count writes a number and the thing it counts, plural where it should be.
+// count writes a number and the thing it counts, plural for any count other than one.
 func count(n int, thing string) string {
 	if n == 1 {
 		return fmt.Sprintf("%d %s", n, thing)
@@ -127,7 +127,7 @@ func count(n int, thing string) string {
 // write into it and against the length the tree allowed it.
 //
 // The registry builds every linter with its own defaults and this overwrites
-// the ones the file speaks about, which is how --offline reaches modcheck too.
+// the ones the file speaks about; --offline reaches modcheck this way too.
 func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) error {
 	rules, err := settings.Load(cfg.options.SourcePath)
 	if err != nil {

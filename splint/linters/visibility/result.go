@@ -12,7 +12,7 @@ import (
 // Results is what the linter counted. It holds no findings.
 //
 // The report interface carries findings and numbers together, and a check is
-// free to bring only the numbers. This one does: Len is zero and All yields
+// free to bring only the numbers. This one does: Len is zero and All returns
 // nothing, and everything the linter has to say is in the table.
 type Results struct {
 	packages map[string]*Metric
@@ -24,13 +24,13 @@ func (r Results) Linter() string {
 	return Name
 }
 
-// Len is how many findings there are, which is none: the counts are reported
-// and not judged.
+// Len is how many findings there are, which is none: the linter reports the counts
+// and judges nothing.
 func (r Results) Len() int {
 	return 0
 }
 
-// All yields every finding, of which there are none.
+// All returns every finding, of which there are none.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {}
 }
@@ -45,7 +45,7 @@ func (r Results) Metrics() model.LintMetrics {
 }
 
 // Statistics is the count as one table, by package path, so a reader finds a
-// package where they expect it rather than where its numbers put it.
+// package where they expect it, whatever its numbers.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var exported, internal int

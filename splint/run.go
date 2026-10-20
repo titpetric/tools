@@ -38,7 +38,7 @@ const (
 // The report goes to w and anything said along the way goes to progress. The
 // two are one stream for splint fix, whose whole output is what it rewrote,
 // and two for splint --fix, where w is carrying a report a program parses: a
-// line of progress written into it is a line of invalid JSON.
+// line of progress inside that report makes a line of invalid JSON.
 func run(ctx context.Context, args []string, w, progress io.Writer) (int, error) {
 	cfg, err := parseOptions(args)
 	if err != nil {
@@ -48,9 +48,8 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		return exitClean, writeHelp(w, helpSpec(cfg))
 	}
 
-	// A fix is a rewrite of the tree, and a report of a tree that has just
-	// been rewritten has to be a report of what the rewrite left. Both paths
-	// therefore fix first and parse after.
+	// A fix is a rewrite of the tree, and a report after a rewrite has to
+	// describe what the rewrite left. Both paths fix first and parse after.
 	if cfg.command == commandFix {
 		if _, err := runFix(ctx, cfg, w); err != nil {
 			return 0, err
@@ -58,8 +57,8 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		return exitClean, nil
 	}
 
-	// A diff is between two documents already written; no tree is parsed.
-	// The JSON is one line, which is what worktree reads.
+	// A diff is between two documents already on disk; the run parses no tree.
+	// The JSON is one line, the shape worktree reads.
 	if cfg.command == commandDiff {
 		result, err := diff.Load(cfg.oldFile, cfg.newFile, cfg.diffOptions)
 		if err != nil {
@@ -112,7 +111,7 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		}
 	}
 
-	// docs and coverage render the document rather than lint it. The docs get
+	// docs and coverage render the document and skip the lint. The docs get
 	// the parse whole, because the examples they print live in the test
 	// packages; the coverage report gets what a written document would hold,
 	// so a run over a parse reports what a run over --input would.
@@ -162,9 +161,8 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		reports = append(reports, one)
 	}
 
-	// The statistics are what the linters measured, which is a different
-	// question from what they found: a run asking for one is not asking for
-	// the other.
+	// The statistics are what the linters measured, a different question from
+	// what they found: a run that requests one does not get the other.
 	if cfg.stats {
 		if cfg.data() {
 			return exitClean, writeData(w, cfg, measured(reports))
@@ -188,8 +186,7 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 }
 
 // written is the document as a file holds it. The linters read every test file
-// of the tree; a reader of the document gets them only when --include-tests
-// asked for them.
+// of the tree; a reader of the document gets them only under --include-tests.
 func written(root *model.DocumentRoot, cfg *config) *model.DocumentRoot {
 	if cfg.includeTests {
 		return root
@@ -197,8 +194,8 @@ func written(root *model.DocumentRoot, cfg *config) *model.DocumentRoot {
 	return root.WithoutTests()
 }
 
-// document is the tree as the options ask for it: read back from a file when
-// one is named, and parsed when none is.
+// document is the tree as the options request it: read back from a file when
+// --input names one, and parsed otherwise.
 func document(ctx context.Context, cfg *config) (*model.DocumentRoot, error) {
 	if cfg.input != "" {
 		return loader.Load(cfg.input)
@@ -213,7 +210,7 @@ func document(ctx context.Context, cfg *config) (*model.DocumentRoot, error) {
 
 // parserFor returns the parser the options name.
 //
-// The two are constructed identically and return the same document, so this is
+// Both parsers build the same way and return the same document, so this is
 // the whole of what selecting one costs.
 func parserFor(cfg *config) (splint.Parser, error) {
 	switch cfg.parser {
@@ -226,8 +223,8 @@ func parserFor(cfg *config) (splint.Parser, error) {
 }
 
 // offline takes the linters off the network. modcheck is the one that reaches
-// it, and what it asks about a module is a size, which the cache holds from
-// the runs that did ask.
+// it, and it queries the size of a module, which the cache holds from earlier
+// runs that made the query.
 func offline(selected []model.Linter) {
 	for _, linter := range selected {
 		module, ok := linter.(*modcheck.Linter)
@@ -269,8 +266,8 @@ func measured(reports []model.LintReport) []measurement {
 //
 // One data model answers both: every field carries a json and a yaml tag
 // naming the same key, and a severity is a text marshaller, which both
-// encoders read. The JSON is indented, because a document a person opens is
-// one a person reads.
+// encoders read. The encoder indents the JSON, because a person who opens a
+// document reads it.
 func writeData(w io.Writer, cfg *config, value any) error {
 	if cfg.yaml {
 		encoder := yaml.NewEncoder(w)
@@ -283,7 +280,7 @@ func writeData(w io.Writer, cfg *config, value any) error {
 	return encoder.Encode(value)
 }
 
-// data reports a run asked for the findings rather than a rendering of them.
+// data reports that the run requests the findings as data with no rendering.
 func (c *config) data() bool {
 	return c.json || c.yaml
 }

@@ -9,10 +9,10 @@ import (
 
 // Model is the bubbletea model of the setup form.
 //
-// The form shows every setting at once: a boolean is toggled where it stands
-// and a string list is typed into where it stands, so nothing is hidden behind
-// a dialog. Below the settings are the save and discard buttons the form is
-// finished on.
+// The form shows every setting at once: the user toggles a boolean where it
+// stands and types into a string list where it stands, so no dialog hides
+// anything. Below the settings sit the save and discard buttons that close the
+// form.
 type Model struct {
 	config *Config
 	path   string
@@ -21,8 +21,8 @@ type Model struct {
 	fields []Field
 
 	// state holds the edited value of every setting and initial the value it
-	// was loaded with, so an edit that is undone counts as no edit. The
-	// document is only written from state when the form saves.
+	// opened with, so an edit the user takes back counts as no edit. The form
+	// writes the document from state only when it saves.
 	state   []value
 	initial []value
 
@@ -30,12 +30,12 @@ type Model struct {
 	// after the last one.
 	cursor int
 
-	// caret is the position being typed at in the focused list setting,
+	// caret is the typing position in the focused list setting,
 	// counted in runes.
 	caret int
 
-	// saved records that the document was written, so the caller knows the
-	// form was not abandoned.
+	// saved records that the form wrote the document, so the caller can tell
+	// a save from an abandoned form.
 	saved bool
 
 	// status is the message shown in place of the key legend, cleared on the
@@ -46,8 +46,8 @@ type Model struct {
 	height int
 }
 
-// New returns the setup form for a configuration document. The document is
-// read into the form and written back only when the form saves.
+// New returns the setup form for a configuration document. The form reads the
+// document in and writes it back only when it saves.
 func New(cfg *Config, path string) Model {
 	fields := cfg.Fields()
 	state := make([]value, len(fields))
@@ -69,7 +69,7 @@ func New(cfg *Config, path string) Model {
 	return m
 }
 
-// Saved reports whether the document was written before the form exited.
+// Saved reports whether the form wrote the document before it exited.
 func (m Model) Saved() bool {
 	return m.saved
 }
@@ -102,8 +102,8 @@ func (m Model) rows() int {
 func (m Model) saveRow() int    { return len(m.fields) }
 func (m Model) discardRow() int { return len(m.fields) + 1 }
 
-// onButtons reports whether the focus is on one of the buttons rather than on
-// a setting.
+// onButtons reports whether the focus is on one of the buttons. A false
+// result means the focus is on a setting.
 func (m Model) onButtons() bool {
 	return m.cursor >= len(m.fields)
 }
@@ -137,7 +137,7 @@ func (m *Model) focus(row int) {
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.status = ""
 
-	// The keys that mean the same on every row are read first, so a list
+	// Update reads the keys that mean the same on every row first, so a list
 	// setting cannot swallow them as typing.
 	switch keyName(msg) {
 	case "ctrl+c":
@@ -164,7 +164,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // chooseKey handles the keys of a boolean setting and of the buttons, the rows
-// that are chosen rather than typed into.
+// the user picks and does not type into.
 func (m Model) chooseKey(msg tea.KeyPressMsg) Model {
 	switch keyName(msg) {
 	case "left", "-":
@@ -191,9 +191,9 @@ func (m Model) chooseKey(msg tea.KeyPressMsg) Model {
 	return m
 }
 
-// editKey handles the keys of a string list setting, which is typed into where
-// it stands. Entries are separated by commas; the blanks that leaves while a
-// separator is being typed are dropped when the form saves.
+// editKey handles the keys of a string list setting, which the user types into
+// where it stands. Commas separate entries; the form drops the blanks a
+// half-typed separator leaves when it saves.
 func (m Model) editKey(msg tea.KeyPressMsg) Model {
 	runes := []rune(m.state[m.cursor].text)
 	m.caret = min(m.caret, len(runes))
@@ -235,8 +235,7 @@ func (m *Model) setText(text string) {
 }
 
 // activate is what enter does. On a setting it changes nothing and moves on to
-// the save button, which is where the form is finished; on a button it presses
-// it.
+// the save button, where the form closes; on a button it presses it.
 func (m Model) activate() (tea.Model, tea.Cmd) {
 	switch m.cursor {
 	case m.saveRow():
@@ -249,9 +248,9 @@ func (m Model) activate() (tea.Model, tea.Cmd) {
 	}
 }
 
-// leave is what escape does. With edits in hand it moves to the discard
-// button rather than dropping them, so leaving with unsaved edits is always
-// something the form was told twice.
+// leave is what escape does. With unsaved edits it moves to the discard
+// button and keeps them, so leaving with unsaved edits always takes a second
+// key press.
 func (m Model) leave() (tea.Model, tea.Cmd) {
 	if !m.dirty() || m.cursor == m.discardRow() {
 		return m, tea.Quit

@@ -44,7 +44,7 @@ func TestLoadFileMissingReturnsDefaults(t *testing.T) {
 
 // TestLoadFileDoesNotMergeDefaults checks the documented rule: an existing
 // file is the whole configuration, so a setting it does not name reads as off
-// rather than falling back to the built-in value.
+// and does not fall back to the built-in value.
 func TestLoadFileDoesNotMergeDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "worktree.yml")
 	writeTestFile(t, path, "scan:\n  enable_git_repos: true\n")
@@ -161,7 +161,7 @@ func TestEncodeStampsVersion(t *testing.T) {
 
 // TestLoad and TestSave cover the pair that go through Path: Load reads the
 // document below the home directory, and Save writes it there, creating the
-// .config directory it lives in.
+// directory FileName lives in.
 func TestLoad(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

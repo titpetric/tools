@@ -9,7 +9,7 @@ import (
 )
 
 // shortPackage names a package the way the tables refer to it, as its import
-// path below the module, written from the module root down: "/model" is the
+// path below the module, from the module root down: "/model" is the
 // model package of this module and not some other one, and the package at the
 // root of the module is "/".
 //
@@ -17,8 +17,8 @@ import (
 // under two directories has two of them, both named "model", and a column
 // saying so twice tells a reader nothing about which is which.
 //
-// A package that is not below the module is named by its import path, which is
-// the only name it has here.
+// A package outside the module goes by its import path, the only name it has
+// here.
 func shortPackage(module, pkg string) string {
 	if pkg == module {
 		return "/"
@@ -38,7 +38,7 @@ func fold(line string, width int) string {
 	return ansi.Wrap(line, width, "")
 }
 
-// changeColor returns the colour a category of change is written in: green for
+// changeColor returns the colour a category of change prints in: green for
 // what a release adds, amber for what it reshapes, red for what it takes away.
 func changeColor(category string) string {
 	switch strings.ToLower(category) {

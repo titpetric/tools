@@ -1,9 +1,9 @@
 package splint
 
-// Options is what a parser is asked for. A caller builds one of these and
-// hands it to whichever parser it imports; nothing else differs between them.
+// Options holds the settings of a parse. A caller builds one of these and
+// passes it to whichever parser it imports; nothing else differs between them.
 type Options struct {
-	// SourcePath is the directory the parse is rooted at.
+	// SourcePath is the root directory of the parse.
 	SourcePath string
 
 	// Pattern is "." for the package in SourcePath and "./..." for everything
@@ -17,13 +17,13 @@ type Options struct {
 	// the size of a document and the whole of what a restore needs.
 	IncludeSources bool
 
-	// IncludeImports keeps the import declarations of every file as they are
-	// written, and the names each file writes before a dot. It is what the
-	// import rules and the fixer read; nothing else needs it, and a parse not
-	// asked for it does not pay for it.
+	// IncludeImports keeps the import declarations of every file as the file
+	// writes them, and the names each file writes before a dot. The import
+	// rules and the fixer read them; nothing else needs them, and a parse
+	// without this setting does not pay for them.
 	IncludeImports bool
 
-	// Verbose asks the parser to say what it is doing.
+	// Verbose makes the parser report its progress.
 	Verbose bool
 }
 

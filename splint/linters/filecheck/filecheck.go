@@ -1,12 +1,12 @@
 // Package filecheck reports a file long enough to be doing more than one
-// thing, and measures how the lengths of a tree are spread.
+// thing, and measures the spread of lengths across a tree.
 //
-// It is the gofsck check of the same name, read against the splint model
-// instead of against the disk. gofsck walks the filesystem and buckets every
-// file it finds by extension, so markdown and everything else is scored
+// The package carries the gofsck check of the same name, reading the splint model
+// where gofsck reads the disk. gofsck walks the filesystem and buckets every
+// file it finds by extension, so it scores markdown and everything else
 // alongside the code. A document describes Go packages and nothing else, so
 // there is only ever one extension here and the bucketing has nowhere to go.
-// What is left is the part that carried the idea: a tree of small files reads
+// What remains is the part that carried the idea: a tree of small files reads
 // well, and one holding a few enormous files does not.
 package filecheck
 
@@ -18,7 +18,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "filecheck"
 
 // RuleLong is the one rule this linter reports under.
@@ -28,12 +28,12 @@ const RuleLong = "long"
 // than one thing. The count has blanks and comments taken out of it already,
 // so this is the code itself, and four hundred lines of code is about where a
 // reader stops holding a file in their head and starts searching it. A file
-// that has to be searched has more than one subject in it. It is also where
+// that needs a search has more than one subject in it. The number also marks where
 // the gofsck size histogram turns: its "high" band tops out around five
 // hundred lines counted with the blanks and the comments still in.
 //
-// It is what a tree with no filecheck section in its .splint.yml is read
-// under, so config names it rather than carrying a second four hundred.
+// A tree with no filecheck section in its .splint.yml runs under this number,
+// so the configuration names it and carries no second four hundred.
 const DefaultMaxLines = 400
 
 // Linter checks the length of every file.
@@ -58,13 +58,13 @@ func (l *Linter) Name() string {
 
 // Lint measures every file of every package and reports the long ones.
 //
-// Generated files are measured by nobody: their length says something about
+// The linter measures no generated file: its length says something about
 // the generator and nothing about the code, and a protobuf stub would drown
 // the histogram on its own.
 //
-// Every file is measured against the ceiling it runs under rather than against
-// one number, so a file the tree gave room to is counted into the histogram
-// and left out of the findings.
+// The linter measures every file against the ceiling it runs under, and no single
+// number, so a file the tree gave room to counts into the histogram
+// and stays out of the findings.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	results := Results{max: l.MaxLines, tuned: len(l.Allow) > 0}
 
@@ -103,8 +103,8 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 }
 
 // filePath names a file the way a Position names one, the package directory
-// and the filename. It is Declaration.Position for a file rather than for a
-// symbol in it, and it carries no line: the finding is about the whole file.
+// and the filename. Declaration.Position names a symbol; this names a whole
+// file and carries no line: the finding is about the whole file.
 func filePath(pkg model.Package, file model.File) string {
 	dir := strings.TrimPrefix(strings.TrimPrefix(pkg.Path, "."), "/")
 	if dir == "" {

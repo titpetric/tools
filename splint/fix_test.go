@@ -16,7 +16,7 @@ import (
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
 
-// unformatted is the fixture the import fixer is tested against, resolved
+// unformatted is the fixture the import fixer tests run against, resolved
 // before anything has moved the process.
 var unformatted = absolute("linters/imports/testdata/input")
 
@@ -75,7 +75,7 @@ func TestFixCommandRewritesTheTree(t *testing.T) {
 		}
 	}
 
-	// The rewrite is the point, not the report.
+	// The test reads the rewritten source and leaves the report aside.
 	source := read(t, filepath.Join(dir, "service2", "storage", "store.go"))
 	if !strings.Contains(source, `"example.com/imports/service2/model"`) {
 		t.Errorf("model did not resolve to service2's:\n%s", source)
@@ -87,8 +87,8 @@ func TestFixCommandRewritesTheTree(t *testing.T) {
 	}
 }
 
-// TestFixCountsWhatItRewrote covers the counter, which is kept on the machine
-// rather than beside the tree: a run that rewrote a file leaves the tree it
+// TestFixCountsWhatItRewrote covers the counter, which lives on the machine
+// and stays out of the tree: a run that rewrote a file leaves the tree it
 // rewrote holding only source.
 func TestFixCountsWhatItRewrote(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -170,7 +170,7 @@ func TestFixReadsWithTheQuickParser(t *testing.T) {
 	}
 
 	// A parser the command line named is the one it gets, and the lint half of
-	// --fix is unaffected either way.
+	// --fix behaves the same either way.
 	named, err := parseOptions([]string{"fix", "--parser", analyzer.ParserName, "./..."})
 	if err != nil {
 		t.Fatal(err)
@@ -184,7 +184,7 @@ func TestFixReadsWithTheQuickParser(t *testing.T) {
 }
 
 // TestBareCommandLineStillLints covers what every pipeline written before
-// there were commands does.
+// splint had commands does.
 func TestBareCommandLineStillLints(t *testing.T) {
 	cfg, err := parseOptions([]string{"-i", "somewhere", "./..."})
 	if err != nil {
@@ -199,7 +199,7 @@ func TestBareCommandLineStillLints(t *testing.T) {
 }
 
 // TestFixCommandTakesFlagsEitherWay covers the verb sitting in front of the
-// flags, which is where a verb goes.
+// flags, the usual place for a verb.
 func TestFixCommandTakesFlagsEitherWay(t *testing.T) {
 	cfg, err := parseOptions([]string{"fix", "./...", "-i", "somewhere"})
 	if err != nil {
@@ -226,8 +226,8 @@ func read(t *testing.T, path string) string {
 
 // TestFixProgressStaysOutOfTheReport covers the two streams.
 //
-// --fix writes a report a program parses, and a line saying what was rewritten
-// written into the middle of it is a line of invalid JSON. The progress goes
+// --fix writes a report a program parses, and a line naming the rewritten files
+// in the middle of that report makes a line of invalid JSON. The progress goes
 // to the second stream; splint fix, whose whole output is what it rewrote,
 // writes to the first.
 func TestFixProgressStaysOutOfTheReport(t *testing.T) {

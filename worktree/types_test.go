@@ -4,9 +4,9 @@ import (
 	"testing"
 )
 
-// TestRequireInfo covers the one thing a requirement carries beyond its path
+// TestRequireInfo covers the one thing a require line carries beyond its path
 // and version: whether the module imports it itself. The mark decides whether a
-// release reports the requirement at all, so its zero value has to be direct.
+// release reports the dependency at all, so its zero value has to be direct.
 func TestRequireInfo(t *testing.T) {
 	direct := requireInfo{path: "golang.org/x/mod", version: "v0.41.0"}
 	if direct.indirect {
@@ -23,8 +23,8 @@ func TestRequireInfo(t *testing.T) {
 	}
 }
 
-// TestGitStatus checks the counts a module's git state is read into, which is
-// what the workspace table colours a row on.
+// TestGitStatus checks the counts a module's git state reads into, the counts
+// the workspace table colours a row on.
 func TestGitStatus(t *testing.T) {
 	var clean gitStatus
 	if clean.Unpushed != 0 || clean.Modified != 0 || len(clean.DiffLines) != 0 {
@@ -47,7 +47,7 @@ func TestVersionRefs(t *testing.T) {
 	if got := refs["example.com/app"]["example.com/lib"]; got != "v0.1.0" {
 		t.Errorf("versionRefs lookup = %q, want %q", got, "v0.1.0")
 	}
-	// A module nothing is known about reads as no requirements, not a panic.
+	// An unknown module reads as no requirements and does not panic.
 	if got := refs["example.com/missing"]["example.com/lib"]; got != "" {
 		t.Errorf("versionRefs lookup of an absent module = %q, want %q", got, "")
 	}

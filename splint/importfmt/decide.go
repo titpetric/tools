@@ -9,15 +9,15 @@ import (
 	"github.com/titpetric/tools/splint/resolve"
 )
 
-// Resolver answers what package a bare name refers to, and what name a package
-// is reached by. resolve.Index is the one implementation; the interface is
-// here so a test can answer for itself.
+// Resolver answers what package a bare name refers to, and what name code
+// reaches a package by. resolve.Index is the one implementation; the interface
+// lives here so a test can answer for itself.
 type Resolver interface {
 	// Lookup resolves a name as written in a package.
 	Lookup(def *model.Definition, name string) resolve.Result
 
-	// Name is the package name an import path is reached by, and whether it
-	// is known rather than guessed from the path.
+	// Name is the package name code reaches an import path by, and whether
+	// the resolver knows it outright, without a guess from the path.
 	Name(importPath string) (string, bool)
 }
 
@@ -26,8 +26,8 @@ type Unresolved struct {
 	// Name is the name as the file writes it, before the dot.
 	Name string
 
-	// Symbols are what the file reached through it, which is what a message
-	// quotes so a reader knows which line to look at.
+	// Symbols are what the file reached through it; a message quotes them so
+	// a reader can find the line to look at.
 	Symbols []string
 
 	// Candidates are the paths that answered when more than one did, and are
@@ -35,9 +35,9 @@ type Unresolved struct {
 	Candidates []string
 }
 
-// Message says what could not be placed and why, quoting a use so a reader
-// knows which line to look at. It is what the linter reports and what the
-// fixer says about a file it leaves alone.
+// Message says what nothing could place and why, quoting a use so a reader can
+// find the line to look at. The linter reports it, and the fixer says it about
+// a file it leaves alone.
 func (u Unresolved) Message() string {
 	reached := u.Name
 	if len(u.Symbols) > 0 {
@@ -65,12 +65,12 @@ type Decision struct {
 	Removed []model.ImportSpec
 
 	// Unresolved are the names nothing could place. A file holding one of
-	// these is not rewritten: the block would be written without an import the
-	// file needs, and the result would not build.
+	// these keeps its block: a rewrite would drop an import the file needs,
+	// and the result would not build.
 	Unresolved []Unresolved
 
 	// Tail is the comment lines the file's declarations hold that belong to no
-	// import. They are written back at the end of the block.
+	// import. The rewrite puts them back at the end of the block.
 	Tail string
 }
 
@@ -80,24 +80,23 @@ func (d Decision) Text() string {
 	return Render(d.Specs, d.Tail)
 }
 
-// Sound reports a decision that can be written. A file with a name nothing
-// could place is left alone.
+// Sound reports a decision a rewrite can apply. The fixer leaves a file with a
+// name nothing could place alone.
 func (d Decision) Sound() bool {
 	return len(d.Unresolved) == 0
 }
 
-// Changed reports the file's import block not being what it should be.
+// Changed reports a file's import block that differs from the canonical one.
 //
-// The comparison is between two renderings of the same shape rather than
+// The comparison is between two renderings of the same shape, and never
 // between the file on disk and a string, so it answers the same whichever
-// parser read the tree and whether or not the file was reached from disk at
-// all. Whitespace inside a declaration is gofmt's business and does not show
+// parser read the tree and whether the parse read the file from disk at all.
+// Whitespace inside a declaration is gofmt's business and does not show
 // up here; the order of the imports, the groups, the aliases and the number of
 // declarations do.
 func (d Decision) Changed(all model.ImportDeclList) bool {
-	// The import of "C" is pinned by the preamble above it. It is not part of
-	// what a rewrite writes, so it is not part of what decides whether the
-	// file needs one.
+	// The preamble above the import of "C" pins it. A rewrite never writes
+	// it, so it plays no part in deciding whether the file needs one.
 	current := all.Free()
 
 	if len(current) > 1 && len(d.Specs) > 0 {
@@ -106,7 +105,7 @@ func (d Decision) Changed(all model.ImportDeclList) bool {
 	}
 
 	if len(current) == 1 {
-		// The canonical block is parenthesised and holds one import per line.
+		// The canonical block has parentheses and holds one import per line.
 		// import "fmt" and import ( "fmt" ) are the same imports written on
 		// one line, and neither is the block.
 		if len(d.Specs) > 0 && current[0].Line == current[0].EndLine {
@@ -127,7 +126,7 @@ func (d Decision) Changed(all model.ImportDeclList) bool {
 // A file with no import declarations and no name to place is not in the
 // result, and neither is a generated one.
 //
-// The document is read for the test half of a package, which is a definition
+// Decide reads the document for the test half of a package, which is a definition
 // of its own holding only the test files. Without it a white box test reaching
 // a name the package declares beside it reads as a missing import.
 func Decide(root *model.DocumentRoot, def *model.Definition, idx Resolver, opts Options) map[string]Decision {
@@ -146,8 +145,8 @@ func Decide(root *model.DocumentRoot, def *model.Definition, idx Resolver, opts 
 	out := map[string]Decision{}
 	for _, file := range def.Files {
 		if file.Generated {
-			// A generated file is written by whatever generated it, which is
-			// what goimports-reviser leaves alone too.
+			// Whatever generated a file owns its imports, and goimports-reviser
+			// leaves such a file alone too.
 			continue
 		}
 		if file.Directives {
@@ -164,12 +163,12 @@ func Decide(root *model.DocumentRoot, def *model.Definition, idx Resolver, opts 
 	return out
 }
 
-// forbidden is the import path a file may not take on, which is the package
-// the file says it is part of.
+// forbidden is the import path a file may not take on: the package the file
+// claims as its own.
 //
 // A directory holds one package and up to two test scopes, and the model
 // records both scopes under one definition. Only the file's own package clause
-// says which it belongs to. A file writing "package whitebox" is compiled into
+// says which it belongs to. A file writing "package whitebox" compiles into
 // whitebox and reaches Bar by name; adding an import of whitebox is an import
 // cycle. A file writing "package whitebox_test" is a separate package and has
 // to import it.
@@ -179,7 +178,7 @@ func forbidden(def *model.Definition, file model.File) string {
 		return ""
 	}
 
-	// An empty clause is a parse that was not asked for it. Forbidding the
+	// An empty clause comes from a parse that did not record it. Forbidding the
 	// package's own path is then the reading that cannot produce a cycle.
 	if file.Package == "" || file.Package == strings.TrimSuffix(def.Package.Package, "_test") {
 		return self
@@ -198,8 +197,8 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 	havePath := map[string]bool{}
 
 	// A pinned declaration is not rewritten and its imports are still imports:
-	// the file already reaches them, and nothing may be added to answer for a
-	// name one of them already answers.
+	// the file already reaches them, and Decide may add nothing to answer for
+	// a name one of them already answers.
 	for _, spec := range file.ImportDecls {
 		if !spec.Cgo() {
 			continue
@@ -214,7 +213,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 
 	// guessing reports the file holding an import whose name the document does
 	// not say. The name is then taken from the path, and the path does not
-	// have to spell it: github.com/goccy/go-yaml is reached as yaml. A file
+	// have to spell it: code reaches github.com/goccy/go-yaml as yaml. A file
 	// holding one of those cannot have its names accounted for, because any
 	// name left over might be the one that import answers to.
 	guessing := false
@@ -223,7 +222,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 		havePath[spec.Path] = true
 
 		if spec.Blank() || spec.Dot() {
-			// A blank or a dot import is reached by no name, so no name can
+			// No name reaches a blank or a dot import, so no name can
 			// stop reaching it. It stays until somebody deletes it by hand.
 			kept = append(kept, spec)
 			continue
@@ -233,7 +232,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 		have[ref] = true
 		guessing = guessing || !known
 
-		// An import removed on a wrong guess is a file that no longer builds,
+		// An import removed on a wrong guess is a file that stops building,
 		// and one kept on a wrong guess is a line nobody notices.
 		if !known || file.UsesName(ref) {
 			kept = append(kept, spec)
@@ -251,15 +250,15 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 		found := idx.Lookup(def, name)
 
 		// The name resolves to a path the file already imports, so the import
-		// is there and is reached by a name the path does not spell. Nothing
-		// is missing and nothing is added: a second import of one path under
+		// is there and the file reaches it by a name the path does not spell.
+		// Nothing is missing and Decide adds nothing: a second import of one path under
 		// two names compiles and says the file needs both.
 		if found.Found() && havePath[found.Path] {
 			have[name] = true
 			continue
 		}
 
-		// The name resolves to the package this very file is part of, which
+		// The name resolves to the package this same file is part of, which
 		// is a name the file already has and an import it cannot make.
 		if found.Found() && found.Path == forbid {
 			have[name] = true
@@ -268,8 +267,8 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 
 		if !found.Found() {
 			if guessing {
-				// The file holds an import whose name was guessed from its
-				// path. This name is more likely to be that import than a
+				// The file holds an import whose name comes from a guess on
+				// its path. This name is more likely to be that import than a
 				// missing one, and reporting it would be an error against a
 				// file that builds.
 				continue
@@ -299,10 +298,10 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 	return decision
 }
 
-// reachedBy is the name a file reaches an import by, and whether that name is
-// known rather than guessed.
+// reachedBy is the name a file reaches an import by, and whether the name is
+// certain and no guess.
 //
-// An alias is what the file writes, so it is known outright. Without one the
+// The file writes an alias, so an alias is certain outright. Without one the
 // name is the package's own, which the document says for a package of the tree
 // and the resolver guesses from the path for anything else.
 func reachedBy(spec model.ImportSpec, idx Resolver) (string, bool) {
@@ -315,11 +314,11 @@ func reachedBy(spec model.ImportSpec, idx Resolver) (string, bool) {
 	return idx.Name(spec.Path)
 }
 
-// Project is the module a document is of, which is the shortest module path it
-// holds: a nested module sits under the one the tree is rooted at.
+// Project is the module of a document, the shortest module path it holds: a
+// nested module sits under the one at the root of the tree.
 //
-// It is what the project group defaults to for a tree whose configuration does
-// not name one.
+// The project group defaults to it for a tree whose configuration does not
+// name one.
 func Project(root *model.DocumentRoot) string {
 	if root == nil || len(root.Modules) == 0 {
 		return ""
@@ -352,8 +351,8 @@ func sibling(root *model.DocumentRoot, def *model.Definition) *model.Definition 
 // declaredNames are the package level names the package declares, across every
 // file of it.
 //
-// A name a file reaches without importing it is either a package of the tree
-// or something declared beside it, and this is what tells the two apart.
+// A name a file reaches with no import is either a package of the tree or
+// something declared beside the file, and this set tells the two apart.
 func declaredNames(def *model.Definition) map[string]bool {
 	names := map[string]bool{}
 	if def == nil {
@@ -372,16 +371,17 @@ func declaredNames(def *model.Definition) map[string]bool {
 // reachedNames are the names each file reaches through a selector, keyed by
 // filename and then by name.
 //
-// Both sets a declaration carries are read. References are the names a parser
-// matched to an import of the package, and Globals the ones it could not. The
-// split is made against the package's imports rather than the file's, so a
+// reachedNames reads both sets a declaration carries. References are the names
+// a parser matched to an import of the package, and Globals the ones it could
+// not. The parser splits them against the package's imports and ignores the
+// file's, so a
 // name one file imports and another reaches without importing is in
 // References for both, and reading only Globals would miss the second file.
 //
-// Whether the name is really missing is settled by the caller, against the
+// The caller settles whether the name is really missing, against the
 // imports of the one file and the names the package declares.
 //
-// A key with no symbols is a bare identifier rather than a selector, and no
+// A key with no symbols is a bare identifier and no selector, and no
 // import can be missing for one.
 func reachedNames(def *model.Definition) map[string]map[string][]string {
 	out := map[string]map[string][]string{}

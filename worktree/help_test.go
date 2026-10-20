@@ -9,7 +9,7 @@ import (
 )
 
 // TestHelpSpec checks the markdown page holds every flag the parser defines,
-// spelled the way it is typed, and every heading a reader looks for.
+// spelled the way a user types it, and every heading a reader looks for.
 func TestHelpSpec(t *testing.T) {
 	fs := flag.NewFlagSet("worktree", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)

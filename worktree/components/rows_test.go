@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-// TestRowsIsARowOfCells checks the row type carries the cells it is built
-// from, which is what the table walks column by column.
+// TestRowsIsARowOfCells checks the row type carries the cells it comes from,
+// the cells the table walks column by column.
 func TestRowsIsARowOfCells(t *testing.T) {
 	row := Rows{Cell{"path"}, nil, Cell{"one", "two"}}
 

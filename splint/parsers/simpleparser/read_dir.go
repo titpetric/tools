@@ -36,7 +36,7 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 	// One definition per package scope: the package itself, and its tests.
 	scopes := map[bool]*model.Definition{}
 
-	// A package records one declaration per name, however many files declare
+	// A package records one declaration per name, whatever the count of files that declare
 	// it. Two files each holding a blank "var _" declare the same name twice
 	// and the package records it once, and the same goes for init.
 	seen := map[bool]map[string]bool{false: {}, true: {}}
@@ -53,8 +53,8 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 			continue
 		}
 		if !Included(name, data) {
-			// A file behind a build constraint this build does not satisfy is
-			// one the toolchain never compiles, so it is not part of the
+			// A file behind a build constraint this build does not meet is
+			// one the toolchain never compiles, so that file is not part of the
 			// package a reader would see.
 			continue
 		}
@@ -103,8 +103,8 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 		splitGlobals(def)
 		if isTest {
 			// A white box test compiles into the package it tests, so the
-			// listing names it the same. It is a different scope and is named
-			// as one, which is what the ast parser records too.
+			// listing names it the same. The scope differs, and the parser names it
+			// as one, the same as the ast parser records.
 			def.Package.Package += "_test"
 			def.Package.ImportPath += "_test"
 		}
@@ -119,7 +119,7 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 // what the package has already recorded under the same name.
 func merge(def *model.Definition, parsed *file, name string, seen map[string]bool) {
 	// A package comment on more than one file leaves the last of them
-	// standing, which is what the collector records: it assigns the doc of
+	// standing, the same as the collector records: it assigns the doc of
 	// every file it walks, so the last one to have one wins.
 	if parsed.Doc != "" {
 		def.Doc = parsed.Doc
@@ -137,7 +137,7 @@ func merge(def *model.Definition, parsed *file, name string, seen map[string]boo
 // unseen returns the declarations the package has not recorded yet, and marks
 // the rest as recorded.
 //
-// A declaration is known by its name alone, so a blank "var _" is the same
+// The package knows a declaration by its name alone, so a blank "var _" is the same
 // declaration in every file that writes one, and so is init. That is what the
 // ast collector does with them, and a document that listed them per file would
 // not compare against one that did not.
@@ -156,10 +156,10 @@ func unseen(decls model.DeclarationList, seen map[string]bool, scope string) mod
 	return kept
 }
 
-// importPath is the path a package is imported under, which is the module
+// importPath is the path that importers use for a package: the module
 // path plus the directory below the module root.
 //
-// A tree with no go.mod has no import path to give, since nothing can import
+// A tree with no go.mod has no import path to report, since nothing can import
 // what is not in a module.
 func importPath(modulePath, moduleDir, dir string) string {
 	if modulePath == "" {
@@ -175,8 +175,8 @@ func importPath(modulePath, moduleDir, dir string) string {
 
 // packagePath names a directory the way the model names a package path.
 //
-// A package of the module the parse is rooted at is named from the root down,
-// "." or "./frontend". A package of a module nested below it is named from the
+// The parser names a package of the root module from the root down,
+// "." or "./frontend". A package of a module nested below takes its name from the
 // root as well, but with no separator after the dot: "generic" is a module of
 // its own under this root and its packages read ".generic" and ".generic/sub".
 //
@@ -206,10 +206,10 @@ func packagePath(root, moduleDir, dir string) string {
 
 // splitGlobals moves every reference the package does not import into Globals.
 //
-// The collector asks the same question the same way: a name that the package
+// The collector applies the same test the same way: a name that the package
 // import table does not answer for is not a package, whatever it looked like
-// in the body. The table is package wide, so the split cannot be made until
-// every file of the package has been read.
+// in the body. The table is package wide, so the split waits until
+// the parser has read every file of the package.
 func splitGlobals(def *model.Definition) {
 	imports, _ := def.Imports.Map(def.Imports.All())
 

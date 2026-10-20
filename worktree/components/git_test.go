@@ -7,7 +7,7 @@ import (
 
 // TestGit_Branch checks the branch cell: main is teal and anything else amber,
 // since a checkout that is not on the default branch is worth noticing, and
-// commits ahead of the remote are named beside it.
+// the cell names the commits ahead of the remote beside it.
 func TestGit_Branch(t *testing.T) {
 	if got := (Git{}).Branch(); got != nil {
 		t.Errorf("Git{}.Branch() = %q, want no cell", got)
@@ -31,8 +31,8 @@ func TestGit_Branch(t *testing.T) {
 }
 
 // TestGit_State checks the compact state cell: a clean checkout writes nothing,
-// the diff stats are split into insertions and deletions, and each block is
-// divided from the one above it.
+// the diff stats split into insertions and deletions, and a divider sets each
+// block apart from the one above it.
 func TestGit_State(t *testing.T) {
 	if got := (Git{}).State(); got != nil {
 		t.Errorf("Git{}.State() = %q, want no cell", got)
@@ -53,7 +53,7 @@ func TestGit_State(t *testing.T) {
 	for _, want := range []string{
 		"Unpushed changes: 1",
 		"Local changes:",
-		// The delta is split so the two halves read apart.
+		// The cell splits the delta so the two halves read apart.
 		"verdict.go " + ColorGreen + "12" + ColorReset + "/" + ColorRed + "3" + ColorReset,
 		"Untracked files:",
 		"- testdata/go-after.mod",
@@ -68,7 +68,7 @@ func TestGit_State(t *testing.T) {
 }
 
 // TestGit_StateVerbose checks the verbose cell reads in the order the report
-// does: the commits since the release, then what is uncommitted, then the open
+// does: the commits since the release, then the uncommitted changes, then the open
 // issues, with the issue columns aligned to the widest entry.
 func TestGit_StateVerbose(t *testing.T) {
 	if got := (Git{}).StateVerbose(); got != nil {
@@ -88,7 +88,7 @@ func TestGit_StateVerbose(t *testing.T) {
 	for _, want := range []string{
 		"Commits since release:",
 		"- " + ColorTeal + "e55a37a",
-		// A line with no hash in front of it is still listed, whole.
+		// The cell still lists a line with no hash in front, whole.
 		"- " + ColorWhite + "nohashatall",
 		"Local changes:",
 		"Issues: 2 open",
@@ -108,7 +108,7 @@ func TestGit_StateVerbose(t *testing.T) {
 		at = next
 	}
 
-	// The narrower id is padded out to the wider one, so the titles line up.
+	// The cell pads the narrower id out to the wider one, so the titles line up.
 	if !strings.Contains(lines, "#4 ") {
 		t.Errorf("Git.StateVerbose() did not pad the issue ids:\n%s", lines)
 	}

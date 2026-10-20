@@ -8,7 +8,7 @@ import (
 )
 
 // renderVerdictStats writes the whole run as one table of counts, a row per
-// release, newest first. It is the report with the analysis collapsed: what
+// release, newest first. This is the report with the analysis collapsed: what
 // each release did to the API and to the data model, without the symbols
 // behind it.
 func renderVerdictStats(w io.Writer, verdicts []verdict, styled bool) {
@@ -43,7 +43,7 @@ func renderVerdictStats(w io.Writer, verdicts []verdict, styled bool) {
 	writeGap(w, styled)
 }
 
-// count renders one cell of the stats table. A zero is left grey, so the
+// count renders one cell of the stats table. A zero stays grey, so the
 // releases that did something stand out from the ones that did not.
 func count(n int, color string, styled bool) string {
 	if n == 0 {

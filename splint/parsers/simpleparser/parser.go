@@ -20,10 +20,10 @@ const ParserName = "simpleparser"
 //
 // It reads lines and matches the constructs by where they start and where they
 // end, which gofmt puts at column zero. That buys two things the ast parser
-// cannot give: it does not need the tree to resolve, so it reads source that
-// does not compile, and it does not build one, so it is quick.
+// cannot: it does not need the tree to resolve, so it reads source that
+// does not compile, and it does not build one, so it runs fast.
 //
-// It is constructed the same way as the ast parser and returns the same
+// Its constructor matches the ast parser and it returns the same
 // document, so a program swaps one for the other by changing an import.
 type Parser struct {
 	options splint.Options
@@ -93,9 +93,9 @@ func (p *Parser) directories(root string) ([]string, error) {
 		if !entry.IsDir() {
 			return nil
 		}
-		// The root is read whatever it is called: a fixture under testdata is
-		// reached by being pointed at, and skipping the thing that was asked
-		// for reads nothing at all.
+		// The walk reads the root whatever its name: a caller reaches a fixture
+		// under testdata by pointing at it, and skipping the requested root
+		// reads nothing at all.
 		if path != root && skipDir(entry.Name()) {
 			return filepath.SkipDir
 		}
@@ -126,7 +126,7 @@ func hasGoFiles(dir string) bool {
 	return false
 }
 
-// trim drops what the options did not ask for.
+// trim drops what the options leave out.
 func (p *Parser) trim(defs model.DefinitionList) {
 	for _, def := range defs {
 		if !p.options.IncludeSources {

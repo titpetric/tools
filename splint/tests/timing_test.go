@@ -12,20 +12,20 @@ import (
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
 
-// runs is how many times each parser reads each tree. The fastest of them is
-// what is reported: a slow run measured the machine, and the quickest measured
+// runs is how many times each parser reads each tree. The test reports the
+// fastest of them: a slow run measured the machine, and the quickest measured
 // the parser.
 const runs = 3
 
-// TestParserTiming times the two parsers by running the command, which is what
-// a caller of it experiences.
+// TestParserTiming times the two parsers by running the command, the way a
+// caller of it experiences them.
 //
 // A benchmark inside the process measures the parse and nothing else. What a
-// reader wants to know is what "splint --parser=simpleparser ./..." costs
+// reader needs is what "splint --parser=simpleparser ./..." costs
 // against "splint --parser=astparser ./...", process start and all, so that is
 // what this times.
 //
-// One linter runs rather than all of them. modcheck asks the module proxy
+// One linter runs, and the rest stay off. modcheck queries the module proxy
 // about every dependency, which is a round trip per module and more time than
 // either parser takes: a run of it measures the network and reports it as a
 // parser.
@@ -77,8 +77,8 @@ func TestParserTiming(t *testing.T) {
 	}
 }
 
-// build compiles the command under test, so the timing is of this tree rather
-// than of whatever is installed.
+// build compiles the command under test, so the timing covers this tree and
+// never whatever binary sits on the PATH.
 func build(t *testing.T) string {
 	t.Helper()
 
@@ -118,8 +118,8 @@ func fastest(t *testing.T, binary, parser, root string) time.Duration {
 	return best
 }
 
-// goFiles counts the Go files of a tree, which is the size the timings are
-// read against.
+// goFiles counts the Go files of a tree, the size a reader holds the timings
+// against.
 func goFiles(root string) int {
 	count := 0
 

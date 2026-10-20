@@ -2,9 +2,9 @@ package selfcontained
 
 // Metric is what the linter measured on one file.
 //
-// It is per file because scope is a property of a file: the package is where
+// The metric is per file because scope is a property of a file: the package is where
 // the names resolve, and the file is what a reader opens and what a compiler
-// is handed one of.
+// takes one at a time.
 type Metric struct {
 	// Symbols is what the file declares, and Coupled is how many of those
 	// reach a name declared in another file of the same package.
@@ -19,7 +19,7 @@ type Metric struct {
 	FuncsSelf int `json:"FuncsSelf" yaml:"FuncsSelf"`
 
 	// Test reports a file the toolchain compiles into the test binary. A test
-	// file reaches what it tests, so the two are counted apart.
+	// file reaches what it tests, so the linter counts the two apart.
 	Test bool `json:"Test,omitempty" yaml:"Test,omitempty"`
 }
 
@@ -32,8 +32,8 @@ func (m Metric) Coupling() float64 {
 	return float64(m.Coupled) / float64(m.Symbols) * 100
 }
 
-// add folds one file's counts into another, which is how a package is counted
-// from the files it is made of.
+// add folds one file's counts into another, so a package sums
+// the files inside it.
 func (m *Metric) add(in Metric) {
 	m.Symbols += in.Symbols
 	m.Coupled += in.Coupled

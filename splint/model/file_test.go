@@ -37,8 +37,8 @@ func TestFileList(t *testing.T) {
 		t.Error("Find() invented a file")
 	}
 
-	// A filter keeps what it accepts and nothing else, which is how the two
-	// halves of a package are told apart.
+	// A filter keeps what it accepts and nothing else; that tells the two
+	// halves of a package apart.
 	if got := files.Filter(func(f File) bool { return !f.Test }); len(got) != 2 {
 		t.Errorf("Filter() kept %d files, want 2", len(got))
 	}

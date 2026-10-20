@@ -10,7 +10,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "godoc"
 
 // The rules this linter reports under.
@@ -21,10 +21,10 @@ const (
 )
 
 // maxDocLines is how many lines a doc comment may run to before it reads as a
-// symbol doing too much rather than a symbol well explained.
+// symbol doing too much, where a short comment reads as a symbol well explained.
 const maxDocLines = 10
 
-// blockGap is how many lines apart two declarations may sit and still be read
+// blockGap is how many lines apart two declarations may sit and still read
 // as one const or var block, which one comment above it documents.
 const blockGap = 10
 
@@ -91,7 +91,7 @@ func generatedFiles(def *model.Definition) map[string]bool {
 }
 
 // countExported is how many symbols of a list a reader can reach, which is
-// what the documentation is measured against.
+// what the linter measures the documentation against.
 func countExported(decls model.DeclarationList, generated map[string]bool) int {
 	count := 0
 	for _, decl := range decls {
@@ -103,7 +103,7 @@ func countExported(decls model.DeclarationList, generated map[string]bool) int {
 }
 
 // documentedShort is how many symbols the findings are about, which is not the
-// same as how many findings there are: one symbol can be reported once.
+// same as how many findings there are: the linter reports one symbol once.
 func documentedShort(found []Result) int {
 	seen := map[string]bool{}
 	for _, result := range found {
@@ -114,9 +114,9 @@ func documentedShort(found []Result) int {
 
 // check reports one kind of declaration in one package.
 //
-// Declarations are read in blocks: a run of exported names in the same file,
+// The check reads declarations in blocks: a run of exported names in the same file,
 // none more than blockGap lines from the one above it, is one const or var
-// block, and a comment on the first of them documents all of them.
+// block, and a comment on the first of them documents each one.
 func check(pkg model.Package, decls model.DeclarationList, generated map[string]bool) []Result {
 	var results []Result
 
@@ -142,8 +142,8 @@ func check(pkg model.Package, decls model.DeclarationList, generated map[string]
 
 // blocks groups the exported declarations that read as one block.
 //
-// A generated file is left out. Its comment is written by whatever wrote the
-// file, so a finding on it is a finding nobody in this tree can act on: the
+// The check leaves out a generated file. Whatever wrote the file writes its
+// comment, so any finding there is a finding nobody in this tree can act on: the
 // comment has to come from the generator or not at all.
 func blocks(decls model.DeclarationList, generated map[string]bool) []model.DeclarationList {
 	var (
@@ -178,8 +178,8 @@ func validate(pkg model.Package, decl *model.Declaration) []Result {
 		return []Result{result(pkg, decl, RuleMissing, "exported symbol lacks a godoc comment")}
 	}
 
-	// A block declaring more than one name is documented as a block, so the
-	// comment names none of them and only the punctuation is checked.
+	// A block declaring more than one name carries a block comment, so the
+	// comment names none of them and the check looks at the punctuation alone.
 	if len(decl.Names) > 1 {
 		if !endsInPunctuation(doc) {
 			return []Result{result(pkg, decl, RuleFormat, "godoc should end in punctuation")}

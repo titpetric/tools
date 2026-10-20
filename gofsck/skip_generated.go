@@ -7,7 +7,7 @@ import (
 )
 
 // skipGeneratedFiles drops generated files from the loaded packages, so no
-// analyzer sees them. A file is generated when it carries the conventional
+// analyzer sees them. A file counts as generated when it carries the conventional
 // "// Code generated ... DO NOT EDIT." line, which ast.IsGenerated detects;
 // templ, protoc and go:generate tools all emit it. Generated files are not
 // hand-organized, so grouping, pairing and coverage expectations do not apply

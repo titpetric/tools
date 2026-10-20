@@ -125,12 +125,12 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 			continue
 		}
 
-		// Skip constructors — they are covered by their return type's tests
+		// Skip constructors - their return type's tests cover them
 		if idx.constructors[symbol] {
 			continue
 		}
 
-		// Skip methods — only require tests for receiver types, not individual methods
+		// Skip methods - only require tests for receiver types, not individual methods
 		if strings.Contains(symbol, ".") {
 			continue
 		}

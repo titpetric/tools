@@ -11,15 +11,15 @@ import (
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
-// benchProject is the tree the benchmarks read. It is the largest one to hand,
-// so a profile taken over it is dominated by the parse rather than by the
-// process starting up.
+// benchProject is the tree the benchmarks read. This tree is the largest one
+// to hand, so the parse dominates a profile taken over it and the process
+// start-up does not.
 //
 // SPLINT_BENCH names another.
 var benchProject = envOr("SPLINT_BENCH", "phpscript")
 
-// The two parsers are benchmarked apart rather than as one benchmark with two
-// cases, so a profile can be taken of one of them: a run covering both mixes
+// Each parser has a benchmark of its own and no shared benchmark with two
+// cases exists, so a profile can cover one of them: a run covering both mixes
 // the two into a profile that describes neither.
 
 func BenchmarkSimpleParser(b *testing.B) {
@@ -35,7 +35,7 @@ func BenchmarkASTParser(b *testing.B) {
 }
 
 // benchmark reads the project once per iteration, sources and all, which is
-// the heaviest thing either parser is asked to do.
+// the heaviest job either parser gets.
 func benchmark(b *testing.B, parser func(splint.Options) splint.Parser) {
 	b.Helper()
 

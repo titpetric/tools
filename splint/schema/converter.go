@@ -11,8 +11,8 @@ import (
 // Write renders a document as a JSON Schema.
 //
 // Every package of the document contributes its types, so a schema of a tree
-// describes the whole of it rather than one package. A type is named by itself
-// where that is unambiguous and by its package where it is not.
+// describes the whole tree. A type carries its bare name where that is
+// unambiguous and its package-qualified name everywhere else.
 func Write(w io.Writer, root *model.DocumentRoot, options Options) error {
 	schema, err := Convert(root, options)
 	if err != nil {
@@ -46,7 +46,7 @@ func Convert(root *model.DocumentRoot, options Options) (*JSONSchema, error) {
 
 // convertPackage adds the types of one package to the definitions.
 //
-// A name two packages both declare is qualified with the package, since a
+// A name two packages both declare carries the package as a qualifier, since a
 // schema has one namespace and two Config types are not the same thing.
 func convertPackage(definitions map[string]*JSONSchema, def *model.Definition, config *RequiredFieldsConfig, options Options) error {
 	for _, decl := range def.Types {
@@ -87,8 +87,8 @@ func generateTypeSchema(decl *model.Declaration, config *RequiredFieldsConfig, p
 		return &JSONSchema{Type: getBaseJSONType(decl.Type)}
 
 	case strings.Contains(decl.Type, "."):
-		// A type defined as one from another package is described where that
-		// package is described, not here.
+		// A type defined as one from another package belongs to the schema of
+		// that package, and this one skips it.
 		return nil
 
 	case decl.Name != decl.Type && len(decl.Fields) == 0:
@@ -96,8 +96,8 @@ func generateTypeSchema(decl *model.Declaration, config *RequiredFieldsConfig, p
 		return &JSONSchema{Ref: "#/definitions/" + refName}
 
 	default:
-		// A named type is described by what it is defined as, which is
-		// not a shape a schema can hold.
+		// A schema would describe a named type by its underlying type, and
+		// a schema cannot hold that shape.
 		return nil
 	}
 }
@@ -114,8 +114,8 @@ func generateFieldSchema(decl *model.Field, config *RequiredFieldsConfig, pkgNam
 		return &JSONSchema{Type: getBaseJSONType(decl.Type)}
 
 	default:
-		// A named type is described by what it is defined as, which is
-		// not a shape a schema can hold.
+		// A schema would describe a named type by its underlying type, and
+		// a schema cannot hold that shape.
 		return nil
 	}
 }

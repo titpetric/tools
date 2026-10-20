@@ -9,12 +9,12 @@ import (
 
 type DefaultRenderer struct{}
 
-// Colors for non-primary letters (gradient gray → white)
+// Colors for non-primary letters (gradient gray -> white)
 var DefaultColors = []string{
 	"\033[38;5;240m", // gray (#555)
 	"\033[38;5;245m", // medium gray (#777)
 	"\033[38;5;250m", // light gray (#aaa)
-	"\033[38;5;254m", // very light gray (#ddd)
+	"\033[38;5;254m", // pale gray (#ddd)
 	"\033[38;5;231m", // bright white (#fff)
 }
 

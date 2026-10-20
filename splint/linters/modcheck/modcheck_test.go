@@ -14,8 +14,8 @@ import (
 	"github.com/titpetric/tools/splint/modproxy"
 )
 
-// lint runs the linter with no proxy, so the coupling is measured and nothing
-// is asked of the network.
+// lint runs the linter with no proxy, so it measures the coupling and sends
+// nothing to the network.
 func lint(t *testing.T, root *model.DocumentRoot) model.LintReport {
 	t.Helper()
 
@@ -74,8 +74,8 @@ func document() *model.DocumentRoot {
 }
 
 // TestLinter_Lint covers the counts, which are what say whether a dependency
-// can be removed: files is the blast radius, packages the spread, and symbols
-// how much of it is used.
+// a consumer can remove it: files is the blast radius, packages the spread, and symbols
+// how much of the module the tree uses.
 func TestLinter_Lint(t *testing.T) {
 	metrics := lint(t, document()).Metrics()
 
@@ -103,7 +103,7 @@ func TestLinter_LintRules(t *testing.T) {
 	got := rules(lint(t, document()))
 
 	// One import nothing reaches, and one reached from one file through one
-	// symbol. The indirect requirement is nobody's choice and is not reported.
+	// symbol. The indirect require line is nobody's choice and the linter skips it.
 	if got[modcheck.RuleUnused] != 1 {
 		t.Errorf("unused = %d, want 1: %v", got[modcheck.RuleUnused], got)
 	}
@@ -160,7 +160,7 @@ func TestLinter_LintMajors(t *testing.T) {
 }
 
 // TestLinter_LintTestOnly covers a dependency a consumer never links, which is
-// a different thing from one that is used.
+// a different thing from one the tree uses.
 func TestLinter_LintTestOnly(t *testing.T) {
 	root := &model.DocumentRoot{
 		Modules: []*model.Module{{
@@ -183,7 +183,7 @@ func TestLinter_LintTestOnly(t *testing.T) {
 }
 
 // TestLinter_LintDriverImport covers the import that reaches no symbol: a
-// driver is imported for what it registers, and there is nothing to inline.
+// file imports a driver for what it registers, and there is nothing to inline.
 func TestLinter_LintDriverImport(t *testing.T) {
 	root := &model.DocumentRoot{
 		Modules: []*model.Module{{
@@ -202,8 +202,8 @@ func TestLinter_LintDriverImport(t *testing.T) {
 }
 
 // TestLinter_LintBlankImportIsNotThin covers the driver imported for its side
-// effect and reached by name as well: the registration cannot be inlined, so
-// how little of the rest is used says nothing.
+// effect and reached by name as well: no caller can inline the registration, so
+// how little of the rest the tree uses says nothing.
 func TestLinter_LintBlankImportIsNotThin(t *testing.T) {
 	root := &model.DocumentRoot{
 		Modules: []*model.Module{{
@@ -266,9 +266,9 @@ func blanked() *model.DocumentRoot {
 	}
 }
 
-// TestLinter_LintBlank covers where a blank import is allowed to be: a package
+// TestLinter_LintBlank covers where a blank import may sit: a package
 // imported for its init alone decides what a binary links, and a program and a
-// test binary are where that is decided. A library deciding it decides it for
+// test binary are where that decision belongs. A library deciding it decides it for
 // every consumer.
 func TestLinter_LintBlank(t *testing.T) {
 	report := lint(t, blanked())
@@ -327,8 +327,8 @@ func fakeProxy(t *testing.T) *modproxy.Client {
 }
 
 // TestLinter_LintReach covers what a dependency brings in behind it. A go.mod
-// records what the build resolved to and not which requirement asked for what,
-// so the graph is read one dependency's go.mod at a time.
+// records what the build resolved to and not which require line pulled in what,
+// so the linter reads the graph one dependency's go.mod at a time.
 func TestLinter_LintReach(t *testing.T) {
 	linter := &modcheck.Linter{Proxy: fakeProxy(t)}
 
@@ -346,8 +346,8 @@ func TestLinter_LintReach(t *testing.T) {
 		t.Errorf("deep reaches %d modules weighing %d, want 1 and 2000", deep.Reach, deep.Weight)
 	}
 
-	// A module requiring nothing weighs itself, and is reached by deep rather
-	// than reaching anything.
+	// A module requiring nothing weighs itself, and deep reaches it
+	// while it reaches nothing.
 	thin := metrics.Packages["example.com/thin"].(modcheck.Dependency)
 	if thin.Reach != 0 || thin.Weight != 1000 {
 		t.Errorf("thin reaches %d modules weighing %d, want 0 and 1000", thin.Reach, thin.Weight)
@@ -367,7 +367,7 @@ func TestLinter_Statistics(t *testing.T) {
 	if len(table.Labels) != 10 || len(table.Rows) != 4 {
 		t.Fatalf("Labels = %v, Rows = %d", table.Labels, len(table.Rows))
 	}
-	// The size column reads as nothing when nobody was asked, rather than as
+	// The size column reads as nothing when the run queried nobody, and never as
 	// a zero that looks measured.
 	for _, row := range table.Rows {
 		if row[2] != "-" {

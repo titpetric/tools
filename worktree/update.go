@@ -54,7 +54,7 @@ func (s *status) String() string {
 	return strings.Join(append(append([]string{}, s.lines...), s.log...), "\n")
 }
 
-// depChange describes a single go.mod requirement change.
+// depChange describes a single go.mod dependency change.
 type depChange struct {
 	path string
 	from string
@@ -73,9 +73,8 @@ func (c depChange) String() string {
 	}
 }
 
-// Color returns the status color for the change: removals are dimmed, new
-// requirements are green, and version changes to an existing requirement are
-// amber.
+// Color returns the status color for the change: removals show dim, new
+// dependencies green, and version changes to an existing dependency amber.
 func (c depChange) Color() string {
 	switch {
 	case c.to == "":
@@ -87,7 +86,7 @@ func (c depChange) Color() string {
 	}
 }
 
-// diffRequires compares two go.mod requirement sets, returning the changes
+// diffRequires compares two go.mod dependency sets, returning the changes
 // sorted by module path.
 func diffRequires(before, after []requireInfo) []depChange {
 	versions := func(reqs []requireInfo) map[string]string {
@@ -133,16 +132,16 @@ func staleRequires(reqs []requireInfo, tags latestTags) []requireInfo {
 }
 
 // updateDeps updates dependencies in each Go module, printing each module's
-// go.mod changes as soon as they are known. Only requirements known to be
-// stale are updated: a workspace module is moved to its latest tag, and the
-// go tool is left alone when a module has none, so a run over an up to date
+// go.mod changes as soon as they come in. It updates only the requirements
+// it can show as stale: a workspace module moves to its latest tag, and the
+// go tool stays idle when a module has none, so a run over an up to date
 // workspace touches no go.mod. The -U flag additionally upgrades every
 // dependency, including ones outside the workspace, with go get -u ./...
 //
-// When opts.GoVersion is set, the go directive of each go.mod is rewritten
-// before the dependencies are updated; a module already declaring that version
-// is reported as up to date and skipped, unless -u asked for a dependency
-// update as well.
+// When opts.GoVersion holds a version, updateDeps rewrites the go directive
+// of each go.mod before it updates the dependencies; a module already
+// declaring that version reports as up to date and the run skips it, unless
+// -u requests a dependency update as well.
 func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *Options, styled bool) {
 	verbose := opts.Verbose
 
@@ -205,7 +204,7 @@ func updateDeps(w io.Writer, modPaths map[string]string, tags latestTags, opts *
 			changed = true
 		}
 
-		// Nothing was rewritten, so there is nothing for tidy to clean up.
+		// The run rewrote nothing, so tidy has nothing to clean up.
 		if !changed {
 			if s.empty() {
 				s.add(components.ColorGreen, "Already up to date.")

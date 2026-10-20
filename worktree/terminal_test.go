@@ -32,7 +32,7 @@ func TestSupportsANSI(t *testing.T) {
 		t.Error("supportsANSI() called a regular file a terminal")
 	}
 
-	// TERM=dumb is a terminal that was asked not to be written to in colour.
+	// TERM=dumb marks a terminal that takes no colour.
 	t.Setenv("TERM", "dumb")
 	if supportsANSI(os.Stdout) {
 		t.Error("supportsANSI() wrote colour to TERM=dumb")
@@ -40,7 +40,7 @@ func TestSupportsANSI(t *testing.T) {
 }
 
 // TestTerminalWidth checks that anything without a terminal behind it reports
-// no width, which is what leaves a cell unfolded.
+// no width, and a cell with no width stays unfolded.
 func TestTerminalWidth(t *testing.T) {
 	if got := terminalWidth(&bytes.Buffer{}); got != 0 {
 		t.Errorf("terminalWidth(buffer) = %d, want 0", got)

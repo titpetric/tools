@@ -8,7 +8,7 @@ import (
 )
 
 // Version is a parsed semantic version tag. Prefix holds the optional "v"
-// of the original tag, so an incremented version is printed the way the
+// of the original tag, so an incremented version prints the way the
 // repository already tags its releases.
 type Version struct {
 	Prefix     string
@@ -66,7 +66,7 @@ func ParseVersion(tag string) (Version, bool) {
 
 // ParseGoDirective parses the version of a go directive, where the patch
 // number is optional: "1.27" reads as 1.27.0, the way the go tool orders it.
-// A leading "go" is accepted, so "go1.27" parses too, and a release candidate
+// It accepts a leading "go", so "go1.27" parses too, and a release candidate
 // such as "1.27rc1" becomes the prerelease 1.27.0-rc1.
 func ParseGoDirective(directive string) (Version, bool) {
 	s := strings.TrimPrefix(strings.TrimSpace(directive), "go")
@@ -104,7 +104,7 @@ func ParseVersions(tags []string) []Version {
 	return versions
 }
 
-// String renders the version the way it would be tagged.
+// String renders the version the way a tag spells it.
 func (v Version) String() string {
 	s := fmt.Sprintf("%s%d.%d.%d", v.Prefix, v.Major, v.Minor, v.Patch)
 	if v.Prerelease != "" {
@@ -116,7 +116,7 @@ func (v Version) String() string {
 	return s
 }
 
-// IsRelease reports whether the version is a release, that is, not a
+// IsRelease reports whether the version is a release, as opposed to a
 // prerelease such as "v1.2.3-rc.1".
 func (v Version) IsRelease() bool {
 	return v.Prerelease == ""
@@ -135,7 +135,8 @@ func (v Version) BumpMinor() Version {
 }
 
 // Compare orders two versions by semantic version precedence, returning -1,
-// 0 or 1. Build metadata is ignored, a prerelease sorts before its release.
+// 0 or 1. Compare ignores build metadata, and a prerelease sorts before its
+// release.
 func Compare(a, b Version) int {
 	for _, pair := range [][2]int{{a.Major, b.Major}, {a.Minor, b.Minor}, {a.Patch, b.Patch}} {
 		if pair[0] != pair[1] {
@@ -149,8 +150,8 @@ func Compare(a, b Version) int {
 }
 
 // comparePrerelease compares prerelease strings per the semver spec: an
-// absent prerelease has the higher precedence, identifiers are compared
-// field by field, and numeric fields sort before alphanumeric ones.
+// absent prerelease has the higher precedence, the comparison walks
+// identifiers field by field, and numeric fields sort before alphanumeric ones.
 func comparePrerelease(a, b string) int {
 	if a == b {
 		return 0
@@ -228,8 +229,8 @@ func LatestRelease(tags []string) (Version, bool) {
 	return releases[len(releases)-1], true
 }
 
-// PreviousRelease returns the release before the latest one, which is the
-// release the latest one is measured against. It reports false when the tags
+// PreviousRelease returns the release before the latest one: the base the
+// latest one compares against. It reports false when the tags
 // hold fewer than two releases.
 func PreviousRelease(tags []string) (Version, bool) {
 	releases := Releases(tags)

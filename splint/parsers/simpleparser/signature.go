@@ -23,7 +23,7 @@ func splitTop(list string, sep byte) []string {
 		case '(', '[', '{':
 			depth++
 		case ')', ']', '}':
-			// A closer with no opener before it belongs to a bracket that was
+			// A closer with no opener before it belongs to a bracket that
 			// opened on an earlier line, which a scanner reading one line at a
 			// time cannot see. Letting the depth go negative would put the
 			// rest of the line inside a bracket that is not there.
@@ -80,7 +80,7 @@ func matchParen(line string, open int) int {
 }
 
 // paramGroups reads a parameter list into its groups, one entry per group as
-// it is declared: "a, b int, c string" is two groups and not three parameters.
+// in the source: "a, b int, c string" is two groups and not three parameters.
 //
 // The group is what the model counts, because the ast collector counts the
 // fields of the parameter list and a field is a group. Each entry is the names
@@ -93,8 +93,8 @@ func paramGroups(list string) []paramGroup {
 
 	items := splitTop(list, ',')
 	// A list written one parameter per line ends on a trailing comma, which
-	// leaves an empty item behind; it is not a parameter and must not be the
-	// one that decides whether the list is named.
+	// leaves an empty item behind; that item is not a parameter and must not be the
+	// one that decides whether the list has names.
 	for len(items) > 0 && strings.TrimSpace(items[len(items)-1]) == "" {
 		items = items[:len(items)-1]
 	}
@@ -103,7 +103,7 @@ func paramGroups(list string) []paramGroup {
 	}
 
 	// Go requires the whole list named or none of it, so the last item decides
-	// for all of them: "a, b int" is one group of two names, and "Trace, bool"
+	// for every item: "a, b int" is one group of two names, and "Trace, bool"
 	// is two types with no names at all.
 	if !namedList(items) {
 		groups := make([]paramGroup, 0, len(items))
@@ -170,7 +170,7 @@ func (g paramGroup) String() string {
 }
 
 // splitParam separates one parameter into its name and its type. A parameter
-// with no name of its own reports an empty type, which is what tells a bare
+// with no name of its own reports an empty type, and that tells a bare
 // name in a group from a type standing alone.
 func splitParam(param string) (name, typ string) {
 	param = strings.TrimSpace(param)
@@ -218,8 +218,8 @@ func indexTop(list string, sep byte) int {
 	return -1
 }
 
-// isIdentifier reports whether a word is a plain Go identifier, which is what
-// a parameter name is and what a type expression is not.
+// isIdentifier reports whether a word is a plain Go identifier, the shape of
+// a parameter name and never of a type expression.
 func isIdentifier(word string) bool {
 	if word == "" {
 		return false
@@ -238,7 +238,7 @@ func isIdentifier(word string) bool {
 	return !isKeyword(word)
 }
 
-// isKeyword reports whether a word is one a parameter cannot be named.
+// isKeyword reports whether a word is one no parameter can take as its name.
 func isKeyword(word string) bool {
 	switch word {
 	case "func", "chan", "map", "struct", "interface", "any", "error", "string",
@@ -266,8 +266,8 @@ func resultGroups(results string) []paramGroup {
 	return []paramGroup{{Type: results}}
 }
 
-// groupTypes is the type of each group, deduplicated, keeping the first of
-// each. It is what the model records as Arguments and Returns: the ast
+// groupTypes is each group's type, deduplicated, keeping the first of
+// each. The model records these as Arguments and Returns: the ast
 // collector reads one type per field and drops a repeat.
 func groupTypes(groups []paramGroup) []string {
 	var types []string
@@ -281,7 +281,7 @@ func groupTypes(groups []paramGroup) []string {
 	return types
 }
 
-// groupArity counts the parameters the groups declare, which is what a caller
+// groupArity counts the parameters the groups declare, the count a caller
 // passes: a group names one parameter per name, and a group with no name at
 // all is still one parameter.
 func groupArity(groups []paramGroup) int {
@@ -305,8 +305,8 @@ func signature(name string, params, results []paramGroup) string {
 		written = append(written, group.String())
 	}
 
-	// A result is written as its type, whatever it is named: the collector
-	// prints the type of the field and never the names in front of it.
+	// A result reads as its type, whatever its name: the collector
+	// prints the field's type and never the names in front of it.
 	var returns string
 	switch len(results) {
 	case 0:
@@ -330,9 +330,9 @@ func signature(name string, params, results []paramGroup) string {
 //
 // The collector walks a type expression and writes each layer back: a pointer,
 // a slice, an ellipsis and a map are rebuilt from what they hold, and an
-// interface is written "any" whatever it declares. Anything it has no case
-// for, a func type or a struct written out in place, it prints as it was
-// written, which is why "func(interface{}) error" keeps its interface and
+// interface comes out as "any" whatever it declares. Anything it has no case
+// for, a func type or a struct written out in place, it prints as the source
+// spells it, so "func(interface{}) error" keeps its interface and
 // "map[string]interface{}" does not.
 func symbolType(typ string) string {
 	typ = strings.TrimSpace(typ)
@@ -359,7 +359,7 @@ func symbolType(typ string) string {
 		}
 
 	case strings.HasPrefix(typ, "["):
-		// An array is written as a slice of its element: the collector prints
+		// An array reads as a slice of its element: the collector prints
 		// "[]" and what follows, so "[16]byte" and "[]byte" are the same.
 		if close := matchBracket(typ, 0); close > 0 && indexTop(typ[1:close], ' ') < 0 {
 			return "[]" + symbolType(typ[close+1:])

@@ -6,29 +6,29 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// A go.mod entry moves the same three ways a field of a type does, and is
-// reported under the same names.
+// A go.mod entry moves the same three ways a field of a type does, and the
+// report uses the same names for it.
 const (
 	requireAdded   = fieldAdded
 	requireChanged = fieldChanged
 	requireRemoved = fieldRemoved
 )
 
-// Require is one requirement of a go.mod, as it is reported.
+// Require is one require line of a go.mod, as the report lists it.
 type Require struct {
 	// Path is the required module, and Version the version required of it.
 	Path    string `json:"path"`
 	Version string `json:"version"`
 
-	// Indirect reports a requirement carried to pin what a dependency of a
-	// dependency resolves to, rather than one the module imports itself.
+	// Indirect reports a require line that pins what a dependency of a
+	// dependency resolves to, one the module does not import itself.
 	Indirect bool `json:"indirect,omitempty"`
 }
 
-// Replace is one replace directive of a go.mod, as it is reported.
+// Replace is one replace directive of a go.mod, as the report lists it.
 type Replace struct {
-	// Path is the module being replaced, and Version the single version the
-	// directive applies to, which is empty when it applies to all of them.
+	// Path is the module the directive replaces, and Version the single
+	// version the directive applies to, empty when it applies to every version.
 	Path    string `json:"path"`
 	Version string `json:"version,omitempty"`
 
@@ -38,26 +38,26 @@ type Replace struct {
 	NewVersion string `json:"newVersion,omitempty"`
 }
 
-// RequireChange is one requirement a release adds, drops, or moves to another
+// RequireChange is one require line a release adds, drops, or moves to another
 // version.
 type RequireChange struct {
-	// Path is the required module the change is to, which is what the two
-	// revisions were matched on.
+	// Path is the required module the change applies to, the key the
+	// comparison matches the two revisions on.
 	Path string `json:"path"`
 
-	// Change is added, changed or removed.
+	// Change holds added, changed or removed.
 	Change string `json:"change"`
 
-	// Old and New are the requirement before and after. Old is absent for a
-	// requirement that was added, and New for one that was dropped.
+	// Old and New are the require line before and after. An added line has
+	// no Old, and a dropped one has no New.
 	Old *Require `json:"old,omitempty"`
 	New *Require `json:"new,omitempty"`
 }
 
 // ReplaceChange is one replace directive a release adds, drops, or repoints.
 type ReplaceChange struct {
-	// Path and Version are the module the directive replaces, which together
-	// are what the two revisions were matched on: a go.mod may replace one
+	// Path and Version are the module the directive replaces, together the
+	// key the comparison matches the two revisions on: a go.mod may replace one
 	// version of a module and leave the rest alone.
 	Path    string `json:"path"`
 	Version string `json:"version,omitempty"`
@@ -80,34 +80,34 @@ type VersionChange struct {
 // Nothing here is breaking on its own. A dependency is not API, and moving one
 // takes nothing away from a consumer that a compiler will complain about. It
 // still belongs in a release note: it decides what the consumer downloads,
-// which minimum versions its own build has to satisfy, and whose code ends up
-// in the binary.
+// which lowest versions its own build has to meet, and whose code lands in
+// the binary.
 type ModuleChange struct {
-	// Path is the module path, which is what the two go.mod files were
-	// matched on.
+	// Path is the module path, the key the comparison matches the two go.mod
+	// files on.
 	Path string `json:"path"`
 
 	// Go and Toolchain are the go and toolchain directives when the release
 	// moved them, and are absent otherwise. Raising the go directive drops
-	// every consumer still on an older toolchain, so it is the one entry here
-	// that can stop a build outright.
+	// every consumer still on an older toolchain. No other entry here can stop
+	// a build outright.
 	Go        *VersionChange `json:"go,omitempty"`
 	Toolchain *VersionChange `json:"toolchain,omitempty"`
 
-	// Requires are the requirement changes, in module path order.
+	// Requires are the require line changes, in module path order.
 	Requires []RequireChange `json:"requires,omitempty"`
 
 	// Replaces are the replace directive changes, in module path order.
 	Replaces []ReplaceChange `json:"replaces,omitempty"`
 }
 
-// modules returns the go.mod of every module the definitions were extracted
-// from, by module path.
+// modules returns the go.mod of every module behind the definitions, by
+// module path.
 //
 // Extraction records the module on every package it produced, so the first
 // package of a module carries what the rest repeat. A model extracted before
-// go.mod was part of it, or from a tree holding none, reports no modules at
-// all and compares as though nothing changed.
+// it included go.mod, or from a tree holding none, reports no modules at all
+// and compares as though nothing changed.
 func modules(defs []*model.Definition) map[string]*model.Module {
 	result := make(map[string]*model.Module)
 	for _, def := range defs {
@@ -123,8 +123,8 @@ func modules(defs []*model.Definition) map[string]*model.Module {
 
 // compareModules reports how the go.mod of each module moved between two
 // revisions, over the union of the module paths the two sides hold. A module
-// only one side has is compared against an empty one, so a module a release
-// split out reports every requirement it carries as added.
+// only one side has meets an empty one in the comparison, so a module a
+// release split out reports every require line it carries as added.
 func compareModules(old, cur map[string]*model.Module, includeIndirect bool) []ModuleChange {
 	paths := make(map[string]struct{}, len(old)+len(cur))
 	for path := range old {
@@ -169,17 +169,18 @@ func compareModule(path string, was, is *model.Module, includeIndirect bool) (Mo
 	return change, true
 }
 
-// compareRequires reports the requirements a release added, dropped, or moved
+// compareRequires reports the require lines a release added, dropped, or moved
 // to another version, matched by module path.
 //
-// A requirement is also reported when only its indirect mark moved, since that
-// is the module taking on an import it used to get for free, or giving one up.
+// compareRequires also reports a require line when only its indirect mark
+// moved, since that means the module takes on an import it got for free
+// before, or drops one.
 //
-// Indirect requirements are left out unless asked for. They are written by go
-// mod tidy rather than decided on, and a routine tidy rewrites dozens of them,
-// which buries the handful of direct ones that are the actual release note. A
-// requirement direct on either side counts as direct, so one that changed from
-// indirect to direct is reported either way.
+// compareRequires skips indirect lines unless includeIndirect holds true. go
+// mod tidy writes them with no human decision behind them, and a routine tidy
+// rewrites dozens of them, which buries the handful of direct ones that make
+// the actual release note. A line direct on either side counts as direct, so
+// the report lists one that changed from indirect to direct either way.
 func compareRequires(was, is []model.Require, includeIndirect bool) []RequireChange {
 	var (
 		old    = requireIndex(was)
@@ -263,8 +264,8 @@ func compareReplaces(was, is []model.Replace) []ReplaceChange {
 	return result
 }
 
-// requireIndex keys a requirement list by module path, which is what two
-// revisions of a go.mod are compared through.
+// requireIndex keys a require list by module path, the key the comparison
+// matches two revisions of a go.mod through.
 func requireIndex(requires []model.Require) map[string]Require {
 	index := make(map[string]Require, len(requires))
 	for _, require := range requires {
@@ -278,7 +279,7 @@ func requireIndex(requires []model.Require) map[string]Require {
 }
 
 // replaceIndex keys a replace list by the module and version it replaces. A
-// go.mod may replace several versions of the same module, so the path alone
+// go.mod may replace more than one version of the same module, so the path alone
 // does not identify a directive.
 func replaceIndex(replaces []model.Replace) map[string]Replace {
 	index := make(map[string]Replace, len(replaces))
@@ -303,7 +304,7 @@ func versionChange(was, is string) *VersionChange {
 }
 
 // requirePtr and replacePtr return an entry to report, which the result holds
-// by pointer so the side a change has none on is left out of the json.
+// by pointer so the json omits the side a change has none on.
 func requirePtr(require Require) *Require {
 	return &require
 }
@@ -312,7 +313,7 @@ func replacePtr(replace Replace) *Replace {
 	return &replace
 }
 
-// requireSummary renders a requirement change as one line. A requirement that
+// requireSummary renders a require line change as one line. A line that
 // moved shows the version on either side of it, and one whose indirect mark
 // flipped says so, since that can be the whole of the change.
 func requireSummary(change RequireChange) string {
@@ -332,7 +333,7 @@ func requireSummary(change RequireChange) string {
 	return requireLine(*change.New)
 }
 
-// requireLine renders a requirement the way go.mod writes it.
+// requireLine renders a require line the way go.mod writes it.
 func requireLine(require Require) string {
 	line := require.Path + " " + require.Version
 	if require.Indirect {
@@ -378,7 +379,7 @@ func replaceTarget(replace Replace) string {
 }
 
 // countRequires returns how many go.mod entries moved across every module
-// reported, which is what the summary line counts.
+// in the report, the number the summary line shows.
 func countRequires(changes []ModuleChange) int {
 	count := 0
 	for _, change := range changes {

@@ -28,8 +28,8 @@ func homeDir() (string, error) {
 	return home, nil
 }
 
-// Load reads the configuration document. When the file does not exist the
-// built-in defaults are returned. When it does exist it is the whole
+// Load reads the configuration document. When the file does not exist Load
+// returns the built-in defaults. When the file exists it holds the whole
 // configuration: the defaults are not applied underneath it, so a setting the
 // file does not name reads as off.
 func Load() (*Config, error) {
@@ -58,7 +58,7 @@ func LoadFile(path string) (*Config, error) {
 }
 
 // Save writes the configuration document, creating the directory it lives in.
-// Every setting is written, including the ones left at their zero value, so
+// Save writes every setting, including the ones left at their zero value, so
 // the file that comes back is complete.
 func Save(cfg *Config) error {
 	path, err := Path()

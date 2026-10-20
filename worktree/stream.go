@@ -10,9 +10,9 @@ import (
 	"github.com/titpetric/tools/worktree/components"
 )
 
-// streamTable renders a table row by row, as results become available. The
-// leading columns are padded to fixed widths, the last column is left open so
-// a row can be started before its contents are known.
+// streamTable renders a table one row at a time, as results become available.
+// It pads the leading columns to fixed widths and leaves the last column open,
+// so a row can start before its contents exist.
 type streamTable struct {
 	w       io.Writer
 	numCols int
@@ -22,8 +22,8 @@ type streamTable struct {
 }
 
 // newStreamTable writes the table header and returns the writer for its rows.
-// The widths hold the display width of each leading column; the last column is
-// unbounded and its width is only used for the header rule.
+// The widths hold the display width of each leading column; the last column has
+// no bound and its width serves only the header rule.
 func newStreamTable(w io.Writer, headers []string, widths []int, styled bool) *streamTable {
 	t := &streamTable{w: w, numCols: len(headers), widths: widths, styled: styled}
 	if !styled {
@@ -49,7 +49,7 @@ func (t *streamTable) start(cells ...string) {
 	}
 }
 
-// finish writes value, which may span multiple lines, as the last column of
+// finish writes value, which may span more than one line, as the last column of
 // the row started with start, completing the row.
 func (t *streamTable) finish(value string) {
 	if !t.styled {

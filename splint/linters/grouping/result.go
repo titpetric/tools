@@ -14,7 +14,7 @@ type Result struct {
 	// Rule is which of the linter's rules the finding is under.
 	Rule string
 
-	// Symbol is what the finding is about, and Position where it is.
+	// Symbol is what the finding is about, and Position its location.
 	Symbol   string
 	Position model.Position
 
@@ -51,7 +51,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -128,17 +128,16 @@ func (r *Results) count(pkg model.Package, symbols, contained int) *Metric {
 	return metric
 }
 
-// add records one finding against the package it was found in. A symbol is
-// counted as passing when it is read and moved across when it is reported,
-// because the count is known before the check is run and the finding after it.
+// add records one finding against the package that holds it. The linter
+// counts a symbol as passing when it reads the symbol and moves it across on report,
+// because the count comes before the check runs and the finding after it.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 	metric.Passing--
 	metric.Violations++
 }
 
-// percent renders a share, and reads as nothing when there was nothing to take
-// a share of.
+// percent renders a share, and reads as nothing when the whole is zero.
 func percent(part, whole int) string {
 	if whole == 0 {
 		return "-"

@@ -14,8 +14,7 @@ import (
 )
 
 // renderVerdict writes the verdict as a terminal report, or as markdown when
-// it is not going to a terminal, which is what makes a redirected run paste
-// into a release note.
+// the output goes elsewhere, so a redirected run pastes into a release note.
 func renderVerdict(w io.Writer, v verdict, styled bool) {
 	writeTitle(w, v.Module+" @ "+v.Version, styled)
 	fmt.Fprintf(w, "%s\n", v.Summary())
@@ -44,14 +43,14 @@ func renderVerdict(w io.Writer, v verdict, styled bool) {
 	writeVisibility(w, v, styled)
 }
 
-// writeVisibility writes what each package declares and how much of it is
-// private, one row per package.
+// writeVisibility writes what each package declares and the private share of
+// it, one row per package.
 //
-// The counts are reported and not judged. There is no share of internal code a
-// package ought to carry: a parser is mostly private and a data model mostly
-// not, and both are as they should be. What the table is for is reading one
-// package against another, and against what the same package was a release
-// ago.
+// The table reports the counts and passes no judgement. No share of internal
+// code fits every package: a parser keeps most of its code private and a data
+// model exports most of its own, and both are fine. The table lets a reader
+// compare one package against another, and against the same package one
+// release earlier.
 func writeVisibility(w io.Writer, v verdict, styled bool) {
 	if len(v.Visibility.Packages) == 0 {
 		return
@@ -86,8 +85,8 @@ func writeLegend(w io.Writer, text string, styled bool) {
 	fmt.Fprintf(w, "%s\n", colorLines(text, components.ColorSeparator, styled))
 }
 
-// writeTitle writes the line the report opens on, which names the module and
-// the release it is reporting on, and stands clear of the summary under it.
+// writeTitle writes the line the report opens on, naming the module and the
+// release under report, and stands clear of the summary under it.
 func writeTitle(w io.Writer, title string, styled bool) {
 	if !styled {
 		fmt.Fprintf(w, "# %s\n\n", title)
@@ -96,12 +95,12 @@ func writeTitle(w io.Writer, title string, styled bool) {
 	fmt.Fprintf(w, "%s\n\n", colorLines(title, components.ColorTitle, styled))
 }
 
-// writeHeading writes a section heading, as markdown when the output is not a
-// terminal and as a colored line when it is.
+// writeHeading writes a section heading, as markdown for output away from a
+// terminal and as a colored line on one.
 //
-// A terminal heading sits directly on top of the table it names, which is what
-// makes the two read as one block: the blank line separating it from the block
-// above is written by that block, as it ends.
+// A terminal heading sits directly on top of the table it names, so the two
+// read as one block: the block above writes the blank line separating it from
+// the heading, as it ends.
 func writeHeading(w io.Writer, title string, styled bool) {
 	if !styled {
 		fmt.Fprintf(w, "\n## %s\n\n", title)
@@ -123,11 +122,11 @@ func writeGap(w io.Writer, styled bool) {
 // markdown, and stands on its own in a terminal, where a URL is only noise.
 //
 // A commit that moved symbols says so in the counts the stats table reads the
-// whole release in, so the one commit behind a removal can be picked out of a
-// run of twenty. External counts what a consumer can see and Internal what it
-// cannot, which is what tells a release from a refactor. A commit that moved
-// neither leaves the cells empty rather than writing three zeroes, since a
-// table of "+0/~0/-0" hides the rows that matter.
+// whole release in, so a reader can pick the one commit behind a removal out of
+// a run of twenty. External counts what a consumer can see and Internal what it
+// cannot; the two tell a release from a refactor. A commit that moved neither
+// leaves the cells empty and writes no zeroes, since a table of "+0/~0/-0"
+// hides the rows that matter.
 func writeCommits(w io.Writer, v verdict, styled bool, wrap int) {
 	external, internal := commitCounts(v, styled)
 
@@ -234,7 +233,7 @@ func commitPublished(commits []commitLog, hash string) bool {
 	return false
 }
 
-// commitLinks names every commit behind one row, in the order they were made.
+// commitLinks names every commit behind one row, in commit order.
 func commitLinks(v verdict, hashes []string, styled bool) string {
 	links := make([]string, 0, len(hashes))
 	for _, hash := range hashes {
@@ -244,8 +243,8 @@ func commitLinks(v verdict, hashes []string, styled bool) string {
 }
 
 // commitCells renders the commits behind each row of a table, and returns nil
-// when there are none to name: a range nothing was attributed in gets no
-// column rather than an empty one.
+// when there are none to name: a range with no attributed commits gets no
+// column at all, and no empty one.
 func commitCells(v verdict, rows [][]string, styled bool) []string {
 	cells := make([]string, len(rows))
 	named := false

@@ -11,13 +11,13 @@ import (
 // ReadSum parses the go.sum at filename into the versions the model carries.
 //
 // A line is a module, a version and a hash, and a version written with a
-// "/go.mod" suffix hashes the requirements of that version rather than its
+// "/go.mod" suffix hashes the go.mod of that version and leaves out its
 // source. The two lines are one version here, and the suffix is what says
 // whether the build downloads it: the module graph reads the go.mod of every
 // version it considers, and downloads the source of the one it selects.
 //
-// The hashes are not kept. What they secure is the download, and what a report
-// is reading go.sum for is which versions there were.
+// ReadSum drops the hashes. They secure the download, and a report reads
+// go.sum only for the list of versions.
 func ReadSum(filename string) ([]model.Sum, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {

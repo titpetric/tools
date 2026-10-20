@@ -1,12 +1,12 @@
 // Package diff compares two documents: the exported API of every package and
 // the go.mod behind it.
 //
-// A symbol is keyed by import path, receiver and name, so it is found across
-// revisions whichever file it moved to. A signature is compared with its
-// parameter names stripped, because renaming a parameter changes no caller.
+// The import path, receiver and name key a symbol, so the comparison finds it
+// across revisions whichever file it moved to. The comparison strips parameter
+// names from a signature, because renaming a parameter changes no caller.
 // Breaking is a removed or changed exported symbol, or a field moved on an
-// exported type; what --include-unexported surfaces is reported but never
-// breaking, and neither is a go.mod change.
+// exported type; the report lists what --include-unexported surfaces but never
+// counts it as breaking, and the same holds for a go.mod change.
 //
 // worktree reads the JSON of "splint diff" for its release verdicts, so the
 // Result field names are a contract.
@@ -37,21 +37,22 @@ type Symbol struct {
 	// Kind is type, const, var or func.
 	Kind string `json:"kind"`
 
-	// Exported reports whether the name is exported and the package it sits
-	// in is importable, which together make a symbol part of the API.
+	// Exported reports whether the name starts with an upper case letter and
+	// other modules can import the package holding it, which together make a
+	// symbol part of the API.
 	Exported bool `json:"exported"`
 
-	// Signature is a func as it is declared, and is empty for every other
-	// kind, which is named by Kind and Name alone.
+	// Signature is a func as its declaration reads, and is empty for every
+	// other kind, which Kind and Name alone identify.
 	Signature string `json:"signature,omitempty"`
 
-	// Definition is a type as it is declared, without its doc comment. It is
-	// empty for every other kind, and for a type whenever the model was
-	// extracted without sources.
+	// Definition is a type as its declaration reads, without its doc comment.
+	// It holds nothing for every other kind, and for a type whenever the
+	// extraction ran without sources.
 	Definition string `json:"definition,omitempty"`
 
-	// Underlying is the shape a type is declared with: "struct", "interface",
-	// or the type it is defined as. It is empty for every other kind.
+	// Underlying is the shape a type declaration states: "struct", "interface",
+	// or the type the definition names. Every other kind leaves it empty.
 	Underlying string `json:"underlying,omitempty"`
 
 	// Fields are the exported fields of a struct, or the methods of an
@@ -62,8 +63,8 @@ type Symbol struct {
 
 // Field is one exported field of a struct, or one method of an interface.
 type Field struct {
-	// Name is the field name, and for an embedded field the name it is
-	// reached by.
+	// Name is the field name, and for an embedded field the name a selector
+	// reaches it by.
 	Name string `json:"name"`
 
 	// Type is the field type, and for an interface method its signature.
@@ -91,25 +92,25 @@ type FieldChange struct {
 	// Name is the field the change is to.
 	Name string `json:"name"`
 
-	// Change is added, changed or removed.
+	// Change holds added, changed or removed.
 	Change string `json:"change"`
 
-	// Old and New are the field before and after. Old is absent for a field
-	// that was added, and New for one that was removed.
+	// Old and New are the field before and after. An added field has no Old,
+	// and a removed one has no New.
 	Old *Field `json:"old,omitempty"`
 	New *Field `json:"new,omitempty"`
 }
 
-// TypeChange is a type both revisions carry whose exported fields moved. It is
-// the data model side of a release: a struct field and an interface method are
+// TypeChange is a type both revisions carry whose exported fields moved. It
+// describes the data model side of a release: a struct field and an interface method are
 // promises to a consumer as much as a func signature is.
 type TypeChange struct {
 	Key     string `json:"key"`
 	Package string `json:"package"`
 	Name    string `json:"name"`
 
-	// Underlying is the shape the type is declared with, which is the same in
-	// both revisions: a type that changed shape is a changed symbol instead.
+	// Underlying is the shape the type declaration states, the same in both
+	// revisions: a type that changed shape counts as a changed symbol.
 	Underlying string `json:"underlying"`
 
 	// Fields are the changes, in name order.
@@ -140,7 +141,7 @@ func (f Field) String() string {
 	return f.Name + " " + f.Type
 }
 
-// Field returns the field after the release, or before it when it was dropped.
+// Field returns the field after the release, or before it when the release drops it.
 func (c FieldChange) Field() Field {
 	switch {
 	case c.New != nil:
@@ -151,7 +152,7 @@ func (c FieldChange) Field() Field {
 	return Field{Name: c.Name}
 }
 
-// Label returns how the change reads under the type it is a field of.
+// Label returns how the change reads under the type holding the field.
 func (c FieldChange) Label(key string) string {
 	if field := c.Field(); field.Embedded {
 		return key + " " + field.String()
@@ -170,7 +171,7 @@ type Change struct {
 	Exported bool `json:"exported"`
 
 	// Old and New are the signature before and after, with parameter names
-	// removed, which is what they were compared on.
+	// removed, the form the comparison reads.
 	Old string `json:"old"`
 	New string `json:"new"`
 }
@@ -192,8 +193,8 @@ type Result struct {
 	// which is the data model the release changes.
 	Types []TypeChange `json:"types"`
 
-	// Modules holds the go.mod changes, which is what the release changes
-	// about depending on the module rather than about calling it.
+	// Modules holds the go.mod changes: what the release changes about
+	// depending on the module, apart from calling it.
 	Modules []ModuleChange `json:"modules"`
 
 	// Breaking reports whether the difference takes API away, which is a
@@ -203,14 +204,13 @@ type Result struct {
 	Breaking bool `json:"breaking"`
 }
 
-// Compare returns the difference between two sets of definitions. Symbols are
-// keyed by import path, receiver type and name, so a declaration moving to
+// Compare returns the difference between two sets of definitions. Import path,
+// receiver type and name key each symbol, so a declaration moving to
 // another file, or its group gaining a sibling, is not a difference.
 //
-// The go.mod of each module is compared alongside the symbols, since a release
-// changes what it costs to depend on a module as much as it changes what the
-// module offers. Indirect requirements are left out unless includeIndirect
-// asks for them.
+// Compare also compares the go.mod of each module, since a release changes
+// what it costs to depend on a module as much as it changes what the module
+// exports. Compare skips indirect requires unless includeIndirect holds true.
 func Compare(oldDefs, newDefs []*model.Definition, includeInternal, includeIndirect bool) Result {
 	return CompareWith(Options{IncludeInternal: includeInternal, IncludeIndirect: includeIndirect}, oldDefs, newDefs)
 }
@@ -253,8 +253,8 @@ func CompareWith(opts Options, oldDefs, newDefs []*model.Definition) Result {
 				New:      is.normalized,
 			})
 		default:
-			// The shape held, so what is left to compare is what the shape is
-			// made of.
+			// The shape held, so the remaining comparison covers what the shape
+			// consists of.
 			if change, ok := compareFields(key, was, is); ok {
 				result.Types = append(result.Types, change)
 			}
@@ -266,9 +266,9 @@ func CompareWith(opts Options, oldDefs, newDefs []*model.Definition) Result {
 		}
 	}
 
-	// The maps are walked in whatever order the runtime hands out, and the
-	// declaration order of the input is not dependable either, so the lists
-	// are sorted to make the output of two identical runs identical.
+	// Ranging over a map follows whatever order the runtime hands out, and the
+	// declaration order of the input is not dependable either, so sorting the
+	// lists makes the output of two identical runs identical.
 	sortSymbols(result.Removed)
 	sortSymbols(result.Added)
 	sort.Slice(result.Changed, func(i, j int) bool { return result.Changed[i].Key < result.Changed[j].Key })
@@ -300,12 +300,12 @@ func exportedKey(cur, old map[string]entry, key string) bool {
 // compareFields reports how the exported fields of one type moved between two
 // revisions, and whether they moved at all.
 //
-// Both entries describe the same type under the same shape, so the fields are
-// compared by name: a field the newer revision does not carry was removed, one
-// the older did not carry was added, and one both carry under another type or
-// another tag was reshaped.
+// Both entries describe the same type under the same shape, so compareFields
+// matches the fields by name: a field the newer revision lacks counts as
+// removed, one the older lacks counts as added, and one both carry under
+// another type or another tag counts as reshaped.
 //
-// A tag is compared along with the type. It is what a document decodes through,
+// compareFields compares a tag along with the type. A document decodes through it,
 // so renaming a json or yaml key breaks every document already written even
 // though the code that reads it still compiles.
 func compareFields(key string, was, is entry) (TypeChange, bool) {
@@ -353,8 +353,8 @@ func compareFields(key string, was, is entry) (TypeChange, bool) {
 	return change, true
 }
 
-// fieldMoved reports whether a field both revisions carry is no longer the
-// same one. An interface method is compared the way a func is, so renaming one
+// fieldMoved reports whether a field both revisions carry differs between
+// them. fieldMoved compares an interface method the way it compares a func, so renaming one
 // of its parameters is not a change while retyping one is.
 func fieldMoved(before, after Field, isInterface bool) bool {
 	if before.Tag != after.Tag || before.Embedded != after.Embedded {
@@ -367,7 +367,7 @@ func fieldMoved(before, after Field, isInterface bool) bool {
 }
 
 // fieldPtr returns a field to report, which the result holds by pointer so the
-// side a change has no field on is left out of the json.
+// json omits the side a change has no field on.
 func fieldPtr(field Field) *Field {
 	return &field
 }
@@ -376,7 +376,7 @@ func sortSymbols(symbols []Symbol) {
 	sort.Slice(symbols, func(i, j int) bool { return symbols[i].Key < symbols[j].Key })
 }
 
-// Load reads the two documents and compares them. Asking for the unexported
+// Load reads the two documents and compares them. Including the unexported
 // declarations implies comparing the internal packages: an unexported name is
 // invisible outside its package the same way an internal package is.
 func Load(oldFile, newFile string, opts Options) (Result, error) {
@@ -455,8 +455,8 @@ func Write(w io.Writer, result Result, verbose bool) error {
 	return err
 }
 
-// fieldMarker returns the marker a field change is listed under, which is the
-// one the symbol it belongs to would be listed under.
+// fieldMarker returns the marker for a field change, the same marker the
+// symbol owning the field would carry.
 func fieldMarker(change string) string {
 	switch change {
 	case fieldAdded:

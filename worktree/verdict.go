@@ -5,7 +5,7 @@ import (
 )
 
 // verdict is the release a module has earned, or the one it last had: the
-// version it is described at, the commits that went into it, and what became
+// version the report describes it at, the commits that went into it, and what became
 // of its exported API.
 type verdict struct {
 	// Module names the module, which is its go module path when it has a
@@ -13,16 +13,16 @@ type verdict struct {
 	Module string
 
 	// Version is the release the report describes, which is the one this
-	// module moves to when it is behind its latest tag and the latest tag
-	// itself when it is not.
+	// module moves to when it sits behind its latest tag and the latest tag
+	// itself otherwise.
 	Version string
 
-	// Released reports that Version is a tag that exists, so the report is
-	// of what went into it rather than of what a release would take.
+	// Released reports that Version is a tag that exists, so the report covers
+	// what went into it and leaves out what a release would take.
 	Released bool
 
-	// Since is the version the comparison is measured from, empty when there
-	// was none to measure from.
+	// Since is the version the comparison measures from, empty when no such
+	// version exists.
 	Since string
 
 	// Release is releasePatch or releaseMinor, and is empty for a release
@@ -36,13 +36,13 @@ type verdict struct {
 	API apiDiff
 
 	// Visibility is what each package of the working tree declares, split
-	// exported against internal. It describes the tree as it stands rather
-	// than the range, and is empty when it could not be read.
+	// exported against internal. It describes the tree as it stands, and
+	// leaves the range out; it stays empty when the read fails.
 	Visibility visibilityReport
 
 	// CommitAPI is what each of the commits did to the exported API on its
-	// own, keyed on its short hash. It is nil for a range that was not read
-	// commit by commit, which is one the tool could not scan.
+	// own, keyed on its short hash. It holds nil for a range the tool did not
+	// read commit by commit, because the scan failed.
 	CommitAPI map[string]apiDiff
 
 	// GoBefore and GoAfter are the go directive at each of the two
@@ -50,11 +50,11 @@ type verdict struct {
 	GoBefore string
 	GoAfter  string
 
-	// Scope is the package pattern the report was narrowed to, empty for the
+	// Scope is the package pattern the report narrows to, empty for the
 	// whole module, which is the implicit "./...".
 	Scope string
 
-	// RepoURL is the address commits are linked into, empty when the module
+	// RepoURL is the address the report links commits into, empty when the module
 	// has no origin to derive one from.
 	RepoURL string
 }
@@ -62,18 +62,18 @@ type verdict struct {
 // readVerdict works out the release the module in dir has earned, or reports
 // the one it last had.
 //
-// A module with commits since its latest tag is measured from that tag to the
-// working tree, and the version is bumped as a minor when the release takes
-// exported API away and as a patch otherwise. A module level with its tag has
-// nothing to propose, so the last release is described instead, measured from
-// the release before it. A module with no tag at all is a first release,
-// measured from the start of history, where everything it exports is reported
-// as added.
-// The two revisions can be named outright with --from and --to, which is how a
-// report is asked for over a range the repository is no longer standing on.
+// For a module with commits since its latest tag, readVerdict measures from
+// that tag to the working tree, and bumps the version as a minor when the
+// release takes exported API away and as a patch otherwise. A module level with
+// its tag has nothing to propose, so readVerdict describes the last release,
+// measured from the release before it. A module with no tag at all gets a first
+// release, measured from the start of history, where the report lists
+// everything it exports as added.
+// The --from and --to flags name the two revisions outright, so a report can
+// cover a range away from the current checkout.
 //
-// The cached flag is whether the models of the commits it reads are kept
-// between runs, which --no-cache turns off.
+// The cached flag says whether the cache keeps the models of the commits it
+// reads between runs; --no-cache turns that off.
 func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 	tags, prefix, err := moduleTags(dir)
 	if err != nil {
@@ -83,7 +83,7 @@ func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 	v := verdict{Module: moduleName(dir), RepoURL: repoURL(dir)}
 
 	// One cache holds the range and every commit inside it, so a commit that
-	// ends one step and starts the next is modelled once.
+	// ends one step and starts the next gets one model.
 	models, err := newAPIModels(cached)
 	if err != nil {
 		return verdict{}, err
@@ -103,7 +103,7 @@ func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 		return v.report(dir, tags, prefix, latest.String(), "", models)
 	}
 
-	// Level with the tag: the release to report on is the one that was made,
+	// Level with the tag: the release to report on is the existing one,
 	// measured from the release before it, or from the start of history when it
 	// is the first one. Both are empty here, so from is the one or the other.
 	if previous, ok := PreviousRelease(tags); ok {
@@ -114,11 +114,11 @@ func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 
 // between reports on the range the caller named. An empty from falls back to
 // the release before the one named by to, and an empty to is the working tree.
-// The range it settles on is reported by report.
+// The report function reports the range it settles on.
 func (v verdict) between(dir string, tags []string, prefix, from, to string, models *apiModels) (verdict, error) {
 	if from == "" {
-		// Measure from whatever came before the revision asked for, which is
-		// the release below it when it names one.
+		// Measure from whatever came before the requested revision: the
+		// release below it when it names one.
 		if version, ok := ParseVersion(to); ok {
 			if previous, found := PreviousRelease(releasesBelow(version, tags)); found {
 				from = previous.String()
@@ -136,18 +136,18 @@ func (v verdict) between(dir string, tags []string, prefix, from, to string, mod
 
 // report fills in the verdict for a range whose two ends are already settled,
 // where an empty from is the start of history and an empty to is the working
-// tree. Nothing is filled in for either end: a caller naming both, as the
-// release chain does, gets the range it asked for.
+// tree. It fills in nothing for either end: a caller naming both, as the
+// release chain does, gets the range it named.
 //
 // A range starting at the start of history has no earlier revision to measure
-// against, so everything the module exports at the far end of it is reported as
-// added, which is what a first release adds.
+// against, so the report lists everything the module exports at the far end of
+// it as added, the same as a first release.
 //
-// A "to" naming a release is reported as that release; anything else is a
+// The report treats a "to" naming a release as that release; anything else is a
 // proposal, since there is no tag to call it by.
 //
 // The models are the cache the comparison reads revisions through, and may be
-// nil, in which case the revisions are read for this range alone.
+// nil, in which case report reads the revisions for this range alone.
 func (v verdict) report(dir string, tags []string, prefix, from, to string, models *apiModels) (verdict, error) {
 	fromRef, toRef := taggedRef(from, prefix, tags), taggedRef(to, prefix, tags)
 
@@ -167,17 +167,17 @@ func (v verdict) report(dir string, tags []string, prefix, from, to string, mode
 }
 
 // taggedRef turns a version named on the command line into the tag the
-// repository carries for it, and leaves anything else alone so a commit or a
-// branch can be named just as well.
+// repository carries for it, and leaves anything else alone so a caller can
+// name a commit or a branch just as well.
 //
-// The tag may be written differently from the version asked for: with the v the
+// The tag may differ in spelling from the requested version: with the v the
 // command line left off, or under the subdirectory prefix of a nested module.
-// The version is matched against the tags rather than reprinted, so "0.5.0"
-// finds v0.5.0 and "v0.5.0" finds 0.5.0.
+// taggedRef matches the version against the tags and does not reprint it, so
+// "0.5.0" finds v0.5.0 and "v0.5.0" finds 0.5.0.
 //
-// A version the repository has no tag for is passed to git as it stands, and
-// comes back as the unreadable revision it is rather than as a silent fallback
-// to something else.
+// taggedRef passes a version the repository has no tag for to git as it stands,
+// and git reports it as an unreadable revision; nothing falls back to another
+// revision silently.
 func taggedRef(ref, prefix string, tags []string) string {
 	version, ok := ParseVersion(ref)
 	if !ok {
@@ -192,7 +192,7 @@ func taggedRef(ref, prefix string, tags []string) string {
 }
 
 // releasesBelow returns the tags naming a release at or below version, so the
-// release before one already made can be found.
+// caller can find the release before an existing one.
 func releasesBelow(version Version, tags []string) []string {
 	var below []string
 	for _, tag := range tags {
@@ -218,7 +218,7 @@ func (v verdict) propose(tags []string) (verdict, error) {
 }
 
 // compareRefs reads the exported API difference between two revisions. The
-// models are the cache the revisions are read through, and may be nil for a
+// models are the cache compareRefs reads the revisions through, and may be nil for a
 // comparison standing alone.
 func compareRefs(dir, oldRef, newRef string, models *apiModels) apiDiff {
 	if !isGoModule(dir) {
@@ -233,16 +233,16 @@ func compareRefs(dir, oldRef, newRef string, models *apiModels) apiDiff {
 // scanCommits reads what each commit of a range did to the exported API on its
 // own, by comparing it against the commit under it.
 //
-// The commits are walked oldest first, each measured from the one before it,
-// so the scans of a range add up to the difference across it: what one commit
-// adds and the next takes away is an addition and a removal here, and neither
-// there. The commit under the oldest one is the revision the range is measured
-// from, which for the start of history is a module holding no packages, the
-// same base the range itself is read against.
+// scanCommits walks the commits oldest first, measuring each from the one
+// before it, so the scans of a range add up to the difference across it: what
+// one commit adds and the next takes away counts as an addition and a removal
+// here, and as neither there. The commit under the oldest one is the revision
+// the range starts from; for the start of history that is a module holding no
+// packages, the same base the range itself compares against.
 //
-// The commits are those that touched the module, so a commit elsewhere in the
-// repository is neither listed nor read. It cannot have moved the API: the
-// model is extracted from the module subtree alone.
+// The commits are those that touched the module, so scanCommits neither lists
+// nor reads a commit elsewhere in the repository. Such a commit cannot move the
+// API: the model comes from the module subtree alone.
 func scanCommits(dir, fromRef string, commits []commitLog, models *apiModels) map[string]apiDiff {
 	if models == nil || len(commits) == 0 || !isGoModule(dir) {
 		return nil
@@ -258,8 +258,8 @@ func scanCommits(dir, fromRef string, commits []commitLog, models *apiModels) ma
 	return scans
 }
 
-// eachCommit calls fn for every commit of the range that was scanned, oldest
-// first, which is the order the commits behind a symbol are named in.
+// eachCommit calls fn for every scanned commit of the range, oldest first, the
+// order the report names the commits behind a symbol in.
 func (v verdict) eachCommit(fn func(hash string, diff apiDiff)) {
 	for i := len(v.Commits) - 1; i >= 0; i-- {
 		hash := v.Commits[i].Hash
@@ -313,14 +313,14 @@ func (v verdict) commitsByField() map[string][]string {
 	return touched
 }
 
-// fieldKey names one exported field of one type, which is what the data model
-// table lists a row per.
+// fieldKey names one exported field of one type; the data model table lists a
+// row per fieldKey.
 func fieldKey(typeKey, field string) string {
 	return typeKey + "." + field
 }
 
-// appendCommit adds a commit to the ones behind a symbol, unless it is the one
-// already there: a symbol that a single commit both reshapes and moves is that
+// appendCommit adds a commit to the ones behind a symbol, unless the commit sits
+// there already: a symbol that a single commit both reshapes and moves is that
 // commit's work once.
 func appendCommit(commits []string, hash string) []string {
 	if len(commits) > 0 && commits[len(commits)-1] == hash {

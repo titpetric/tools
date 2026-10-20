@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Summary states the verdict in one sentence, giving the reason behind it, and
+// Summary states the verdict in one sentence, with the reason behind it, and
 // names the dependency movement after it when the release carries any.
 func (v verdict) Summary() string {
 	return v.summaryBase() + v.depNote()
@@ -33,7 +33,7 @@ func (v verdict) summaryBase() string {
 	}
 }
 
-// firstRelease describes a release with nothing before it, which is measured
+// firstRelease describes a release with nothing before it, which compares
 // against a module holding no packages at all: everything it exports is an
 // addition, and there is nothing it can have taken away.
 func (v verdict) firstRelease() string {
@@ -64,9 +64,9 @@ func (v verdict) Range() string {
 	return "since " + v.Since
 }
 
-// breakage describes what a release costs, which is what earns it a minor.
+// breakage describes what a release costs, the thing that earns it a minor.
 //
-// The data model is counted alongside the symbols: a release that only takes an
+// breakage counts the data model alongside the symbols: a release that only takes an
 // exported field away costs a consumer as much as one that takes a func away,
 // and would otherwise be a minor with no reason given for it.
 func (v verdict) breakage() string {

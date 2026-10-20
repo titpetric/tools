@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-// TestTypeRef covers the trims a reference goes through: variadics, slices,
-// maps, pointers and generic instantiations.
+// TestTypeRef covers the trims TypeRef applies to a reference: variadics,
+// slices, maps, pointers and generic instantiations.
 func TestTypeRef(t *testing.T) {
 	tests := map[string]string{
 		"Client":         "Client",

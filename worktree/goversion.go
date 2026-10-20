@@ -16,7 +16,7 @@ import (
 )
 
 // parseGoVersion validates a --go flag value and returns it in the form used
-// by the go directive: "1.27" or "1.27.1". A leading "go" is accepted, so
+// by the go directive: "1.27" or "1.27.1". It accepts a leading "go", so
 // both "1.27" and "go1.27" are valid.
 func parseGoVersion(value string) (string, error) {
 	goVersion := strings.TrimPrefix(strings.TrimSpace(value), "go")
@@ -35,7 +35,7 @@ func goVersionChange(before, after string) string {
 }
 
 // setGoVersion rewrites the go directive of the go.mod in dir, returning the
-// version it replaced. The file is left untouched when it already declares
+// version it replaced. It leaves the file untouched when it already declares
 // goVersion.
 func setGoVersion(dir, goVersion string) (string, error) {
 	path := filepath.Join(dir, "go.mod")
@@ -107,7 +107,7 @@ func goSeries(directive string) (string, bool) {
 }
 
 // goSeriesChanged reports whether two go directives name different release
-// series. A directive that cannot be read, on either side, is not a change.
+// series. An unreadable directive, on either side, counts as no change.
 func goSeriesChanged(before, after string) bool {
 	from, ok := goSeries(before)
 	if !ok {

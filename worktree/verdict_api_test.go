@@ -46,10 +46,10 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	renderVerdict(&out, v, false)
 
 	got := out.String()
-	// The symbols of a package are gathered together, and only the first of
-	// them names it. Within a package the API comes first and what a consumer
-	// cannot reach comes under the rule. The removal below opens a group of its
-	// own, so the package is named again there.
+	// The symbols of a package sit together, and only the first of them names
+	// it. Within a package the API comes first and what a consumer cannot
+	// reach comes under the rule. The removal below opens a group of its own,
+	// so the table names the package again there.
 	for _, want := range []string{
 		"| Added | / | type Client struct |",
 		"|  |  | --- |",
@@ -68,10 +68,10 @@ func TestRenderVerdictNamesAPackageOncePerRunOfSymbols(t *testing.T) {
 	}
 }
 
-// TestRenderVerdictPartsTheAPIFromWhatIsInternal pins the rule the one symbol
-// column is read through: within a package the API comes first, the rest comes
-// under a divider, and the divider goes in once per package rather than once
-// per symbol.
+// TestRenderVerdictPartsTheAPIFromWhatIsInternal pins the rule a reader reads
+// the one symbol column through: within a package the API comes first, the
+// rest comes under a divider, and the divider goes in once per package, and
+// not once per symbol.
 func TestRenderVerdictPartsTheAPIFromWhatIsInternal(t *testing.T) {
 	v := sampleVerdict()
 	v.API.Added = []apiSymbol{
@@ -97,8 +97,8 @@ func TestRenderVerdictPartsTheAPIFromWhatIsInternal(t *testing.T) {
 }
 
 // TestRenderVerdictDrawsNoRuleOverInternalSymbolsAlone checks a package whose
-// symbols are all internal opens on the symbol rather than on a rule: there is
-// nothing above it to be parted from.
+// symbols are all internal opens on the symbol and draws no rule: nothing sits
+// above it to part it from.
 func TestRenderVerdictDrawsNoRuleOverInternalSymbolsAlone(t *testing.T) {
 	v := sampleVerdict()
 	v.API.Added = []apiSymbol{
@@ -116,9 +116,9 @@ func TestRenderVerdictDrawsNoRuleOverInternalSymbolsAlone(t *testing.T) {
 	}
 }
 
-// TestRenderVerdictDrawsTheRuleOnATerminal checks the divider is a rule rather
-// than three dashes when the report goes to a terminal, and that it is drawn
-// across the symbol column alone.
+// TestRenderVerdictDrawsTheRuleOnATerminal checks the divider is a drawn rule,
+// and not three dashes, when the report goes to a terminal, and that the rule
+// spans the symbol column alone.
 func TestRenderVerdictDrawsTheRuleOnATerminal(t *testing.T) {
 	v := sampleVerdict()
 	v.API.Added = []apiSymbol{
@@ -154,8 +154,8 @@ func TestRenderVerdictNamesTheCommitsBehindASymbol(t *testing.T) {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
 
-	// Greet was added by the first commit of the range and reshaped by the
-	// last, so the row naming it names both, in the order they were made.
+	// The first commit of the range adds Greet and the last reshapes it, so
+	// the row naming it names both, in commit order.
 	added, changed := v.Commits[2].Hash, v.Commits[0].Hash
 
 	var out bytes.Buffer
@@ -181,7 +181,7 @@ func TestRenderVerdictLinksTheCommitsBehindASymbol(t *testing.T) {
 	renderVerdict(&out, v, false)
 	got := out.String()
 
-	// A commit is linked in the API table the way the commit table links it.
+	// The API table links a commit the way the commit table links it.
 	for _, want := range []string{
 		"[`abc1234`](https://github.com/example/x/commit/abc1234) |",
 		"[`def5678`](https://github.com/example/x/commit/def5678) |",
@@ -204,8 +204,8 @@ func TestRenderVerdictNamesAPackageByItsPathBelowTheModule(t *testing.T) {
 	renderVerdict(&out, v, false)
 	got := out.String()
 
-	// Two packages named model, kept apart by the path they sit at rather than
-	// by the name they share.
+	// Two packages named model, kept apart by the path they sit at; the name
+	// they share does not tell them apart.
 	for _, want := range []string{"| /model | type Trace struct |", "| /frontend/model | type Page struct |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderVerdict() output missing %q:\n%s", want, got)

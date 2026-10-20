@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// modelModule is the go.mod a splint model records for the module it was
-// extracted from. Only the requirements are read here: the go directive is
-// already compared on its own, and it decides the release where a requirement
+// modelModule is the go.mod a splint model records for its source module.
+// This file reads only the requirements: the verdict compares the go directive
+// on its own, and the go directive decides the release where a require line
 // does not.
 type modelModule struct {
 	Requires []struct {
@@ -19,8 +19,8 @@ type modelModule struct {
 	}
 }
 
-// modelDocument is the shape a splint model is written in, of which the modules
-// are the only part read here.
+// modelDocument is the shape of a splint model on disk; this file reads only
+// its modules.
 type modelDocument struct {
 	Modules  []modelModule
 	Packages []struct {
@@ -31,14 +31,14 @@ type modelDocument struct {
 // modelRequires returns the requirements the go.mod of a splint model records.
 //
 // A model carrying none reports none, which covers the two cases a comparison
-// meets: the empty document a first release is measured against, and a model
-// written before the go.mod was part of it. Either way the release is reported
-// on what the other side holds, the same way a first release reports every
-// symbol it exports as added.
+// meets: the empty document a first release compares against, and a model
+// from before the go.mod joined it. Either way the report covers what the
+// other side holds, the same way a first release reports every symbol it
+// exports as added.
 //
-// A document written before there was a root is a bare list of packages, each
-// carrying the module it came from, and is read the way splint's own loader
-// reads it.
+// A document from before the root existed is a bare list of packages, each
+// carrying its source module, and modelRequires reads it the way splint's own
+// loader reads it.
 func modelRequires(model string) []requireInfo {
 	data, err := os.ReadFile(model)
 	if err != nil {
@@ -69,8 +69,8 @@ func modelRequires(model string) []requireInfo {
 }
 
 // firstModule returns the go.mod the document describes. Extraction records the
-// module on every package it produced and again at the root, so the first one
-// found is what the rest repeat.
+// module on every package it produced and again at the root, so the rest
+// repeat the first one firstModule finds.
 func firstModule(doc modelDocument) (modelModule, bool) {
 	if len(doc.Modules) > 0 {
 		return doc.Modules[0], true
@@ -84,12 +84,12 @@ func firstModule(doc modelDocument) (modelModule, bool) {
 }
 
 // writeDependencies writes what the release changes about depending on the
-// module, rather than about calling it.
+// module, apart from calling it.
 //
-// Nothing here earns a release a minor: a requirement moving takes nothing away
+// Nothing here earns a release a minor: a moved require line takes nothing away
 // that a compiler will complain about. It still belongs in the note, since it
-// decides what a consumer downloads, which minimum versions its own build has
-// to satisfy, and whose code ends up in the binary.
+// decides what a consumer downloads, which lowest versions its own build has
+// to meet, and whose code lands in the binary.
 func writeDependencies(w io.Writer, v verdict, styled bool) {
 	headers, rows := dependencyRows(v, styled)
 	if len(rows) == 0 {
@@ -100,12 +100,13 @@ func writeDependencies(w io.Writer, v verdict, styled bool) {
 	writeGap(w, styled)
 }
 
-// dependencyRows returns one row per requirement, in the order the report reads
+// dependencyRows returns one row per required module, in the order the report reads
 // the categories: what the release adds first, what it drops last.
 //
 // The category names the first row of its group and the rows under it leave the
-// cell empty, the way the API and data model tables read. The module path is
-// written in full: it is what the requirement is, not where it lives.
+// cell empty, the way the API and data model tables read. The module path
+// appears in full: it names the dependency itself, and says nothing of where
+// it lives.
 func dependencyRows(v verdict, styled bool) ([]string, [][]string) {
 	if len(v.API.Deps) == 0 {
 		return nil, nil

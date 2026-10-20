@@ -1,12 +1,12 @@
 // Package render writes what the linters found and what they measured.
 //
-// Who is reading decides what is written. A terminal gets a summary of what
-// each linter found and then the findings, in colour. Anything else gets a
-// GitHub Actions workflow command per finding, which is what turns one into an
-// annotation on the file and the line of a pull request review.
+// The reader decides what the package writes. A terminal gets a summary of
+// what each linter found and then the findings, in colour. Anything else gets
+// a GitHub Actions workflow command per finding, and GitHub turns each one into
+// an annotation on the file and the line of a pull request review.
 //
-// The measurements are tables, and a table is drawn for a terminal and written
-// as markdown for anything else.
+// The measurements are tables: a terminal gets a drawn table, and anything
+// else gets markdown.
 package render
 
 import (
@@ -70,9 +70,9 @@ func writeLine(w io.Writer, text, color string, colour bool) (int, error) {
 	return io.WriteString(w, text+"\n")
 }
 
-// IsTerminal reports whether a writer is a terminal, which is what decides
-// whether the output carries colour. A dumb terminal is not one: it is what a
-// pager or an editor sets when it wants plain text.
+// IsTerminal reports whether a writer is a terminal, and that decides whether
+// the output carries colour. A dumb terminal does not count: a pager or an
+// editor sets TERM=dumb to get plain text.
 func IsTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok || os.Getenv("TERM") == "dumb" {

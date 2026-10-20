@@ -54,7 +54,7 @@ func lint(t *testing.T, root *model.DocumentRoot) model.LintReport {
 }
 
 // TestLinter counts one package and checks that the halves fall where the case
-// of a name puts them, and that nothing is reported: the linter measures and
+// of a name puts them, and that the linter reports nothing: it measures and
 // does not judge.
 func TestLinter(t *testing.T) {
 	root := &model.DocumentRoot{Packages: model.DefinitionList{{
@@ -194,8 +194,8 @@ func TestLinter_Statistics(t *testing.T) {
 	}
 }
 
-// TestMetric_Ratio covers the share a package with no code has, which is none
-// rather than a division by zero.
+// TestMetric_Ratio covers the share a package with no code has: none,
+// and no division by zero.
 func TestMetric_Ratio(t *testing.T) {
 	tests := []struct {
 		metric visibility.Metric

@@ -1,15 +1,15 @@
 // Package visibility measures what a package exports against what it keeps.
 //
-// It is a port of the gofsck analyzer of the same name, reimplemented against
+// The package ports the gofsck analyzer of the same name onto
 // the splint model: the check is the same idea and the reading is different,
 // because a document is not a syntax tree.
 //
-// Nothing here is reported as an issue, and nothing should be. There is no
-// share of internal code a package ought to carry: a parser is mostly private
-// and a data model mostly not, and both are as they should be. A threshold
-// over this number would only ask every package to look like the same kind of
-// package, so the counts are reported and the reading is left to whoever knows
-// what the package is for.
+// The linter reports nothing here as an issue. There is no
+// share of internal code a package ought to carry: a parser keeps most of itself private
+// and a data model exports most of itself, and both are fine. A threshold
+// over this number would push every package to look like the same kind of
+// package, so the linter reports the counts and leaves the reading to the
+// people who own the package.
 package visibility
 
 import (
@@ -19,7 +19,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "visibility"
 
 // Linter measures what a package exports against what it keeps.
@@ -37,8 +37,8 @@ func (l *Linter) Name() string {
 
 // Lint counts the exported and the internal half of every package it measures.
 //
-// A symbol is exported or internal by the case of its own name, so a method
-// counts as a func and sits with the free functions rather than under the type
+// The case of a symbol's own name makes it exported or internal, so a method
+// counts as a func and sits with the free functions, away from the type
 // it hangs off.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
@@ -59,7 +59,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 // skip reports a package the count would distort.
 //
 // A command exports nothing anyone imports, a test package is not a surface
-// anyone reads, and an internal tree is closed to importers outside the module
+// anyone reads, and an internal tree stays closed to importers outside the module
 // whatever it exports, so Go has already answered the question this asks. A
 // package left with no file anybody wrote has nothing to measure.
 func skip(def *model.Definition) bool {
@@ -84,8 +84,8 @@ func internalPath(path string) bool {
 
 // count adds the declarations and the code of one package to its metric.
 //
-// The package is measured by what it ships, so the tests and the generated
-// files are left out of both halves of the ratio: counting a generated file
+// The linter measures the package by what it ships, so the tests and the generated
+// files stay out of both halves of the ratio: counting a generated file
 // would say a package is private because a tool wrote a lot of it.
 func count(metric *Metric, def *model.Definition) {
 	for _, decl := range def.Types {
@@ -124,13 +124,13 @@ func bodyLines(decl *model.Declaration) int {
 	return decl.Complexity.Lines
 }
 
-// measured reports a file whose code the package is judged by.
+// measured reports a file whose code counts toward the package.
 func measured(file model.File) bool {
 	return !file.Test && !file.Generated
 }
 
 // shipped reports a declaration the package ships. A declaration whose file
-// the document does not record is counted, since the only thing that would
+// the document does not record still counts, since the only thing that would
 // rule it out is unknown.
 func shipped(def *model.Definition, decl *model.Declaration) bool {
 	if decl.IsTestScope() {

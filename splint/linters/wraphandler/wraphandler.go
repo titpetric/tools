@@ -1,6 +1,6 @@
 // Package wraphandler reports an exported handler with no unexported wrapper.
 //
-// It is a port of the gofsck analyzer of the same name, reimplemented against
+// The package ports the gofsck analyzer of the same name onto
 // the splint model: the check is the same idea and the reading is different,
 // because a document is not a syntax tree.
 package wraphandler
@@ -13,7 +13,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "wraphandler"
 
 // RuleUnwrapped is the one rule this linter reports under.
@@ -42,9 +42,9 @@ func (l *Linter) Name() string {
 //
 // A handler returns nothing, so what it decided goes to the response writer
 // and a test has to stand up a server to read it back. The convention that
-// gets around it is a thin exported handler over an unexported function of the
-// same name returning an error, which a test calls directly. A handler with no
-// such function behind it is what this reports.
+// gets around this is a thin exported handler over an unexported function of the
+// same name returning an error, which a test calls directly. This linter
+// reports a handler with no such function behind it.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
 
@@ -81,7 +81,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 }
 
 // handlers is every exported handler a consumer of the package can mount,
-// which is what the convention is measured against.
+// the set the linter measures the convention against.
 func handlers(def *model.Definition) model.DeclarationList {
 	var found model.DeclarationList
 	for _, decl := range def.Funcs {
@@ -96,7 +96,7 @@ func handlers(def *model.Definition) model.DeclarationList {
 }
 
 // generated reports a declaration in a file nobody wrote. A generator emits
-// whatever shape it was written to emit, and no convention it did not follow
+// whatever shape its author chose, and no convention it skips
 // is worth reporting to the person who ran it.
 func generated(def *model.Definition, decl *model.Declaration) bool {
 	file, known := def.Files.Find(decl.File)
@@ -105,8 +105,8 @@ func generated(def *model.Definition, decl *model.Declaration) bool {
 
 // isHandler reports the http.HandlerFunc signature: a response writer and a
 // request, and nothing coming back. A function taking the two and returning an
-// error is already the testable half of the pair, so it is not a handler this
-// check has anything to say about.
+// error is already the testable half of the pair, so this
+// check has nothing to say about it.
 func isHandler(decl *model.Declaration) bool {
 	if decl.Kind != model.FuncKind || len(decl.Returns) > 0 {
 		return false
@@ -120,7 +120,7 @@ func isHandler(decl *model.Declaration) bool {
 // hasWrapper reports the unexported counterpart of a handler: the same name
 // with a lower first letter, on the same receiver, returning an error. The
 // error is what makes it worth calling from a test, so a counterpart that
-// returns nothing is another handler rather than the work behind one.
+// returns nothing is another handler and holds none of the work.
 func hasWrapper(def *model.Definition, handler *model.Declaration) bool {
 	name := wrapperName(handler.Name)
 	receiver := handler.ReceiverTypeRef()

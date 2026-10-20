@@ -14,10 +14,10 @@ import (
 
 // Report is every issue of one run, gathered from the linters that ran.
 //
-// The fields carry a json and a yaml tag naming the same key, so a run asked
-// for its findings as data answers the same thing in either encoding. A
-// severity writes itself as the word it is called in both, because a level is
-// a text marshaller and both encoders read one.
+// The fields carry a json and a yaml tag naming the same key, so a run that
+// writes its findings as data writes the same thing in either encoding. A
+// severity writes itself as its own name in both, because a level is a text
+// marshaller and both encoders read one.
 type Report struct {
 	// Issues are the findings, sorted by where they are.
 	Issues []model.Issue `json:"Issues" yaml:"Issues"`
@@ -59,8 +59,8 @@ func (r *Report) Worst() model.Severity {
 	return worst
 }
 
-// Counts is how many issues each linter reported, which is what a summary
-// line reads.
+// Counts is how many issues each linter reported, and a summary line reads
+// it.
 func (r *Report) Counts() map[string]int {
 	counts := make(map[string]int, len(r.Linters))
 	for _, issue := range r.Issues {
@@ -77,8 +77,8 @@ type Breakdown struct {
 	Linter string `json:"Linter" yaml:"Linter"`
 	Total  int    `json:"Total" yaml:"Total"`
 
-	// Errors, Warnings and Notices are the findings by level, which is what a
-	// reader scans before reading any of them.
+	// Errors, Warnings and Notices are the findings by level, and a reader
+	// scans them before reading any finding.
 	Errors   int `json:"Errors" yaml:"Errors"`
 	Warnings int `json:"Warnings" yaml:"Warnings"`
 	Notices  int `json:"Notices" yaml:"Notices"`
@@ -96,7 +96,7 @@ type RuleCount struct {
 // Breakdowns is what each linter that found something reported, in the order
 // the linters ran.
 //
-// A linter that found nothing is left out: the run says which linters ran, and
+// Breakdowns omits a linter that found nothing: the run says which linters ran, and
 // a row of zeroes for each of them is a table of what did not happen.
 func (r *Report) Breakdowns() []Breakdown {
 	at := map[string]*Breakdown{}
@@ -175,7 +175,7 @@ func counted(rules map[string]int) []RuleCount {
 }
 
 // sort orders the issues by file, then line, then linter, so a report reads
-// down a tree rather than jumping between linters.
+// down a tree and never jumps between linters.
 func (r *Report) sort() {
 	sort.SliceStable(r.Issues, func(i, j int) bool {
 		a, b := r.Issues[i], r.Issues[j]
@@ -192,8 +192,8 @@ func (r *Report) sort() {
 	})
 }
 
-// Line renders one issue as a path a tool resolves, which is what GitHub
-// Actions reads out of a log and turns into an annotation.
+// Line renders one issue as a path a tool resolves, and GitHub Actions reads
+// that out of a log and turns it into an annotation.
 func Line(issue model.Issue) string {
 	return issue.Position.Ref() + ": " + issue.RuleName() + ": " + issue.Message
 }

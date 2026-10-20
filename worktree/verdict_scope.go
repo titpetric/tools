@@ -5,20 +5,20 @@ package main
 // is "./...", the whole module, which is no narrowing at all.
 const scopeRoot = "."
 
-// rootScopeArg reports whether a verdict path argument asks for the root
+// rootScopeArg reports whether a verdict path argument names the root
 // package alone.
 func rootScopeArg(arg string) bool {
 	return arg == "." || arg == "./"
 }
 
 // scopeVerdict narrows a verdict to the module's root package: the API and
-// data model tables drop every symbol a subpackage declares, and the release
-// is proposed again from what is left. A repository whose root package is its
-// public API is judged on that package; a removal in a subpackage is a
-// refactor there, not a breaking release.
+// data model tables drop every symbol a subpackage declares, and scopeVerdict
+// proposes the release again from what remains. A repository whose root
+// package is its public API gets its verdict from that package; a removal in a
+// subpackage counts as a refactor there and breaks no release.
 //
-// A release already made is a fact and keeps its version; only a proposal is
-// made again.
+// An existing release is a fact and keeps its version; scopeVerdict redoes
+// only a proposal.
 func scopeVerdict(v verdict, dir string) (verdict, error) {
 	v.Scope = scopeRoot
 	v.API = rootOnlyDiff(v.Module, v.API)
@@ -37,9 +37,9 @@ func scopeVerdict(v verdict, dir string) (verdict, error) {
 	return v.propose(tags)
 }
 
-// rootOnlyDiff drops every symbol that is not declared in the root package,
-// and reads the breaking flag again from what is left: the one it arrived
-// with was set over the whole module.
+// rootOnlyDiff drops every symbol the root package does not declare, and
+// reads the breaking flag again from what remains: the incoming flag covers
+// the whole module.
 func rootOnlyDiff(module string, d apiDiff) apiDiff {
 	if d.Skipped != "" {
 		return d

@@ -29,7 +29,7 @@ func renderTables(w io.Writer, modules []moduleInfo, opts *Options, styled bool)
 	headers := []string{"Module", "Latest", "Go", "Git Branch", "Git State", "Usage"}
 	numCols := len(headers)
 
-	// Check if all modules would be skipped; if so, show them all (only when not verbose)
+	// Check if the table would skip all modules; if so, show them all (only when not verbose)
 	if !opts.All && !opts.Verbose {
 		allSkipped := true
 		for _, m := range modules {
@@ -129,7 +129,7 @@ func renderTables(w io.Writer, modules []moduleInfo, opts *Options, styled bool)
 }
 
 // latestGoVersion returns the highest go directive the workspace declares,
-// the version every module's go column is compared against. It reports false
+// the version every module's go column compares against. It reports false
 // when no module declares a version this can parse.
 func latestGoVersion(modules []moduleInfo) (Version, bool) {
 	var latest Version
@@ -147,7 +147,7 @@ func latestGoVersion(modules []moduleInfo) (Version, bool) {
 }
 
 // goVersionOutdated reports whether a go directive is below latest. A version
-// that isn't a parseable directive is left alone.
+// that isn't a parseable directive never counts as outdated.
 func goVersionOutdated(version string, latest Version) bool {
 	v, ok := ParseGoDirective(version)
 	return ok && Compare(v, latest) < 0

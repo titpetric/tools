@@ -1,5 +1,5 @@
-// Package linters is the registry: it imports every linter and hands back the
-// list, so a program that wants all of them names this package alone.
+// Package linters is the registry: it imports every linter and returns the
+// list, so a program that wants each one names this package alone.
 package linters
 
 import (
@@ -36,7 +36,7 @@ func All() []model.Linter {
 	}
 }
 
-// Named returns the linters whose names are given, and the names that matched
+// Named returns the linters the names select, and the names that matched
 // nothing. An empty selection is every linter, and the literal "none" is no
 // linter at all: a run that extracts a document without judging the tree.
 func Named(names ...string) ([]model.Linter, []string) {

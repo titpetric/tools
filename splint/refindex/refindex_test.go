@@ -72,7 +72,7 @@ func TestBuild_References(t *testing.T) {
 }
 
 // TestBuild_UnresolvableReference covers a reference under a name no import
-// answers for: it resolves to nothing rather than to a wrong package.
+// answers for: it resolves to nothing, and never to a wrong package.
 func TestBuild_UnresolvableReference(t *testing.T) {
 	test := testFunc("TestClose")
 	test.References = model.StringSet{"zzz": []string{"Close"}}

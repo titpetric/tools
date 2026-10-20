@@ -37,13 +37,13 @@ func (d *DocumentRoot) WithoutTests() *DocumentRoot {
 }
 
 // notTestScope reports a declaration the toolchain compiles into the package
-// rather than into its test binary.
+// itself, outside its test binary.
 func notTestScope(d *Declaration) bool {
 	return !d.IsTestScope()
 }
 
-// withoutTestFiles is the import set with the test files dropped. The set is
-// keyed by filename, so what a test file imports is one key.
+// withoutTestFiles is the import set with the test files dropped. The set uses
+// the filename as its key, so what a test file imports is one key.
 func withoutTestFiles(in StringSet) StringSet {
 	if in == nil {
 		return nil

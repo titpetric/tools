@@ -14,7 +14,7 @@ type Package struct {
 	Package string `json:"Package" yaml:"Package"`
 	// ImportPath contains the import path (github...).
 	ImportPath string `json:"ImportPath" yaml:"ImportPath"`
-	// Path is sanitized to contain the relative location (folder).
+	// Path holds the sanitized relative location (folder).
 	Path string `json:"Path" yaml:"Path"`
 	// TestPackage is true if this is a test package.
 	TestPackage bool `json:"TestPackage" yaml:"TestPackage"`

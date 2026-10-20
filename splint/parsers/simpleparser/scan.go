@@ -17,20 +17,20 @@ type file struct {
 	Doc string
 
 	// Imports are the import literals, as the model records them: the path in
-	// quotes, prefixed by the alias and a space when the file gives one.
+	// quotes, prefixed by the alias and a space when the file names one.
 	Imports []string
 
 	// ImportDecls are the same imports as the file writes them, with their
-	// lines and their comments, which is what a formatter puts back.
+	// lines and their comments, the shape a formatter puts back.
 	ImportDecls model.ImportDeclList
 
-	// aliases is what each import is reached by in this file, which is what a
-	// reference is recognised against.
+	// aliases is the name each import goes by in this file, the set a
+	// reference matches against.
 	aliases map[string]bool
 
 	// names are every name the file declares at the top level, types and
 	// values and funcs alike. A selector reaching one of them reaches
-	// something written here rather than a package.
+	// something written here, and no package.
 	names map[string]bool
 
 	// Types, Consts, Vars and Funcs are what the file declares.
@@ -43,9 +43,9 @@ type file struct {
 // scan reads one file.
 //
 // It walks the lines from the top and takes each top level construct in turn.
-// Everything it looks for is anchored at column zero, which gofmt guarantees
+// Everything it looks for sits at column zero, which gofmt guarantees
 // for every declaration and for the brace or paren that closes one: a
-// construct is found by where it starts and ends rather than by balancing what
+// construct shows by where it starts and ends, with no need to balance what
 // is inside it.
 func scan(src *source) *file {
 	out := &file{aliases: map[string]bool{}, names: declaredNames(src)}
@@ -87,7 +87,7 @@ func scan(src *source) *file {
 //
 // A construct that is never closed at column zero, which is a file that does
 // not compile, ends where the file does: the parser reports what it read
-// rather than failing, which is the whole point of reading this way.
+// and keeps going, the reason to read this way at all.
 func blockEnd(src *source, from int, closer byte) int {
 	for i := from + 1; i < src.len(); i++ {
 		code := strings.TrimRight(src.codeLine(i), " \t")
@@ -101,8 +101,8 @@ func blockEnd(src *source, from int, closer byte) int {
 // docAbove returns the doc comment directly above a line, which is the
 // unbroken run of comment lines that ends on the line before it.
 //
-// The markers are trimmed and the line breaks are kept, which is what
-// go/ast's CommentGroup.Text does and therefore what the ast parser records.
+// The parser trims the markers and keeps the line breaks, matching
+// go/ast's CommentGroup.Text and so what the ast parser records.
 // A reader wanting the paragraphs rejoined can do it; a reader wanting the
 // lines back cannot.
 func docAbove(src *source, line int) string {
@@ -136,9 +136,9 @@ func docStart(src *source, line int) int {
 // trimMarker strips the comment markers from one line and returns what it
 // says.
 //
-// Exactly one space after the marker is dropped and no more, which is what
-// go/ast does and what keeps an indented code block in a doc comment indented:
-// "//\tctx := ..." is an example a reader is meant to see as one.
+// The parser drops exactly one space after the marker and no more, matching
+// go/ast, and that keeps an indented code block in a doc comment indented:
+// "//\tctx := ..." is an example for a reader to see as one.
 func trimMarker(line string) string {
 	text := strings.TrimLeft(line, " \t")
 	switch {
@@ -164,7 +164,7 @@ func trimMarker(line string) string {
 // than something written for a reader: "//go:embed", "//line", "//export".
 //
 // go/ast leaves them out of a doc comment, so a document that carried them
-// would say a symbol is documented with something nobody wrote for a reader.
+// would say a doc comment covers a symbol with something nobody wrote for a reader.
 // The rule is go/ast's: a lower case name, a colon, and something after it,
 // with no space anywhere before the colon.
 func isDirective(line string) bool {
@@ -197,10 +197,10 @@ func isDirective(line string) bool {
 
 // declaredNames collects every name a file declares at the top level.
 //
-// go/parser resolves an identifier against the file it is written in, so a
+// go/parser resolves an identifier against its own file, so a
 // name declared here is a local to the collector and a name declared in
 // another file of the same package is not. That is the line this draws, and
-// it is why a package level var used across two files turns up in Globals.
+// that is why a package level var used across two files turns up in Globals.
 func declaredNames(src *source) map[string]bool {
 	names := map[string]bool{}
 
@@ -212,7 +212,7 @@ func declaredNames(src *source) map[string]bool {
 
 		switch {
 		case strings.HasPrefix(code, "func "), strings.HasPrefix(code, "func("):
-			// Only the name is wanted, which is the word after "func" on a
+			// The scan needs the name alone, the word after "func" on a
 			// plain declaration. A method declares nothing at package scope,
 			// so a receiver means there is nothing to record.
 			if name := funcName(code); name != "" {
@@ -286,12 +286,12 @@ func specNames(spec, keyword string) []string {
 }
 
 // bodyEnd returns the line closing a brace opened on line from, matched by
-// depth rather than by column.
+// depth and not by column.
 //
-// blockEnd anchors on column zero, which is where gofmt puts the brace closing
+// blockEnd anchors on column zero, where gofmt puts the brace closing
 // a top level declaration and nowhere else. A body nested inside one, an
-// anonymous struct declared as the type of a field, closes at whatever
-// indentation it was opened at, so its extent has to be counted.
+// anonymous struct declared as a field's type, closes at whatever
+// indentation it opened at, so the scan has to count its extent.
 func bodyEnd(src *source, from int) int {
 	depth := 0
 

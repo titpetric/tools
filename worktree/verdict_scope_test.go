@@ -7,7 +7,7 @@ import (
 
 // scopedRepo builds a module whose root package keeps its API while the sub
 // package loses an exported symbol, with the kept state tagged. The verdict
-// over the whole module is a minor; over the root package it is a patch.
+// over the whole module is a minor; over the root package, a patch.
 func scopedRepo(t *testing.T) string {
 	t.Helper()
 
@@ -55,8 +55,8 @@ func TestScopeVerdictNarrowsToTheRootPackage(t *testing.T) {
 		t.Errorf("scopeVerdict() = {Release: %q, Version: %q}, want {patch, v0.1.1}", scoped.Release, scoped.Version)
 	}
 
-	// The per-commit scans feed the commit table, so they are narrowed the
-	// same way.
+	// The per-commit scans feed the commit table, so scopeVerdict narrows
+	// them the same way.
 	for hash, diff := range scoped.CommitAPI {
 		if len(diff.Removed) != 0 {
 			t.Errorf("scopeVerdict() left commit %s with removals: %#v", hash, diff.Removed)

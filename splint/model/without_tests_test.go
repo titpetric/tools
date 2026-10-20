@@ -7,7 +7,7 @@ import (
 )
 
 // withTests is a document of two packages: one holding a file and its test, and
-// the test package the tests of it were compiled into.
+// the test package the toolchain compiles its tests into.
 func withTests() *model.DocumentRoot {
 	imports := model.NewStringSet()
 	imports.Add("thing.go", `"fmt"`)
@@ -62,7 +62,7 @@ func TestDocumentRoot_WithoutTests(t *testing.T) {
 }
 
 // TestDocumentRoot_WithoutTestsLeavesTheOriginal covers the copy: the linters
-// read the document the parse produced, and they read it after it was written.
+// read the document the parse produced, and they read it after the write.
 func TestDocumentRoot_WithoutTestsLeavesTheOriginal(t *testing.T) {
 	in := withTests()
 	in.WithoutTests()

@@ -12,7 +12,7 @@ func TestModuleLink(t *testing.T) {
 		"github.com/titpetric/tools":                 "https://github.com/titpetric/tools",
 		"github.com/titpetric/tools/worktree":        "https://github.com/titpetric/tools/tree/main/worktree",
 		"github.com/titpetric/tools/worktree/config": "https://github.com/titpetric/tools/tree/main/worktree/config",
-		// A path that is not on github is written as it stands.
+		// moduleLink writes a path outside github as it stands.
 		"gopkg.in/yaml.v3": "https://gopkg.in/yaml.v3",
 	} {
 		if got := moduleLink(in); got != want {

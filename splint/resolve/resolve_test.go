@@ -114,7 +114,7 @@ func TestLookupLearnsFromTheTree(t *testing.T) {
 }
 
 // TestLookupFallsBackToTheModuleRequirement covers a name nothing in the tree
-// writes yet, placed by the last segment of a requirement.
+// writes yet, placed by the last segment of a required module.
 func TestLookupFallsBackToTheModuleRequirement(t *testing.T) {
 	index := resolve.New(tree(), nil)
 
@@ -135,7 +135,7 @@ func TestLookupAliasWins(t *testing.T) {
 }
 
 // TestLookupReportsAmbiguity covers two paths answering to one name: nothing
-// is resolved and both are named, because a formatter guessing between them
+// resolves and the result names both, because a formatter guessing between them
 // writes the wrong import half the time.
 func TestLookupReportsAmbiguity(t *testing.T) {
 	root := tree()
@@ -151,8 +151,8 @@ func TestLookupReportsAmbiguity(t *testing.T) {
 }
 
 // TestLookupFindsNothing covers the name that has to be an error: no
-// configuration names it, no package of the tree is called it, no file writes
-// it and no requirement ends in it.
+// configuration names it, no package of the tree carries it, no file writes
+// it and no required module ends in it.
 func TestLookupFindsNothing(t *testing.T) {
 	root := tree()
 
@@ -162,8 +162,8 @@ func TestLookupFindsNothing(t *testing.T) {
 	assert.Empty(t, result.Source)
 }
 
-// TestLookupStopsAtTheModule covers a package of another module: it is reached
-// by importing that module, so the walk up does not find it.
+// TestLookupStopsAtTheModule covers a package of another module: code reaches
+// it by importing that module, so the walk up does not find it.
 func TestLookupStopsAtTheModule(t *testing.T) {
 	root := tree()
 	nested := &model.Module{Path: "example.com/app/service2/tool"}

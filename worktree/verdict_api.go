@@ -13,8 +13,8 @@ type symbolEntry struct {
 	pkg      string
 	text     string
 
-	// exported reports whether the symbol is API, which is where in its
-	// package's block the symbol is written: what a release costs a consumer
+	// exported reports whether the symbol is API, and so where in its
+	// package's block the symbol goes: what a release costs a consumer
 	// comes first, and what the refactor moved comes under the divider.
 	exported bool
 
@@ -32,9 +32,9 @@ type symbolEntry struct {
 //
 // The package a symbol belongs to has a column of its own, whatever the module
 // holds: without it "const Name" says nothing about where it lives, and a
-// module of one package still has to say which one that is. The symbols of a
-// package are gathered together and only the first of them names it, the same
-// way the data model table reads.
+// module of one package still has to say which one that is. symbolRows keeps
+// the symbols of a package together and only the first of them names it, the
+// same way the data model table reads.
 //
 // Exported and unexported symbols share the one column. Within a package the
 // API comes first and what a consumer cannot reach comes under a divider, so
@@ -43,7 +43,7 @@ type symbolEntry struct {
 // are all internal draws no rule: there is nothing above it to part it from.
 //
 // A range read commit by commit gains a column naming the commits behind each
-// symbol, which is what points a removal at the change behind it.
+// symbol, pointing a removal at the change behind it.
 func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	touched := v.commitsBySymbol()
 
@@ -97,8 +97,8 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 		exportedAbove         bool
 	)
 	for i, entry := range entries {
-		// A new category opens a group and names itself. The package is written
-		// again under it, since a group opening on an empty cell says nothing.
+		// A new category opens a group and names itself. The row repeats the
+		// package under it, since a group opening on an empty cell says nothing.
 		category := ""
 		if entry.category != lastCategory {
 			category = colorLines(entry.category, changeColor(entry.category), styled)
@@ -136,9 +136,9 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	return headers, rows
 }
 
-// dividerRow is the row the rule is drawn on, which carries the divider in the
-// symbol column and leaves every other column empty: the rule is there to part
-// two blocks of symbols, not to cut the table in half.
+// dividerRow is the row carrying the rule: the divider sits in the symbol
+// column and every other column stays empty, so the rule parts two blocks of
+// symbols and leaves the table whole.
 func dividerRow(columns int) []string {
 	row := make([]string, columns)
 	row[2] = components.Divider().Line(0)
@@ -165,7 +165,7 @@ func groupByPackage(entries []symbolEntry) {
 }
 
 // shortenPackages rewrites the package of every entry as its path below the
-// module, which is how the table names it.
+// module, the name the table uses.
 func shortenPackages(entries []symbolEntry, v verdict) {
 	for i, entry := range entries {
 		entries[i].pkg = shortPackage(v.Module, entry.pkg)
@@ -192,8 +192,8 @@ func collapseRemovedMethods(symbols []apiSymbol) []apiSymbol {
 	return kept
 }
 
-// receiverType returns the type a qualified name hangs off ("Disk.Save" is
-// hung off "Disk"), or an empty string for a package level name.
+// receiverType returns the type a qualified name hangs off ("Disk.Save" hangs
+// off "Disk"), or an empty string for a package level name.
 func receiverType(name string) string {
 	receiver, _, found := strings.Cut(name, ".")
 	if !found {

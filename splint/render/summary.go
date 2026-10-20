@@ -12,7 +12,7 @@ import (
 // Summary draws what each linter found: how many findings at each level, and
 // which of its rules they came under.
 //
-// It is what an operator reads first. A tree of any size answers with more
+// An operator reads it first. A tree of any size answers with more
 // findings than a screen holds, and which linter is talking and about what is
 // the question a reader has before they read any of them.
 func Summary(w io.Writer, found *report.Report) error {
@@ -44,8 +44,8 @@ func Summary(w io.Writer, found *report.Report) error {
 	return nil
 }
 
-// count reads a column of levels: a level nothing was reported at is blank
-// rather than zero, so what is there is what a reader sees.
+// count reads a column of levels: a level with no findings shows a blank and
+// no zero, so a reader sees only what is there.
 func count(n int) string {
 	if n == 0 {
 		return ""

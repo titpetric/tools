@@ -16,7 +16,7 @@ type moduleTree struct {
 	// fifty packages under one go.mod reads it once.
 	found map[string]*model.Module
 
-	// dirs is where the go.mod of each directory was found, which is what
+	// dirs is where the parser found the go.mod of each directory, and that
 	// tells a package of a nested module from one of the root module.
 	dirs map[string]string
 }
@@ -47,7 +47,7 @@ func (t *moduleTree) dirOf(dir string) string {
 }
 
 // read walks up from a directory to the first go.mod it finds. It stops at the
-// filesystem root rather than at the parse root: a package parsed on its own
+// filesystem root, never at the parse root: a package parsed on its own
 // still belongs to the module above it.
 func (t *moduleTree) read(dir string) (*model.Module, string) {
 	for {

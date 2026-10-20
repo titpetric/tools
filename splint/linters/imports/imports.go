@@ -19,7 +19,7 @@ import (
 	"github.com/titpetric/tools/splint/resolve"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "imports"
 
 // The rules this linter reports under.
@@ -49,14 +49,14 @@ const FixAttr = "fix"
 // FixCommand is what clears every fixable issue this linter reports.
 const FixCommand = "splint fix"
 
-// Pollution is when a dependency reaching many files is reported.
+// Pollution sets when the linter reports a dependency reaching many files.
 type Pollution struct {
 	// PerPackage is how many files of one package may import one external
-	// dependency before it is reported. Zero turns the rule off.
+	// dependency before the linter reports it. Zero turns the rule off.
 	PerPackage int
 
 	// FileShare is the share of the files of the tree one external dependency
-	// may reach before it is reported, between 0 and 1. Zero turns the rule
+	// may reach before the linter reports it, between 0 and 1. Zero turns the rule
 	// off.
 	FileShare float64
 
@@ -66,7 +66,7 @@ type Pollution struct {
 
 // Linter checks the imports of every package.
 type Linter struct {
-	// Options is the house rule the format rule is checked against, and the
+	// Options is the house rule the format rule checks against, and the
 	// one the fixer writes to.
 	Options importfmt.Options
 
@@ -74,7 +74,7 @@ type Linter struct {
 	// the tree.
 	Aliases map[string]string
 
-	// Pollution is when a dependency reaching many files is reported.
+	// Pollution sets when the linter reports a dependency reaching many files.
 	Pollution Pollution
 }
 
@@ -185,8 +185,8 @@ func (l *Linter) block(results *Results, metric *Metric, root *model.DocumentRoo
 	}
 }
 
-// formatMessage says what is wrong with the block rather than printing the one
-// it should be, which is a dozen lines a report has no room for.
+// formatMessage says what is wrong with the block and skips printing the
+// correct one, which is a dozen lines a report has no room for.
 func formatMessage(current model.ImportDeclList, decision importfmt.Decision) string {
 	var reasons []string
 
@@ -212,7 +212,7 @@ func formatMessage(current model.ImportDeclList, decision importfmt.Decision) st
 
 // firstLine is where a file's imports begin, and is zero for a file that has
 // none: an issue about an import block a file does not have belongs to the
-// file rather than to a line of it.
+// file as a whole and to no single line of it.
 func firstLine(decls model.ImportDeclList) int {
 	if len(decls) == 0 {
 		return 0
@@ -230,7 +230,7 @@ func filePath(def *model.Definition, name string) string {
 	return dir + "/" + name
 }
 
-// importFile names the package a collision is in. An import set is keyed on
+// importFile names the package that holds a collision. An import set keys on
 // the file that declared each import and a collision is between two of them,
 // so the package directory is what the two have in common.
 func importFile(def *model.Definition) string {

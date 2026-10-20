@@ -13,7 +13,7 @@ import (
 // operating system keeps a user's configuration in.
 //
 // They are not kept beside the tree. A tree's own file states the rules its
-// source is formatted under, which is a decision its authors made and commit;
+// source follows, a decision its authors made and commit;
 // a counter is what one person's runs have done and belongs to that person's
 // machine. Keeping it in the tree meant every run that rewrote a file left the
 // repository dirty and every branch carried a different number.
@@ -31,7 +31,7 @@ type StatsImports struct {
 	Fixed int `yaml:"fixed"`
 }
 
-// StatsPath is the file the counters are kept in.
+// StatsPath is the file that holds the counters.
 func StatsPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -66,11 +66,11 @@ func LoadStats() (Stats, error) {
 
 // AddFixed adds n to imports.fixed and writes the file back.
 //
-// The file is edited rather than re-encoded from the struct: somebody who
-// wrote a comment beside a counter keeps it, and a key this version does not
-// know stays where it was. The document is read whole with its comments kept
-// aside, one value is changed, and the comments are written back where they
-// were.
+// AddFixed edits the file in place and never re-encodes it from the struct:
+// somebody who wrote a comment beside a counter keeps it, and a key this
+// version does not know stays in its place. AddFixed reads the document whole
+// with its comments kept aside, changes one value, and writes the comments
+// back to their places.
 //
 // A machine with no file gets one holding the count and nothing else. Adding
 // nothing writes nothing.
@@ -110,9 +110,9 @@ func AddFixed(n int) error {
 	return write(path, out)
 }
 
-// bump adds n to imports.fixed, keeping every other key as it was read. An
-// imports that is not a mapping is replaced with one, which is what the value
-// had to be for the counter to live under it.
+// bump adds n to imports.fixed, keeping every other key as read. bump
+// replaces an imports that is not a mapping with one, since the counter can
+// only live under a mapping.
 func bump(document yaml.MapSlice, n int) yaml.MapSlice {
 	for i, item := range document {
 		if key, ok := item.Key.(string); !ok || key != "imports" {
@@ -160,7 +160,7 @@ func asInt(value any) int {
 }
 
 // write replaces the file, through a temporary beside it so a run interrupted
-// halfway leaves the file it found rather than half of one.
+// halfway leaves the file it found and never half of one.
 func write(path string, data []byte) error {
 	temp := path + ".tmp"
 

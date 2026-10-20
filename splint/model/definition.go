@@ -12,14 +12,14 @@ type Definition struct {
 	Doc string `json:"Doc,omitempty" yaml:"Doc,omitempty"`
 
 	// Module is the go.mod the package belongs to. It repeats on every
-	// definition of the same module rather than living in one place, because
+	// definition of the same module and lives in no single place, because
 	// the model is a flat list of packages with no entry to hang it off, and
 	// a definition that travels alone still has to say what it builds against.
-	// It is nil for a package extracted from a tree holding no go.mod.
+	// Module stays nil for a package extracted from a tree holding no go.mod.
 	Module *Module `json:"Module,omitempty" yaml:"Module,omitempty"`
 
-	// Files are the files the package is made of, in name order, whether or
-	// not they declare anything.
+	// Files are the files of the package, in name order, whether they
+	// declare anything or not.
 	Files FileList `json:"Files,omitempty" yaml:"Files,omitempty"`
 
 	Imports   StringSet `json:"Imports,omitempty" yaml:"Imports,omitempty"`
@@ -124,10 +124,10 @@ func (d *Definition) Merge(in *Definition) {
 	d.Vars.AppendUnique(in.Vars...)
 	d.Consts.AppendUnique(in.Consts...)
 
-	// this line causes Sort to be omitted from the
-	// definitions :/ ... solved by adding the sort
-	// in the AppendUnique above, but the Sort symbol
-	// should not be omitted from Definition.
+	// this line makes the definitions omit Sort :/
+	// ... solved by adding the sort in the
+	// AppendUnique above, but Definition should keep
+	// the Sort symbol.
 
 	// d.Sort()
 }

@@ -3,9 +3,9 @@ package render
 // The xterm256 palette, carried over from worktree so a report from either
 // tool reads the same on the same terminal.
 //
-// The colours are written as escape codes rather than built through a styling
-// library: the output is static, and a table that is drawn once needs nothing
-// a constant cannot give it.
+// The colours are plain escape codes with no styling library behind them: the
+// output is static, and a table drawn a single time needs nothing a constant
+// cannot supply.
 const (
 	colorReset     = "\033[0m"
 	colorSeparator = "\033[38;5;238m"
@@ -16,13 +16,13 @@ const (
 	colorGrey      = "\033[38;5;245m"
 	colorRed       = "\033[38;5;167m"
 
-	// colorSymbol is the name a finding is about. It is not in worktree's
-	// palette: nothing there names a symbol, and a name has to read apart from
+	// colorSymbol is the name a finding is about. worktree's palette lacks it:
+	// nothing there names a symbol, and a name has to read apart from
 	// the position and the rule around it.
 	colorSymbol = "\033[38;5;141m"
 
-	// colorSection opens a section of a report. It is bold, and no table is
-	// drawn in it, so a heading is told apart from the column headings under
+	// colorSection opens a section of a report. The colour is bold, and no
+	// table uses it, so a heading reads apart from the column headings under
 	// it.
 	colorSection = "\033[1;38;5;220m"
 )

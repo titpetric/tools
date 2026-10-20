@@ -1,8 +1,8 @@
 // Package tests holds the harness that compares the two parsers.
 //
-// It is a package rather than a test file so the comparison can be read and
-// reused: what it does is walk two documents and say where they differ, which
-// is worth having outside the test that runs it.
+// The harness lives in a package of its own so a reader can read and reuse the
+// comparison: it walks two documents and says where they differ, and that is
+// worth having outside the test that runs it.
 package tests
 
 import (
@@ -12,26 +12,26 @@ import (
 	"strings"
 )
 
-// KeyedList is a list rendered as a map from identity to element, which is how
-// a comparison lines two documents up by what a thing is rather than by where
-// it sits.
+// KeyedList is a list rendered as a map from identity to element, so a
+// comparison lines two documents up by what a thing is, and never by where it
+// sits.
 //
-// It is a type of its own so the walk can tell it from a map the model
-// declares: an element of a keyed list is named in brackets, "Funcs[Open]", so
+// KeyedList has its own named type so the walk can tell it from a map the
+// model declares: the path names an element of a keyed list in brackets, "Funcs[Open]", so
 // the summary can drop the key and count every element under the field.
 type KeyedList map[string]any
 
 // Diff walks two values and returns every place they disagree.
 //
-// It is a deep comparison of the encoded form rather than a list of fields
-// somebody remembered to check: a key that only one side carries is a
-// difference, and so is a key added to the model tomorrow. Nothing is covered
-// by being enumerated here, because nothing is enumerated here.
+// Diff compares the encoded form deeply and checks no hand-picked list of
+// fields: a key that only one side carries is a difference, and so is a key
+// added to the model tomorrow. Coverage here never depends on an enumeration,
+// because this code enumerates nothing.
 //
-// The normalise function is given a path and the two values at it, and returns
-// what should be compared instead. It is how a difference that is known and
-// explained, such as column alignment inside a source listing, is taken out of
-// the comparison without taking the field out of it.
+// The normalise function takes a path and the two values at it, and returns
+// the values to compare in their place. A caller uses it to take a known and
+// explained difference, such as column alignment inside a source listing, out
+// of the comparison without taking the field out of it.
 func Diff(left, right any, normalise func(path string, a, b any) (any, any)) []Difference {
 	var found []Difference
 	walk("", encode(left), encode(right), normalise, &found)
@@ -42,8 +42,8 @@ func Diff(left, right any, normalise func(path string, a, b any) (any, any)) []D
 // encode renders a value as the generic tree its JSON form describes, which is
 // what makes the walk indifferent to the types behind it.
 //
-// A tree that is already generic is passed through: encoding it again would
-// turn a KeyedList back into the map it is made of, and the walk would lose
+// encode passes a tree that is already generic through: encoding it again
+// would turn a KeyedList back into its underlying map, and the walk would lose
 // the one thing that lines two documents up by identity.
 func encode(value any) any {
 	switch value.(type) {
@@ -63,8 +63,8 @@ func encode(value any) any {
 	return out
 }
 
-// Scalars is how many leaves a tree has, which is what a difference rate is
-// counted against: a rate over declarations says nothing about a field only
+// Scalars is how many leaves a tree has, the base of a difference rate: a
+// rate over declarations says nothing about a field only
 // some declarations carry.
 func Scalars(value any) int {
 	switch v := value.(type) {
@@ -185,8 +185,8 @@ func render(value any) string {
 	return string(data)
 }
 
-// unionKeys returns every key either map carries, in order, so a key only one
-// side has is walked rather than skipped.
+// unionKeys returns every key either map carries, in order, so the walk
+// visits a key only one side has and never skips it.
 func unionKeys[M ~map[string]any](left, right M) []string {
 	seen := make(map[string]bool, len(left)+len(right))
 	keys := make([]string, 0, len(left)+len(right))
@@ -212,8 +212,8 @@ func join(path, key string) string {
 	return path + "." + key
 }
 
-// Field is a path with its array indices removed, so every element of a list
-// is counted under the field it belongs to rather than under its position:
+// Field is a path with its array indices removed, so a count puts every
+// element of a list under the field it belongs to and ignores its position:
 // "Fields[2].Tag" and "Fields[7].Tag" are both "Fields[].Tag".
 func Field(path string) string {
 	var out strings.Builder

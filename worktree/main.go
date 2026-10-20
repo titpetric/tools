@@ -17,8 +17,8 @@ import (
 func main() {
 	opts := ParseOptions()
 
-	// The setup screen runs before the configuration is read for the scan,
-	// so a document that fails to parse can still be fixed from it.
+	// The setup screen runs before the scan reads the configuration, so a
+	// user can still fix a document that fails to parse from it.
 	if opts.Configure {
 		if err := config.Run(os.Stdout); err != nil {
 			log.Fatal(err)
@@ -54,12 +54,12 @@ func main() {
 	}
 
 	// The verdict is a report on one repository, the one the current
-	// directory is in unless another was named, so it does not scan the
+	// directory is in unless the arguments name another, so it does not scan the
 	// workspace either.
 	if opts.Verdict {
 		dir := commandDir(opts)
 		// A chain reports on every release; a single verdict is the one range
-		// it was asked for, which the stats table takes as a run of one.
+		// the flags select, which the stats table takes as a run of one.
 		var verdicts []verdict
 		if opts.Chain {
 			chain, err := readVerdicts(dir, opts.Verbose, opts.From, opts.To, !opts.NoCache)
@@ -197,7 +197,7 @@ func main() {
 		return sortedMods[i] < sortedMods[j]
 	})
 
-	// Filter modules if a path argument was given
+	// Filter modules when the arguments hold a path
 	if opts.FilterPath != "" {
 		var matched []string
 
@@ -234,7 +234,7 @@ func main() {
 		sortedMods = matched
 	}
 
-	// Build module info list
+	// Build the module information list
 	var modules []moduleInfo
 	for _, mod := range sortedMods {
 		dir := modPaths[mod]
@@ -287,8 +287,8 @@ func main() {
 	}
 
 	if opts.Resolve {
-		// The reason a run stopped has already been rendered in place, so
-		// only the exit status is left to set.
+		// The run already rendered the reason it stopped in place, so only
+		// the exit status remains to set.
 		if err := resolve(os.Stdout, modules, versionRefs, opts, supportsANSI(os.Stdout)); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -339,8 +339,7 @@ func main() {
 }
 
 // commandDir returns the directory a single repository command works on, which
-// is the one the path argument names and the current directory when there was
-// none.
+// is the one the path argument names, or the current directory without one.
 func commandDir(opts *Options) string {
 	if opts.FilterPath == "" {
 		return "."

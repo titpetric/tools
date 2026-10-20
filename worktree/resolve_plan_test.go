@@ -71,7 +71,7 @@ func TestResolvePins(t *testing.T) {
 	}
 	targets := map[string]string{
 		"lib":  "v1.1.0", // released by this run
-		"base": "v2.0.0", // already at the version it ends up at
+		"base": "v2.0.0", // already at its final version
 		"none": "",       // no release to pin to
 	}
 
@@ -147,7 +147,7 @@ func TestPlanResolveOrdersAndPredictsVersions(t *testing.T) {
 		t.Errorf("alpha = {Release: %q, Next: %q}, want {patch, v0.1.1}", alpha.Release, alpha.Next)
 	}
 
-	// beta has no commits of its own, and is released only because the
+	// beta has no commits of its own, and gets a release only because the
 	// version it requires moved.
 	if beta.Ahead != 0 {
 		t.Errorf("beta.Ahead = %d, want 0", beta.Ahead)
@@ -172,8 +172,8 @@ func TestPlanResolveOffersAReleasedModuleTheUpdateAnyway(t *testing.T) {
 	})
 
 	// alpha has no commits and nothing in the workspace to move, but its
-	// dependencies outside the workspace can still have moved, so it is
-	// offered the update and released only if that rewrites go.mod.
+	// dependencies outside the workspace can still have moved, so the plan
+	// plans the update for it and releases it only if that rewrites go.mod.
 	alpha := plans[0]
 	if alpha.Skip != "" {
 		t.Errorf("a released module was skipped: %q", alpha.Skip)
@@ -185,8 +185,8 @@ func TestPlanResolveOffersAReleasedModuleTheUpdateAnyway(t *testing.T) {
 		t.Errorf("alpha = {Release: %q, Next: %q}, want {patch, v0.1.1}", alpha.Release, alpha.Next)
 	}
 
-	// An untagged module has nothing downstream can pin to, so it is left
-	// alone.
+	// An untagged module has nothing downstream can pin to, so the plan
+	// skips it.
 	if !strings.Contains(plans[1].Skip, "no release tag") {
 		t.Errorf("an untagged module was not skipped: %q", plans[1].Skip)
 	}

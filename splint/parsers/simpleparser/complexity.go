@@ -15,16 +15,16 @@ import (
 //
 // Cognitive complexity does not reduce to a count. gocognit weights a branch by
 // how deeply it nests and treats a chain of boolean operators as one, and
-// neither survives without a tree, so what is counted here is the branching
-// with the nesting weight and no more. It is the one field of the model the two
-// parsers are not expected to agree on.
+// neither survives without a tree, so this count covers the branching
+// with the nesting weight and no more. That is the one field of the model the two
+// parsers may disagree on.
 //
 // The open line is where the declaration starts and from is where its body
-// does: the branching is counted over the body, and the length over the whole
+// does: the branching counts over the body, and the length over the whole
 // block.
 func complexity(src *source, open, from, to int) *model.Complexity {
 	// Lines is the function block, from the func keyword to the brace that
-	// closes it. The doc comment above it is not part of the function.
+	// closes it. The doc comment above the function sits outside it.
 	lines := to - open + 1
 
 	cyclomatic, cognitive := 1, 0
@@ -37,8 +37,8 @@ func complexity(src *source, open, from, to int) *model.Complexity {
 			continue
 		}
 
-		// The closing brace of a block is written before its contents are
-		// counted, so a line that only closes lowers the nesting first.
+		// The closing brace of a block applies before the count reads its
+		// contents, so a line that only closes lowers the nesting first.
 		closes := strings.Count(code, "}")
 		opens := strings.Count(code, "{")
 		if strings.HasPrefix(trimmed, "}") {
@@ -68,9 +68,9 @@ func complexity(src *source, open, from, to int) *model.Complexity {
 
 // branchCount is how many decisions one line makes.
 //
-// The line is walked once and every word on it is looked up, rather than the
-// line being walked once per keyword: a decision is a word, and finding the
-// words costs the same whether one is being looked for or six.
+// The scan walks the line once and looks up every word on it, and does not
+// walk the line once per keyword: a decision is a word, and finding the
+// words costs the same for one keyword as for six.
 func branchCount(code string) int {
 	var (
 		count  int

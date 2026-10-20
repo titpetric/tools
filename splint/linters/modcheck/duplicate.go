@@ -13,13 +13,13 @@ import (
 // The two majors of a module are one entry: they are different module paths
 // and the same library, and a build requiring both links both.
 type duplicate struct {
-	// Base is the module path with its major version suffix removed, which is
-	// what the versions of one library are counted under.
+	// Base is the module path with its major version suffix removed, the key
+	// the versions of one library count under.
 	Base string
 
 	// Versions is how many versions the graph offered, and Linked are the ones
-	// the build downloads: a version go.sum records by its go.mod alone was
-	// read for what it requires and passed over.
+	// the build downloads: the build reads a version go.sum records by its go.mod alone
+	// for what it requires and passes over it.
 	Versions int
 	Linked   []string
 
@@ -29,15 +29,15 @@ type duplicate struct {
 	Size     int64
 	Overhead int64
 
-	// sizes is what each linked copy weighs, which the two above are added up
-	// from once every version has been seen.
+	// sizes is what each linked copy weighs, which the two above sum
+	// from once the walk has seen every version.
 	sizes []int64
 }
 
 // duplicates groups what go.sum records by module and returns the modules
 // recorded at more than one version, in path order.
 //
-// The sizes are what the proxy answered, keyed "path@version", and are added
+// The sizes are what the proxy answered, keyed "path@version", and add
 // up over the linked versions: a version that is not downloaded occupies
 // nothing.
 func duplicates(sums []model.Sum, sizes map[string]int64) []duplicate {
@@ -70,7 +70,7 @@ func duplicates(sums []model.Sum, sizes map[string]int64) []duplicate {
 		}
 
 		// The largest copy is the one a build carrying the module once would
-		// carry. Everything after it is the same library again.
+		// carry. Everything after that copy is the same library again.
 		sort.Slice(entry.sizes, func(i, j int) bool { return entry.sizes[i] > entry.sizes[j] })
 		for i, size := range entry.sizes {
 			entry.Size += size
@@ -87,7 +87,7 @@ func duplicates(sums []model.Sum, sizes map[string]int64) []duplicate {
 	return out
 }
 
-// linked names one downloaded version under the module it is counted with. The
+// linked names one downloaded version under the module that counts it. The
 // path is the base for every version but a major, which is a path of its own:
 // "v1.4.0" and "v2 v2.0.1" are two copies of one library.
 func linked(base string, sum model.Sum) string {

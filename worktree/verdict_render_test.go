@@ -27,14 +27,14 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| Added | / | type Client struct |",
 		"| Changed | / | Before: Open ()<br>After: Open (string) |",
 		"| Removed | / | func Legacy () error |",
-		// One table, whatever the release did to however many types.
+		// One table, whatever the release did to any number of types.
 		"## Data model since v1.0.0",
 		"| Change | Package | Type | Field |",
-		// A type the release adds is written as the shape it declares, and
+		// A type the release adds shows as the shape it declares, and
 		// carries the mark that says the type itself is new.
 		"| Added | / | type Client struct ▲ | Name string `json:\"name\"` |",
-		// A type that was already there is written as what moved on it, and
-		// the cells repeating the row above are left empty.
+		// An existing type shows as what moved on it, and the cells repeating
+		// the row above stay empty.
 		"|  |  | type Config struct | Timeout int ▲ |",
 		"| Changed | / | type Config struct | Addr string `yaml:\"addr\"` -> []string `yaml:\"addr\"` |",
 		"| Removed | / | type Config struct | Retries int |",
@@ -67,7 +67,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 }
 
 // tableRows returns the body rows of the markdown table opening on header, each
-// split into its cells, so one column can be read on its own.
+// split into its cells, so a test can read one column on its own.
 func tableRows(report, header string) [][]string {
 	at := strings.Index(report, header)
 	if at < 0 {

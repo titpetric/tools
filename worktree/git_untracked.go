@@ -12,8 +12,8 @@ import (
 )
 
 // untrackedEntry is one path git reports as untracked: a file, or a directory
-// standing in for everything below it. Path carries a trailing "/" when it is
-// a directory, and the counts are then of the whole subtree.
+// standing in for everything below it. Path carries a trailing "/" for a
+// directory, and the counts then cover the whole subtree.
 type untrackedEntry struct {
 	Path  string
 	Dirs  int
@@ -25,8 +25,8 @@ type untrackedEntry struct {
 // the lines it adds.
 //
 // By default a directory holding nothing tracked stands in for the files below
-// it, so a new subtree costs one line rather than one per file. Passing all
-// lists every file, which is what -v and --all ask for.
+// it, so a new subtree costs one line and not one per file. Passing all
+// lists every file, the behaviour of -v and --all.
 func getUntrackedFiles(dir string, all bool) []string {
 	root, rel, err := repoPaths(dir)
 	if err != nil {
@@ -56,7 +56,7 @@ func getUntrackedFiles(dir string, all bool) []string {
 
 // listUntracked returns the untracked paths of the module below rel, relative
 // to the module itself. Collapsing asks git to report a directory holding
-// nothing tracked as one entry, with a trailing "/", instead of listing it.
+// nothing tracked as one entry, with a trailing "/", and not its files.
 func listUntracked(root, rel string, collapse bool) []string {
 	args := []string{"ls-files", "--others", "--exclude-standard"}
 	if collapse {
@@ -88,7 +88,7 @@ func listUntracked(root, rel string, collapse bool) []string {
 // collapseUntracked folds each untracked file into the collapsed path standing
 // in for it, summing the files, the lines they hold, and the directories they
 // lie in below that path. A collapsed path that is a file has only itself to
-// account for and is carried over as it is.
+// account for and passes through unchanged.
 func collapseUntracked(collapsed []string, files []untrackedEntry) []untrackedEntry {
 	var entries []untrackedEntry
 	for _, path := range collapsed {
@@ -127,8 +127,8 @@ func findUntracked(files []untrackedEntry, path string) untrackedEntry {
 }
 
 // formatUntrackedEntry renders one untracked path for the git state cell. A
-// file is named with the lines it adds; a directory is named in orange, with
-// what the subtree below it holds.
+// file shows with the lines it adds; a directory shows in orange, with what
+// the subtree below it holds.
 func formatUntrackedEntry(e untrackedEntry) string {
 	if !strings.HasSuffix(e.Path, "/") {
 		return fmt.Sprintf("%s %s+%d%s", e.Path, components.ColorGreen, e.Lines, components.ColorReset)

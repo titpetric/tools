@@ -7,23 +7,23 @@ import (
 // source is one file, split into lines and stripped of what a scanner must not
 // read as code: the inside of a string, a rune or a comment.
 //
-// Stripping is done once, up front, and the two views are kept side by side.
-// Every anchor the parser looks for is matched against the stripped line, so a
+// The source strips once, up front, and keeps the two views side by side.
+// The parser matches every anchor against the stripped line, so a
 // brace in a string literal never closes a function and the word "func" in a
-// comment never opens one. Everything the parser reports is taken from the
-// line as it was written.
+// comment never opens one. Everything the parser reports comes from the
+// raw line.
 type source struct {
-	// name is the base filename, which is what a declaration records.
+	// name is the base filename, the form a declaration records.
 	name string
 
-	// lines is the file as it was written, one entry per line.
+	// lines is the raw file, one entry per line.
 	lines []string
 
 	// read is what the scan knows about each line, one entry per line.
 	//
-	// The four facts are one slice rather than four, which is one allocation
-	// per file rather than four and one cache line rather than four: a scan
-	// asks about a line, and it asks about all of it.
+	// The four facts share one slice, which is one allocation
+	// per file and one cache line: a scan
+	// reads a line once, and reads every fact of it.
 	read []lineInfo
 }
 
@@ -38,11 +38,11 @@ type lineInfo struct {
 	// stripped view cannot say so: it blanks the comment and the tag alike.
 	commentAt int32
 
-	// comment reports a line that is wholly a comment, which is how a doc
-	// comment is found above a declaration.
+	// comment reports a line that is wholly a comment, the test for a doc
+	// comment above a declaration.
 	comment bool
 
-	// raw reports a line that left a raw string open, which is what tells a
+	// raw reports a line that left a raw string open, the test that tells a
 	// declaration that has not ended from one that reads as though it has.
 	raw bool
 }
@@ -74,8 +74,8 @@ func newSource(name string, data []byte) *source {
 	return src
 }
 
-// wholeComment reports a line that is nothing but a comment, which is how a
-// doc comment is found above a declaration.
+// wholeComment reports a line that is nothing but a comment, the test for a
+// doc comment above a declaration.
 func wholeComment(line, code string, before, after openState) bool {
 	if strings.TrimSpace(code) != "" || after.raw {
 		return false
@@ -91,7 +91,7 @@ func (s *source) len() int {
 	return len(s.lines)
 }
 
-// line returns one line as it was written, and an empty string past the end.
+// line returns one raw line, and an empty string past the end.
 func (s *source) line(i int) string {
 	if i < 0 || i >= len(s.lines) {
 		return ""
@@ -108,7 +108,7 @@ func (s *source) codeLine(i int) string {
 }
 
 // rawOpen reports whether a line left a raw string open, which is a
-// declaration that has not ended however its code reads.
+// declaration that has not ended, whatever its code reads like.
 func (s *source) rawOpen(i int) bool {
 	return i >= 0 && i < len(s.read) && s.read[i].raw
 }
@@ -118,7 +118,7 @@ func (s *source) isComment(i int) bool {
 	return i >= 0 && i < len(s.read) && s.read[i].comment
 }
 
-// code and comment split a line at the comment on it, which is where a struct
+// code and comment split a line at the comment on it, the place where a struct
 // tag stops being one.
 func (s *source) split(i int) (code, comment string) {
 	line := s.line(i)
@@ -132,8 +132,8 @@ func (s *source) split(i int) (code, comment string) {
 	return line[:at], line[at:]
 }
 
-// text returns the lines from through to, as they were written, joined back
-// into one string. It is what a declaration records as its source.
+// text returns the lines from through to, raw, joined back
+// into one string. A declaration records this as its source.
 func (s *source) text(from, to int) string {
 	if from < 0 {
 		from = 0
@@ -152,9 +152,9 @@ func (s *source) text(from, to int) string {
 // column of the stripped line lines up with the column it came from.
 //
 // It returns the line, where the comment on it begins, and what is still open
-// at the end of it, which is what the next line has to be read under.
+// at the end of it, the state the scan carries into the next line.
 func strip(line string, open openState) (string, int, openState) {
-	// Most lines hold nothing that has to be blanked, and a line that holds
+	// Most lines hold nothing to blank, and a line that holds
 	// nothing is the line itself: looking is cheaper than blanking, and the
 	// line goes on sharing the memory of the file it came from.
 	if open == (openState{}) && !strings.ContainsAny(line, "\"`'/") {
@@ -241,7 +241,7 @@ func strip(line string, open openState) (string, int, openState) {
 	}
 
 	// A string or a rune does not survive a line break in Go; a raw string and
-	// a block comment do, so both are carried to the next line.
+	// a block comment do, so the scan carries both to the next line.
 	return string(out), comment, openState{comment: inBlockComment, raw: inRaw}
 }
 
@@ -257,9 +257,9 @@ type openState struct {
 }
 
 // codeLines is how many lines of the file carry code, blanks and comments left
-// out, which is what a measurement of a package is made of.
+// out, the unit a measurement of a package counts.
 //
-// The line as written is what is counted, not the stripped one: stripping
+// The count reads the raw line, and skips the stripped one: stripping
 // blanks the inside of every string, so an import line reads as empty when the
 // literal is the only thing on it, and a table of literals would count as
 // nothing at all.
@@ -279,7 +279,7 @@ func (s *source) codeLines() int {
 // generated reports the marker a tool writes at the top of a file it owns.
 //
 // The convention is one line matching "^// Code generated .* DO NOT EDIT\.$"
-// before the package clause, which is what every tool in the toolchain looks
+// before the package clause, the marker every tool in the toolchain looks
 // for and what this looks for.
 func (s *source) generated() bool {
 	for i := 0; i < s.len(); i++ {

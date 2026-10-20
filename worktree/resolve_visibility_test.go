@@ -26,7 +26,7 @@ func TestReadVisibilityCountsTheModuleItIsPointedAt(t *testing.T) {
 	}
 
 	// This module is one package and a components package under it, and the
-	// command itself is left out of the count.
+	// count leaves out the command itself.
 	var found bool
 	for _, pkg := range got.Packages {
 		if pkg.Package != "./components" {

@@ -18,8 +18,8 @@ func TestSection(t *testing.T) {
 }
 
 // TestConfig_Sections checks the form covers the whole document: every section
-// is named, holds fields, and every setting appears exactly once across them,
-// which is what makes a round trip through the screen lossless.
+// has a name, holds fields, and every setting appears exactly once across them,
+// so a round trip through the screen loses nothing.
 func TestConfig_Sections(t *testing.T) {
 	sections := Default().Sections()
 	if len(sections) == 0 {

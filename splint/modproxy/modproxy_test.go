@@ -14,7 +14,7 @@ import (
 )
 
 // proxy stands in for the real one, answering the three questions a lookup
-// asks and counting how often it was asked.
+// puts and counting the requests it gets.
 func proxy(t *testing.T, calls *int) *httptest.Server {
 	t.Helper()
 
@@ -71,7 +71,7 @@ func TestClient_Lookup(t *testing.T) {
 		t.Error("Age() of a published version is not positive")
 	}
 
-	// A module version is immutable, so the same question is asked once.
+	// A module version is immutable, so the client puts the same question once.
 	asked := calls
 	client.Lookup(context.Background(), "example.com/x", "v1.2.0")
 	if calls != asked {
@@ -80,7 +80,7 @@ func TestClient_Lookup(t *testing.T) {
 }
 
 // TestClient_LookupUnreachable covers the machine with no network. A report is
-// worth having without the proxy, so a failure is recorded and not returned.
+// worth having without the proxy, so the client records a failure and does not return it.
 func TestClient_LookupUnreachable(t *testing.T) {
 	client := &Client{
 		Proxy: "http://127.0.0.1:1",
@@ -146,7 +146,7 @@ func TestClient_LookupAll(t *testing.T) {
 	}
 }
 
-// TestEscapePath covers the spelling the protocol uses: the proxy is served
+// TestEscapePath covers the spelling the protocol uses: proxies serve it
 // off case insensitive filesystems, so two modules differing only in case
 // would otherwise be one file.
 func TestEscapePath(t *testing.T) {

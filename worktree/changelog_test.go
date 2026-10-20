@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// TestChangelogStatus checks the state each tag is reported in: what the remote
+// TestChangelogStatus checks the state the run reports for each tag: what the remote
 // holds against the note, and what that takes.
 func TestChangelogStatus(t *testing.T) {
 	const note = "# module @ v1.0.0\n\nReleased v1.0.0.\n"
@@ -40,8 +40,8 @@ func TestChangelogStatus(t *testing.T) {
 }
 
 // TestSameBodyIgnoresARoundTrip checks that a note read back from GitHub, which
-// rewrites the line endings and trims the end of the body, is not reported as a
-// note that has to be written again.
+// rewrites the line endings and trims the end of the body, does not report as a
+// note the run has to write again.
 func TestSameBodyIgnoresARoundTrip(t *testing.T) {
 	note := "# module @ v1.0.0\n\n| Commit | Subject |\n| --- | --- |\n"
 	stored := "# module @ v1.0.0\r\n\r\n| Commit | Subject |   \r\n| --- | --- |"
@@ -82,8 +82,8 @@ func TestChangelogBodyLeavesOutVisibility(t *testing.T) {
 	}
 }
 
-// TestLimitBodyCutsAtALine checks a note too long for GitHub is cut where a
-// line ends and says that it was.
+// TestLimitBodyCutsAtALine checks limitBody cuts a note too long for GitHub
+// where a line ends and says so.
 func TestLimitBodyCutsAtALine(t *testing.T) {
 	line := strings.Repeat("a", 99) + "\n"
 	body := strings.Repeat(line, ghBodyLimit/len(line)+10)
@@ -105,7 +105,7 @@ func TestLimitBodyCutsAtALine(t *testing.T) {
 	}
 }
 
-// TestLimitBodyLeavesAShortNoteAlone checks the limit costs a note that fits
+// TestLimitBodyLeavesAShortNoteAlone checks the limit costs a fitting note
 // nothing at all.
 func TestLimitBodyLeavesAShortNoteAlone(t *testing.T) {
 	body := "# module @ v1.0.0\n"
@@ -175,8 +175,9 @@ func TestChangelogRunRendersThePlan(t *testing.T) {
 }
 
 // TestChangelogRunLeavesAFilledReleaseAlone checks that a release already
-// holding a body is reported and nothing is proposed for it, whether or not
-// that body is the note. A note somebody published is not the run's to rewrite.
+// holding a body shows up in the report with nothing proposed for it, whether
+// that body is the note or not. A note somebody published is not the run's to
+// rewrite.
 func TestChangelogRunLeavesAFilledReleaseAlone(t *testing.T) {
 	tests := []struct {
 		status string
@@ -227,8 +228,8 @@ func TestChangelogRunDoesNotRunGHForAFilledRelease(t *testing.T) {
 	}
 }
 
-// TestChangelogRunReportsAFailedWrite checks a gh call that fails is painted
-// red, keeps its output, and is counted as a failure rather than stopping.
+// TestChangelogRunReportsAFailedWrite checks a failed gh call paints red, keeps
+// its output, and counts as a failure without stopping the run.
 func TestChangelogRunReportsAFailedWrite(t *testing.T) {
 	stubGH(t, "echo 'HTTP 404: Not Found'\nexit 1\n")
 
@@ -243,8 +244,8 @@ func TestChangelogRunReportsAFailedWrite(t *testing.T) {
 }
 
 // TestChangelogRunWritesTheNoteOnStdin checks the body reaches gh on standard
-// input rather than as an argument, which is where a note of thousands of
-// characters does not fit.
+// input and not as an argument, since an argument does not fit a note of
+// thousands of characters.
 func TestChangelogRunWritesTheNoteOnStdin(t *testing.T) {
 	out := stubGH(t, "cat > \"$STUB_OUT\"\n")
 
@@ -262,8 +263,8 @@ func TestChangelogRunWritesTheNoteOnStdin(t *testing.T) {
 	}
 }
 
-// TestParseOptionsChangelog checks the subcommand is recognised and is not
-// mistaken for a path filter.
+// TestParseOptionsChangelog checks parseOptions recognises the subcommand and
+// does not mistake it for a path filter.
 func TestParseOptionsChangelog(t *testing.T) {
 	originalArgs := os.Args
 	originalFlags := flag.CommandLine

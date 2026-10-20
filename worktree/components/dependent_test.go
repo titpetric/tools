@@ -6,8 +6,8 @@ import (
 )
 
 // TestDependent checks the two things a dependent carries: the name a usage
-// cell writes, and whether the version it requires is behind, which is what
-// decides the colour it is written in.
+// cell writes, and whether the version it requires is behind, the flag that
+// picks the colour of that name.
 func TestDependent(t *testing.T) {
 	current := Dependent{Name: "titpetric/tools"}
 	if current.Outdated {

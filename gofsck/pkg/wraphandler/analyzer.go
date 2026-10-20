@@ -87,7 +87,7 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 	}, nil
 }
 
-// skipPackage returns true if the package should be skipped.
+// skipPackage returns true if the analyzer must skip the package.
 func skipPackage(pkg *packages.Package) bool {
 	if pkg.PkgPath == "main" {
 		return true

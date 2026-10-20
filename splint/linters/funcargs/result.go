@@ -20,7 +20,7 @@ type Result struct {
 	Symbol    string
 	Arguments []string
 
-	// Position is where it is, and Message says what is wrong.
+	// Position is the location, and Message says what is wrong.
 	Position model.Position
 	Message  string
 }
@@ -38,7 +38,7 @@ func (r Result) Issue() model.Issue {
 	}
 }
 
-// HeaderLine is what the statistics table says it is.
+// HeaderLine returns the heading the statistics table shows.
 const HeaderLine = "Argument order of every two argument func, by package."
 
 // Results is what the linter found and what it counted.
@@ -58,7 +58,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -130,12 +130,12 @@ func (r *Results) count(pkg model.Package, funcs, considered int) *Metric {
 	return metric
 }
 
-// add records one finding against the package it was found in.
+// add records one finding against the package that holds it.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 }
 
-// pass records a func that was considered and had nothing wrong with it.
+// pass records a func the linter considered and found nothing wrong with.
 func (r *Results) pass(metric *Metric, count int) {
 	metric.Passing += count
 }
@@ -148,8 +148,7 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// percent renders a share, and reads as nothing when there was nothing to
-// take a share of.
+// percent renders a share, and reads as nothing when the whole is zero.
 func percent(part, whole int) string {
 	if whole == 0 {
 		return "-"

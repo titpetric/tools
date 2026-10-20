@@ -1,7 +1,7 @@
 # puzzle - A crossword puzzle generator from Go package names
 
 This is a creative way to analyze a go repository package structure. The
-tool basically creates a basic crossword puzzle (or tries to).
+tool basically creates a basic crossword puzzle, when the names fit one.
 
 ```bash
 go install github.com/titpetric/tools/puzzle@main

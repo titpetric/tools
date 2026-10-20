@@ -17,8 +17,8 @@ func TestShortPackage(t *testing.T) {
 		// two packages sharing a name stay apart.
 		{module: "example.com/x", pkg: "example.com/x/commands/host", want: "/commands/host"},
 		{module: "example.com/x", pkg: "example.com/x/frontend/model", want: "/frontend/model"},
-		// A package outside the module, which the model should not hold, is
-		// named as it stands rather than mangled.
+		// A package outside the module, which the model does not normally hold,
+		// keeps its name as it stands, unmangled.
 		{module: "example.com/x", pkg: "example.com/other", want: "example.com/other"},
 	}
 

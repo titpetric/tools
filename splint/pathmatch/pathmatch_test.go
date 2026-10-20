@@ -49,10 +49,10 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// TestMatchBadPattern proves a malformed pattern is reported whatever it was
-// asked about: the name here matches the readable half of the pattern, so an
+// TestMatchBadPattern proves Match reports a malformed pattern whatever the
+// name: the name here matches the readable half of the pattern, so an
 // implementation that stopped matching before it reached the rest would return
-// a verdict rather than the error.
+// a verdict and drop the error.
 func TestMatchBadPattern(t *testing.T) {
 	for _, pattern := range []string{"[", "parser/[", "a[/b", "**/x[y"} {
 		t.Run(pattern, func(t *testing.T) {

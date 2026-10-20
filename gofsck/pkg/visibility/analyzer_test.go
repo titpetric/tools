@@ -37,8 +37,8 @@ func TestAnalyzer_Analyze(t *testing.T) {
 	assert.Less(t, got.InternalLines, got.Lines)
 }
 
-// countSource returns the counts of one source file, which is how the rules
-// below are stated without a package on disk.
+// countSource returns the counts of one source file, so the tests below state
+// the rules without a package on disk.
 func countSource(t *testing.T, src string) PackageReport {
 	t.Helper()
 
@@ -60,7 +60,7 @@ func countSource(t *testing.T, src string) PackageReport {
 
 func TestCountFileCountsByTheNameOfTheSymbol(t *testing.T) {
 	// A method counts as a func, and by the case of its own name: the
-	// receiver being unexported says nothing about the method.
+	// receiver's own visibility says nothing about the method.
 	got := countSource(t, `package p
 
 type Tracer struct{}

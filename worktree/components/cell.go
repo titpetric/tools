@@ -21,7 +21,7 @@ func Divider() Cell {
 // Rows represents a table row as a slice of cells.
 type Rows []Cell
 
-// Width returns the maximum visual width across all lines of the cell.
+// Width returns the widest visual width across all lines of the cell.
 func (c Cell) Width() int {
 	w := 0
 	for _, line := range c {
@@ -32,7 +32,7 @@ func (c Cell) Width() int {
 	return w
 }
 
-// Height returns the number of lines in the cell (minimum 1 for empty cells).
+// Height returns the number of lines in the cell (at least 1 for empty cells).
 func (c Cell) Height() int {
 	if len(c) == 0 {
 		return 1

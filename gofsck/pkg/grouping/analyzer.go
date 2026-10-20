@@ -116,7 +116,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			continue
 		}
 
-		// Only scan a file once, multiple passes are run.
+		// Only scan a file once, the analyzer runs more than one pass.
 		scannedMu.Lock()
 		if scanned[fileName] {
 			scannedMu.Unlock()
@@ -143,7 +143,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	for _, symbol := range symbols {
 		matched, canonicalLocations, totalExpected := matchWithOptions(symbol, symbol.Filename)
 
-		// If no match was found, report an error
+		// If nothing matched, report an error
 		if !matched {
 			locStr := strings.Join(canonicalLocations, ", ")
 			pass.Reportf(symbol.Pos, "exported %s %q expected in [%s] (total: %d expected filenames)", symbol.Type, symbol.String(), locStr, totalExpected)
@@ -189,7 +189,7 @@ func handleFuncDecl(packageName string, scope *types.Scope, decl *ast.FuncDecl, 
 		})
 	} else if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
 		// For package-level functions with typed returns, use the return type
-		// e.g., NewVue() *Vue should be grouped by Vue
+		// e.g., NewVue() *Vue belongs to the Vue group
 		returnType := extractReturnType(decl.Type.Results.List[0].Type)
 		if returnType != "" && ast.IsExported(returnType) {
 			// Add the symbol to the list for constructors/factories

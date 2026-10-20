@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestParseGHReleases checks the release list is keyed on the tag each release
-// names, with the body the note is compared against.
+// TestParseGHReleases checks the release list keys on the tag each release
+// names, with the body the run compares the note against.
 func TestParseGHReleases(t *testing.T) {
 	data := []byte(`[
 		{"tag_name":"v1.0.0","name":"v1.0.0","body":"the note","draft":false},
@@ -31,7 +31,7 @@ func TestParseGHReleases(t *testing.T) {
 }
 
 // TestParseGHReleasesRejectsNonsense checks a reply that is not the list says
-// so rather than reading as a repository with no releases.
+// so and does not read as a repository with no releases.
 func TestParseGHReleasesRejectsNonsense(t *testing.T) {
 	if _, err := parseGHReleases([]byte(`{"message":"Not Found"}`)); err == nil {
 		t.Fatal("parseGHReleases() accepted a reply that is not a release list")
@@ -53,9 +53,9 @@ func TestParseGHTags(t *testing.T) {
 	}
 }
 
-// TestReleaseNoteArgs checks the command each state of a release is written
-// with: a release is created with the tag verified and its place among the
-// releases stated, and one already there only has its body rewritten.
+// TestReleaseNoteArgs checks the command that writes each state of a release:
+// a new release gets the tag verified and its place among the releases stated,
+// and an existing one only gets its body rewritten.
 func TestReleaseNoteArgs(t *testing.T) {
 	tests := []struct {
 		name string
@@ -93,9 +93,9 @@ func TestReleaseNoteArgs(t *testing.T) {
 	}
 }
 
-// TestWriteReleaseNoteRunsInTheRepository checks the gh call is made in the
-// repository the note belongs to, so no run of it depends on where worktree
-// itself was started.
+// TestWriteReleaseNoteRunsInTheRepository checks the gh call runs in the
+// repository the note belongs to, so no run of it depends on the directory
+// worktree itself starts in.
 func TestWriteReleaseNoteRunsInTheRepository(t *testing.T) {
 	out := stubGH(t, "pwd -P > \"$STUB_OUT\"\n")
 	dir := t.TempDir()
@@ -104,7 +104,7 @@ func TestWriteReleaseNoteRunsInTheRepository(t *testing.T) {
 		t.Fatalf("writeReleaseNote() error = %v", err)
 	}
 
-	// The temporary directory may be reached through a symlink, which pwd -P
+	// The path to the temporary directory may pass through a symlink, which pwd -P
 	// resolves and the name of the directory does not.
 	want, err := filepath.EvalSymlinks(dir)
 	if err != nil {

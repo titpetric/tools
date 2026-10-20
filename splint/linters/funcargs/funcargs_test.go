@@ -311,7 +311,7 @@ func TestFuncArgsLinter_MoreThanTwoArgumentsSkipped(t *testing.T) {
 // two numbers a declaration carries. Arguments holds the distinct types and no
 // duplicate, so time.Date(year int, month time.Month, day, hour, min, sec,
 // nsec int) records two of them for seven parameters. Reading that list's
-// length as the arity made the linter ask for the pair reversed, which would
+// length as the arity made the linter report the pair reversed, which would
 // put the month before the year in a function that mirrors time.Date
 // one for one.
 func TestFuncArgsLinterReadsTheParameterCount(t *testing.T) {
@@ -337,14 +337,14 @@ func TestFuncArgsLinterReadsTheParameterCount(t *testing.T) {
 	}
 }
 
-// lint runs the linter over a list of packages, which is what every case here
+// lint runs the linter over a list of packages, the shape every case here
 // builds by hand.
 //
 // A declaration that states no ArgumentCount gets one parameter per type in
-// Arguments, which is what every case above means. A case where the two differ
+// Arguments, which matches what every case above means. A case where the two differ
 // says so itself: the linter skips a declaration whose count is zero, so
-// filling it here is what keeps an expectation of no findings from passing
-// because nothing was read.
+// filling it here keeps an expectation of no findings from passing
+// on a run that read nothing.
 func lint(t *testing.T, linter *Linter, defs model.DefinitionList) model.LintReport {
 	t.Helper()
 

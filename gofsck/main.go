@@ -32,8 +32,8 @@ var (
 
 func main() {
 	// -h and --help are not flags of this set, so the flag package calls the
-	// usage function and exits 0. The page is what it calls, which is why the
-	// defaults are never printed.
+	// usage function and exits 0. The usage function prints the page, so the
+	// defaults never print.
 	flag.CommandLine.Usage = func() {
 		_ = writeHelp(os.Stdout, helpSpec(flag.CommandLine))
 	}
@@ -44,7 +44,7 @@ func main() {
 	if *useChecker {
 		analyzers := New()
 		// singlechecker expects a single analyzer, so run the first one (grouping)
-		// In a real scenario, you'd want to compose them differently
+		// A real scenario would compose them differently
 		singlechecker.Main(analyzers[2]) // grouping is the linter analyzer
 		return
 	}
@@ -70,7 +70,7 @@ func main() {
 		skipGeneratedFiles(pkgs)
 	}
 
-	_ = &model.Config{} // config is reserved for future use
+	_ = &model.Config{} // model.Config stays reserved for future use
 
 	// Run all analyzers and collect reports
 	report := NewReport(pkgs)
@@ -109,7 +109,7 @@ func main() {
 // helpSpec is the page the command prints.
 //
 // The six analyzers are not subcommands and there is no flag that selects one,
-// so they are described rather than listed as commands.
+// so the page describes them in prose and lists no commands.
 func helpSpec(fs *flag.FlagSet) spec {
 	return spec{
 		Name:    "gofsck",

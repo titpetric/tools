@@ -7,7 +7,7 @@ import (
 
 // TestModuleVerbose checks the verbose module cell: the description loses the
 // name in front of its dash, since the cell names the module underneath it
-// anyway, and a module with no description writes one line instead of two.
+// anyway, and a module with no description writes one line, where others write two.
 func TestModuleVerbose(t *testing.T) {
 	got := ModuleVerbose("worktree - Show workspace details", "./worktree", "github.com/titpetric/tools/worktree")
 	if got.Height() != 2 {
@@ -20,7 +20,7 @@ func TestModuleVerbose(t *testing.T) {
 		t.Errorf("ModuleVerbose() dropped the description: %q", got.Line(0))
 	}
 	// The module line names the import path without its host, and the
-	// directory it is checked out at.
+	// directory of its checkout.
 	if !strings.Contains(got.Line(1), "titpetric/tools/worktree") || !strings.Contains(got.Line(1), "./worktree") {
 		t.Errorf("ModuleVerbose() = %q, want the import path and the directory", got.Line(1))
 	}

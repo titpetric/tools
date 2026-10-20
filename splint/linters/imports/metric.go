@@ -2,20 +2,20 @@ package imports
 
 // Metric is what the linter counted in one package.
 type Metric struct {
-	// Files is how many files the package is made of, and Names how many
-	// short names their imports are reached by.
+	// Files is how many files the package holds, and Names how many
+	// short names their imports go by.
 	Files int `json:"Files" yaml:"Files"`
 	Names int `json:"Names" yaml:"Names"`
 
 	// Collisions is how many of those names mean two things.
 	Collisions int `json:"Collisions" yaml:"Collisions"`
 
-	// Considered is how many files the import rules were read against, which
+	// Considered is how many files the linter read the import rules against, which
 	// is every file of the package a generator did not write, and Formatted
 	// how many of them hold the block they should.
 	//
-	// The two are zero for a parse that was not asked for the import
-	// declarations: nothing was read, rather than nothing being wrong.
+	// The two are zero for a parse that skipped the import
+	// declarations: the linter read nothing, which says nothing about faults.
 	Considered int `json:"Considered" yaml:"Considered"`
 	Formatted  int `json:"Formatted" yaml:"Formatted"`
 

@@ -20,7 +20,7 @@ func sym(kind, name, signature string) Symbol {
 }
 
 // symType builds the Symbol a type declaration of example.com/x reports, under
-// the shape it is declared with.
+// the shape its declaration states.
 func symType(name, underlying string, fields ...Field) Symbol {
 	symbol := sym(kindType, name, "")
 	symbol.Underlying = underlying
@@ -150,8 +150,8 @@ func TestCompareReportsTheKindOfEachSymbol(t *testing.T) {
 	for _, symbol := range Compare(nil, new, false, false).Added {
 		got = append(got, symbol.String())
 	}
-	// Sorted by key, so by name; a struct is declared as one but reads as a
-	// type.
+	// Sorted by key, so by name; a struct declaration says struct but reads as
+	// a type.
 	want := []string{"type Client struct", "var ErrClosed", "const Name", "func Open () error"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Compare().Added = %#v, want %#v", got, want)
@@ -169,7 +169,7 @@ func TestCompareSortsResults(t *testing.T) {
 	}
 }
 
-// typeDefs builds a definition holding one type declaration, which is what the
+// typeDefs builds a definition holding one type declaration, the input the
 // data model comparison reads.
 func typeDefs(name, underlying string, fields ...*model.Field) []*model.Definition {
 	decl := &model.Declaration{Kind: "type", Name: name, Fields: fields}
@@ -366,7 +366,7 @@ func TestFieldChangeLabelNamesTheEmbeddedType(t *testing.T) {
 		t.Errorf("Label() = %q, want %q", got, want)
 	}
 
-	// A removed field is reported from the side that still has it.
+	// The report takes a removed field from the side that still has it.
 	removed := Field{Name: "Addr", Type: "string"}
 	change = FieldChange{Name: "Addr", Change: fieldRemoved, Old: &removed}
 	if got, want := change.Label("Disk"), "Disk.Addr"; got != want {

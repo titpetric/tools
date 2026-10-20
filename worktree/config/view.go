@@ -10,8 +10,8 @@ import (
 	"github.com/titpetric/tools/worktree/components"
 )
 
-// Light rounded box drawing, the same frame the worktree tables are drawn
-// with, so the form reads as one more table in the output.
+// Light rounded box drawing, the same frame the worktree tables use, so the
+// form reads as one more table in the output.
 const (
 	boxTopLeft     = "╭"
 	boxTopRight    = "╮"
@@ -40,17 +40,17 @@ const (
 )
 
 // Form geometry. The form is only as wide as its settings need and only as
-// tall as it has rows, so it prints inline rather than taking the screen; a
-// wide terminal caps the description column rather than stretching it.
+// tall as it has rows, so it prints inline and leaves the screen alone; a
+// wide terminal caps the description column and does not stretch it.
 const (
 	maxFormWidth = 96
 	// columnGap is the space between the label, value and description
 	// columns.
 	columnGap = 2
-	// minValueWidth is the room a string list is typed into before it starts
+	// minValueWidth is the room a string list has for typing before it starts
 	// to scroll, and maxValueWidth the most a long one may claim. The
-	// descriptions give way first on a narrow terminal, since a value is
-	// edited and a description is only read.
+	// descriptions shrink first on a narrow terminal, since the user edits a
+	// value and only reads a description.
 	minValueWidth = 16
 	maxValueWidth = 40
 	// chromeRows counts the rows the frame costs: two borders, the rule above
@@ -58,16 +58,15 @@ const (
 	chromeRows = 4
 )
 
-// marker is the glyph in front of the focused row. Focus is shown by the
-// marker and the text colour rather than by a highlight bar, which would need
-// a background.
+// marker is the glyph in front of the focused row. The marker and the text
+// colour show focus; a highlight bar would need a background.
 const (
 	markerOn  = "› "
 	markerOff = "  "
 )
 
 // The value column glyphs: a checkbox for a boolean, a bar for the position a
-// string list is being typed at, and the placeholder of an empty list.
+// string list takes typing at, and the placeholder of an empty list.
 const (
 	checkOn    = "[x] Enabled"
 	checkOff   = "[ ] Disabled"
@@ -75,7 +74,7 @@ const (
 	listEmpty  = "(none)"
 )
 
-// The buttons the form is finished on.
+// The buttons that close the form.
 const (
 	buttonSave    = "[ Save ]"
 	buttonDiscard = "[ Discard ]"
@@ -91,22 +90,22 @@ func (m Model) View() tea.View {
 // width.
 type layout struct {
 	// label, value and desc are the widths of the three columns of a setting
-	// row: what it is called, what it is set to, and what it does.
+	// row: its name, its value, and what it does.
 	label int
 	value int
 	desc  int
 }
 
-// inner returns the width between the frame borders, which every row of the
-// form is rendered to.
+// inner returns the width between the frame borders, the width every row of
+// the form renders to.
 func (l layout) inner() int {
 	return l.label + columnGap + l.value + columnGap + l.desc
 }
 
-// layout measures the form against the settings it shows, so it is only as
-// wide as they need rather than stretched to the terminal. The value column is
-// measured from the document rather than from the text being typed, so a row
-// does not move while it is edited; text past the column scrolls instead.
+// layout measures the form against the settings it shows, so the form takes
+// the width they need and does not stretch to the terminal. layout measures the
+// value column from the document and ignores the text under edit, so a row
+// does not move during an edit; text past the column scrolls.
 func (m Model) layout() layout {
 	var l layout
 	for i, field := range m.fields {
@@ -122,7 +121,7 @@ func (m Model) layout() layout {
 		width = 80
 	}
 	// Two borders and the space inside each of them are not the form's to
-	// hand out. What is left over is taken off the descriptions first.
+	// hand out. layout takes what remains off the descriptions first.
 	budget := min(width, maxFormWidth) - 4
 	l.desc = max(min(l.desc, budget-l.label-l.value-2*columnGap), 0)
 	l.value = min(l.value, max(budget-l.label-l.desc-2*columnGap, minValueWidth))
@@ -169,9 +168,9 @@ func (m Model) body(l layout) []string {
 	return lines
 }
 
-// settingLine renders one setting: what it is called, what it is set to, and
-// what it does. The columns are padded to the measured widths so they line up
-// down the form.
+// settingLine renders one setting: its name, its value, and what it does.
+// settingLine pads the columns to the measured widths so they line up down the
+// form.
 func (m Model) settingLine(index int, l layout) string {
 	field := m.fields[index]
 	focused := index == m.cursor
@@ -187,9 +186,9 @@ func (m Model) settingLine(index int, l layout) string {
 		styleHelp + fit(field.Help, l.desc) + styleReset
 }
 
-// valueCell renders the value column of a setting. The focused string list is
-// rendered with the caret it is typed at, windowed to the column so a long
-// list scrolls rather than widening the form.
+// valueCell renders the value column of a setting. valueCell renders the
+// focused string list with its caret, windowed to the column so a long list
+// scrolls and the form keeps its width.
 func (m Model) valueCell(index, width int) string {
 	field, v := m.fields[index], m.state[index]
 	focused := index == m.cursor
@@ -208,8 +207,7 @@ func (m Model) valueCell(index, width int) string {
 	return style + fit(valueText(field, v), width) + styleReset
 }
 
-// valueText renders a value as the form shows it when it is not being typed
-// into.
+// valueText renders a value as the form shows it outside of typing.
 func valueText(field Field, v value) string {
 	switch {
 	case field.IsList() && v.text == "":
@@ -224,8 +222,8 @@ func valueText(field Field, v value) string {
 }
 
 // caretText renders text with the caret marked at a rune position, windowed to
-// width. The window follows the caret, so the end being typed at stays on
-// screen however long the text grows.
+// width. The window follows the caret, so the typing end stays on screen
+// whatever the length of the text.
 func caretText(text string, caret, width int) string {
 	runes := []rune(text)
 	caret = min(max(caret, 0), len(runes))
@@ -238,7 +236,7 @@ func caretText(text string, caret, width int) string {
 		string(runes[caret:end]), width)
 }
 
-// buttonLine renders the buttons the form is finished on. Save is dim while
+// buttonLine renders the buttons that close the form. Save is dim while
 // there is nothing to write, since pressing it then does nothing but close the
 // form.
 func (m Model) buttonLine(l layout) string {
@@ -305,14 +303,14 @@ func splitBorder(l layout) string {
 }
 
 // bottomBorder renders the bottom frame, captioned with the file the form
-// writes so the settings can be read back to a path.
+// writes, so a reader can trace the settings back to a path.
 func bottomBorder(m Model, l layout) string {
 	return styleFrame + boxBottomLeft + caption(shortPath(m.path), l.inner()+2, styleDim) +
 		styleFrame + boxBottomRight + styleReset + "\n"
 }
 
 // caption renders text inset into a horizontal rule of width, the way a table
-// carries a heading in its frame. Text too long for the rule is cut.
+// carries a heading in its frame. caption cuts text too long for the rule.
 func caption(text string, width int, style string) string {
 	text = " " + ansi.Truncate(text, max(width-3, 0), "") + " "
 	rule := width - 1 - ansi.StringWidth(text)
@@ -339,7 +337,7 @@ func truncPad(text string, width int) string {
 }
 
 // fit is truncPad for prose, marking a cut with an ellipsis so a description
-// that does not fit reads as shortened rather than as written that way.
+// that does not fit reads as shortened and not as written that way.
 func fit(text string, width int) string {
 	if ansi.StringWidth(text) > width {
 		return pad(ansi.Truncate(text, width, "…"), width)

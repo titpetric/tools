@@ -107,7 +107,7 @@ func Data(defs model.DefinitionList) *Stats {
 
 // packageDir turns a package path into the directory the report names: "" for
 // the root, "frontend" for "./frontend", and "generic" for the ".generic" a
-// nested module is recorded under.
+// nested module records under.
 func packageDir(pkgPath string) string {
 	return strings.TrimPrefix(strings.TrimPrefix(pkgPath, "."), "/")
 }
@@ -142,11 +142,10 @@ func histogram(files []*File) []*Bucket {
 
 // WriteD2 renders the histogram as a d2 source document, one rectangle per
 // non-empty bucket holding the count of files in it, chained in size order. A
-// bucket with no files is a gap in the range and not a measurement, so it is
-// left out.
+// bucket with no files is a gap in the range and not a measurement, so WriteD2
+// leaves it out.
 //
-// The output goes through the d2 binary, which is what turns it into the
-// diagram a README embeds:
+// The d2 binary turns the output into the diagram a README embeds:
 //
 //	splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
 func WriteD2(w io.Writer, defs model.DefinitionList) error {

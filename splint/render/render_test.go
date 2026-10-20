@@ -53,8 +53,8 @@ func sample() *report.Report {
 	)
 }
 
-// TestLine covers the one shape an issue is written in: the level, where it
-// is, which rule reported it, and what is wrong with the symbol it is about.
+// TestLine covers the one shape of an issue: the level, its position, which
+// rule reported it, and what is wrong with the symbol it concerns.
 func TestLine(t *testing.T) {
 	issue := model.Issue{
 		Linter: "godoc", Rule: "missing", Severity: model.SeverityWarn,
@@ -69,7 +69,7 @@ func TestLine(t *testing.T) {
 	}
 
 	// A linter with one rule names itself and nothing more, and a finding
-	// about a file rather than a symbol is the message after the rule.
+	// about a whole file carries the message after the rule.
 	issue.Rule, issue.Symbol = "", ""
 	want = "WARN: model/trace.go:7: godoc: exported symbol lacks a godoc comment"
 	if got := render.Line(issue); got != want {
@@ -77,8 +77,8 @@ func TestLine(t *testing.T) {
 	}
 }
 
-// TestIssuesToAPipe covers what a program is written: one workflow command per
-// finding, which is what GitHub Actions turns into an annotation.
+// TestIssuesToAPipe covers what a program receives: one workflow command per
+// finding, and GitHub Actions turns each one into an annotation.
 func TestIssuesToAPipe(t *testing.T) {
 	var out bytes.Buffer
 	if err := render.Issues(&out, sample()); err != nil {
@@ -103,8 +103,8 @@ func TestIssuesToAPipe(t *testing.T) {
 	}
 }
 
-// TestAnnotation covers the command one finding is written as, and what has to
-// be escaped in it.
+// TestAnnotation covers the command one finding becomes, and what needs an
+// escape in it.
 func TestAnnotation(t *testing.T) {
 	issue := model.Issue{
 		Linter: "filecheck", Rule: "long", Severity: model.SeverityInfo,
@@ -119,9 +119,10 @@ func TestAnnotation(t *testing.T) {
 		t.Errorf("Annotation() = %q, want %q", got, want)
 	}
 
-	// A message is read to the end of the line, so a line ending in one is
-	// written as an escape, and so is the percent that opens one. A property
-	// is read to the next comma or colon, so those are written as escapes too.
+	// The runner reads a message to the end of the line, so a line ending in
+	// one becomes an escape, and so does the percent that opens one. The
+	// runner reads a property to the next comma or colon, so those become
+	// escapes too.
 	issue.Rule = "long,ish:er"
 	issue.Position = model.Position{File: "handler.go"}
 	issue.Message = "100% of\nit"
@@ -143,7 +144,7 @@ func TestSummaryOfLinters(t *testing.T) {
 	for _, want := range []string{
 		"Linter", "Error", "Warn", "Info", "Total", "Rules",
 		"godoc", "format 1, missing 1",
-		// A linter that ran and found nothing is named, not tabulated.
+		// The output names a linter that ran and found nothing, and draws no table for it.
 		"imports found nothing.",
 	} {
 		if !strings.Contains(plain, want) {
@@ -158,8 +159,8 @@ func TestIssuesOnACleanRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A clean run says which linters found nothing rather than printing a
-	// blank, which reads as though nothing ran.
+	// A clean run says which linters found nothing and prints no blank, since
+	// a blank reads as though nothing ran.
 	if got := out.String(); !strings.Contains(got, "godoc") || !strings.Contains(got, "No issues") {
 		t.Errorf("Issues() on a clean run = %q", got)
 	}
@@ -213,8 +214,8 @@ func tables() []model.LintReport {
 			model.HeaderText("What the second linter measured."),
 			model.FooterText("One package measured."),
 		)}},
-		// A linter that measures nothing contributes no table, rather than an
-		// empty one with a heading over it.
+		// A linter that measures nothing contributes no table, and no empty
+		// one with a heading over it either.
 		results{name: "third"},
 	}
 }
@@ -230,7 +231,7 @@ func TestMarkdownStats(t *testing.T) {
 	got := out.String()
 	for _, want := range []string{
 		"What the first linter measured.",
-		// The columns are padded, which is what mdox leaves alone.
+		// MarkdownTable pads the columns, and mdox leaves padded columns alone.
 		"| Package  | Files |",
 		"17 files in 2 packages.",
 		"What the second linter measured.",
@@ -262,8 +263,8 @@ func TestMarkdownStatsIsPadded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Every row of one table is the same width, which is what mdox leaves
-	// alone. The two tables have different columns, so they are checked apart.
+	// Every row of one table is the same width, and mdox leaves that alone.
+	// The two tables have different columns, so the test checks them apart.
 	widths := map[string][]int{}
 	table := ""
 	for _, line := range strings.Split(out.String(), "\n") {
@@ -313,8 +314,8 @@ func TestStatsOnNothing(t *testing.T) {
 		if err := write(&out, []model.LintReport{results{name: "quiet"}}); err != nil {
 			t.Fatal(err)
 		}
-		// A run where no linter measured anything says so, rather than
-		// printing a blank that reads as though nothing ran.
+		// A run where no linter measured anything says so, and prints no
+		// blank that reads as though nothing ran.
 		if !strings.Contains(out.String(), "No linter reported any statistics.") {
 			t.Errorf("%s: Stats() = %q", name, out.String())
 		}

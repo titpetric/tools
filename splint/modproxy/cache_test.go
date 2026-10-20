@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// cacheFile is a cache in a directory of its own, which is what a save writes
-// into and what a reopen reads back.
+// cacheFile is a cache in a directory of its own; a save writes into it and a
+// reopen reads it back.
 func cacheFile(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(t.TempDir(), "sizes.yml")
@@ -34,8 +34,8 @@ func TestCacheRoundTrip(t *testing.T) {
 		t.Errorf("Size() = %d, %v, want 1000", got, known)
 	}
 
-	// A version the file does not hold is answered with the size of the
-	// module, which is the mean of the ones it does.
+	// For a version the file does not hold, the cache reports the size of
+	// the module, the mean of the ones it does.
 	got, known := read.Size("example.com/x", "v9.9.9")
 	if !known || got != 1500 {
 		t.Errorf("Size() of an unknown version = %d, %v, want the mean 1500", got, known)
@@ -46,7 +46,7 @@ func TestCacheRoundTrip(t *testing.T) {
 	}
 }
 
-// TestCacheSaveIsAtomic covers how the file is written: beside itself and
+// TestCacheSaveIsAtomic covers how Save writes the file: beside itself and
 // renamed, so a reader sees one file or the other.
 func TestCacheSaveIsAtomic(t *testing.T) {
 	path := cacheFile(t)
@@ -74,7 +74,7 @@ func TestCacheSaveIsAtomic(t *testing.T) {
 }
 
 // TestCacheSaveWritesNothingNew covers the run that learned nothing: the file
-// is left where it is rather than rewritten with what it already said.
+// stays in place and Save does not rewrite it with what it already said.
 func TestCacheSaveWritesNothingNew(t *testing.T) {
 	path := cacheFile(t)
 
@@ -89,8 +89,8 @@ func TestCacheSaveWritesNothingNew(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The same answer again, and a size of nothing, which is what the proxy
-	// reports when it could not be reached.
+	// The same size again, and a size of nothing, as the proxy reports when
+	// the network fails.
 	read := OpenCache(path)
 	read.Add("example.com/x", "v1.0.0", 1000)
 	read.Add("example.com/y", "v1.0.0", 0)
@@ -111,7 +111,7 @@ func TestCacheSaveWritesNothingNew(t *testing.T) {
 }
 
 // TestOpenCacheOnRubbish covers the file nobody can read. A cache is an
-// optimisation, so it answers nothing and is written over.
+// optimisation, so it answers nothing and the next save writes over it.
 func TestOpenCacheOnRubbish(t *testing.T) {
 	path := cacheFile(t)
 	if err := os.WriteFile(path, []byte("\tnot: [yaml"), 0o644); err != nil {
@@ -132,7 +132,7 @@ func TestOpenCacheOnRubbish(t *testing.T) {
 	}
 }
 
-// TestCacheWithoutPath covers the client that was given nowhere to write: it
+// TestCacheWithoutPath covers the client with nowhere to write: it
 // answers from memory and saves nothing.
 func TestCacheWithoutPath(t *testing.T) {
 	cache := OpenCache("")
@@ -147,7 +147,7 @@ func TestCacheWithoutPath(t *testing.T) {
 }
 
 // TestClientOffline covers the run that asks nobody: the size comes out of the
-// cache, and the questions only the proxy can answer are left blank.
+// cache, and the questions only the proxy can answer stay blank.
 func TestClientOffline(t *testing.T) {
 	calls := 0
 	server := proxy(t, &calls)

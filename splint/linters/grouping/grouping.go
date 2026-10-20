@@ -1,6 +1,6 @@
 // Package grouping reports an exported symbol in a file not named for it.
 //
-// It is a port of the gofsck analyzer of the same name, reimplemented against
+// The package ports the gofsck analyzer of the same name onto
 // the splint model: the check is the same idea and the reading is different,
 // because a document is not a syntax tree.
 package grouping
@@ -13,7 +13,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "grouping"
 
 // RuleFilename is the one rule this linter reports under.
@@ -38,7 +38,7 @@ func (l *Linter) Name() string {
 // A command exports nothing anyone imports, so where it puts a symbol is
 // nobody's business, and a test package is not a surface a reader navigates by
 // filename either. Neither is a file that compiles on its own: it moves as one
-// unit, so where a symbol sits inside it is the file's own business. filescope
+// unit, so where a symbol sits inside is the file's own business. filescope
 // is what answers that, and collect leaves those symbols alone.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results

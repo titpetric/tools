@@ -15,7 +15,7 @@ func TestStringSet(t *testing.T) {
 
 // TestStringSetGetDoesNotReorderTheSet covers what a read must not do to what
 // it read: sorting the stored slice would mean a document loaded from a file
-// is not the document that was written to it.
+// differs from the document the writer stored in it.
 func TestStringSetGetDoesNotReorderTheSet(t *testing.T) {
 	set := NewStringSet()
 	set.Add("x.go", `"fmt"`, `"strings"`, `"example.com/a"`)
@@ -37,7 +37,7 @@ func TestStringSetGetDoesNotReorderTheSet(t *testing.T) {
 }
 
 // TestStringSetKeysDoesNotReorderTheSet covers the same for the key listing,
-// which used to sort every value slice on its way past.
+// which must not sort any value slice on its way past.
 func TestStringSetKeysDoesNotReorderTheSet(t *testing.T) {
 	set := NewStringSet()
 	set.Add("b.go", `"z"`, `"a"`)
@@ -52,7 +52,7 @@ func TestStringSetKeysDoesNotReorderTheSet(t *testing.T) {
 }
 
 // TestStringSetAllIsOrdered covers what a reader of All decides with it. The
-// import collision message names which of two paths was seen first, and a map
+// import collision message names which of two paths came first, and a map
 // walked at random answers that differently every run.
 func TestStringSetAllIsOrdered(t *testing.T) {
 	set := NewStringSet()
@@ -69,7 +69,7 @@ func TestStringSetAllIsOrdered(t *testing.T) {
 }
 
 // TestStringSetMapKeepsAnAlias covers the name a file actually writes. A major
-// version is not a package name, so "example.com/x/v2" is reached as x, but an
+// version is not a package name, so x reaches "example.com/x/v2", but an
 // alias in front of it wins: that is the name in the source.
 func TestStringSetMapKeepsAnAlias(t *testing.T) {
 	set := NewStringSet()

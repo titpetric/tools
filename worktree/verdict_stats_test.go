@@ -21,7 +21,8 @@ func TestRenderVerdictStats(t *testing.T) {
 
 	got := out.String()
 	for _, want := range []string{
-		// The module is named once, without a version: the table holds them.
+		// The title names the module once, without a version: the table holds
+		// them.
 		"# example.com/x\n",
 		"| Version | Since | Commits | Symbols + | Symbols ~ | Symbols - | Fields + | Fields ~ | Fields - |",
 		"| v1.1.0 | v1.0.0 | 2 | 1 | 1 | 1 | 1 | 1 | 1 |",
@@ -32,7 +33,7 @@ func TestRenderVerdictStats(t *testing.T) {
 		}
 	}
 
-	// The analysis is what --stats collapses, so none of it is written.
+	// --stats collapses the analysis, so the report writes none of it.
 	for _, unwanted := range []string{"## Commits", "## API", "## Data model", "Minor release"} {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("renderVerdictStats() wrote %q, which it collapses:\n%s", unwanted, got)

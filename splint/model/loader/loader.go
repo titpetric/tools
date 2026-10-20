@@ -1,8 +1,8 @@
 // Package loader reads a parsed document back from disk.
 //
-// A document written by a parser is the input a linter runs against, which is
-// what lets a slow parse be done once and linted many times, and what lets a
-// document produced elsewhere be linted here.
+// A document a parser writes is the input a linter runs against, so a slow
+// parse runs once and the linters run over its output many times, and the
+// linters here run over a document produced elsewhere.
 package loader
 
 import (
@@ -26,8 +26,8 @@ const (
 	FormatYAML Format = "yaml"
 )
 
-// FormatOf returns the format a filename is written in, by extension. Anything
-// unrecognised is JSON, which is what the parsers write.
+// FormatOf returns the format a filename names, by extension. Anything
+// unrecognised is JSON, the format the parsers write.
 func FormatOf(filename string) Format {
 	switch strings.ToLower(filepath.Ext(filename)) {
 	case ".yml", ".yaml":
@@ -48,9 +48,9 @@ func Load(filename string) (*model.DocumentRoot, error) {
 
 // Decode reads a document from bytes.
 //
-// A document written before there was a root is a bare list of packages, which
-// is what "go-fsck extract" writes; it is read as a document holding those
-// packages and nothing else, so a file already on disk still loads.
+// A document without a root is a bare list of packages, the shape "go-fsck
+// extract" writes; Decode reads it as a document holding those packages and
+// nothing else, so a file already on disk still loads.
 func Decode(data []byte, format Format) (*model.DocumentRoot, error) {
 	unmarshal := json.Unmarshal
 	if format == FormatYAML {
@@ -85,8 +85,8 @@ func Save(filename string, doc *model.DocumentRoot) error {
 	return Write(file, doc, FormatOf(filename))
 }
 
-// Write encodes a document. JSON is written indented, which is what makes two
-// documents of the same tree diffable line by line.
+// Write encodes a document. Write indents JSON, so a line diff of two
+// documents of the same tree reads cleanly.
 func Write(w io.Writer, doc *model.DocumentRoot, format Format) error {
 	if format == FormatYAML {
 		encoder := yaml.NewEncoder(w)
@@ -100,8 +100,8 @@ func Write(w io.Writer, doc *model.DocumentRoot, format Format) error {
 }
 
 // fill recomputes what the document does not carry, which is the per
-// declaration import list: it is derived from the package import set, so it is
-// left out of the encoding and rebuilt on the way back in.
+// declaration import list: the package import set determines it, so the
+// encoding leaves it out and fill rebuilds it on the way back in.
 func fill(doc *model.DocumentRoot) *model.DocumentRoot {
 	for _, def := range doc.Packages {
 		def.Fill()

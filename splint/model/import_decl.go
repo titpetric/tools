@@ -9,10 +9,10 @@ import (
 
 // ImportSpec is one import as the file writes it.
 //
-// It is the import a formatter has to be able to put back. Definition.Imports
+// A formatter has to be able to put this import back. Definition.Imports
 // carries the same imports in a form a linter reads them by name, sorted and
 // with a redundant alias dropped; nothing in that form says where the import
-// was written or what was written beside it.
+// sits or what sits beside it.
 type ImportSpec struct {
 	// Name is the alias in front of the path: empty for an import reached by
 	// the base name of its path, "_" for a blank import, "." for a dot
@@ -30,8 +30,8 @@ type ImportSpec struct {
 	// Line is the 1 indexed line the spec is on.
 	Line int `json:"Line,omitempty" yaml:"Line,omitempty"`
 
-	// Break reports a blank line between this spec and the one before it,
-	// which is how the file groups its imports.
+	// Break reports a blank line between this spec and the one before it;
+	// blank lines group the imports of a file.
 	Break bool `json:"Break,omitempty" yaml:"Break,omitempty"`
 }
 
@@ -58,8 +58,8 @@ func (s ImportSpec) Dot() bool {
 // Ref is the name the file reaches the package by, and is empty for a blank or
 // a dot import, which no name reaches.
 //
-// An unaliased path is reached by its last segment, with a major version
-// suffix taken off: "example.com/x/v2" is reached as x.
+// The file reaches an unaliased path by its last segment, with a major version
+// suffix taken off: the file reaches "example.com/x/v2" as x.
 func (s ImportSpec) Ref() string {
 	switch s.Name {
 	case "_", ".":
@@ -74,7 +74,7 @@ func (s ImportSpec) Ref() string {
 //
 // The name a path implies is a guess, and not every path implies one: the last
 // segment of "github.com/goccy/go-yaml" is not an identifier, and neither is
-// what is left of "example.com/v2" once the version comes off. Writing either
+// what remains of "example.com/v2" once the version comes off. Writing either
 // as an alias produces a file that does not parse.
 func IsPackageName(name string) bool {
 	if name == "" {
@@ -93,12 +93,12 @@ func IsPackageName(name string) bool {
 	return true
 }
 
-// BaseName is the name a package path is reached by without an alias: the last
+// BaseName is the name that reaches a package path without an alias: the last
 // segment, with a major version suffix taken off.
 //
-// A version is written two ways. The module convention puts it in its own
-// segment, so "example.com/x/v2" is reached as x. gopkg.in puts it on the
-// segment, so "gopkg.in/yaml.v3" is reached as yaml.
+// A path spells a version two ways. The module convention puts it in its own
+// segment, so x reaches "example.com/x/v2". gopkg.in puts it on the segment,
+// so yaml reaches "gopkg.in/yaml.v3".
 func BaseName(path string) string {
 	trimmed := majorVersion.ReplaceAllString(path, "")
 	if index := strings.LastIndexByte(trimmed, '/'); index >= 0 {
@@ -107,7 +107,7 @@ func BaseName(path string) string {
 	return dottedVersion.ReplaceAllString(trimmed, "")
 }
 
-// ImportDecl is one import declaration of a file, as it is written.
+// ImportDecl is one import declaration of a file, as the file spells it.
 type ImportDecl struct {
 	// Line is the 1 indexed line the import keyword is on, and EndLine the
 	// line the declaration ends on: the closing paren for a block, and Line
@@ -115,7 +115,7 @@ type ImportDecl struct {
 	Line    int `json:"Line" yaml:"Line"`
 	EndLine int `json:"EndLine" yaml:"EndLine"`
 
-	// Block reports a declaration written as import ( ... ) rather than as a
+	// Block reports a declaration written as import ( ... ), and false for a
 	// single import on one line.
 	Block bool `json:"Block,omitempty" yaml:"Block,omitempty"`
 
@@ -127,24 +127,24 @@ type ImportDecl struct {
 	Doc     string `json:"Doc,omitempty" yaml:"Doc,omitempty"`
 	DocLine int    `json:"DocLine,omitempty" yaml:"DocLine,omitempty"`
 
-	// Specs are the imports of the declaration, in the order they are written.
+	// Specs are the imports of the declaration, in source order.
 	Specs []ImportSpec `json:"Specs,omitempty" yaml:"Specs,omitempty"`
 
 	// Tail is the comment lines inside the declaration that belong to no
 	// import, markers trimmed: the ones after the last one, and any separated
 	// from the import below them by a blank line.
 	//
-	// They are recorded because a rewrite that did not would be deleting what
-	// somebody wrote. A formatter may reorder a file and may not lose a line
-	// of it.
+	// The parse records them because a rewrite without them would delete
+	// what somebody wrote. A formatter may reorder a file and may not lose a
+	// line of it.
 	Tail string `json:"Tail,omitempty" yaml:"Tail,omitempty"`
 }
 
 // Cgo reports a declaration that imports "C".
 //
-// The comment above such a declaration is the C source cgo compiles, and it is
-// the preamble only while it sits directly above the import. The declaration
-// is where it is because of what is written above it, so nothing may move it.
+// The comment above such a declaration is the C source cgo compiles, and it
+// stays the preamble only while it sits directly above the import. The text
+// above the declaration pins it in place, so nothing may move it.
 func (d ImportDecl) Cgo() bool {
 	for _, spec := range d.Specs {
 		if spec.Path == "C" {
@@ -161,9 +161,9 @@ type ImportDeclList []ImportDecl
 // Free are the declarations a formatter may rewrite, which is every one that
 // does not import "C".
 //
-// A cgo file is formatted like any other apart from that one declaration: the
-// other blocks in it are merged, grouped and sorted, and the import of "C"
-// stays where its preamble put it.
+// A formatter treats a cgo file like any other apart from that one
+// declaration: it merges, groups and sorts the other blocks in it, and the
+// import of "C" stays where its preamble put it.
 func (l ImportDeclList) Free() ImportDeclList {
 	if len(l) == 0 {
 		return nil
@@ -179,10 +179,11 @@ func (l ImportDeclList) Free() ImportDeclList {
 	return free
 }
 
-// Specs is every spec of every declaration, in the order they are written.
+// Specs is every spec of every declaration, in source order.
 //
-// A file writing two import declarations reaches all of them, so a reader
-// asking what the file imports asks this rather than walking the declarations.
+// A file writing two import declarations reaches every spec in both, so a
+// reader looking for what the file imports reads this and skips walking the
+// declarations.
 func (l ImportDeclList) Specs() []ImportSpec {
 	var specs []ImportSpec
 	for _, decl := range l {
@@ -191,14 +192,14 @@ func (l ImportDeclList) Specs() []ImportSpec {
 	return specs
 }
 
-// Tail is the comment lines of every declaration that belong to no import,
-// which is where they go when two declarations merge into one.
+// Tail is the comment lines of every declaration that belong to no import;
+// they go here when two declarations merge into one.
 //
-// The doc comment of every declaration but the first is in here too. The first
-// declaration keeps its own, because the block is written where that one was
-// and the comment above it is still above it; the others are written away, and
-// their comments come along rather than being left to attach themselves to the
-// next thing in the file.
+// The doc comment of every declaration but the first sits in here too. The
+// first declaration keeps its own, because the block lands where that one
+// stands and the comment above it stays above it; the rewrite removes the
+// others, and their comments come along so none attaches itself to the next
+// thing in the file.
 func (l ImportDeclList) Tail() string {
 	var tails []string
 

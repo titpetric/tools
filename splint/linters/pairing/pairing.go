@@ -1,18 +1,18 @@
 // Package pairing reports a file with no test beside it, and a test with no
 // file beside it.
 //
-// A file is excused without one when every exported symbol it declares is
-// referenced by a test somewhere in the document: the tests of such a file
-// exist, they just sit in another package, which is a layout rather than a
+// The linter excuses a file without one when a test somewhere in the document
+// references every exported symbol it declares: the tests of such a file
+// exist, they just sit in another package, which is a layout and no
 // gap.
 //
 // A test excuses nothing: foo_test.go names foo.go, and a directory holding
-// only the first is a file that was deleted or renamed with its test left
+// only the first is a file somebody deleted or renamed, leaving its test
 // behind. The exception is a directory that holds test code and no code: a
 // package whose name says so, such as fstest, and a package under tests/, which
 // is where a tree keeps the black box suites that name no file.
 //
-// It is a port of the gofsck analyzer of the same name, reimplemented against
+// The package ports the gofsck analyzer of the same name onto
 // the splint model: the check is the same idea and the reading is different,
 // because a document is not a syntax tree.
 package pairing
@@ -28,7 +28,7 @@ import (
 	"github.com/titpetric/tools/splint/refindex"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "pairing"
 
 // The rules this linter reports under.
@@ -56,8 +56,8 @@ func (l *Linter) Name() string {
 // Lint pairs every file with the test named after it.
 //
 // A package and the package holding its tests arrive as two definitions of the
-// same directory, so the files are gathered by directory before anything is
-// paired: the foo_test.go recorded against the test half has to meet the
+// same directory, so the linter gathers the files by directory before it pairs
+// anything: the foo_test.go recorded against the test half has to meet the
 // foo.go recorded against the other one, and neither definition sees both.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var (
@@ -87,7 +87,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 	index := refindex.Build(root)
 
-	// The groups are reported in the order the document named them, so a run
+	// The linter reports the groups in the order the document named them, so a run
 	// over the same tree reports the same issues in the same order.
 	for _, key := range order {
 		groups[key].report(index, &results)
@@ -96,7 +96,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	return results, nil
 }
 
-// group is the files of one directory, however many definitions they arrived
+// group is the files of one directory, whatever the count of definitions they arrived
 // in, split into the half a test binary compiles and the half it does not.
 type group struct {
 	pkg    model.Package
@@ -104,17 +104,17 @@ type group struct {
 	files  map[string]model.File
 	tested map[string]model.File
 
-	// bases names every file of the directory a test can be named after,
-	// generated files included: a generated file is not judged, and a test
+	// bases names every file of the directory a test can take its name from,
+	// generated files included: the linter does not judge a generated file, and a test
 	// written beside one still names a file that is there.
 	bases map[string]bool
 
 	// symbols are the exported declarations of each file, keyed the way the
-	// files are, so a standalone file can be asked for elsewhere-tested.
+	// files are, so the report can check a standalone file for tests elsewhere.
 	symbols map[string][]refindex.Key
 }
 
-// newGroup returns a group ready to be filled.
+// newGroup returns an empty group, ready to fill.
 func newGroup() *group {
 	return &group{
 		files:   map[string]model.File{},
@@ -127,8 +127,8 @@ func newGroup() *group {
 // read takes the files of one definition into the group.
 //
 // The definition that is not the test package names the directory the way an
-// importer would, so it is the one the group is named after: the test half of
-// "x" is recorded as "x_test", which is an import path nothing outside the
+// importer would, so the group takes its name from that one: the test half of
+// "x" sits under "x_test", which is an import path nothing outside the
 // test binary has.
 func (g *group) read(def *model.Definition) {
 	if !g.named || (g.pkg.TestPackage && !def.Package.TestPackage) {
@@ -151,8 +151,8 @@ func (g *group) read(def *model.Definition) {
 	}
 
 	// The exported declarations of every non-test file, recorded against the
-	// same key the file is, so report can ask whether the file's whole
-	// surface is tested from somewhere else.
+	// same key as the file, so report can check whether a test somewhere else
+	// covers the file's whole surface.
 	for _, decl := range def.Order() {
 		if decl.IsTestScope() || !decl.IsExported() {
 			continue
@@ -170,10 +170,10 @@ func (g *group) read(def *model.Definition) {
 
 // report counts the group and reports both halves of the pairing.
 //
-// A standalone file whose exported symbols are all referenced by tests is
-// counted rather than reported: its tests exist, in whatever package they
-// were written in. A file exporting nothing has no surface to excuse it, and
-// is reported the way it always was.
+// The linter counts, and does not report, a standalone file whose exported symbols
+// tests reference in full: its tests exist, in whatever package their authors
+// chose. A file exporting nothing has no surface to excuse it, and
+// the linter reports it as before.
 func (g *group) report(index *refindex.Index, results *Results) {
 	metric := results.count(g.pkg, len(g.files), len(g.tested))
 
@@ -194,7 +194,7 @@ func (g *group) report(index *refindex.Index, results *Results) {
 		}
 	}
 
-	// A map is walked in no order, so the findings are put back into the order
+	// Map iteration has no order, so the linter sorts the findings back into the order
 	// a reader would list the directory in.
 	sort.Strings(standalone)
 	sort.Strings(orphans)
@@ -229,18 +229,18 @@ func (g *group) report(index *refindex.Index, results *Results) {
 	}
 }
 
-// excused reports a directory holding test code rather than code, which is
+// excused reports a directory holding test code and no code, which is
 // where a test named after nothing belongs: fstest, httptest, testing and a
 // repository's own tests each declare a package saying so.
 //
-// The external test scope of any package is called "<name>_test", and the
-// suffix comes off before the name is read: it says where a file compiles,
+// The external test scope of any package carries the name "<name>_test", and the
+// suffix comes off before the check reads the name: it says where a file compiles,
 // not what the directory is for.
 //
 // A directory says it too. A tree that keeps its black box suites under tests/
-// has nothing there for a test to be named after, by construction: the package
-// holds tests and no code, so every file in it is an orphan and the rule has
-// nothing to report. The path is read as segments rather than as a prefix, so
+// has nothing there for a test to take its name from, by construction: the package
+// holds tests and no code, so every file there is an orphan and the rule has
+// nothing to report. The check reads the path as segments, never as a prefix, so
 // tests/ at the root and internal/tests/ are both covered, and a package merely
 // called "attestation" is not.
 func excused(pkg model.Package) bool {

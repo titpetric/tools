@@ -17,7 +17,7 @@ var allowlist = []string{
 
 // checkPatterns reports whether any of the acceptable filenames covers the one
 // the symbol is in. A pattern is a glob because a name ending in a star stands
-// for the file and everything that starts like it, and the stem is compared as
+// for the file and everything that starts like it, and the check compares the stem as
 // well so a pattern carrying no star still matches an exact name.
 func checkPatterns(patterns []string, base, baseStem string) bool {
 	for _, pattern := range patterns {
@@ -31,8 +31,8 @@ func checkPatterns(patterns []string, base, baseStem string) bool {
 	return false
 }
 
-// matchFilenames is every filename a symbol of this name and receiver is
-// allowed in.
+// matchFilenames is every filename that may hold a symbol of this name and
+// receiver.
 //
 // The list opens on the fullest name, receiver and name together, and walks
 // back one word at a time, so Service.DiscoveryGet reaches
@@ -44,8 +44,8 @@ func checkPatterns(patterns []string, base, baseStem string) bool {
 func matchFilenames(name, receiver, defaultFile string) []string {
 	var result, partials []string
 
-	// A constructor is named for what it returns, so New comes off before the
-	// name is read: NewServer belongs in server.go.
+	// A constructor takes its name from what it returns, so New comes off before the
+	// check reads the name: NewServer belongs in server.go.
 	name = strings.TrimPrefix(name, "New")
 
 	if name != "" {
@@ -81,8 +81,8 @@ func matchFilenames(name, receiver, defaultFile string) []string {
 		}
 	}
 
-	// Errors are collected rather than filed one per type, and a package that
-	// does that names the file for the collection.
+	// A package keeps its errors together, with no file per type, and
+	// names the file for the collection.
 	if name == "Error" || strings.Contains(receiver, "Err") {
 		result = append(result, "errors.go")
 	}

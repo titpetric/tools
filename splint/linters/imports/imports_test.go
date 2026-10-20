@@ -94,7 +94,7 @@ func TestLinterOnTheRootPackage(t *testing.T) {
 	}
 }
 
-// The fixture: source written the way a file that has never been formatted
+// The fixture: source written the way a file nobody ever formatted
 // writes it, and the same source as the formatter should leave it.
 //
 // testdata/output is what `atkins fix` writes, for reading a change by eye.
@@ -111,7 +111,7 @@ const (
 // TestFixGolden runs the fixer over the fixture and reports every file that
 // does not come out the way testdata/golden says it should.
 //
-// Both parsers are run over the same input. A formatter that read one thing
+// The test runs both parsers over the same input. A formatter that read one thing
 // from the exact parser and another from the quick one would rewrite a file
 // differently depending on a flag nobody passed.
 func TestFixGolden(t *testing.T) {
@@ -125,7 +125,7 @@ func TestFixGolden(t *testing.T) {
 			changed, _, err := fix.Apply(plan)
 			require.NoError(t, err)
 
-			// The ast parser is given a cgo file only when the toolchain
+			// The ast parser receives a cgo file only when the toolchain
 			// compiles one. Under CGO_ENABLED=0 a file importing "C" is not
 			// part of the package at all, so the parser never sees it and the
 			// fixer has nothing to write. The quick parser reads the text and
@@ -152,7 +152,7 @@ func TestFixGolden(t *testing.T) {
 			assert.Equal(t, wanted, changed)
 
 			// cgo/cgo.go is in that list because the block beside its
-			// import of "C" is formatted like any other. What must not move
+			// import of "C" takes the same formatting as any other. What must not move
 			// is the "C" declaration itself, which testdata/golden holds
 			// exactly where the preamble above it put it.
 
@@ -211,10 +211,10 @@ func planFor(t *testing.T, parser, dir string) *fix.Plan {
 }
 
 // compareTree reports every file of the tree that is not what the golden tree
-// says it should be, and every file that is in one tree and not the other.
+// says, and every file that is in one tree and not the other.
 //
 // A parse that never saw the cgo file leaves it as the input wrote it, which
-// is the right answer for a parser the toolchain did not give it to.
+// is the right answer for a parser the toolchain kept that file from.
 func compareTree(t *testing.T, golden, got string, sawCgo bool) {
 	t.Helper()
 
@@ -249,7 +249,7 @@ func names(t *testing.T, dir string) []string {
 		}
 		relative = filepath.ToSlash(relative)
 
-		// A fix run against the tree writes its count into the tree. It is
+		// A fix run against the tree writes its count into the tree. That file is
 		// not source and the golden tree does not hold one.
 		if relative == config.Filename {
 			return nil
@@ -262,7 +262,7 @@ func names(t *testing.T, dir string) []string {
 	return out
 }
 
-// copyTree writes a copy of a tree, which is what gives a test a tree it may
+// copyTree writes a copy of a tree, so a test has a tree it may
 // rewrite.
 func copyTree(t *testing.T, from, to string) {
 	t.Helper()
@@ -330,8 +330,8 @@ func fixture(t *testing.T, dir string, tune func(*imports.Linter)) map[string][]
 	return byRule
 }
 
-// files are the files a set of issues is about, in the order they were
-// reported.
+// files are the files a set of issues is about, in the order of the
+// report.
 func files(issues []model.Issue) []string {
 	out := make([]string, 0, len(issues))
 	for _, issue := range issues {
@@ -341,11 +341,11 @@ func files(issues []model.Issue) []string {
 }
 
 // TestRulesOverTheUnformattedFixture states what each rule reports over the
-// source that has never been formatted.
+// source nobody has formatted yet.
 func TestRulesOverTheUnformattedFixture(t *testing.T) {
 	byRule := fixture(t, inputDir, nil)
 
-	// The order is the order the packages are walked in, which is by import
+	// The order is the walk order of the packages, which is by import
 	// path: the root package first, then the ones under it.
 	assert.Equal(t, []string{
 		"comments.go",
@@ -364,7 +364,7 @@ func TestRulesOverTheUnformattedFixture(t *testing.T) {
 	}, files(byRule[imports.RuleFormat]))
 
 	// generated.go, goyaml.go and whitebox/whitebox_test.go are each a file a
-	// rewrite would damage. None of them is reported.
+	// rewrite would damage. The linter reports none of them.
 	for _, issue := range byRule[imports.RuleFormat] {
 		assert.NotContains(t, []string{"generated.go", "goyaml.go", "whitebox/whitebox_test.go"},
 			issue.Position.Path(), "a file a rewrite would damage was reported as fixable")
@@ -389,9 +389,9 @@ func TestRulesOverTheUnformattedFixture(t *testing.T) {
 //
 // goyaml.go imports github.com/goccy/go-yaml and writes yaml. The last segment
 // of that path is go-yaml, which is not a Go identifier, so the name the import
-// is reached by is a guess. Reporting the import as unused would take out an
+// goes by is a guess. Reporting the import as unused would take out an
 // import the file needs, and reporting yaml as unresolved would be an error
-// against a file that builds. Neither is reported and the file is left alone.
+// against a file that builds. The linter reports neither and leaves the file alone.
 func TestAPathThatDoesNotSpellItsPackage(t *testing.T) {
 	for _, dir := range []string{inputDir, goldenDir} {
 		byRule := fixture(t, dir, nil)
@@ -432,24 +432,24 @@ func TestTheFormattedFixturePasses(t *testing.T) {
 	assert.Empty(t, files(byRule[imports.RuleFormat]))
 	assert.Empty(t, files(byRule[imports.RuleUnused]))
 
-	// broken.go is in the golden tree unchanged, because there was nothing to
-	// write into it. It is still reported.
+	// broken.go sits in the golden tree unchanged, because the fixer had nothing to
+	// write into it. The linter still reports it.
 	assert.Equal(t, []string{"broken/broken.go"}, files(byRule[imports.RuleUnresolved]))
 }
 
 // TestPollutionLeavesLocalPackagesAlone is the rule the prompt draws the line
 // at: a package of the tree reaching many consumers is a package structure,
-// and only a dependency the tree took on is reported.
+// and the linter reports only a dependency the tree took on.
 func TestPollutionLeavesLocalPackagesAlone(t *testing.T) {
 	byRule := fixture(t, goldenDir, func(l *imports.Linter) {
-		// One file of one package is enough to trip it, so every import that
-		// could be reported is.
+		// One file of one package is enough to trip it, so the linter reports
+		// every import it can.
 		l.Pollution = imports.Pollution{PerPackage: 1, FileShare: 0.01, Tests: true}
 	})
 
 	// The symbol is the dependency reported. Every package of this tree is
-	// under example.com/imports and every one of them is reached from more
-	// than one file, so any of them showing up here would be the rule judging
+	// under example.com/imports and more than one file reaches
+	// each of them, so any of them showing up here would be the rule judging
 	// a package structure.
 	for _, issue := range byRule[imports.RulePollution] {
 		assert.NotContains(t, issue.Symbol, "example.com/imports",
@@ -457,7 +457,7 @@ func TestPollutionLeavesLocalPackagesAlone(t *testing.T) {
 	}
 
 	// Two dependencies this tree took on, and with the rule set to report one
-	// file both of them are named.
+	// file the report names both of them.
 	var reported []string
 	for _, issue := range byRule[imports.RulePollution] {
 		reported = append(reported, issue.Symbol)

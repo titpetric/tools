@@ -40,7 +40,7 @@ func TestParseRestoresTheWorkingDirectory(t *testing.T) {
 }
 
 // TestParseOfANonExistentTree covers the parse that never moves anywhere: the
-// directory is unchanged, so a caller reporting the failure still resolves its
+// directory stays the same, so a caller reporting the failure still resolves its
 // own paths.
 func TestParseOfANonExistentTree(t *testing.T) {
 	before, err := os.Getwd()
@@ -113,7 +113,7 @@ func Use() error {
 }
 
 // TestMethodReferences covers what the type checker adds to the document: a
-// method call on a local or a field is recorded, on Globals for the own
+// method call on a local or a field lands in the document, on Globals for the own
 // package and on References for an imported one.
 func TestMethodReferences(t *testing.T) {
 	dir := t.TempDir()

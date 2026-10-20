@@ -16,11 +16,11 @@ type Result struct {
 
 	// Severity is how much it means. A rule about what a file writes is an
 	// error, because the file is not what the tree says a file is; a rule
-	// about how far something has spread is a warning, because it is a
-	// reading rather than a defect.
+	// about how far something has spread is a warning, because that is a
+	// reading and no defect.
 	Severity model.Severity
 
-	// Position is where it is.
+	// Position is the location.
 	Position model.Position
 
 	// Symbol is the import or the name the finding is about, and is empty for
@@ -57,7 +57,7 @@ type Results struct {
 	order    []string
 
 	// spread is how far every import path of the tree has reached, and files
-	// how many files it was counted over.
+	// how many files the count covers.
 	spread []*Spread
 	files  int
 }
@@ -72,7 +72,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -139,10 +139,10 @@ func (r Results) perPackage() model.Statistics {
 
 // perDependency is how far every import path has reached into the tree.
 //
-// One file is the clean reading and is what the column is read against. A
-// package of the tree and a package of the standard library are listed and
-// never judged: how far either reaches is a fact about the structure rather
-// than about a dependency taken on.
+// One file is the clean reading and the baseline of the column. The table
+// lists a package of the tree and a package of the standard library and
+// never judges them: how far either reaches is a fact about the structure and
+// says nothing about a dependency taken on.
 func (r Results) perDependency() model.Statistics {
 	rows := make([][]string, 0, len(r.spread))
 	external, spread := 0, 0
@@ -187,8 +187,8 @@ func (r *Results) count(def *model.Definition, names int) *Metric {
 	return metric
 }
 
-// packageMetric is what a package is counted against, added when the package
-// has not been counted yet.
+// packageMetric is the metric that counts a package, added when the package
+// has no count yet.
 func (r *Results) packageMetric(path string) *Metric {
 	if r.packages == nil {
 		r.packages = map[string]*Metric{}
@@ -207,7 +207,7 @@ func (r *Results) packageMetric(path string) *Metric {
 	return metric
 }
 
-// add records one finding against the package it was found in.
+// add records one finding against the package that holds it.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 	if result.Rule == RuleCollision {

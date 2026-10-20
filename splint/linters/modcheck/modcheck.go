@@ -2,16 +2,16 @@
 // costs it.
 //
 // Size is the shallow half of that cost and the one every tool reports. The
-// half that decides whether a dependency can be removed is how far into the
+// half that decides whether a consumer can remove a dependency is how far into the
 // tree it reaches: a library pulled into one file through one symbol is cheap
 // to drop whatever it weighs, and one reached from forty files through twelve
-// symbols is load bearing. Both halves are here, and the coupling half comes
+// symbols holds the code up. Both halves are here, and the coupling half comes
 // out of the document.
 //
 // This is the one linter that reaches outside the document. A size and a
-// published date are properties of the artifact rather than of the source, so
+// published date are properties of the artifact, and the source holds neither, so
 // they come from the Go module proxy, and asking is the point of the check
-// rather than an option on it. A machine with no network reports the coupling
+// and is no option on it. A machine with no network reports the coupling
 // and leaves the rest blank.
 package modcheck
 
@@ -27,7 +27,7 @@ import (
 	"github.com/titpetric/tools/splint/modproxy"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "modcheck"
 
 // The rules this linter reports under.
@@ -36,7 +36,7 @@ const (
 	// fails a run.
 	RuleReplace = "replace"
 
-	// RuleUnused is a requirement nothing imports.
+	// RuleUnused is a required module nothing imports.
 	RuleUnused = "unused"
 
 	// RuleMajors is two majors of one module required together.
@@ -49,16 +49,16 @@ const (
 	RuleBlank = "blank"
 )
 
-// wiring reports a file that decides what a binary links, which is where a
+// wiring reports a file that decides what a binary links, the place where a
 // blank import belongs.
 //
 // A program is one: every file of package main is part of wiring it, and
-// putting the driver in main.go rather than serve.go is a preference and not a
+// putting the driver in main.go or in serve.go is a preference and not a
 // rule. So is a test file: a test binary is a program too, and a test that
 // needs a driver registered registers it beside itself.
 //
-// What is left is a library, where an init runs because a package happened to
-// be linked in and every consumer of it pays for the decision.
+// What remains is a library, where an init runs because a package happened to
+// sit in the link and every consumer of it pays for the decision.
 func wiring(def *model.Definition, file string) bool {
 	return def.Package.Package == "main" ||
 		def.Package.TestPackage ||
@@ -67,12 +67,12 @@ func wiring(def *model.Definition, file string) bool {
 
 // Linter reports the dependencies of a module and what they cost it.
 type Linter struct {
-	// Proxy answers what a dependency weighs and how old it is. A linter
-	// built without one asks nobody, which is what a test does.
+	// Proxy answers what a dependency weighs and its age. A linter
+	// built without one queries nobody, the setup a test uses.
 	Proxy *modproxy.Client
 }
 
-// New returns the linter, asking the proxy the toolchain would.
+// New returns the linter, querying the proxy the toolchain would.
 func New() *Linter {
 	return &Linter{Proxy: modproxy.New()}
 }
@@ -97,9 +97,9 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	report(&results, catalogue, usage)
 	blanks(&results, root, catalogue)
 
-	// Everything the proxy was asked is known by here, so the sizes it
-	// answered with are written once rather than per module. A cache that
-	// cannot be written is not a failure of the report.
+	// Every proxy answer is in by here, so the linter writes the sizes
+	// once and not per module. A cache write that
+	// fails is not a failure of the report.
 	if l.Proxy != nil {
 		_ = l.Proxy.Flush()
 	}
@@ -110,12 +110,12 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 // blanks reports a package imported for its side effect from a file that wires
 // no binary.
 //
-// A blank import runs an init and offers nothing else, so what it does is
-// decided by which packages the binary links rather than by anything the code
-// around it says. That is a decision for the program being built, and a
+// A blank import runs an init and exports nothing else, so the set of
+// packages the binary links decides what it does, and the code
+// around it has no say. That is a decision for the program under build, and a
 // library making it makes it for every consumer.
 //
-// A package of the tree being read is left alone. Where a project puts its own
+// The linter leaves a package of the tree under read alone. Where a project puts its own
 // registrations is its own arrangement, and there is no convention to hold it
 // to.
 func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalogue) {
@@ -132,7 +132,7 @@ func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalog
 
 				imported := importPath(literal)
 				if imported == "embed" || catalogue.Owns(imported) {
-					// A blank "embed" is what the compiler asks for to embed
+					// A blank "embed" is what the compiler requires to embed
 					// into a string, and is not a side effect at all.
 					continue
 				}
@@ -161,22 +161,22 @@ func where(def *model.Definition, file string) string {
 
 // measure reads how far each dependency reaches into the tree.
 //
-// A file is counted once per dependency it imports, and a symbol once per
+// The linter counts a file once per dependency it imports, and a symbol once per
 // dependency it comes from. The import set of a package maps the short name a
-// reference is recorded under back to the path it names, which is the only way
-// a reference can be attributed: a reference says "chi.NewRouter", and which
+// reference sits under back to the path it names, which is the only way
+// to attribute a reference: a reference says "chi.NewRouter", and which
 // module chi is depends on what the file imported.
 //
-// A symbol is reached two ways and both are counted. A body names it as a
+// A body or a declaration can reach a symbol, and the linter counts both. A body names it as a
 // selector, which the document records as a reference; a declaration names it
 // as a type, which the document records as the type string of a field, a
 // parameter or a result and as no reference at all. Counting only the first
 // reads a struct holding a *pdo.PDO and driving every query through it as a
-// module reached once, which is the opposite of what it is.
+// module reached once, the opposite of the truth.
 //
-// Which file imports what is read here too, because that is the pass that sees
+// This pass also reads which file imports what, because that is the pass that sees
 // every import literal. A side effect import is a property of the dependency
-// and is recorded on it, so the rule that reads it does not depend on the rule
+// and the linter records it there, so the rule that reads it does not depend on the rule
 // that reports it having run first.
 func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Catalogue) (map[string]*Dependency, error) {
 	deps := map[string]*Dependency{}
@@ -202,7 +202,7 @@ func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Cat
 			return nil, err
 		}
 
-		// The short name a reference is recorded under, resolved to the path
+		// The short name a reference sits under, resolved to the path
 		// the package imports it as.
 		byName, _ := def.Imports.Map(def.Imports.All())
 
@@ -254,9 +254,9 @@ func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Cat
 			}
 		}
 
-		// Every declaration of the package, because a type is named in all of
+		// Every declaration of the package, because each one can name a type:
 		// them: a struct declares the fields, a func the parameters and the
-		// results, and a var or a const the type of what it binds.
+		// results, and a var or a const the type it binds.
 		for _, decl := range def.Order() {
 			for _, typ := range typePositions(decl) {
 				name, symbol, ok := qualified(typ)
@@ -276,8 +276,8 @@ func measure(ctx context.Context, root *model.DocumentRoot, catalogue *gomod.Cat
 		}
 	}
 
-	// A requirement nothing imports still belongs in the report: that it is
-	// required and unreached is the finding.
+	// A required module nothing imports still belongs in the report: a
+	// require line that nothing reaches makes the finding.
 	for _, require := range catalogue.Requires() {
 		get(require)
 	}
@@ -314,7 +314,7 @@ func blankImport(literal string) bool {
 // typePositions are the type strings a declaration names, which is everything
 // it reaches that is not a call.
 //
-// Type is what a var, a const or a named type is declared as, Fields are the
+// Type is the declared type for a var, a const or a named type, Fields are the
 // fields of a struct and the methods of an interface, and Arguments and
 // Returns are the parameter and result lists of a func. None of them is a
 // reference: the document collects those from bodies.
@@ -343,7 +343,7 @@ func typePositions(decl *model.Declaration) []string {
 // "[]pdo.Row" and "map[string]*pdo.PDO" all come out as a qualified name. What
 // it cannot reduce to one, a func type or a struct written out in place, names
 // no single symbol and is not counted. model.IsPackageName is the identifier
-// test both halves have to pass, which is what keeps a signature recorded as
+// test both halves have to pass, and that test keeps a signature recorded as
 // an interface method's type from reading as a qualified name.
 func qualified(typ string) (name, symbol string, ok bool) {
 	ref := model.TypeRef(typ)
@@ -360,11 +360,11 @@ func qualified(typ string) (name, symbol string, ok bool) {
 	return name, symbol, true
 }
 
-// report records what is worth saying out loud rather than only counting.
+// report records what is worth saying out loud, beyond the counts.
 func report(results *Results, catalogue *gomod.Catalogue, deps map[string]*Dependency) {
 	for _, replace := range catalogue.Replaces() {
 		// A replace is a build that does not reproduce anywhere else: what a
-		// consumer resolves is not what the go.mod says. It is the one thing
+		// consumer resolves is not what the go.mod says. This is the one thing
 		// here that fails a run.
 		results.add(Result{
 			Rule:     RuleReplace,
@@ -383,7 +383,7 @@ func report(results *Results, catalogue *gomod.Catalogue, deps map[string]*Depen
 
 		switch {
 		case dep.Indirect:
-			// An indirect requirement is a dependency of a dependency, and
+			// An indirect require line is a dependency of a dependency, and
 			// nothing here imports it. There is nothing to say about it.
 
 		case dep.Files == 0:
@@ -396,11 +396,11 @@ func report(results *Results, catalogue *gomod.Catalogue, deps map[string]*Depen
 			})
 
 		case dep.blank:
-			// A dependency some file imports for its side effect is imported
-			// for what it registers rather than for what it offers, which is
-			// how a database driver is meant to be imported. The registration
-			// is not something a caller can inline, so how little of it is
-			// reached by name says nothing.
+			// A side effect import pulls a dependency in
+			// for what it registers and not for what it exports, the way
+			// a database driver works. No caller can inline
+			// the registration, so how few of its names the tree
+			// reaches says nothing.
 
 		case dep.Files == 1 && dep.Symbols == 1:
 			results.add(Result{

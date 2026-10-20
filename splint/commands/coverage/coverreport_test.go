@@ -64,8 +64,8 @@ func TestCollapseColumn(t *testing.T) {
 	}
 	collapseColumn(rows, 1)
 
-	// The fifth row repeats "a" after "b", which is a new group rather than a
-	// continuation of the first, so it is written out again.
+	// The fifth row repeats "a" after "b". That starts a new group and does
+	// not continue the first, so collapseColumn writes the value out again.
 	want := []string{"a", "", "b", "", "a"}
 	for i, row := range rows {
 		if row[1] != want[i] {

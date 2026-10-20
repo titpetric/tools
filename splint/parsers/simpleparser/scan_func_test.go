@@ -39,7 +39,7 @@ func TestParseFuncHeaderTypeParams(t *testing.T) {
 // with no body, a go:linkname target or an assembly stub, ends with its
 // signature. Before this, the scanner hunted for a closing brace and read
 // every declaration up to the next one as the body, so the const block
-// below was never recorded and every name in it stopped resolving.
+// below went unrecorded and every name in it stopped resolving.
 func TestScanFuncWithoutBody(t *testing.T) {
 	src := newSource("x.go", []byte(`package x
 

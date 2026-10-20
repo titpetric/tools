@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// TestSymbol covers the filenames a symbol belonging to no type is accepted
-// in, which is a type declaration and a function that constructs nothing.
+// TestSymbol covers the filenames that accept a symbol belonging to no type,
+// which covers a type declaration and a function that constructs nothing.
 func TestSymbol(t *testing.T) {
 	tests := []struct {
 		title    string
@@ -67,8 +67,8 @@ func TestSymbol(t *testing.T) {
 	}
 }
 
-// TestSymbol_Method covers the filenames a symbol belonging to a type is
-// accepted in, where the receiver leads and the name follows it.
+// TestSymbol_Method covers the filenames that accept a symbol belonging to a
+// type, where the receiver leads and the name follows it.
 func TestSymbol_Method(t *testing.T) {
 	tests := []struct {
 		title    string

@@ -6,10 +6,10 @@ import (
 )
 
 // toSnake converts an identifier into the snake case a filename spells it in,
-// so HTTPClient reads as http_client rather than h_t_t_p_client.
+// so HTTPClient reads as http_client, never h_t_t_p_client.
 //
 // This is the snake case of github.com/stoewer/go-strcase, written out here
-// rather than imported: the rule is four lines of ASCII case handling and a
+// and not imported: the rule is four lines of ASCII case handling and a
 // linter is not worth a dependency.
 func toSnake(input string) string {
 	input = strings.TrimSpace(input)
@@ -25,8 +25,8 @@ func toSnake(input string) string {
 				buffer = append(buffer, '_')
 			}
 		case isUpper(curr):
-			// A capital opens a word when the letter before it was lower case,
-			// and when it is the last capital of a run, which is where an
+			// A capital opens a word when a lower case letter comes before it,
+			// and when it closes a run of capitals, the place where an
 			// acronym ends and the next word begins.
 			if isLower(prev) || (isUpper(prev) && isLower(next)) {
 				buffer = append(buffer, '_')
@@ -49,11 +49,11 @@ func toSnake(input string) string {
 	return string(buffer)
 }
 
-// getSingular returns the singular of a word, which is what lets a symbol
+// getSingular returns the singular of a word, which lets a symbol
 // named for many of a thing sit in the file named for one of them: Assets.Get
 // belongs in asset.go as much as in assets.go.
 //
-// It handles the plurals a Go identifier is actually spelled with and gets the
+// It covers the plurals Go identifiers actually use and gets the
 // rest close enough for a filename to match.
 func getSingular(word string) string {
 	if word == "" {
@@ -108,8 +108,8 @@ func getBaseNoun(word string) string {
 
 	base := word[:len(word)-2]
 
-	// A doubled consonant was doubled to take the suffix, and comes back off
-	// with it: runner was run before it was a runner.
+	// A suffix doubles the consonant before it, and the double comes back off
+	// with the suffix: runner comes from run.
 	if len(base) > 1 && base[len(base)-1] == base[len(base)-2] {
 		base = base[:len(base)-1]
 	}
@@ -118,7 +118,7 @@ func getBaseNoun(word string) string {
 }
 
 // splitCamelCase splits an identifier on its capitals, so ServiceDiscovery
-// comes back as Service and Discovery. A compound name is allowed in the file
+// comes back as Service and Discovery. A compound name may sit in the file
 // named for either half of it.
 func splitCamelCase(word string) []string {
 	if word == "" {
@@ -145,8 +145,8 @@ func splitCamelCase(word string) []string {
 	return parts
 }
 
-// isLower, isUpper and isDelimiter read the ASCII a Go identifier is spelled
-// in, and toLower folds it.
+// isLower, isUpper and isDelimiter read the ASCII that spells a Go identifier,
+// and toLower folds it.
 func isLower(r rune) bool { return r >= 'a' && r <= 'z' }
 func isUpper(r rune) bool { return r >= 'A' && r <= 'Z' }
 
@@ -163,8 +163,8 @@ func toLower(r rune) rune {
 
 // isExported reports a name a reader outside the package can reach, which in
 // Go is a name opening on an upper case letter. The model keeps this to itself
-// and a linter that reads names one at a time out of a block needs it, so it is
-// spelled out again rather than reached for.
+// and a linter that reads names one at a time out of a block needs it, so this
+// file spells it out again and does not reach for it.
 func isExported(name string) bool {
 	for _, r := range name {
 		return unicode.IsUpper(r)

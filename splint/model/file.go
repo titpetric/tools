@@ -6,13 +6,13 @@ import (
 
 // File is one file of a package, as the parse read it.
 //
-// A file that declares nothing was invisible to the model before this: a
-// declaration records the file it is in and the import set is keyed by
-// filename, and neither says anything about a file holding neither. A check
-// that counts files, or pairs one with its test, has to be able to see them
-// all.
+// Without this, a file that declares nothing stays invisible to the model: a
+// declaration records the file holding it and the import set uses the
+// filename as its key, and neither says anything about a file holding
+// neither. A check that counts files, or pairs one with its test, has to be
+// able to see them all.
 type File struct {
-	// Name is the base filename, which is what a declaration records.
+	// Name is the base filename, the same one a declaration records.
 	Name string `json:"Name" yaml:"Name"`
 
 	// Lines is the code in the file, blanks and comments left out, and Size
@@ -30,7 +30,7 @@ type File struct {
 	// Directives reports a file carrying //line directives, which rebase the
 	// line numbers the compiler reports from that point on.
 	//
-	// The physical lines of such a file are load bearing: moving a directive,
+	// The physical lines of such a file carry positions: moving a directive,
 	// or deleting the declaration one sits above, changes every position
 	// reported for the rest of the file. Nothing here rewrites one. They are
 	// machine output, from goyacc and its like, and no reader wrote them.
@@ -38,17 +38,18 @@ type File struct {
 
 	// Package is the name in the file's own package clause.
 	//
-	// It is not always the name of the package the file is recorded under. A
-	// directory holds at most one package and up to two test scopes, and the
-	// external one declares "<name>_test": the two are one definition in the
-	// model and only the clause tells a file of one from a file of the other.
+	// It can differ from the name of the package the parse records the file
+	// under. A directory holds at most one package and up to two test
+	// scopes, and the external one declares "<name>_test": the two are one
+	// definition in the model and only the clause tells a file of one from a
+	// file of the other.
 	// A file may not import the package its clause names, and the external
 	// test file must.
 	Package string `json:"Package,omitempty" yaml:"Package,omitempty"`
 
-	// ImportDecls are the import declarations of the file, in the order they
-	// are written. They are filled when the parse was asked for them, and a
-	// document written without them describes the same package.
+	// ImportDecls are the import declarations of the file, in source order.
+	// The parse fills them when its options include them, and a document
+	// written without them describes the same package.
 	ImportDecls ImportDeclList `json:"ImportDecls,omitempty" yaml:"ImportDecls,omitempty"`
 
 	// Uses are the identifiers the file writes before a dot, sorted and
@@ -63,7 +64,7 @@ type File struct {
 
 // HasLineDirectives reports source carrying a //line directive.
 //
-// The directive is written at the start of a line, in the two comment forms Go
+// The directive sits at the start of a line, in the two comment forms Go
 // accepts for it. Anything else spelled "line" is a comment about something.
 func HasLineDirectives(lines []string) bool {
 	for _, line := range lines {
@@ -85,8 +86,8 @@ func (f File) UsesName(name string) bool {
 	return false
 }
 
-// Base is the filename with the .go suffix and the _test marker taken off,
-// which is what pairs a file with the one that tests it.
+// Base is the filename with the .go suffix and the _test marker taken off;
+// it pairs a file with the one that tests it.
 func (f File) Base() string {
 	name := strings.TrimSuffix(f.Name, ".go")
 	return strings.TrimSuffix(name, "_test")

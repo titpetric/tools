@@ -9,7 +9,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Name is how the linter is selected and how its issues are labelled.
+// Name selects the linter and labels its issues.
 const Name = "func-returns"
 
 // RuleOrder is the one rule this linter reports under.

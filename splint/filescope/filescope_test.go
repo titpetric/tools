@@ -80,8 +80,8 @@ func TestCoupled(t *testing.T) {
 	}
 }
 
-// TestSelfContained covers the file question, which is what the grouping linter
-// asks: store.go reaches nothing outside itself, handler.go reaches both of
+// TestSelfContained covers the file question the grouping linter puts:
+// store.go reaches nothing outside itself, handler.go reaches both of
 // store.go's names, and a file the package does not hold reaches nothing.
 func TestSelfContained(t *testing.T) {
 	index := filescope.New(defs())
@@ -94,15 +94,15 @@ func TestSelfContained(t *testing.T) {
 		if got := index.SelfContained(file); got != want {
 			t.Errorf("SelfContained(%q) = %v, want %v", file, got, want)
 		}
-		// Twice, because the answer is memoised.
+		// Twice, because the index memoises the result.
 		if got := index.SelfContained(file); got != want {
 			t.Errorf("SelfContained(%q) = %v on the second ask", file, got)
 		}
 	}
 }
 
-// TestSelfContainedReadsEveryDefinition covers the external test package: it is
-// a second definition of the same directory, and a test file reaching the
+// TestSelfContainedReadsEveryDefinition covers the external test package: it
+// forms a second definition of the same directory, and a test file reaching the
 // package it tests does not make the file it tests coupled.
 func TestSelfContainedReadsEveryDefinition(t *testing.T) {
 	list := defs()

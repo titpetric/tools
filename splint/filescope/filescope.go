@@ -1,10 +1,10 @@
 // Package filescope answers what a file needs from the rest of its package.
 //
-// A declaration that reaches only its own imports and what is declared beside
-// it in the file is extractable: everything it is built from is in one place,
-// which is what `go build one_file.go` asks for. One that reaches a name
-// declared in another file of the package is not, and the file it is in cannot
-// move without that other file.
+// A declaration that reaches only its own imports and what the file declares
+// beside it counts as extractable: everything it builds from sits in one
+// place, and `go build one_file.go` needs exactly that. One that reaches a
+// name declared in another file of the package is not, and the file holding
+// it cannot move without that other file.
 //
 // The measure is a fuzzy one and says so. It reads the globals the parse
 // recorded, which are the names a declaration reached that its own file does
@@ -13,9 +13,9 @@
 // is not counted.
 //
 // Two linters ask. selfcontained counts the coupled declarations of every
-// file, and grouping asks whether a whole file is free of them, because a file
-// that builds alone moves as one unit and where a symbol sits inside it is the
-// file's own business.
+// file, and grouping checks whether a whole file is free of them, because a
+// file that builds alone moves as one unit and where a symbol sits inside it
+// stays the file's own business.
 package filescope
 
 import (
@@ -27,7 +27,7 @@ type Index struct {
 	where map[string]string
 
 	// contained memoises SelfContained: grouping asks once per symbol and a
-	// file holding sixty of them would otherwise be walked sixty times.
+	// file holding sixty of them would otherwise cost sixty walks.
 	contained map[string]bool
 
 	defs []*model.Definition
@@ -36,8 +36,8 @@ type Index struct {
 // New indexes the definitions of one package directory, which is the package
 // and the external test package beside it.
 //
-// A method is left out of the name index. It is reached through its receiver
-// rather than by name, and the receiver is a type the index already holds.
+// The name index leaves methods out. A caller reaches a method through its
+// receiver, and the receiver is a type the index already holds.
 func New(defs []*model.Definition) *Index {
 	index := &Index{
 		where:     map[string]string{},
@@ -66,7 +66,7 @@ func New(defs []*model.Definition) *Index {
 // of its own package.
 //
 // Two things reach one: a global the parse recorded, and the receiver of a
-// method, since a method cannot be moved without the type it hangs off. A name
+// method, since a method cannot move without the type it hangs off. A name
 // the package does not declare is a local the parse did not see bound, or a
 // builtin, and neither couples anything to anything.
 func (i *Index) Coupled(decl *model.Declaration) bool {

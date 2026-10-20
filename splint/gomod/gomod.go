@@ -19,8 +19,8 @@ import (
 //
 // Listing the modules of a tree parses the same file, but only far enough to decide whether the
 // module is importable. What a release comparison needs is the rest of it: the
-// go and toolchain directives, and every requirement with the version it is
-// pinned to.
+// go and toolchain directives, and every require line with its pinned
+// version.
 func Read(filename string) (*model.Module, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -34,8 +34,9 @@ func Read(filename string) (*model.Module, error) {
 
 	module := moduleFrom(parsed)
 
-	// The go.sum beside it is read when there is one. A module that has never
-	// been built has none, and a module is worth reporting on either way.
+	// Read also reads the go.sum beside it when there is one. A module that
+	// nobody has built yet has none, and a module is worth reporting on either
+	// way.
 	module.Sums, _ = ReadSum(filepath.Join(filepath.Dir(filename), "go.sum"))
 
 	return module, nil
@@ -44,10 +45,10 @@ func Read(filename string) (*model.Module, error) {
 // Find returns the module governing dir, found by walking up from it
 // until a go.mod turns up.
 //
-// Extraction is pointed at a package directory as often as at a module root,
+// Extraction targets a package directory as often as a module root,
 // and `splint -i model/` has to reach the go.mod a level or more above it. A
 // tree holding no go.mod at all is not an error: it still has
-// packages worth reporting, and they are reported without a module.
+// packages worth reporting, and the report lists them without a module.
 func Find(dir string) (*model.Module, error) {
 	current, err := filepath.Abs(dir)
 	if err != nil {
@@ -70,8 +71,8 @@ func Find(dir string) (*model.Module, error) {
 
 // moduleFrom copies a parsed go.mod into the model.
 //
-// The require block is written in whatever order go mod tidy last left it, and
-// a module is free to hold several of them, so the lists are sorted by module
+// The require block sits in whatever order go mod tidy last left it, and a
+// module is free to hold more than one, so moduleFrom sorts the lists by module
 // path. Two revisions that require the same things then produce the same
 // model, and a diff of the two reports nothing.
 func moduleFrom(parsed *modfile.File) *model.Module {

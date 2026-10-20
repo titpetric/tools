@@ -7,7 +7,7 @@ import (
 )
 
 // TestFieldsCoverEverySetting checks the form reaches every setting the
-// document holds, so nothing can only be changed by editing the file.
+// document holds, so no setting needs a hand edit of the file.
 func TestFieldsCoverEverySetting(t *testing.T) {
 	cfg := Default()
 	data, err := Encode(cfg)
@@ -34,14 +34,14 @@ func TestFieldsCoverEverySetting(t *testing.T) {
 		}
 		seen[field.Key] = true
 
-		// The key is dotted for display; the document holds its last segment.
+		// The key carries dots for display; the document holds its last segment.
 		name := field.Key[strings.LastIndex(field.Key, ".")+1:]
 		if !strings.Contains(document, name+":") {
 			t.Fatalf("field %q names %q, which the document does not hold:\n%s", field.Key, name, document)
 		}
 	}
 
-	// version is written but not editable, so every other key needs a field.
+	// Save writes version but the form cannot edit it, so every other key needs a field.
 	for _, key := range []string{"enable_gitignore", "enable_git_repos", "ignore_paths", "root_markers"} {
 		if !seen["scan."+key] {
 			t.Fatalf("no field edits scan.%s", key)
@@ -50,7 +50,7 @@ func TestFieldsCoverEverySetting(t *testing.T) {
 }
 
 // TestFieldStateReadsTheDocument checks a field starts on the value the
-// document holds, which is what the form opens on.
+// document holds, the value the form opens on.
 func TestFieldStateReadsTheDocument(t *testing.T) {
 	cfg := Default()
 	fields := cfg.Fields()
@@ -117,7 +117,7 @@ func TestValueEntries(t *testing.T) {
 	}
 }
 
-// TestValueEqual checks an edit is measured by what the document would hold,
+// TestValueEqual checks the form measures an edit by what the document would hold,
 // so retyping a list the same way is not a change to save.
 func TestValueEqual(t *testing.T) {
 	tests := []struct {

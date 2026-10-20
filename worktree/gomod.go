@@ -110,8 +110,8 @@ func readRequiresVersioned(dir string) ([]requireInfo, error) {
 	return parseRequires(data)
 }
 
-// parseRequires reads the requirements of a go.mod held in memory, which is how
-// one fetched from git, or read out of a fixture, is compared.
+// parseRequires reads the requirements of a go.mod held in memory; Diff
+// compares a go.mod fetched from git, or read out of a fixture, this way.
 func parseRequires(data []byte) ([]requireInfo, error) {
 	mod, err := modfile.Parse("go.mod", data, nil)
 	if err != nil {
@@ -129,19 +129,19 @@ func parseRequires(data []byte) ([]requireInfo, error) {
 	return reqs, nil
 }
 
-// DiffResult is one go.mod requirement a release adds, moves to another
+// DiffResult is one go.mod dependency a release adds, moves to another
 // version, or drops.
 type DiffResult struct {
-	// Path is the required module, which is what the two revisions were
-	// matched on.
+	// Path is the required module, the key Diff matches the two revisions
+	// on.
 	Path string
 
-	// Change is added, changed or removed, named the way the data model table
-	// names what became of a field.
+	// Change holds added, changed or removed, named the way the data model table
+	// names what happens to a field.
 	Change string
 
 	// Old and New are the version required before and after. Old is empty for
-	// a requirement the release adds, and New for one it drops.
+	// a dependency the release adds, and New for one it drops.
 	Old string
 	New string
 }
@@ -158,14 +158,14 @@ func (r DiffResult) Version() string {
 	return r.New
 }
 
-// Diff reports what moved between two go.mod requirement sets, the older one
+// Diff reports what moved between two go.mod dependency sets, the older one
 // first, in module path order.
 //
-// Indirect requirements are left out. They are written by go mod tidy rather
-// than decided on, and a routine tidy rewrites dozens of them, which buries
-// the handful of direct ones that are the actual release note. A requirement
-// direct on either side counts as direct, so one the module took on an import
-// of is reported either way.
+// Diff leaves out indirect requirements. go mod tidy writes them and nobody
+// picks them, and a routine tidy rewrites dozens of them, burying the handful
+// of direct ones that form the actual release note. A dependency direct on
+// either side counts as direct, so Diff reports one the module took on an
+// import of either way.
 func Diff(before, after []requireInfo) []DiffResult {
 	old, cur := requireIndex(before), requireIndex(after)
 
@@ -190,8 +190,8 @@ func Diff(before, after []requireInfo) []DiffResult {
 		changes = append(changes, DiffResult{Path: path, Change: fieldAdded, New: is.version})
 	}
 
-	// The maps are walked in whatever order the runtime hands out, so the
-	// result is sorted to make two identical runs identical.
+	// The map walk follows whatever order the runtime hands out, so Diff
+	// sorts the result to make two identical runs identical.
 	sort.Slice(changes, func(i, j int) bool {
 		if changes[i].Change != changes[j].Change {
 			return categoryOrder(changes[i].Change) < categoryOrder(changes[j].Change)
@@ -201,8 +201,8 @@ func Diff(before, after []requireInfo) []DiffResult {
 	return changes
 }
 
-// requireIndex keys a requirement list by module path, which is what two
-// revisions of a go.mod are compared through.
+// requireIndex keys a dependency list by module path, the key Diff compares
+// two revisions of a go.mod through.
 func requireIndex(reqs []requireInfo) map[string]requireInfo {
 	index := make(map[string]requireInfo, len(reqs))
 	for _, r := range reqs {

@@ -43,8 +43,7 @@ func TerminalStats(w io.Writer, reports []model.LintReport) error {
 	return nil
 }
 
-// severityColor is the colour a level is written in, which is what a reader
-// scans for.
+// severityColor is the colour of a level, and a reader scans for that colour.
 func severityColor(severity model.Severity) string {
 	switch {
 	case severity >= model.SeverityError:

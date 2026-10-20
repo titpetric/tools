@@ -114,12 +114,12 @@ func TestBuildMessage(t *testing.T) {
 }
 
 func TestReturnsError(t *testing.T) {
-	// returnsError is tested indirectly through Analyze; this tests the function exists
+	// Analyze covers returnsError indirectly; this tests the function exists
 	t.Log("returnsError function exists and is callable")
 }
 
 func TestGetReceiverName(t *testing.T) {
-	// getReceiverName is tested indirectly through Analyze
+	// Analyze covers getReceiverName indirectly
 	t.Log("getReceiverName function exists and is callable")
 }
 

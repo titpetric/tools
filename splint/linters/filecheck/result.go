@@ -11,12 +11,12 @@ import (
 
 // lengthBuckets are the upper bounds of the length histogram, doubling the way
 // the gofsck size histogram does, so a file moving up a bucket is a file that
-// grew by as much as it already was. The threshold sits on a boundary, which
+// grew by its own size again. The threshold sits on a boundary, which
 // makes the reported files exactly the two rightmost buckets.
 var lengthBuckets = []int{50, 100, 200, 400, 800}
 
-// longestFiles is how many of the longest files the second table names. It is
-// a list to act on rather than an inventory: past ten nobody reads further.
+// longestFiles is how many of the longest files the second table names. The
+// list is one to act on and no inventory: past ten nobody reads further.
 const longestFiles = 10
 
 // Result is one long file, in the terms this linter thinks in.
@@ -51,9 +51,9 @@ type Results struct {
 	files    map[string]*Metric
 	order    []string
 
-	// max is the ceiling a file no allowance covered was measured against,
+	// max is the ceiling for files that no allowance covers,
 	// and tuned says the tree stated allowances, so the footer names the rule
-	// the count was taken against rather than a number that held for some of
+	// the count stands on, and no number that held for some of
 	// the files.
 	max   int
 	tuned bool
@@ -69,7 +69,7 @@ func (r Results) Len() int {
 	return len(r.findings)
 }
 
-// All yields every finding as an issue.
+// All returns every finding as an issue.
 func (r Results) All() iter.Seq[model.Issue] {
 	return func(yield func(model.Issue) bool) {
 		for _, result := range r.findings {
@@ -89,7 +89,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is how the lengths read: how the tree is spread across the
+// Statistics is how the lengths read: how the tree spreads across the
 // buckets, and then the files a reader would split first.
 func (r Results) Statistics() []model.Statistics {
 	if len(r.order) == 0 {
@@ -98,8 +98,8 @@ func (r Results) Statistics() []model.Statistics {
 	return []model.Statistics{r.histogram(), r.longest()}
 }
 
-// histogram is the spread of file lengths, one row per bucket. It is the table
-// that says what kind of tree this is: weight on the left is a tree of small
+// histogram is the spread of file lengths, one row per bucket. This table
+// says what kind of tree this is: weight on the left is a tree of small
 // files, weight on the right is a tree nobody reads in one sitting.
 func (r Results) histogram() model.Statistics {
 	counts := make([]int, len(lengthBuckets)+1)
@@ -132,10 +132,10 @@ func (r Results) histogram() model.Statistics {
 	)
 }
 
-// ceiling is how the footer names what the count was taken against. One number
+// ceiling is how the footer names the rule behind the count. One number
 // says it for a tree reading every file under the same rule; a tree that gave
 // some of its paths room of their own has no single number to print, and
-// printing the default beside a count that was not taken against it would be
+// printing the default beside a count that ignores it would be
 // the one line of the table that is wrong.
 func (r Results) ceiling() string {
 	if r.tuned {
@@ -144,8 +144,8 @@ func (r Results) ceiling() string {
 	return strconv.Itoa(r.max)
 }
 
-// longest names the files at the top of the distribution, whether or not they
-// were reported: a tree under the threshold still has a longest file, and that
+// longest names the files at the top of the distribution, reported
+// or not: a tree under the threshold still has a longest file, and that
 // is the one that grows into a finding next.
 func (r Results) longest() model.Statistics {
 	paths := make([]string, len(r.order))
@@ -180,8 +180,8 @@ func (r Results) longest() model.Statistics {
 	)
 }
 
-// count records one file, and returns what a finding on it is recorded
-// against. It returns nil for a file already measured: a directory holding an
+// count records one file, and returns the metric a finding on the file
+// lands in. It returns nil for a file already measured: a directory holding an
 // external test package is two definitions of the same path, and a file
 // counted twice would be two rows of one histogram bucket.
 func (r *Results) count(path string, file model.File) *Metric {
@@ -198,7 +198,7 @@ func (r *Results) count(path string, file model.File) *Metric {
 	return metric
 }
 
-// add records one finding against the file it was found in.
+// add records one finding against the file that holds it.
 func (r *Results) add(metric *Metric, result Result) {
 	r.findings = append(r.findings, result)
 	metric.Long = true
@@ -227,7 +227,7 @@ func bucketLabel(index int) string {
 	return strconv.Itoa(low) + "-" + strconv.Itoa(lengthBuckets[index])
 }
 
-// mark renders a flag as a column, and reads as nothing when it is not set.
+// mark renders a flag as a column, and reads as nothing when unset.
 func mark(set bool) string {
 	if set {
 		return "yes"
@@ -235,8 +235,7 @@ func mark(set bool) string {
 	return "-"
 }
 
-// percent renders a share, and reads as nothing when there was nothing to take
-// a share of.
+// percent renders a share, and reads as nothing when the whole is zero.
 func percent(part, whole int) string {
 	if whole == 0 {
 		return "-"

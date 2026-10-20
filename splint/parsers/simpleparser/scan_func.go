@@ -9,9 +9,9 @@ import (
 // scanFunc reads a func declaration and returns the line it ended on.
 //
 // A func opens at column zero and closes on a brace at column zero, which gofmt
-// guarantees and which is what makes the extent findable without balancing a
-// single brace inside the body. A declaration with no body, which is what a
-// forward declaration to assembly looks like, is one line.
+// guarantees, and that makes the extent findable without balancing a
+// single brace inside the body. A declaration with no body, the shape of a
+// forward declaration to assembly, is one line.
 func (f *file) scanFunc(src *source, line int) int {
 	header, end := funcHeader(src, line)
 	if header == "" {
@@ -50,7 +50,7 @@ func (f *file) scanFunc(src *source, line int) int {
 	}
 	// The globals cover the signature as well as the body: a parameter type
 	// declared in another file is as much of a reach as a call to one. The
-	// name being declared is written there too, and a method declares one the
+	// declared name sits there too, and a method declares one the
 	// file does not record at package scope.
 	decl.Globals = f.globals(src, line, body, append(shadowed, decl.Name))
 	decl.Complexity = complexity(src, line, end+1, body)
@@ -64,8 +64,8 @@ func (f *file) scanFunc(src *source, line int) int {
 // returns it with the line it ended on.
 //
 // A signature ends where its parens balance and the line ends in an opening
-// brace or in the result type. Reading it as one string is what lets the
-// splitting be done once rather than per line.
+// brace or in the result type. Reading it as one string lets the
+// split happen once and not per line.
 func funcHeader(src *source, line int) (string, int) {
 	// A signature that opens and closes on one line is that line. Most of them
 	// are, and building a new string for each is most of what reading a func
@@ -104,7 +104,7 @@ func funcHeader(src *source, line int) (string, int) {
 }
 
 // closedOnLine reports whether a body opened on a line also closes on it,
-// which is what a one line func does.
+// the shape of a one line func.
 func closedOnLine(code string) bool {
 	depth := 0
 	opened := false
@@ -147,7 +147,7 @@ func parseFuncHeader(header string) *model.Declaration {
 
 	// A generic function carries its type parameters between the name and the
 	// parameter list. They are not what the function takes, but the names they
-	// bind are recorded: a result typed as one is not a type the package has.
+	// bind still count: a result typed as one is not a type the package has.
 	name := strings.TrimSpace(rest[:open])
 	var typeParams []string
 	if bracket := strings.Index(name, "["); bracket >= 0 {
@@ -185,8 +185,8 @@ func parseFuncHeader(header string) *model.Declaration {
 }
 
 // typeParamNames are the names a type parameter list binds, read the way a
-// parameter list is: the constraint is the type of the group, and every name
-// in front of it is one parameter.
+// parameter list is: the constraint is the group's type, and every name
+// in front of the constraint is one parameter.
 func typeParamNames(list string) []string {
 	var names []string
 	for _, group := range paramGroups(list) {
@@ -232,14 +232,14 @@ func trimBody(results string) string {
 }
 
 // opensComposite reports whether a brace follows a keyword that takes one,
-// which is what tells a struct result from a function body.
+// the test that tells a struct result from a function body.
 func opensComposite(before string) bool {
 	before = strings.TrimRight(before, " \t")
 	return strings.HasSuffix(before, "struct") || strings.HasSuffix(before, "interface")
 }
 
 // matchBrace returns the index of the brace closing the one at open, and -1
-// when it is never closed.
+// when nothing closes it.
 func matchBrace(text string, open int) int {
 	depth := 0
 	for i := open; i < len(text); i++ {
@@ -285,8 +285,8 @@ func bodyColumn(code string) int {
 }
 
 // localNames are the names a signature binds, which are the parameters, the
-// results and the receiver. Every one of them shadows whatever else it is
-// called, a package included.
+// results and the receiver. Every one of them shadows whatever else the name
+// means, a package included.
 func localNames(header string) []string {
 	rest := strings.TrimSpace(strings.TrimPrefix(header, "func"))
 

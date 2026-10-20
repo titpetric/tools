@@ -29,8 +29,8 @@ type collector struct {
 	fset *token.FileSet
 
 	// info and scope are what resolve an identifier. A name is a package level
-	// one when the object it uses is declared in the package scope, which is
-	// what tells it from a local, a field, a label and a builtin without
+	// one when the object it uses sits in the package scope, which
+	// tells it from a local, a field, a label and a builtin without
 	// tracking a single scope by hand.
 	//
 	// Both are nil for a package the loader could not type check, and the
@@ -64,8 +64,8 @@ func NewCollector(fset *token.FileSet, info *types.Info, pkg *types.Package) *co
 // The walk is every identifier of the node, and the resolution decides what is
 // worth recording: a local, a parameter, a struct field and a builtin all
 // resolve to something that is not the package scope, and the name after a
-// selector resolves to a field or a method rather than to the package. What is
-// left is the coupling of one file to the rest of its package.
+// selector resolves to a field or a method and never to the package. What
+// remains is the coupling of one file to the rest of its package.
 func (v *collector) globals(filename string, node ast.Node) model.StringSet {
 	if v.info == nil || v.scope == nil {
 		return nil
@@ -174,12 +174,12 @@ func (v *collector) collectImports(filename string, decl *ast.GenDecl, def *Defi
 			case base:
 				fmt.Fprintf(os.Stderr, "WARN: removing %s alias for %s)\n", alias, importClean)
 			case "_":
-				// A blank import is recorded with the underscore in front of
-				// it: it is what tells an import for its side effect from one
+				// A blank import keeps the underscore in front of
+				// the path: the underscore tells an import for its side effect from one
 				// a name reaches.
 				importLiteral = alias + " " + importLiteral
 			default:
-				// fmt.Printf("WARN: package %s is aliased to %s\n", importLiteral, alias)
+				// Any other alias stays on the literal, in front of the path.
 				importLiteral = alias + " " + importLiteral
 			}
 		}
@@ -404,9 +404,9 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 }
 
 // typeParamNames are the names a generic func binds, read off the field list
-// between the name and the parameters. The constraints are left out: the two
+// between the name and the parameters. The list leaves the constraints out: the two
 // parsers render an exotic constraint differently, and a name is all a
-// consumer asks the list for.
+// consumer reads from the list.
 func typeParamNames(params *ast.FieldList) []string {
 	if params == nil {
 		return nil
@@ -461,7 +461,7 @@ func (p *collector) symbolType(file *ast.File, expr ast.Expr) string {
 
 // argumentCount is how many parameters a caller passes: one per name in a
 // field, and one for a field that names none. functionBindings answers the
-// distinct types instead, so the two cannot be read off each other.
+// distinct types instead, so neither number follows from the other.
 func argumentCount(params *ast.FieldList) int {
 	if params == nil {
 		return 0

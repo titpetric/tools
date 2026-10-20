@@ -62,7 +62,7 @@ func writeMarkdownRow(w io.Writer, numCols int, row components.Rows) {
 		if i < len(row) {
 			for _, line := range row[i] {
 				// A rule drawn in box characters does not survive a markdown
-				// table, so the divider is written as the rule markdown has.
+				// table, so the divider uses the rule markdown has.
 				if line == components.Separator {
 					line = "---"
 				}

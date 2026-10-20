@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 }
 
 // cacheHome points the user cache directory at one of the test's own, and
-// returns the directory entries are written below.
+// returns the directory the cache writes entries below.
 func cacheHome(t *testing.T) string {
 	t.Helper()
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
@@ -55,7 +55,7 @@ func TestVerdictCacheKeepsTheModelOfACommit(t *testing.T) {
 		t.Fatalf("readVerdict() left nothing under %s", dir)
 	}
 
-	// A second run reads the models back rather than writing new ones: the
+	// A second run reads the models back and writes no new ones: the
 	// commits it covers have not moved, and neither has the tool that read
 	// them.
 	stamps := make(map[string]int64, len(written))
@@ -110,8 +110,8 @@ func TestVerdictCacheKeysOnTheCommitATagNames(t *testing.T) {
 		t.Fatalf("openVerdictCache() dir = %q, want %q", cache.dir, dir)
 	}
 
-	// A tag is read as the commit it names, so moving the tag to another commit
-	// reads another entry, and naming the same commit twice reads one.
+	// The cache keys a tag on the commit it names, so moving the tag to another
+	// commit reads another entry, and naming the same commit twice reads one.
 	tagged := cache.path(alpha, "alpha/v0.2.0")
 	if tagged == "" {
 		t.Fatal("path() named no entry for a tag the repository carries")
@@ -123,8 +123,8 @@ func TestVerdictCacheKeysOnTheCommitATagNames(t *testing.T) {
 		t.Error("path() gave two commits the same entry")
 	}
 
-	// A revision the repository does not carry has no commit to key on, and is
-	// read without the cache.
+	// A revision the repository does not carry has no commit to key on, and
+	// the caller reads it without the cache.
 	if missing := cache.path(alpha, "alpha/v9.9.9"); missing != "" {
 		t.Errorf("path() named %q for a revision that does not exist", missing)
 	}
@@ -143,7 +143,7 @@ func TestVerdictCacheHoldsNothingWhenTurnedOff(t *testing.T) {
 	if cache.load("", filepath.Join(t.TempDir(), "model.json")) {
 		t.Error("load() read an entry with the cache turned off")
 	}
-	// Storing into a cache that holds nothing is a run without one, not a
-	// failure.
+	// Storing into a cache that holds nothing behaves as a run without one
+	// and never fails.
 	cache.store("", filepath.Join(t.TempDir(), "model.json"))
 }

@@ -26,16 +26,17 @@ type apiSymbol struct {
 	Kind    string `json:"kind"`
 
 	// Exported reports whether the symbol is part of the API: an exported
-	// name in an importable package. Everything else is reported for the
-	// reader and counts towards no release.
+	// name in an importable package. The report lists everything else for the
+	// reader, and it counts towards no release.
 	Exported bool `json:"exported"`
 
-	// Signature is a func as it is declared, and is empty for every other
-	// kind.
+	// Signature holds a func as its source declares it, and stays empty for
+	// every other kind.
 	Signature string `json:"signature,omitempty"`
 
-	// Underlying is the shape a type is declared with: "struct", "interface",
-	// or the type it is defined as. It is empty for every other kind.
+	// Underlying is the shape a type declaration carries: "struct",
+	// "interface", or the type its definition names. Every other kind leaves
+	// it empty.
 	Underlying string `json:"underlying,omitempty"`
 
 	// Fields are the exported fields of a struct, or the methods of an
@@ -45,10 +46,10 @@ type apiSymbol struct {
 
 // apiField is one exported field of a struct, or one method of an interface.
 // The exported fields of a type are as much a promise to a consumer as a func
-// signature is, so a release is reported on them too.
+// signature is, so the release report covers them too.
 type apiField struct {
-	// Name is the field name, and for an embedded field the name it is
-	// reached by.
+	// Name is the field name, and for an embedded field the name that reaches
+	// it.
 	Name string `json:"name"`
 
 	// Type is the field type, and for an interface method its signature.
@@ -74,8 +75,8 @@ type apiFieldChange struct {
 	Name   string `json:"name"`
 	Change string `json:"change"`
 
-	// Old and New are the field on either side. Old is absent for a field that
-	// was added, and New for one that was removed.
+	// Old and New are the field on either side. An added field has no Old,
+	// and a removed one has no New.
 	Old *apiField `json:"old,omitempty"`
 	New *apiField `json:"new,omitempty"`
 }
@@ -93,8 +94,8 @@ type apiTypeChange struct {
 	Breaking bool             `json:"breaking"`
 }
 
-// IsInterface reports whether the type is an interface, whose fields are read
-// as a method set rather than as data.
+// IsInterface reports whether the type is an interface, whose fields form a
+// method set and carry no data.
 func (c apiTypeChange) IsInterface() bool {
 	return c.Underlying == "interface"
 }
@@ -140,7 +141,7 @@ type apiChange struct {
 	Exported bool `json:"exported"`
 
 	// Old and New are the signature before and after, with parameter names
-	// removed, which is what they were compared on.
+	// removed; the comparison runs on that form.
 	Old string `json:"old"`
 	New string `json:"new"`
 }
@@ -160,23 +161,24 @@ type apiDiff struct {
 	Breaking bool `json:"breaking"`
 
 	// Deps are the go.mod requirements the release adds, moves to another
-	// version, or drops. Nothing here is breaking: a dependency is not API, so
-	// it is reported and does not decide the version. It is read from the two
-	// models rather than from the tool's own report of them.
+	// version, or drops. Nothing here breaks a consumer: a dependency is not
+	// API, so the report lists it and it does not decide the version. The two
+	// models supply this list directly; the tool's own report of them plays
+	// no part.
 	Deps []DiffResult `json:"-"`
 
 	// Skipped records why the comparison did not run and is empty when it
 	// did. A comparison that could not run is never breaking, so a module
-	// whose API cannot be read gets a patch, with the reason printed.
+	// with an unreadable API gets a patch, with the reason printed.
 	Skipped string `json:"-"`
 }
 
-// ExportedAdded returns the added symbols a consumer can see, which with
-// ExportedRemoved is what a release is measured on. Everything else is
-// reported and costs nothing.
+// ExportedAdded returns the added symbols a consumer can see; a release
+// counts these and ExportedRemoved. The report lists everything else, at no
+// cost.
 func (d apiDiff) ExportedAdded() []apiSymbol { return exportedOnly(d.Added) }
 
-// ExportedRemoved returns the removed symbols that were API.
+// ExportedRemoved returns the removed symbols that belong to the API.
 func (d apiDiff) ExportedRemoved() []apiSymbol { return exportedOnly(d.Removed) }
 
 // exportedOnly returns the symbols another module could reach.
@@ -273,15 +275,15 @@ type apiModels struct {
 	next   int
 
 	// empty is the model of a revision that does not exist, written the first
-	// time a comparison is measured from the start of history.
+	// time a comparison measures from the start of history.
 	empty string
 
 	// disk is the cache the models of commits outlive the run in.
 	disk *verdictCache
 }
 
-// newAPIModels opens a cache, backed by the one on disk unless it was turned
-// off. The caller closes it once the comparisons that share it are done.
+// newAPIModels opens a cache, backed by the one on disk unless cached is
+// false. The caller closes it once the comparisons that share it finish.
 func newAPIModels(cached bool) (*apiModels, error) {
 	work, err := os.MkdirTemp("", "worktree-api-")
 	if err != nil {
@@ -301,11 +303,11 @@ func (m *apiModels) Close() error {
 }
 
 // model returns the path of the model of one revision of the module in dir,
-// reading it the first time it is asked for. A revision that could not be read
-// stays failed, so a tag missing from the repository is reported once and not
-// unpacked again for every range naming it.
+// reading it on first use. A revision that fails to read stays failed, so the
+// report names a tag missing from the repository once and does not unpack it
+// again for every range naming it.
 func (m *apiModels) model(dir, ref string) (string, error) {
-	// The working tree is not cached: it is read where it stands, and it is
+	// The cache skips the working tree: the run reads it where it stands, as
 	// the one revision that can change under a run.
 	if ref == "" {
 		return extractRef(dir, "", filepath.Join(m.work, m.name()))
@@ -319,9 +321,9 @@ func (m *apiModels) model(dir, ref string) (string, error) {
 		return "", err
 	}
 
-	// A commit read on an earlier run is read back rather than unpacked and
-	// modelled again, which is what keeps a report over the whole history from
-	// scanning the whole history twice.
+	// A commit an earlier run read comes back from disk, skipping the unpack
+	// and the model step, so a report over the whole history does not scan the
+	// whole history twice.
 	work := filepath.Join(m.work, m.name())
 	entry := m.disk.path(dir, ref)
 	if model := work + ".json"; m.disk.load(entry, model) {
@@ -345,10 +347,10 @@ func (m *apiModels) name() string {
 	return strconv.Itoa(m.next)
 }
 
-// base returns the model of the revision a comparison is measured from. An
-// empty ref is the start of history, which is not a revision anyone can read
-// and is modelled as a module holding no packages, so a first release reports
-// everything it exports as added rather than reporting nothing at all.
+// base returns the model of the revision a comparison measures from. An
+// empty ref is the start of history, a revision no one can read; base models
+// it as a module holding no packages, so a first release reports everything
+// it exports as added.
 func (m *apiModels) base(dir, ref string) (string, error) {
 	if ref != "" {
 		return m.model(dir, ref)
@@ -368,7 +370,8 @@ func (m *apiModels) base(dir, ref string) (string, error) {
 }
 
 // diff compares the exported API of two revisions of the module in dir, reading
-// each through the cache. It is apiDiffBetween with the revisions remembered.
+// each through the cache. This works as apiDiffBetween with the revisions
+// remembered.
 func (m *apiModels) diff(dir, oldRef, newRef string) apiDiff {
 	if _, err := exec.LookPath("splint"); err != nil {
 		return apiDiff{Skipped: "splint is not installed"}
@@ -387,12 +390,12 @@ func (m *apiModels) diff(dir, oldRef, newRef string) apiDiff {
 
 // apiDiffBetween compares the exported API of two revisions of the module in
 // dir. An empty oldRef is the start of history and an empty newRef is the
-// working tree; a named revision is unpacked into a temporary directory rather
-// than checked out, so the working tree is left alone either way.
+// working tree; git archive unpacks a named revision into a temporary
+// directory with no checkout, so the working tree stays untouched either way.
 //
-// Every reason the comparison cannot run comes back as a Skipped result rather
-// than an error: an unreadable API is treated as non breaking and said to be,
-// so a missing tool does not stop a run.
+// Every reason the comparison cannot run comes back as a Skipped result and
+// never as an error: the report counts an unreadable API as non breaking and
+// says so, and a missing tool does not stop a run.
 func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 	if _, err := exec.LookPath("splint"); err != nil {
 		return apiDiff{Skipped: "splint is not installed"}
@@ -407,15 +410,15 @@ func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 	return models.diff(dir, oldRef, newRef)
 }
 
-// diffModels compares two models that have already been extracted.
+// diffModels compares two models extractRef already wrote.
 //
 // A splint from before the diff verb reads "diff" as a lint pattern and
-// stops on the --old flag it does not define, which is what the flag error
-// detects: the tool is there but the command is not.
+// stops on the --old flag it does not define; the flag error check detects
+// exactly that case: the tool exists and the command does not.
 //
-// The go.mod each model carries is compared here rather than asked of the tool,
-// so the requirement report is the same whichever splint is installed, and the
-// rule behind it is one this module tests on its own.
+// diffModels compares the go.mod each model carries itself, with no call to
+// the tool, so the dependency report stays the same whichever splint the
+// system has, and this module tests the rule behind it on its own.
 func diffModels(oldModel, newModel string) apiDiff {
 	out, err := exec.Command("splint", "diff", "--old", oldModel, "--new", newModel, "--json", "--include-unexported").CombinedOutput()
 	if err != nil {
@@ -434,8 +437,8 @@ func diffModels(oldModel, newModel string) apiDiff {
 }
 
 // extractRef writes the model of one revision of the module in dir, unpacking
-// it below work first when it is a named one, and returns the model path. An
-// empty ref is the working tree, which is read where it stands.
+// it below work first for a named revision, and returns the model path. An
+// empty ref means the working tree, which splint reads where it stands.
 func extractRef(dir, ref, work string) (string, error) {
 	source := dir
 	if ref != "" {
@@ -461,8 +464,8 @@ func revName(ref string) string {
 	return ref
 }
 
-// baseName names the revision a comparison is measured from, where an empty ref
-// is the start of history rather than the working tree.
+// baseName names the revision a comparison measures from, where an empty ref
+// means the start of history and never the working tree.
 func baseName(ref string) string {
 	if ref == "" {
 		return "the start of history"
@@ -471,16 +474,16 @@ func baseName(ref string) string {
 }
 
 // splintExtract writes the model of the module in dir to out. The linters
-// are off: this run is the extract, and a lint finding is not a failure of it.
+// are off: this run is the extract, and a lint finding does not fail it.
 //
-// The model is read from the syntax tree and package load errors are
-// discarded, so this works on a source tree that was never built, which is
-// what the unpacked tag is. The environment says so: with no module cache to
-// find the requirements in, the go tool would otherwise try to download them.
+// splint reads the model from the syntax tree and discards package load
+// errors, so this works on a source tree no build ever touched, such as the
+// unpacked tag. The environment reflects that: with no module cache to find
+// the requirements in, the go tool would otherwise try to download them.
 //
-// Sources are not asked for. They carry every function body with them and
-// multiply the size of the model, and the fields a report is written from are
-// recorded either way.
+// The command leaves out sources. They carry every function body with them
+// and multiply the size of the model, and the model records the fields a
+// report draws on either way.
 func splintExtract(dir, out string) error {
 	cmd := exec.Command("splint", "--linters", "none", "-i", dir, "--output", out, "./...")
 	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOFLAGS=-mod=mod", "GOWORK=off")
@@ -490,9 +493,9 @@ func splintExtract(dir, out string) error {
 	return nil
 }
 
-// gitArchive unpacks the module in dir as it stands at ref into dest. A module
-// that is not at the root of its repository is asked for by path, so only its
-// own subtree is written.
+// gitArchive unpacks the module in dir as it stands at ref into dest. For a
+// module below the root of its repository the archive names its path, so git
+// writes only its own subtree.
 func gitArchive(dir, ref, dest string) error {
 	root, rel, err := repoPaths(dir)
 	if err != nil {
@@ -516,8 +519,8 @@ func gitArchive(dir, ref, dest string) error {
 		return err
 	}
 
-	// The reader is drained before waiting, so git is never left blocked on a
-	// pipe nobody is reading.
+	// The copy drains the reader before the wait, so git never blocks on a
+	// pipe nobody reads.
 	untarErr := untar(stdout, dest)
 	_, _ = io.Copy(io.Discard, stdout)
 	if err := cmd.Wait(); err != nil {
@@ -526,8 +529,8 @@ func gitArchive(dir, ref, dest string) error {
 	return untarErr
 }
 
-// untar writes the regular files of a tar stream below dest. Entries pointing
-// outside dest are refused rather than followed.
+// untar writes the regular files of a tar stream below dest. It returns an
+// error for any entry pointing outside dest and follows none.
 func untar(r io.Reader, dest string) error {
 	reader := tar.NewReader(r)
 	for {
@@ -568,8 +571,8 @@ func untar(r io.Reader, dest string) error {
 	}
 }
 
-// firstLine returns the first non empty line of command output, which is where
-// the go and git tools put the reason something failed.
+// firstLine returns the first non empty line of command output: the line
+// where the go and git tools put the reason something failed.
 func firstLine(output string) string {
 	for _, line := range strings.Split(output, "\n") {
 		if line = strings.TrimSpace(line); line != "" {

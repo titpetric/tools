@@ -7,8 +7,8 @@ import (
 // uses are the identifiers a file writes before a dot, sorted and
 // deduplicated.
 //
-// It is read off the stripped view, so a dot inside a string or a comment is
-// not a selector. Nothing else is filtered: a local variable, a parameter and
+// The set comes off the stripped view, so a dot inside a string or a comment is
+// not a selector. The set filters nothing else: a local variable, a parameter and
 // a receiver all land in here alongside the package names, because the set
 // exists to answer whether removing an import would break the file, and the
 // only safe error is to keep one too many.

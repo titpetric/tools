@@ -8,18 +8,18 @@ const SchemaVersion = 1
 // modules they belong to.
 //
 // A parser fills it and a linter reads it. Nothing here is Go specific: a
-// parser for another language fills the same document, which is what makes the
-// linters portable to it.
+// parser for another language fills the same document, so the linters port to
+// it.
 type DocumentRoot struct {
-	// SchemaVersion is the version of the schema the document is written in.
+	// SchemaVersion is the version of the schema the document follows.
 	SchemaVersion int `json:"SchemaVersion" yaml:"SchemaVersion"`
 
-	// Root is the directory the parse was rooted at, so a file path in the
-	// document can be resolved back to disk.
+	// Root is the directory the parse started at, so a reader can resolve a
+	// file path in the document back to disk.
 	Root string `json:"Root" yaml:"Root"`
 
-	// Parser names what produced the document, "ast" or "simple", which is
-	// what tells two documents of the same tree apart.
+	// Parser names what produced the document, "ast" or "simple"; that tells
+	// two documents of the same tree apart.
 	Parser string `json:"Parser,omitempty" yaml:"Parser,omitempty"`
 
 	// Modules are the go.mod files found under Root, each recorded once.
@@ -29,7 +29,7 @@ type DocumentRoot struct {
 	Packages DefinitionList `json:"Packages" yaml:"Packages"`
 }
 
-// NewDocumentRoot returns a document ready to be filled by a parser.
+// NewDocumentRoot returns a document ready for a parser to fill.
 func NewDocumentRoot(root, parser string) *DocumentRoot {
 	return &DocumentRoot{
 		SchemaVersion: SchemaVersion,

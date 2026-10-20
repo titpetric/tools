@@ -26,8 +26,8 @@ func TestRepoPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("repoPaths() error: %v", err)
 	}
-	// The temporary directory may be reached through a symlink, so the roots
-	// are compared after resolving one.
+	// A symlink may lead to the temporary directory, so the test compares the
+	// roots after resolving one.
 	wantRoot, _ := filepath.EvalSymlinks(root)
 	if got, _ := filepath.EvalSymlinks(gotRoot); got != wantRoot {
 		t.Errorf("repoPaths() root = %q, want %q", gotRoot, wantRoot)
@@ -49,7 +49,7 @@ func TestGitArchiveUnpacksTheModuleSubtreeOnly(t *testing.T) {
 	root := testRepo(t, "alpha", "beta")
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
-	// The tag has to be read as it was, not as the working tree is now.
+	// The model of the tag has to match the tag, and not the working tree.
 	writeTestFile(t, filepath.Join(root, "alpha", "alpha.go"), "package alpha\n\n// later\n")
 
 	dest := filepath.Join(t.TempDir(), "out")
@@ -227,8 +227,8 @@ func TestApiModelsReadsEachRevisionOnce(t *testing.T) {
 		t.Errorf("model() read the same revision twice: %q then %q", first, second)
 	}
 
-	// The working tree is the one revision that can change under a run, so it
-	// is read where it stands every time.
+	// The working tree is the one revision that can change under a run, so
+	// the cache reads it where it stands every time.
 	tree, err := models.model(alpha, "")
 	if err != nil {
 		t.Fatalf("model() error: %v", err)
@@ -277,8 +277,8 @@ func TestApiDiffSummaryAndSymbols(t *testing.T) {
 		t.Errorf("Symbols() = %#v, want %#v", got, want)
 	}
 
-	// The fields a release moves are counted alongside the symbols, and are
-	// left out of the line when it moved none.
+	// Summary counts the fields a release moves alongside the symbols, and
+	// leaves them out of the line when it moves none.
 	diff.Types = []apiTypeChange{{
 		Name: "Config", Underlying: "struct",
 		Fields: []apiFieldChange{
@@ -320,12 +320,12 @@ func TestQualifySignature(t *testing.T) {
 		name, signature, want string
 	}{
 		// A method's compared signature starts with the bare name, so the
-		// receiver the symbol name carries is put back.
+		// receiver the symbol name carries goes back in front.
 		{"memoryStorage.Save", "Save (context.Context, model.Trace) error", "memoryStorage.Save (context.Context, model.Trace) error"},
 		// A plain func has no receiver and reads as it came.
 		{"TraceHost", "TraceHost (Trace) string", "TraceHost (Trace) string"},
-		// A name that does not match the signature is left alone rather
-		// than guessed at.
+		// A name that does not match the signature leaves the signature
+		// unchanged, with no guess.
 		{"other.Load", "Save (context.Context) error", "Save (context.Context) error"},
 	}
 	for _, test := range tests {
@@ -339,7 +339,7 @@ func TestApiDiffBetweenReadsTwoTagsAndNotTheWorkingTree(t *testing.T) {
 	requireSplint(t)
 
 	alpha := verdictRepo(t)
-	// A working tree that would swamp the answer if it were being read.
+	// A working tree that would swamp the result if the cache read it.
 	writeTestFile(t, filepath.Join(alpha, "stray.go"), "package alpha\n\n// Stray is uncommitted.\nfunc Stray() {}\n")
 
 	got := apiDiffBetween(alpha, "alpha/v0.1.0", "alpha/v0.2.0")

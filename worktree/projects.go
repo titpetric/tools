@@ -11,7 +11,7 @@ import (
 
 // findScanRoot returns the nearest current or parent directory holding one of
 // the configured root markers. With no markers, or none found, the walk starts
-// where it was asked to.
+// in the directory the caller passes.
 func findScanRoot(start string, markers []string) (string, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
@@ -103,8 +103,8 @@ func findProjects(root string, scan config.Scan) ([]projectDir, error) {
 
 	result := make([]projectDir, 0, len(projects))
 	for dir, p := range projects {
-		// A git repository that holds no go module is only listed when the
-		// configuration asks for one.
+		// The walk lists a git repository that holds no go module only when
+		// the configuration turns that on.
 		if !p.GoModule && !(p.GitRepo && scan.EnableGitRepos) {
 			continue
 		}

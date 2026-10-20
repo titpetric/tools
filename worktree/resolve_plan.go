@@ -7,17 +7,17 @@ import (
 	"strings"
 )
 
-// resolvePlan is the resolution of one module: the state it is in, the version
-// it ends up at, and what has to happen to get it there.
+// resolvePlan is the resolution of one module: its current state, its final
+// version, and the steps that take it there.
 type resolvePlan struct {
 	// Module is the go module path, Path the directory holding it. A
-	// repository that is not a go module is named by its path.
+	// repository that is not a go module goes by its path.
 	Module string
 	Path   string
 
 	// GoModule reports whether the directory holds a go.mod. Without one
 	// there are no requirements to update and no API to read, so the module
-	// is resolved on its git state alone.
+	// resolves on its git state alone.
 	GoModule bool
 
 	// Latest is the version of the newest release, empty when the module has
@@ -35,11 +35,11 @@ type resolvePlan struct {
 	Dirty []string
 
 	// Pins are the workspace requirements to move, each naming the version
-	// its dependency ends up at.
+	// its dependency reaches.
 	Pins []requireInfo
 
-	// API is the exported symbol difference since Latest, which is what
-	// chooses between a patch and a minor release.
+	// API is the exported symbol difference since Latest; it chooses
+	// between a patch and a minor release.
 	API apiDiff
 
 	// Release is releasePatch, releaseMinor, or empty when the module is not
@@ -50,8 +50,8 @@ type resolvePlan struct {
 	Next string
 
 	// GoFrom is the go directive the module declares now, GoTo the one this
-	// run sets it to, empty when it is already at the highest the selection
-	// declares, and GoSince the one it declared at its latest tag.
+	// run sets it to, empty when the module already sits at the highest the
+	// selection declares, and GoSince the one it declared at its latest tag.
 	GoFrom  string
 	GoTo    string
 	GoSince string
@@ -69,9 +69,9 @@ type resolvePlan struct {
 // resolveOrder returns mods ordered so that a module follows every module it
 // depends on, together with the ones left over in a dependency cycle.
 //
-// Dependencies outside mods are ignored: resolve works on the modules it was
-// asked for, and a module it was not asked for is never bumped, so it cannot
-// come to hold a version that does not exist yet.
+// resolveOrder ignores dependencies outside mods: resolve works on the
+// selected modules, and it never bumps a module outside the selection, so no
+// module comes to hold a version that does not exist yet.
 func resolveOrder(mods []string, uses map[string][]string) (order, cycles []string) {
 	selected := make(map[string]bool, len(mods))
 	for _, mod := range mods {
@@ -112,7 +112,7 @@ func resolveOrder(mods []string, uses map[string][]string) (order, cycles []stri
 				freed = append(freed, dependant)
 			}
 		}
-		// The freed modules are merged in sorted, so the order of two
+		// The freed modules join in sorted order, so the order of two
 		// modules that could equally well come next never depends on the
 		// order the map handed them out in.
 		ready = append(ready, freed...)
@@ -128,8 +128,8 @@ func resolveOrder(mods []string, uses map[string][]string) (order, cycles []stri
 }
 
 // planResolve works out what each module needs, walking them in dependency
-// order so that a module already knows the version its dependencies end up at
-// by the time its own requirements are read.
+// order so that the final versions of the dependencies of a module are in
+// place by the time planResolve reads its own requirements.
 func planResolve(refs versionRefs, modules []moduleInfo) (plans []resolvePlan, cycles []string) {
 	var (
 		names = make([]string, 0, len(modules))
@@ -144,16 +144,16 @@ func planResolve(refs versionRefs, modules []moduleInfo) (plans []resolvePlan, c
 
 	order, cycles := resolveOrder(names, uses)
 
-	// Every module is brought up to the highest go directive the selection
+	// Every module moves up to the highest go directive the selection
 	// declares, so a workspace resolved together stays on one language
-	// version rather than drifting a release apart.
+	// version and its releases do not drift apart.
 	goTarget := ""
 	if latest, found := latestGoVersion(modules); found {
 		goTarget = fmt.Sprintf("%d.%d", latest.Major, latest.Minor)
 	}
 
-	// targets holds the version each module ends up at, which is the tag this
-	// run creates for it when it gets one, and the tag it already carries
+	// targets holds the final version of each module: the tag this run
+	// creates for it when it gets one, and the tag it already carries
 	// otherwise.
 	targets := make(map[string]string, len(order))
 
@@ -217,9 +217,10 @@ func planResolve(refs versionRefs, modules []moduleInfo) (plans []resolvePlan, c
 			next, _, err := nextRelease(tags, plan.Release)
 			if err == nil {
 				plan.Next = next.String()
-				// A conditional module is assumed to release, so a module
-				// depending on it asks for the version it would get. What
-				// each module actually ends at is read back under --apply.
+				// The plan counts a conditional module as releasing, so a
+				// module depending on it requires the version it would get.
+				// Under --apply, record reads back the version each module
+				// actually ends at.
 				targets[name] = plan.Next
 			}
 		}
@@ -232,8 +233,8 @@ func planResolve(refs versionRefs, modules []moduleInfo) (plans []resolvePlan, c
 // releaseKind returns the release a module has earned.
 //
 // Taking exported API away costs a minor, and so does moving to another go
-// release series, whether the go directive was raised by hand since the tag or
-// is being raised by this run: the module stops building for anyone on the
+// release series, whether someone raised the go directive by hand since the
+// tag or this run raises it: the module stops building for anyone on the
 // older toolchain, which is as breaking as a symbol going away. A point
 // release of the same series, 1.27 to 1.27.1, changes nothing for a consumer.
 //
@@ -258,9 +259,9 @@ func mustParseGoDirective(directive string) Version {
 }
 
 // resolvePins returns the workspace requirements of a module that name a
-// version other than the one their dependency ends up at. It is the same
-// comparison staleRequires makes for -u, against the versions this run creates
-// rather than against the tags that exist now.
+// version other than the final one of their dependency. This matches the
+// comparison staleRequires makes for -u, run against the versions this run
+// creates and not the tags that exist now.
 func resolvePins(module string, uses []string, refs versionRefs, targets map[string]string) []requireInfo {
 	var pins []requireInfo
 	for _, dep := range uses {
@@ -277,7 +278,7 @@ func resolvePins(module string, uses []string, refs versionRefs, targets map[str
 // dirtyFiles returns the working tree changes of the module in dir, as
 // "<status> <path>", leaving out the go.mod and go.sum that resolve commits
 // itself. Without --apply this is the prediction of the state the module is in
-// once that commit is made.
+// once that commit lands.
 func dirtyFiles(dir string) []string {
 	root, rel, err := repoPaths(dir)
 	if err != nil {

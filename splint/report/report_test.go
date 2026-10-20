@@ -48,7 +48,7 @@ func sample() *report.Report {
 }
 
 // TestNewSortsByPosition covers the order a report reads in: down a tree,
-// rather than jumping between linters.
+// never jumping between linters.
 func TestNewSortsByPosition(t *testing.T) {
 	got := sample()
 

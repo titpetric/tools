@@ -7,7 +7,7 @@ import (
 )
 
 // diagramModules is a workspace of two groups, where one module uses another in
-// its own group and a third across groups, which is what the two diagrams draw
+// its own group and a third across groups, the case the two diagrams draw
 // differently. A group is the module path above the last segment, so the two
 // tools share one and mig has its own.
 func diagramModules() []moduleInfo {
@@ -34,13 +34,13 @@ func TestRenderD2(t *testing.T) {
 		"go-bridget: go-bridget {",
 		// Each module carries a link into the repository holding it.
 		"worktree.link: https://github.com/titpetric/tools/tree/main/worktree",
-		// A description is written under the name, and loses the name in front
+		// The description goes under the name, and loses the name in front
 		// of its dash.
 		`worktree: "worktree\nShow workspace details"`,
-		// A dependency inside the group is drawn as an edge.
+		// The diagram draws a dependency inside the group as an edge.
 		"titpetric-tools.worktree <- titpetric-tools.splint",
-		// One across groups is drawn as a note on the module being used, since
-		// an edge between containers is what makes the diagram unreadable.
+		// It draws one across groups as a note on the used module, since an
+		// edge between containers makes the diagram unreadable.
 		"Used by worktree",
 	} {
 		if !strings.Contains(got, want) {
@@ -48,14 +48,14 @@ func TestRenderD2(t *testing.T) {
 		}
 	}
 
-	// The cross-group dependency is a note, not an edge.
+	// The cross-group dependency is a note, and no edge carries it.
 	if strings.Contains(got, "titpetric-tools.worktree <- go-bridget.mig") {
 		t.Errorf("renderD2() drew an edge across two containers:\n%s", got)
 	}
 }
 
 // TestRenderD2WithNoModules checks an empty workspace still writes a document
-// d2 can read, rather than nothing at all.
+// d2 can read, and never an empty output.
 func TestRenderD2WithNoModules(t *testing.T) {
 	var out bytes.Buffer
 	renderD2(&out, nil)
@@ -65,8 +65,8 @@ func TestRenderD2WithNoModules(t *testing.T) {
 	}
 }
 
-// TestD2Key checks a module path is turned into a key d2 accepts: the host is
-// dropped and the separators that would read as nesting are replaced.
+// TestD2Key checks d2Key turns a module path into a key d2 accepts: it drops
+// the host and replaces the separators that would read as nesting.
 func TestD2Key(t *testing.T) {
 	for in, want := range map[string]string{
 		"github.com/titpetric/tools": "titpetric-tools",

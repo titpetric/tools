@@ -33,7 +33,7 @@ func TestSymbolsFiltersUnexportedNamesIndividually(t *testing.T) {
 	defs := []*model.Definition{
 		def("example.com/x", "x", false, nil, model.DeclarationList{
 			// A grouped declaration reports itself as exported when any one
-			// of its names is, so the names have to be filtered on their own.
+			// of its names is, so the filter has to check each name on its own.
 			{Kind: "const", Names: []string{"Public", "private"}},
 			{Kind: "type", Name: "Client"},
 			{Kind: "type", Name: "hidden"},
@@ -112,7 +112,7 @@ func TestNormalizeSignature(t *testing.T) {
 		// A comma inside a parameter type does not separate parameters.
 		{"Walk (fn func(a, b int) error) error", "Walk (func(a, b int) error) error"},
 		{"Walk (root string, fn func(a, b int) error) error", "Walk (string, func(a, b int) error) error"},
-		// Nothing to work with is returned as it stands.
+		// Input with nothing to work with comes back unchanged.
 		{"Open", "Open"},
 		{"Open (name string", "Open (name string"},
 	}
@@ -203,15 +203,15 @@ func TestSymbolsCarriesTheBodyOfATypeOnly(t *testing.T) {
 
 	got := symbols(defs, false, false)
 
-	// The body is the declaration as it was written, which is a different
-	// thing from the fields it decomposes into.
+	// The body is the declaration as the source writes it, a different thing
+	// from the fields it decomposes into.
 	tag := got["example.com/x.Tag"].symbol
 	want := "type Tag struct {\n\tMajor, Minor, Patch uint64\n}"
 	if tag.Definition != want {
 		t.Errorf("Tag.Definition = %q, want %q", tag.Definition, want)
 	}
 
-	// A func is named by its signature; its body is no use to a reader.
+	// A signature names a func; its body is no use to a reader.
 	fn := got["example.com/x.Parse"].symbol
 	if fn.Definition != "" {
 		t.Errorf("Parse.Definition = %q, want it empty", fn.Definition)
@@ -225,8 +225,8 @@ func TestSymbolsReadsTheShapeOfAType(t *testing.T) {
 	defs := []*model.Definition{{
 		Package: model.Package{ImportPath: "example.com/x", Package: "x"},
 		Types: model.DeclarationList{
-			// A struct records no type of its own, describing itself by its
-			// fields instead.
+			// A struct records no own underlying type, and describes itself by
+			// its fields.
 			{Kind: "type", Name: "Config", Fields: model.FieldList{
 				{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},
 				{Name: "secret", Type: "string"},
@@ -245,8 +245,8 @@ func TestSymbolsReadsTheShapeOfAType(t *testing.T) {
 	if config.Underlying != underlyingStruct {
 		t.Errorf("Config.Underlying = %q, want %q", config.Underlying, underlyingStruct)
 	}
-	// The unexported field is not a promise to anyone, and the embedded one is
-	// reached by the last identifier of the type it embeds.
+	// The unexported field is not a promise to anyone, and a selector reaches
+	// the embedded one by the last identifier of the type it embeds.
 	want := []Field{
 		{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},
 		{Name: "Module", Type: "platform.Module", Embedded: true},
@@ -263,8 +263,8 @@ func TestSymbolsReadsTheShapeOfAType(t *testing.T) {
 		t.Errorf("Store.Fields = %#v, want the Get method", store.Fields)
 	}
 
-	// A named type is compared on the type it is defined as, so moving it is a
-	// changed symbol.
+	// The comparison matches a named type on the type its definition names, so
+	// moving that makes a changed symbol.
 	if mode := got["example.com/x.Mode"]; mode.symbol.Underlying != "string" {
 		t.Errorf("Mode.Underlying = %q, want string", mode.symbol.Underlying)
 	} else if mode.normalized != "type Mode string" {
@@ -283,7 +283,7 @@ func TestFieldName(t *testing.T) {
 		{field: model.Field{Type: "*Base"}, want: "Base", embedded: true},
 		{field: model.Field{Type: "platform.Module"}, want: "Module", embedded: true},
 		{field: model.Field{Type: "*a.b.Module"}, want: "Module", embedded: true},
-		// An embedded anonymous interface has no name to be reached by.
+		// An embedded anonymous interface has no name a selector can reach.
 		{field: model.Field{Type: "interface"}, want: "interface", embedded: true},
 	}
 

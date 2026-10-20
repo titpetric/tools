@@ -28,7 +28,7 @@ func document() *model.DocumentRoot {
 				Path: "example.com/main/tool",
 				Requires: []model.Require{
 					// The same module, required directly here and indirectly
-					// above. The direct requirement is the one that decides.
+					// above. The direct require decides.
 					{Path: "example.com/deep", Version: "v0.4.0"},
 				},
 			},
@@ -63,7 +63,7 @@ func TestCatalogue_Owner(t *testing.T) {
 }
 
 // TestCatalogue_Requires covers the merge: a module required by two of the
-// modules read is one dependency, and the direct requirement wins.
+// modules read is one dependency, and the direct require wins.
 func TestCatalogue_Requires(t *testing.T) {
 	c := gomod.NewCatalogue(document())
 
@@ -93,7 +93,7 @@ func TestCatalogue_Replaced(t *testing.T) {
 	}
 }
 
-// TestCatalogue_Owns covers how code of the tree is told from a dependency.
+// TestCatalogue_Owns covers how Owns tells code of the tree from a dependency.
 func TestCatalogue_Owns(t *testing.T) {
 	c := gomod.NewCatalogue(document())
 
@@ -108,7 +108,7 @@ func TestCatalogue_Owns(t *testing.T) {
 }
 
 // TestCatalogue_Sums covers a version two modules of the tree both record.
-// They resolve against one module cache, so it is one version, and the hash of
+// They resolve against one module cache, so they share one version, and the hash of
 // the source on either side says the build downloads it.
 func TestCatalogue_Sums(t *testing.T) {
 	doc := document()
@@ -143,7 +143,7 @@ func TestCatalogueOnNothing(t *testing.T) {
 }
 
 // TestBase covers the suffix that makes two majors of one module read as two
-// modules, which is what tells them apart from two unrelated ones.
+// modules, and that tells them apart from two unrelated ones.
 func TestBase(t *testing.T) {
 	tests := map[string]string{
 		"example.com/x":     "example.com/x",

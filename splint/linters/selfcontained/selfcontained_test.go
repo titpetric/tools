@@ -37,7 +37,7 @@ func document() *model.DocumentRoot {
 					Kind: model.FuncKind, Name: "Serve", Receiver: "*Handler", File: "handler.go",
 					Globals: model.StringSet{"open": nil},
 				},
-				// A method whose receiver is declared in the other file, which
+				// A method whose receiver sits in the other file, which
 				// is a reach whatever its body does.
 				{Kind: model.FuncKind, Name: "Close", Receiver: "*Store", File: "handler.go"},
 			},
@@ -94,9 +94,9 @@ func TestLinter_StatisticsByPackage(t *testing.T) {
 	}
 }
 
-// TestLinter_StatisticsTestsApart covers the test files, which are counted in
+// TestLinter_StatisticsTestsApart covers the test files, which the linter counts in
 // a column of their own: a test reaches what it tests, and counting it with
-// the code would report the coupling of every package as higher than it is.
+// the code would report the coupling of every package as higher than the truth.
 func TestLinter_StatisticsTestsApart(t *testing.T) {
 	root := document()
 	root.Packages[0].Files = append(root.Packages[0].Files, model.File{Name: "store_test.go", Test: true})
@@ -107,7 +107,7 @@ func TestLinter_StatisticsTestsApart(t *testing.T) {
 
 	table := lint(t, root).Statistics()[0]
 
-	// The code coupling is what it was, and the tests read beside it.
+	// The code coupling stays the same, and the tests read beside it.
 	if got := table.Rows[0][6]; got != "50.0%" {
 		t.Errorf("coupling = %q, want the code alone", got)
 	}
@@ -176,8 +176,8 @@ func TestCouplingIgnoresUnknownNames(t *testing.T) {
 }
 
 // TestSingleFilePackage covers the package there is nothing to say about: one
-// file is the whole scope, so everything in it is self contained by
-// construction and none of it is measured.
+// file is the whole scope, so everything inside is self contained by
+// construction and the linter measures none of it.
 func TestSingleFilePackage(t *testing.T) {
 	root := document()
 	root.Packages[0].Files = model.FileList{{Name: "store.go"}}

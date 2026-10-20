@@ -10,11 +10,11 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// complexity measures one function: how much it branches, and how long it is.
+// complexity measures one function: how much it branches, and its length.
 //
 // Lines is the function block, from the func keyword to the brace that closes
-// it. The doc comment above it is not part of the function: it was counted
-// before, because the count was taken off the recorded source and the source
+// it. The doc comment above the function sits outside it. An earlier count
+// took the recorded source, and the source
 // carries the doc, which made a three line function that someone documented
 // well read as longer than an undocumented one twice its size.
 func complexity(fset *token.FileSet, in *ast.FuncDecl) *model.Complexity {

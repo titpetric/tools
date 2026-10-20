@@ -1,10 +1,10 @@
 // Package config holds the worktree configuration document and the setup
 // screen that edits it.
 //
-// The document lives at ~/.config/worktree.yml. It is not merged with the
-// built-in defaults: when the file exists it is the whole configuration, and
-// a setting it does not name reads as its zero value. Every setting is
-// therefore named so that off is the zero value, and Save writes every key
+// The document lives at FileName below the home directory. Load does not merge it with
+// the built-in defaults: when the file exists it holds the whole configuration,
+// and a setting it does not name reads as its zero value. Each setting name
+// makes off the zero value, and Save writes every key
 // back, so a round trip through the setup screen cannot drop one.
 package config
 
@@ -13,15 +13,15 @@ import (
 	"slices"
 )
 
-// Version is the document version this build writes. A document declaring a
-// higher version is rejected, a document declaring none is accepted as
-// unversioned.
+// Version is the document version this build writes. Loading rejects a
+// document declaring a higher version and accepts a document declaring none
+// as unversioned.
 const Version = 1
 
 // Config is the worktree configuration document.
 type Config struct {
 	// Version is the document version. Zero means the document predates
-	// versioning, or was hand written without one.
+	// versioning, or someone wrote it by hand without one.
 	Version int `yaml:"version"`
 
 	// Scan holds the workspace scan settings.
@@ -33,24 +33,24 @@ type Config struct {
 type Scan struct {
 	// EnableGitignore honours .gitignore files while walking. A checkout
 	// below an ignored directory is not descended into, so it does not
-	// appear at all; workspaces that consolidate git checkouts a parent
+	// appear at all; workspaces that gather git checkouts a parent
 	// repository gitignores want this off.
 	EnableGitignore bool `yaml:"enable_gitignore"`
 
 	// EnableGitRepos lists git repositories that are not also go modules.
 	EnableGitRepos bool `yaml:"enable_git_repos"`
 
-	// IgnorePaths are directory names never descended into, whether or not
-	// a .gitignore mentions them.
+	// IgnorePaths are directory names never descended into, whether a
+	// .gitignore mentions them or not.
 	IgnorePaths []string `yaml:"ignore_paths"`
 
 	// RootMarkers are the files that mark the workspace root. The nearest
 	// parent directory holding one of them is the scan root. With no
-	// markers the current directory is used.
+	// markers the scan starts in the current directory.
 	RootMarkers []string `yaml:"root_markers"`
 }
 
-// Ignored reports whether a directory name is listed in IgnorePaths.
+// Ignored reports whether IgnorePaths lists a directory name.
 func (s Scan) Ignored(name string) bool {
 	return slices.Contains(s.IgnorePaths, name)
 }
@@ -61,14 +61,14 @@ func Default() *Config {
 	cfg, err := Parse(DefaultConfig)
 	if err != nil {
 		// The embedded document is part of the build, so a parse failure is
-		// a programming error rather than something a run can recover from.
+		// a programming error, and no run can recover from it.
 		panic("config: parse embedded config.yml: " + err.Error())
 	}
 	return cfg
 }
 
-// Parse decodes a configuration document. Absent settings are left at their
-// zero value; nothing is filled in from the defaults.
+// Parse decodes a configuration document. Absent settings keep their zero
+// value; Parse fills nothing in from the defaults.
 func Parse(data []byte) (*Config, error) {
 	cfg := &Config{}
 	if err := decode(cfg, data); err != nil {

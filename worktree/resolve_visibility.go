@@ -11,14 +11,14 @@ import (
 // visibilityReport is what every package of a module declares, split into the
 // half a consumer can reach and the half it cannot, as "splint" measures it.
 //
-// It describes the working tree and no revision before it. A release is read
-// from the API tables; this is read to see where the module keeps its weight,
-// which is a question about the code as it stands.
+// It describes the working tree and no revision before it. The release comes
+// from the API tables; this report shows where the module keeps its weight, a
+// question about the code as it stands.
 type visibilityReport struct {
 	// Packages are the counted packages, in path order.
 	Packages []visibilityPackage `json:"packages"`
 
-	// Skipped is why the report was not read, and is empty when it was.
+	// Skipped holds why the count did not run, and stays empty when it ran.
 	Skipped string `json:"skipped,omitempty"`
 }
 
@@ -53,8 +53,8 @@ type splintMetric struct {
 
 // readVisibility counts the packages of the module in dir.
 //
-// Every reason the count cannot run comes back as a Skipped report rather than
-// an error, the same way an unreadable API does: a module without the tool
+// Every reason the count cannot run comes back as a Skipped report and never
+// as an error, the same way an unreadable API does: a module without the tool
 // installed reports one section fewer, and the rest of the report stands.
 func readVisibility(dir string) visibilityReport {
 	if !isGoModule(dir) {
@@ -112,7 +112,7 @@ func readVisibility(dir string) visibilityReport {
 
 // packageLabel renders an import path relative to the module: "./" for the
 // module root, "./frontend" for a package below it. A path outside the module
-// is kept as it is.
+// comes back unchanged.
 func packageLabel(module, path string) string {
 	if module == "" {
 		return path

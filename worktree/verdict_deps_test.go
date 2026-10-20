@@ -35,12 +35,12 @@ func TestRenderVerdictDependencies(t *testing.T) {
 		// The category opens its group and the row under it leaves the cell
 		// empty, the way the API and data model tables read.
 		"|  | golang.org/x/sync | v0.23.0 |",
-		// A move is written as the two versions either side of it, the same
+		// A move shows as the two versions either side of it, the same
 		// way the data model writes a field that changed shape.
 		"| Changed | golang.org/x/mod | v0.40.0 -> v0.41.0 |",
 		"| Removed | gopkg.in/yaml.v3 | v3.0.1 |",
 		// The release is still a minor for what it took out of the API, and
-		// the dependencies are named after the reason rather than as one.
+		// the summary names the dependencies after the reason, and not as one.
 		"Minor release: v1.1.0, because 1 exported symbol was removed",
 		"2 dependencies were added and 1 dependency moved to another version and 1 dependency was dropped.",
 	} {
@@ -136,8 +136,8 @@ func TestModelRequires(t *testing.T) {
 	document := `{"SchemaVersion":1,"Modules":[{"Path":"example.com/app","Requires":[
 		{"Path":"golang.org/x/mod","Version":"v0.41.0"},
 		{"Path":"golang.org/x/sync","Version":"v0.23.0","Indirect":true}]}],"Packages":[]}`
-	// A document written before there was a root is a bare list of packages,
-	// each carrying the module it came from.
+	// A document from before the root existed is a bare list of packages,
+	// each carrying its source module.
 	bare := `[{"ImportPath":"example.com/app","Module":{"Path":"example.com/app","Requires":[
 		{"Path":"golang.org/x/mod","Version":"v0.41.0"},
 		{"Path":"golang.org/x/sync","Version":"v0.23.0","Indirect":true}]}}]`
@@ -156,9 +156,9 @@ func TestModelRequires(t *testing.T) {
 		}
 	}
 
-	// The empty document a first release is measured against, a model written
-	// without a go.mod, an unreadable one, and a file that is not there: every
-	// one of them reports no requirement rather than failing the run.
+	// The empty document a first release compares against, a model without a
+	// go.mod, an unreadable one, and a missing file: each of them reports no
+	// required modules and lets the run go on.
 	for name, data := range map[string]string{
 		"empty.json":    "[]\n",
 		"nomodule.json": `{"SchemaVersion":1,"Packages":[{"ImportPath":"example.com/app"}]}`,

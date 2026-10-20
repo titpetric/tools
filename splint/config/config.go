@@ -1,6 +1,6 @@
 // Package config reads .splint.yml, the file a tree states its house rules in.
 //
-// A tree with no such file is formatted by the defaults.
+// A tree with no such file takes the defaults.
 // The file exists to say the two things the defaults cannot know: which path
 // prefixes the project calls its own, and what a name means when the tree
 // itself does not say.
@@ -21,7 +21,7 @@ import (
 )
 
 // Filename is the file a tree states its rules in, read from the root of the
-// tree being parsed.
+// tree under parse.
 const Filename = ".splint.yml"
 
 // Config is the file.
@@ -35,14 +35,14 @@ type Config struct {
 
 // Imports is the house rule for an import block.
 type Imports struct {
-	// Order is the groups, in the order they are written.
+	// Order is the groups, in the order the file writes them.
 	Order []string `yaml:"order,omitempty"`
 
 	// Company are the path prefixes that form the company group.
 	Company []string `yaml:"company,omitempty"`
 
 	// Project is the module path that forms the project group. It defaults to
-	// the module path of the tree being read.
+	// the module path of the tree under read.
 	Project string `yaml:"project,omitempty"`
 
 	// SetAlias writes an alias for a path ending in a major version. It
@@ -50,44 +50,44 @@ type Imports struct {
 	SetAlias *bool `yaml:"set-alias,omitempty"`
 
 	// Aliases name what the tree cannot: an import path for a name no package
-	// of the tree is called and no file writes yet.
+	// of the tree carries and no file writes yet.
 	Aliases map[string]string `yaml:"aliases,omitempty"`
 
-	// Pollution is when a dependency reaching many files is reported.
+	// Pollution says when the linter reports a dependency reaching many files.
 	Pollution Pollution `yaml:"pollution"`
 }
 
-// Pollution is when a dependency reaching many files is reported.
+// Pollution says when the linter reports a dependency reaching many files.
 //
-// A package of the tree is never reported however far it reaches. A model
-// package imported by every consumer under it is what a package structure is
-// for. The rule is about the dependencies a tree took on.
+// The linter never reports a package of the tree, whatever its reach. A
+// package structure exists so that every consumer under a model package
+// imports it. The rule is about the dependencies a tree took on.
 type Pollution struct {
 	// PerPackage is how many files of one package may import one external
-	// dependency before it is reported. Zero turns the rule off.
+	// dependency before the linter reports it. Zero turns the rule off.
 	PerPackage int `yaml:"per-package"`
 
 	// FileShare is the share of the files of the tree one external dependency
-	// may reach before it is reported, between 0 and 1. Zero turns the rule
+	// may reach before the linter reports it, between 0 and 1. Zero turns the rule
 	// off.
 	FileShare float64 `yaml:"file-share"`
 
 	// IncludeTests counts the test files. It defaults to true, so a package
-	// whose three test files all reach testify is reported. Set it false when
-	// that reads as noise rather than as a finding.
+	// whose three test files all reach testify shows up in the report. Set it
+	// false when that reads as noise and not as a finding.
 	IncludeTests *bool `yaml:"include-tests"`
 }
 
 // Filecheck is the house rule for how long a file may run to.
 //
-// A tree stating nothing here is read under the linter's own ceiling, so the
+// A tree stating nothing here gets the linter's own ceiling, so the
 // section exists for the tree that has a file no number can name: a recursive
 // descent parser, an interpreter loop, a test file the pairing rule will not
-// let it split. Those are named by path and the rest of the tree is left
-// reported.
+// let it split. The section names those by path and the linter still reports
+// the rest of the tree.
 type Filecheck struct {
-	// MaxLines is how many lines of code a file may run to before it is
-	// reported, blanks and comments already taken out. It defaults to 400.
+	// MaxLines is how many lines of code a file may run to before the linter
+	// reports it, blanks and comments already taken out. It defaults to 400.
 	// Zero turns the rule off for every file the allow list does not name.
 	MaxLines int `yaml:"max-lines"`
 
@@ -103,19 +103,19 @@ type FileAllowance struct {
 	// syntax is path.Match per segment, so a star stops at a separator, plus
 	// ** for any number of segments. parser/*.go is the files of one
 	// directory and **/*_test.go is every test file of the tree. A pattern
-	// path.Match cannot read is refused when the file is loaded.
+	// path.Match cannot read fails the load of the file.
 	Path string `yaml:"path"`
 
 	// MaxLines is the ceiling for the files it covers. Zero means the rule
 	// does not apply to them, the way a zero turns off a pollution rule.
 	//
-	// The first entry covering a file is the one that applies, so a list is
-	// read top to bottom and a narrow entry is written above the broad entry
-	// it carves a hole in.
+	// The first entry covering a file applies, so the linter reads a list top
+	// to bottom and an author writes a narrow entry above the broad entry it
+	// carves a hole in.
 	MaxLines int `yaml:"max-lines"`
 }
 
-// Default is the configuration a tree with no file is read under.
+// Default is the configuration of a tree with no file.
 func Default() *Config {
 	yes := true
 	return &Config{
@@ -133,8 +133,8 @@ func Path(dir string) string {
 	return filepath.Join(dir, Filename)
 }
 
-// Load reads the file for a tree rooted at dir. A tree with no file is read
-// under the defaults, and no error.
+// Load reads the file for a tree rooted at dir. A tree with no file gets the
+// defaults, and no error.
 func Load(dir string) (*Config, error) {
 	cfg := Default()
 
@@ -187,8 +187,9 @@ func (f Filecheck) validate() error {
 }
 
 // FilecheckAllowances is the file length rule as the linter takes it. The two
-// types carry the same two fields and are declared apart on purpose: config
-// describes a document a person writes, and a linter is handed data.
+// types carry the same two fields and stay separate: the
+// configuration types describe a document a person writes, and a linter takes
+// data.
 func (c *Config) FilecheckAllowances() filecheck.Allowances {
 	out := make(filecheck.Allowances, 0, len(c.Filecheck.Allow))
 	for _, entry := range c.Filecheck.Allow {

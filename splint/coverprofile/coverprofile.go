@@ -7,8 +7,8 @@
 // complexity measured over the same declaration.
 //
 // It replaces a summary of the profile taken by a second tool. Reading the
-// profile directly is what makes the coverage part of extracting a document
-// rather than a step after it.
+// profile directly makes the coverage part of extracting a document, with no
+// separate step after it.
 package coverprofile
 
 import (
@@ -74,9 +74,9 @@ func Overlay(root *model.DocumentRoot, profiles []*cover.Profile) {
 	}
 }
 
-// index keys the blocks of a profile by the file they were measured in. A
-// profile names a file by its import path and base name, which is what a
-// package and a declaration of the document spell between them.
+// index keys the blocks of a profile by the file the profile measured them
+// in. A profile names a file by its import path and base name, and a package
+// and a declaration of the document spell the same pair between them.
 func index(profiles []*cover.Profile) map[string][]cover.ProfileBlock {
 	out := make(map[string][]cover.ProfileBlock, len(profiles))
 	for _, profile := range profiles {
@@ -125,11 +125,11 @@ type statements struct {
 }
 
 // percent is the share of the statements that ran, weighted by statement the
-// way "go tool cover -func" weights it rather than by block.
+// way "go tool cover -func" weights it, and never by block.
 //
-// Nothing to count reports 0. A declaration with no statements was never
-// measured, and 0 is what the cover tool answers for it, so a report reads the
-// same whichever of the two produced it.
+// Nothing to count reports 0. The cover tool never measures a declaration
+// with no statements and reports 0 for it, so a report reads the same
+// whichever of the two produced it.
 func (s statements) percent() float64 {
 	if s.total == 0 {
 		return 0

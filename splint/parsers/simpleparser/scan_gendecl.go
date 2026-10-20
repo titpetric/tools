@@ -9,8 +9,8 @@ import (
 // scanGenDecl reads a type, const or var declaration and returns the line it
 // ended on.
 //
-// A parenthesised block is one declaration and not several, however many names
-// it introduces: "const ( A = 1; B = 2 )" is recorded once under both names,
+// A parenthesised block is one declaration, whatever the count of names
+// it introduces: the parser records "const ( A = 1; B = 2 )" once under both names,
 // with the block as its source and the comment above the keyword as its doc.
 // That is what the ast parser records, because a block is one node to it.
 func (f *file) scanGenDecl(src *source, line int, kind model.DeclarationKind) int {
@@ -113,7 +113,7 @@ func entryEnd(src *source, line int) int {
 
 	// A value written as a raw string runs to wherever the string closes,
 	// which the code on the line says nothing about: every brace and keyword
-	// inside it is text.
+	// inside the string is text.
 	end := line
 	for src.rawOpen(end) && end < src.len()-1 {
 		end++
@@ -124,8 +124,8 @@ func entryEnd(src *source, line int) int {
 // readType reads one type spec into the declaration and returns the name it
 // declares.
 //
-// A block declaring several types folds into one declaration, so the fields
-// accumulate and the type of the last spec is the one recorded. That is what
+// A block declaring two or more types folds into one declaration, so the fields
+// accumulate and the last spec's type is the one recorded. That is what
 // the ast collector does with the same input.
 func (f *file) readType(decl *model.Declaration, src *source, in entry) []string {
 	name, rest, found := cutTypeName(in.code)
@@ -157,8 +157,8 @@ func (f *file) readType(decl *model.Declaration, src *source, in entry) []string
 
 // readValue reads one const or var spec and returns the names it declares.
 //
-// A spec names one symbol or several, and the last of them carries the type
-// when the spec gives one: "a, b int = 1, 2" declares two names of type int.
+// A spec names one symbol or more, and the last of them carries the type
+// when the spec has one: "a, b int = 1, 2" declares two names of type int.
 func readValue(code string) []string {
 	head := code
 	if eq := indexTop(head, '='); eq >= 0 {
@@ -189,8 +189,8 @@ func readValue(code string) []string {
 	return out
 }
 
-// cutTypeName splits a type spec into the name it declares and what it is
-// declared as.
+// cutTypeName splits a type spec into the name it declares and the type
+// behind that name.
 //
 // A generic type carries its parameters between the two, "List[T any] []T",
 // and the space inside them is not the space that separates the halves.
@@ -210,7 +210,7 @@ func cutTypeName(spec string) (name, rest string, found bool) {
 }
 
 // typeParams reads the type parameters of a generic declaration, each as the
-// name and the constraint it is bound by. It is what the model records as the
+// name and the constraint that binds it. The model records these as the
 // arguments of a type, the way a func records the types it takes.
 func typeParams(name string) []string {
 	open := strings.Index(name, "[")

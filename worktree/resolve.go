@@ -14,21 +14,21 @@ import (
 )
 
 // resolveRun collects the lines of one module's resolution cell, and performs
-// the steps when --apply was given.
+// the steps under --apply.
 //
-// Commands are run with their working directory set to the module they belong
+// Every command runs with its working directory set to the module it belongs
 // to, so no step ever changes the directory worktree itself is in. The table
-// names that directory, which is why the steps do not.
+// names that directory, so the steps leave it out.
 type resolveRun struct {
 	apply   bool
 	verbose bool
 	styled  bool
 
-	// wrap is the width the cell is folded at, and is zero when the output
+	// wrap is the width the cell folds at, and stays zero when the output
 	// is not going to a terminal and folding it would only get in the way.
 	wrap int
 
-	// lines are the cell of the module being resolved.
+	// lines are the cell of the module under resolution.
 	lines []string
 
 	// actual maps a module to the version it ended at, which is only known
@@ -39,7 +39,7 @@ type resolveRun struct {
 // setGo raises the go directive of a module to the version the run aligns on.
 //
 // A toolchain directive older than the new version leaves go.mod invalid, so
-// it is dropped where there is one; go get and go mod tidy put a newer one
+// setGo drops any it finds; go get and go mod tidy put a newer one
 // back when they need it. This is what setGoVersion does for the --go flag,
 // spelled as the commands that do it so the step reads as one.
 func (r *resolveRun) setGo(plan resolvePlan) error {
@@ -51,9 +51,9 @@ func (r *resolveRun) setGo(plan resolvePlan) error {
 	return r.run(plan.Path, "go", "mod", "edit", "-go="+plan.GoTo)
 }
 
-// update runs one go get and tidies straight after it, so the requirement it
-// replaced leaves go.mod and its checksums leave go.sum before the next one is
-// asked for.
+// update runs one go get and tidies straight after it, so the require line it
+// replaced leaves go.mod and its checksums leave go.sum before the next go get
+// runs.
 func (r *resolveRun) update(dir string, env []string, args ...string) error {
 	if err := r.retry(dir, env, args...); err != nil {
 		return err
@@ -82,8 +82,8 @@ func (r *resolveRun) cell() string {
 // resolve did not make, since releasing it would tag work nobody reviewed, and
 // every module after it would pin a version that never gets created.
 //
-// Modules with nothing to do are left out unless --all asks for them, which is
-// what the flag means everywhere else in the tool.
+// The output leaves out modules with nothing to do unless --all applies, the
+// meaning the flag carries everywhere else in the tool.
 func resolve(w io.Writer, modules []moduleInfo, refs versionRefs, opts *Options, styled bool) error {
 	plans, cycles := planResolve(refs, modules)
 
@@ -134,7 +134,7 @@ func resolve(w io.Writer, modules []moduleInfo, refs versionRefs, opts *Options,
 		case plan.Skip != "":
 			run.add(components.ColorGreen, "%s.", plan.Skip)
 		default:
-			// A module that cannot be resolved stops the run the way a dirty
+			// A module that fails to resolve stops the run the way a dirty
 			// one does: every module after it would pin a version that never
 			// gets created.
 			reason, err := run.module(plan)
@@ -184,23 +184,23 @@ func (r *resolveRun) module(plan resolvePlan) (string, error) {
 	// for the go tool to tidy, so it goes straight to its git state.
 	committed := true
 	if plan.GoModule {
-		// The go directive is raised first, so the update that follows
-		// resolves requirements against the version the module ends up on.
+		// The go directive goes up first, so the update that follows
+		// resolves requirements against the final version of the module.
 		if plan.GoTo != "" {
 			if err := r.setGo(plan); err != nil {
 				return "", err
 			}
 		}
 
-		// Every go get is tidied straight after it, so the requirement it
-		// replaced is out of go.mod and its checksums are out of go.sum
-		// before the next one is asked for.
+		// A tidy follows every go get straight away, so the require line it
+		// replaced leaves go.mod and its checksums leave go.sum before the
+		// next go get runs.
 		if err := r.update(plan.Path, nil, "go", "get", "-u", "./..."); err != nil {
 			return "", err
 		}
 		for _, pin := range plan.Pins {
 			// A tag pushed moments ago may not have reached the module proxy
-			// yet, so the source is tried before the pin is given up on.
+			// yet, so the step tries the source before it drops the pin.
 			version := pin.version
 			if actual, ok := r.actual[pin.path]; ok {
 				version = actual
@@ -239,8 +239,8 @@ func (r *resolveRun) module(plan resolvePlan) (string, error) {
 	}
 
 	// The dirty check is what the working tree says now under --apply, and
-	// the prediction made while planning otherwise. Either way it is read
-	// after the go.mod commit, which is why that file is left out of it.
+	// the prediction from planning otherwise. Either way the check reads it
+	// after the go.mod commit, so that file stays out of it.
 	dirty := plan.Dirty
 	if r.apply {
 		dirty = dirtyFiles(plan.Path)
@@ -277,8 +277,8 @@ func (r *resolveRun) module(plan resolvePlan) (string, error) {
 	return "", nil
 }
 
-// record notes the version a module ended at, so a module depending on it asks
-// for the one it actually got rather than the one the plan predicted. A
+// record notes the version a module ended at, so a module depending on it
+// requires the one it actually got and not the plan's prediction. A
 // conditional module that turned out to need no release is the case this is
 // for.
 func (r *resolveRun) record(plan resolvePlan, version string) {
@@ -288,13 +288,13 @@ func (r *resolveRun) record(plan resolvePlan, version string) {
 	r.actual[plan.Module] = version
 }
 
-// commit records the go.mod and go.sum this run rewrote. They are staged
+// commit records the go.mod and go.sum this run rewrote. It stages them
 // first, since a go.sum created by the update is not yet tracked and the
 // pathspec would not match it, and then committed by pathspec, which leaves
 // every other change in the working tree out of the commit and there for the
 // dirty check to find.
-// It reports whether a commit was made, which is what tells a module released
-// only for a dependency update from one with nothing to release.
+// It reports whether it made a commit, and that tells a module released only
+// for a dependency update from one with nothing to release.
 func (r *resolveRun) commit(plan resolvePlan) (bool, error) {
 	paths := modPaths(plan.Path)
 	if len(paths) == 0 {
@@ -308,7 +308,7 @@ func (r *resolveRun) commit(plan resolvePlan) (bool, error) {
 	message := name + ": update " + strings.Join(paths, ", ")
 
 	// Nothing to record is not a failure: go get may have found every
-	// requirement already at the version it wanted.
+	// dependency already at its newest version.
 	if r.apply {
 		out, err := r.exec(plan.Path, nil, append([]string{"git", "status", "--porcelain", "--"}, paths...)...)
 		if err == nil && strings.TrimSpace(out) == "" {
@@ -326,7 +326,7 @@ func (r *resolveRun) commit(plan resolvePlan) (bool, error) {
 }
 
 // modPaths returns the go.mod and go.sum of a module that exist, in the order
-// they are committed.
+// commit adds them.
 func modPaths(dir string) []string {
 	var paths []string
 	for _, name := range []string{"go.mod", "go.sum"} {
@@ -337,14 +337,15 @@ func modPaths(dir string) []string {
 	return paths
 }
 
-// run performs one command in the module directory, or renders it when --apply
-// was not given.
+// run performs one command in the module directory, or renders it without
+// --apply.
 func (r *resolveRun) run(dir string, args ...string) error {
 	return r.retry(dir, nil, args...)
 }
 
-// retry is run with a second attempt: when the first fails and env is set, the
-// command is run again with it before the failure is reported.
+// retry runs a command with a second attempt: when the first fails and env
+// holds values, retry runs the command again with them before it reports the
+// failure.
 func (r *resolveRun) retry(dir string, env []string, args ...string) error {
 	line := shellJoin(args)
 	if !r.apply {
@@ -387,7 +388,7 @@ func (r *resolveRun) output(out string) {
 	}
 }
 
-// shellJoin renders a command the way it would be typed. Commands are run
+// shellJoin renders a command the way a person would type it. Commands run
 // through no shell, so this is only ever read, but an argument holding a space
 // still has to read as one argument.
 func shellJoin(args []string) string {

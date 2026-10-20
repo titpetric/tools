@@ -1,10 +1,10 @@
-// Package resolve answers what package a bare name refers to, from where it
-// was written.
+// Package resolve answers what package a bare name refers to, from the place
+// that writes it.
 //
-// A file reaching model.User with no import of model has to be told which
-// model that is. goimports asks a global index and gets whichever one it
-// indexed first, so a tree where /service1 and /service2 each hold a model
-// package is a tree it formats wrong. The answer is source relative: from
+// A file reaching model.User with no import of model needs a resolver to name
+// the model package. goimports queries a global index and takes whichever one
+// it indexed first, so it formats wrong a tree where /service1 and /service2
+// each hold a model package. Resolution here is source relative: from
 // service2/storage, model is ../model and never service1/model.
 //
 // Nothing here reads a file. The document already carries every package of the
@@ -20,14 +20,14 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// How a name resolved, which is what a message says when it has to explain
-// itself and what a test asserts on.
+// How a name resolved: a message states it when it explains itself, and a
+// test asserts on it.
 const (
 	// SourceAlias is a name the configuration named outright.
 	SourceAlias = "alias"
 
 	// SourceLocal is a package of the tree, found by walking up from the
-	// directory the name was written in.
+	// directory that writes the name.
 	SourceLocal = "local"
 
 	// SourceTree is a path some other file of the tree already imports under
@@ -36,8 +36,8 @@ const (
 	// file what assert means.
 	SourceTree = "tree"
 
-	// SourceModule is a requirement of the go.mod whose last segment is the
-	// name.
+	// SourceModule is a required module of the go.mod whose last segment is
+	// the name.
 	SourceModule = "module"
 )
 
@@ -46,7 +46,7 @@ type Result struct {
 	// Path is the import path, and is empty when nothing answered.
 	Path string
 
-	// Source is how it was found, one of the Source constants.
+	// Source is how the lookup found it, one of the Source constants.
 	Source string
 
 	// Candidates are the paths that answered when more than one did, in which
@@ -68,7 +68,7 @@ func (r Result) Ambiguous() bool {
 // Index is the document read as a resolver.
 type Index struct {
 	// aliases is what the configuration named, which wins over everything
-	// else: it is the way to say what the tree could not.
+	// else: it states what the tree could not.
 	aliases map[string]string
 
 	// byParent are the packages of the tree, keyed on the directory holding
@@ -83,18 +83,18 @@ type Index struct {
 	requires map[string][]string
 
 	// names are the package names of the tree's own packages, keyed on import
-	// path. A path is reached by the name of the package at the end of it and
-	// not by the last segment of the path, and the two differ often enough to
-	// matter: github.com/goccy/go-yaml is reached as yaml.
+	// path. Code reaches a path by the name of the package at the end of it
+	// and not by the last segment of the path, and the two differ often enough
+	// to matter: code reaches github.com/goccy/go-yaml as yaml.
 	names map[string]string
 }
 
-// Name is the package name an import path is reached by, and whether it is
-// known.
+// Name is the package name code reaches an import path by, and whether the
+// index knows it.
 //
-// It is known for a package of the tree, which the document names outright.
-// For anything else the last segment of the path is a guess, and a guess that
-// is not a Go identifier is wrong: no package is called go-yaml.
+// The index knows it for a package of the tree, which the document names
+// outright. For anything else the last segment of the path is a guess, and a
+// guess that is not a Go identifier is wrong: no package has the name go-yaml.
 func (i *Index) Name(importPath string) (string, bool) {
 	if name, ok := i.names[importPath]; ok {
 		return name, true
@@ -121,8 +121,8 @@ func New(root *model.DocumentRoot, aliases map[string]string) *Index {
 
 	for _, def := range root.Packages {
 		if def.TestPackage {
-			// A test package is compiled into a test binary and nothing
-			// imports it, so it is not somewhere a name can resolve to.
+			// A test package compiles into a test binary and nothing
+			// imports it, so no name can resolve to it.
 			continue
 		}
 		if def.Package.ImportPath == "" {
@@ -136,7 +136,7 @@ func New(root *model.DocumentRoot, aliases map[string]string) *Index {
 			for _, spec := range file.ImportDecls.Specs() {
 				if spec.Path == "C" {
 					// "C" is cgo's pseudo package. Nothing resolves to it and
-					// nothing may be written to import it.
+					// no file may import it.
 					continue
 				}
 				index.addName(spec.Ref(), spec.Path)
@@ -166,7 +166,7 @@ func (i *Index) addName(name, importPath string) {
 	i.byName[name] = append(i.byName[name], importPath)
 }
 
-// addRequire records a module path under the name its last segment gives.
+// addRequire records a module path under the name of its last segment.
 func (i *Index) addRequire(modulePath string) {
 	name := model.BaseName(modulePath)
 	if name == "" {
@@ -180,14 +180,14 @@ func (i *Index) addRequire(modulePath string) {
 	i.requires[name] = append(i.requires[name], modulePath)
 }
 
-// Lookup resolves a name as it was written in a package.
+// Lookup resolves a name as a package writes it.
 //
 // The order is the order of confidence. A configured alias is a decision
 // somebody made and wins outright. A package of the tree found by walking up
 // from the directory is the next surest thing, and is what makes the same
 // spelling mean two packages in two services. After that comes what the rest
-// of the tree already writes, and last a requirement of the go.mod whose name
-// matches.
+// of the tree already writes, and last a required module of the go.mod whose
+// name matches.
 func (i *Index) Lookup(def *model.Definition, name string) Result {
 	if name == "" {
 		return Result{}
@@ -217,12 +217,12 @@ func (i *Index) Lookup(def *model.Definition, name string) Result {
 }
 
 // local is the package of the tree the name refers to, found by walking up
-// from the directory the name was written in.
+// from the directory that writes the name.
 //
-// The walk stops at the module the writing package belongs to. A package of
-// another module is reached by importing that module, and a name that meant
-// one of those would resolve differently depending on what else happened to be
-// checked out beside it.
+// The walk stops at the module the writing package belongs to. Code reaches a
+// package of another module by importing that module, and a name that meant
+// one of those would resolve differently depending on what else happened to
+// sit checked out beside it.
 func (i *Index) local(def *model.Definition, name string) string {
 	if def == nil {
 		return ""

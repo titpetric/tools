@@ -8,8 +8,8 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// TestBaseName covers the name a path is reached by, which is what decides
-// whether an import is used and what an alias would have to say.
+// TestBaseName covers the name that reaches a path; that name decides whether
+// a file uses an import and what an alias would have to say.
 func TestBaseName(t *testing.T) {
 	tests := []struct{ path, name string }{
 		{"context", "context"},
@@ -23,8 +23,8 @@ func TestBaseName(t *testing.T) {
 		{"example.com/v2", "example.com"},
 
 		// A major version suffix starts at v2. A path ending in /v0 or
-		// /v1 is a directory of that name, which is how prometheus and
-		// the kubernetes api groups are laid out.
+		// /v1 is a directory of that name; prometheus and the kubernetes
+		// api groups use that layout.
 		{"github.com/prometheus/client_golang/api/prometheus/v1", "v1"},
 		{"k8s.io/api/core/v1", "v1"},
 		{"example.com/x/v0", "v0"},

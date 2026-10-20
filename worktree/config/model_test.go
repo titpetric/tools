@@ -73,7 +73,7 @@ func TestModelTogglesBoolean(t *testing.T) {
 	if !m.dirty() {
 		t.Fatal("the form reports no edit after a toggle")
 	}
-	// Nothing is written into the document until the form saves.
+	// The form writes nothing into the document until it saves.
 	if !cfg.Scan.EnableGitignore {
 		t.Fatal("the toggle reached the document, want it held in the form until it saves")
 	}
@@ -125,7 +125,7 @@ func TestModelMovesBetweenRows(t *testing.T) {
 	}
 }
 
-// TestModelEditsListInPlace checks a string list is typed into where it
+// TestModelEditsListInPlace checks the user types into a string list where it
 // stands, with no dialog in the way.
 func TestModelEditsListInPlace(t *testing.T) {
 	cfg := Default()
@@ -157,8 +157,8 @@ func TestModelEditsListInPlace(t *testing.T) {
 	}
 }
 
-// TestModelListKeepsSpacing checks the keys a boolean is toggled with are
-// typed into a list instead, and that respacing one is not an edit.
+// TestModelListKeepsSpacing checks the keys that toggle a boolean type into a
+// list, and that respacing one is not an edit.
 func TestModelListKeepsSpacing(t *testing.T) {
 	m := New(Default(), "")
 	m.focus(3) // scan.root_markers
@@ -173,7 +173,7 @@ func TestModelListKeepsSpacing(t *testing.T) {
 }
 
 // TestModelCaretFollowsTheFocus checks the caret lands at the end of a list
-// when the focus reaches it, which is where typing carries on from.
+// when the focus reaches it, so typing carries on from there.
 func TestModelCaretFollowsTheFocus(t *testing.T) {
 	m := New(Default(), "")
 
@@ -184,7 +184,7 @@ func TestModelCaretFollowsTheFocus(t *testing.T) {
 }
 
 // TestModelEnterGoesToSave checks enter on a setting changes nothing and moves
-// on to the save button, which is where the form is finished.
+// on to the save button, where the form closes.
 func TestModelEnterGoesToSave(t *testing.T) {
 	cfg := Default()
 	m := New(cfg, "")
@@ -254,7 +254,7 @@ func TestModelSaves(t *testing.T) {
 	}
 }
 
-// TestModelDiscards checks the discard button leaves the document as it was.
+// TestModelDiscards checks the discard button leaves the document untouched.
 func TestModelDiscards(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "worktree.yml")
 	cfg := Default()
@@ -276,7 +276,7 @@ func TestModelDiscards(t *testing.T) {
 }
 
 // TestModelEscapeKeepsEdits checks escape with unsaved edits moves to the
-// discard button rather than dropping them, so leaving is always answered for.
+// discard button and keeps them, so leaving always takes a second key press.
 func TestModelEscapeKeepsEdits(t *testing.T) {
 	m := New(Default(), "")
 
@@ -310,7 +310,7 @@ func TestModelEscapeKeepsEdits(t *testing.T) {
 }
 
 // TestModelReportsSaveFailure checks a write that fails keeps the form open
-// with the reason, rather than losing the edits.
+// with the reason and keeps the edits.
 func TestModelReportsSaveFailure(t *testing.T) {
 	dir := t.TempDir()
 	blocker := filepath.Join(dir, "blocked")
@@ -330,8 +330,8 @@ func TestModelReportsSaveFailure(t *testing.T) {
 	if m.status == "" {
 		t.Fatal("no status message after a failed save")
 	}
-	// The status replaces the key legend. A message longer than the screen is
-	// cut to fit, so only its start is looked for.
+	// The status replaces the key legend. The view cuts a message longer than
+	// the screen to fit, so the test looks for its start only.
 	got := m.render()
 	if !strings.Contains(got, "create") {
 		t.Fatalf("the form does not show the failure %q:\n%s", m.status, got)
@@ -343,7 +343,7 @@ func TestModelReportsSaveFailure(t *testing.T) {
 
 // TestModel_Saved checks the flag Run reads to decide whether to report a
 // write: a form that has not saved reports false, and one that has reports
-// true, which is what tells a save from a discard once the screen has closed.
+// true, and that flag tells a save from a discard once the screen has closed.
 func TestModel_Saved(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "worktree.yml")
 	m := New(Default(), path)
@@ -368,8 +368,8 @@ func TestModel_Saved(t *testing.T) {
 	}
 }
 
-// TestModel_Init checks the form asks for nothing before it is drawn: the
-// document is already read by the time the screen opens.
+// TestModel_Init checks Init returns no command before the first draw: New
+// reads the document before the screen opens.
 func TestModel_Init(t *testing.T) {
 	if cmd := New(Default(), "worktree.yml").Init(); cmd != nil {
 		t.Errorf("Model.Init() = %v, want no command", cmd)

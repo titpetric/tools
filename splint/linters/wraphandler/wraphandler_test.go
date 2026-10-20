@@ -22,7 +22,7 @@ func handler(name, receiver, file string, line int) *model.Declaration {
 	}
 }
 
-// wrapper is the counterpart a handler is meant to be a thin cover over.
+// wrapper is the counterpart a handler covers thinly.
 func wrapper(name, receiver, file string, line int) *model.Declaration {
 	decl := handler(name, receiver, file, line)
 	decl.Returns = []string{"error"}
@@ -129,7 +129,7 @@ func TestLint_Method(t *testing.T) {
 
 // TestLint_Signature covers the declarations the linter reads past. Only a
 // function of the http.HandlerFunc shape is untestable, and only an exported
-// one is a surface a consumer mounts, so none of these is counted either.
+// one is a surface a consumer mounts, so the linter counts none of these either.
 func TestLint_Signature(t *testing.T) {
 	pkg := model.Package{Package: "api", ImportPath: "example.com/api"}
 
@@ -202,8 +202,8 @@ func TestLint_Skipped(t *testing.T) {
 	}
 }
 
-// TestLint_Cancelled covers a document the linter is asked to stop reading,
-// which is the linter failing rather than the code failing.
+// TestLint_Cancelled covers a document the linter stops reading on request,
+// where the linter fails and the code does not.
 func TestLint_Cancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

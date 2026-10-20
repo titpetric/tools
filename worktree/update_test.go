@@ -104,7 +104,7 @@ func TestUpdateDepsReportsFailures(t *testing.T) {
 // TestUpdateDepsUpdatesOnlyStaleRequires checks that -u moves the workspace
 // requirements that are behind their latest tag and leaves everything else
 // alone. The module also requires a dependency outside the workspace, which
-// has no known tag and is therefore not touched.
+// has no known tag, so the run leaves it untouched.
 func TestUpdateDepsUpdatesOnlyStaleRequires(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/app\n\ngo 1.25\n\nrequire (\n\texample.com/current v1.1.0\n\texample.com/lib v1.0.0\n\texample.com/third-party v0.3.0\n)\n")
@@ -135,8 +135,8 @@ func TestUpdateDepsUpdatesOnlyStaleRequires(t *testing.T) {
 }
 
 // TestUpdateDepsSkipsCurrentRequires checks that a module whose workspace
-// requirements are all at their latest tag is reported as up to date without
-// running the go tool. The module imports a package that can not be resolved
+// requirements all sit at their latest tag reports as up to date without
+// running the go tool. The module imports a package that fails to resolve
 // with GOPROXY=off, so a go command that did run would report a failure.
 func TestUpdateDepsSkipsCurrentRequires(t *testing.T) {
 	root := t.TempDir()
@@ -156,7 +156,7 @@ func TestUpdateDepsSkipsCurrentRequires(t *testing.T) {
 	}
 }
 
-// TestUpdateDepsUpdateAllUpgradesEverything checks that -U still asks the go
+// TestUpdateDepsUpdateAllUpgradesEverything checks that -U still runs the go
 // tool to upgrade every dependency.
 func TestUpdateDepsUpdateAllUpgradesEverything(t *testing.T) {
 	root := t.TempDir()

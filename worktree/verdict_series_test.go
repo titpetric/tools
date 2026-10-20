@@ -7,7 +7,7 @@ import (
 
 // chainString renders a chain as "from..to" per section, so a table test reads
 // as the report it describes. The start of history and the working tree have no
-// version to name, and are left empty on their side of the range.
+// version to name, and stay empty on their side of the range.
 func chainString(ranges []versionRange) []string {
 	out := make([]string, 0, len(ranges))
 	for _, r := range ranges {

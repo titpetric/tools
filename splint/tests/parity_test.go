@@ -15,14 +15,15 @@ import (
 	"github.com/titpetric/tools/splint/tests"
 )
 
-// workspace is where the projects the harness reads are checked out, which
-// SPLINT_WORKSPACE overrides. A project that is not there is skipped, so the
-// harness reads whatever the machine has rather than requiring all of them.
+// workspace is the checkout directory of the projects the harness reads, and
+// SPLINT_WORKSPACE overrides it. The harness skips a project that is not
+// there, so it reads whatever the machine has and requires none in particular.
 var workspace = envOr("SPLINT_WORKSPACE", "/root/workspace/github")
 
-// projects are the trees to compare on. They are real repositories rather than
-// fixtures because the point is the shapes nobody thought to write a fixture
-// for: build tags, generic types, generated code, files that do not compile.
+// projects are the trees to compare on. They are real repositories and no
+// fixtures, because the harness targets the shapes nobody thought to write a
+// fixture for: build tags, generic types, generated code, files that do not
+// compile.
 var projects = []string{
 	"atkins", "cli", "etl", "exp", "go-web-crontab", "lessgo", "mig", "oida",
 	"pdo", "phpscript", "platform", "platform-app", "secretsmanager", "tools",
@@ -30,15 +31,15 @@ var projects = []string{
 }
 
 // budget is the share of compared values that may differ on a path nobody has
-// explained. It is a ratchet: the number is what the harness reports today,
-// and lowering it as the differences are chased is the point of having it.
-// Raising it is a decision somebody has to make on purpose.
+// explained. The budget is a ratchet: the number is what the harness reports
+// today, and lowering it as somebody chases the differences is its purpose.
+// Raising the budget takes an explicit decision by somebody.
 const budget = 0.001
 
 // allowed are the paths the two parsers are not expected to agree on, and why.
 // A path not named here has to match, and the summary says so.
 //
-// An entry is matched on the end of a path, so one covers the field wherever
+// An entry matches the end of a path, so one covers the field wherever
 // in the document it turns up: "Complexity.Cognitive" covers the complexity of
 // a func, of a type and of a package alike.
 var allowed = map[string]string{
@@ -47,7 +48,7 @@ var allowed = map[string]string{
 		"that produce them, which part company inside a composite literal",
 }
 
-// explained returns why a path is allowed to differ, and whether it is.
+// explained returns why a path may differ, and whether it may.
 func explained(path string) (string, bool) {
 	for suffix, note := range allowed {
 		if path == suffix || strings.HasSuffix(path, "."+suffix) {
@@ -60,10 +61,10 @@ func explained(path string) (string, bool) {
 // TestParity compares the simple parser against the ast parser, value by
 // value, over every project.
 //
-// The comparison is a deep walk of the encoded documents rather than a list of
-// fields somebody remembered to check: every key either side carries is
-// visited, a key only one of them has is a difference, and a key added to the
-// model tomorrow is covered without anyone adding it here.
+// The comparison is a deep walk of the encoded documents and no hand-picked
+// list of fields: the walk visits every key either side carries, a key only
+// one of them has is a difference, and the walk covers a key added to the
+// model tomorrow without anyone adding it here.
 func TestParity(t *testing.T) {
 	totals := map[string]int{}
 	examples := map[string]string{}
@@ -124,7 +125,7 @@ type result struct {
 	differing int
 }
 
-// note keeps the first example of each difference, which is what turns a count
+// note keeps the first example of each difference, and that turns a count
 // into something a reader can chase.
 func (r result) note(path, example string) {
 	if _, seen := r.examples[path]; !seen {
@@ -194,7 +195,7 @@ func compare(t *testing.T, root string) result {
 }
 
 // index keys every package of a document, so two documents of the same tree
-// compare package by package whatever order they list them in.
+// compare one package at a time whatever order they list them in.
 func index(doc *model.DocumentRoot) map[string]*model.Definition {
 	out := map[string]*model.Definition{}
 
@@ -209,15 +210,15 @@ func index(doc *model.DocumentRoot) map[string]*model.Definition {
 	return out
 }
 
-// normalise takes the differences that are known and explained out of the
+// normalise takes the known and explained differences out of the
 // comparison, without taking the field they are in out of it.
 func normalise(path string, a, b any) (any, any) {
 	if strings.HasSuffix(path, "Source") {
 		// The ast parser renders a declaration through go/printer, which
 		// writes the padding that lines up a run of struct fields as tabs. The
 		// file on disk carries what gofmt wrote there, which is spaces. The
-		// two say the same thing, so the padding inside a line is collapsed;
-		// the indentation opening a line is code structure and is left alone.
+		// two say the same thing, so normalise collapses the padding inside a
+		// line; the indentation opening a line is code structure and stays.
 		return alignment(a), alignment(b)
 	}
 
@@ -226,29 +227,29 @@ func normalise(path string, a, b any) (any, any) {
 		// resolves a selector against the type-checked scope, and the line
 		// scanner reads the identifiers off the text, so one sees through a
 		// method value what the other cannot. A reader of the field resolves
-		// the names against what the package declares, which is what keeps
-		// the difference from mattering.
+		// the names against what the package declares, and that keeps the
+		// difference from mattering.
 		return nil, nil
 	}
 
 	if strings.HasSuffix(path, ".Type") {
-		// An inline struct type is rendered through go/printer on one side
+		// One side renders an inline struct type through go/printer
 		// and read off the file on the other, so the layout differs while the
 		// type does not. Every run of whitespace collapses before comparing.
 		return flatten(a), flatten(b)
 	}
 
 	if strings.HasSuffix(path, ".Globals") {
-		// The globals are where the two parsers part company on purpose: the
+		// The globals are where the two parsers part company by design: the
 		// ast parser resolves a name against the package scope and the line
 		// scanner decides from what the file declares and what the body
 		// binds. The second over-reports a local it did not see bound and
 		// misses a composite literal key, at a few percent of the names.
 		//
 		// A reader of the field resolves the names against what the package
-		// declares, which is what keeps the difference from mattering, and is
-		// why it is not counted here. The references beside it are collected
-		// the same way on both sides and are compared.
+		// declares, and that keeps the difference from mattering, so the
+		// harness does not count it here. Both sides collect the references
+		// beside it the same way, and the harness compares those.
 		return nil, nil
 	}
 
@@ -299,8 +300,8 @@ func collapse(text string) string {
 	return out.String()
 }
 
-// values counts the scalars a package encodes to, which is what a difference
-// is counted against: a rate over declarations says nothing about a field only
+// values counts the scalars a package encodes to, the base of a difference
+// rate: a rate over declarations says nothing about a field only
 // some declarations carry.
 func values(def *model.Definition) int {
 	return tests.Scalars(tests.Canonical(def))

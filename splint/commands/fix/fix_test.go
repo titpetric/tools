@@ -13,11 +13,11 @@ import (
 // TestSpliceRefusesARangeThatIsNotAnImport is the guard that bounds what a
 // parser bug can cost.
 //
-// The line range comes from a parse. One that read the range wrong had this
-// replace whatever was actually there: a block whose closing paren is indented
-// was read as ending at the end of the file, and the rewrite replaced the file
-// with an import block. Nothing is written unless the lines about to go really
-// are an import declaration.
+// The line range comes from a parse. A parse that reads the range wrong makes
+// this replace whatever sits there: a parser that reads a block with an
+// indented closing paren as ending at the end of the file makes the rewrite
+// replace the file with an import block. splice writes nothing unless the
+// lines about to go hold an import declaration.
 func TestSpliceRefusesARangeThatIsNotAnImport(t *testing.T) {
 	source := "package x\n\nimport (\n\t\"fmt\"\n)\n\nfunc F() { fmt.Println() }\n"
 
@@ -40,7 +40,7 @@ func TestSpliceRefusesARangeThatIsNotAnImport(t *testing.T) {
 	}
 }
 
-// TestSpliceReplacesTheDeclaration covers the edit that is accepted.
+// TestSpliceReplacesTheDeclaration covers the edit that splice accepts.
 func TestSpliceReplacesTheDeclaration(t *testing.T) {
 	source := "package x\n\nimport (\n\t\"sort\"\n\t\"fmt\"\n)\n\nfunc F() { fmt.Println(sort.IntsAreSorted(nil)) }\n"
 
@@ -88,9 +88,9 @@ func TestApplyKeepsCRLF(t *testing.T) {
 	assert.Equal(t, "package x\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"sort\"\r\n)\r\n\r\nfunc F() {}\r\n", out)
 }
 
-// TestApplyEndsAFileWithANewline covers a file that ends without one, which
-// gofmt gives a newline and so does this: the formatting pass is gofmt's, and a
-// file this one wrote is a file gofmt would leave alone.
+// TestApplyEndsAFileWithANewline covers a file that ends without one. gofmt
+// adds a newline to it and so does Apply: the formatting pass is gofmt's, and
+// gofmt leaves alone any file Apply writes.
 func TestApplyEndsAFileWithANewline(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bare.go")
@@ -107,9 +107,9 @@ func TestApplyEndsAFileWithANewline(t *testing.T) {
 	assert.True(t, strings.HasSuffix(read(t, path), "\n"), "the file came out without a trailing newline")
 }
 
-// TestApplyFormatsAFileWithNoEdits covers the file the fixer never used to
-// open: its import block is what the rules describe, and everything below it is
-// gofmt's business. A plan entry with no edits is the format-only case.
+// TestApplyFormatsAFileWithNoEdits covers a file whose import block matches
+// the rules, leaving everything below it to gofmt. A plan entry with no edits
+// is the format-only case.
 func TestApplyFormatsAFileWithNoEdits(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fields.go")
@@ -169,8 +169,8 @@ func TestApplyKeepsTheFileMode(t *testing.T) {
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 }
 
-// TestApplyLeavesNoTemporary covers the write: the file is replaced through a
-// temporary beside it, and the temporary is not left behind.
+// TestApplyLeavesNoTemporary covers the write: Apply replaces the file through
+// a temporary beside it and removes the temporary afterwards.
 func TestApplyLeavesNoTemporary(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "one.go")
@@ -200,7 +200,7 @@ func TestInsertPutsTheBlockUnderThePackageClause(t *testing.T) {
 	assert.Equal(t, "// Package x does a thing.\npackage x\n\nimport (\n\t\"fmt\"\n)\n\nfunc F() string { return fmt.Sprint(1) }\n", out)
 }
 
-// read returns a file as it was written, line endings and all.
+// read returns the contents of a file on disk, line endings and all.
 func read(t *testing.T, path string) string {
 	t.Helper()
 

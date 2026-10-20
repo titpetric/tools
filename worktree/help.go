@@ -8,9 +8,8 @@ import (
 	"strings"
 )
 
-// The palette a help page is painted in, which is the one the reports beside
-// it are painted in: a heading is bold amber, a name is teal, and what a name
-// defaults to is grey.
+// The palette of a help page, the same one the reports beside it use: a
+// heading is bold amber, a name is teal, and what a name defaults to is grey.
 const (
 	helpReset   = "\033[0m"
 	helpSection = "\033[1;38;5;220m"
@@ -18,14 +17,14 @@ const (
 	helpDim     = "\033[38;5;245m"
 )
 
-// spec is a help page: what the tool is, how it is called, what it takes, and
+// spec is a help page: what the tool is, how to call it, what it takes, and
 // what a run of it looks like.
 //
-// A section with nothing in it is left out, so a tool with no subcommands has
-// no Commands heading rather than an empty one.
+// The page leaves out an empty section, so a tool with no subcommands has no
+// Commands heading at all.
 type spec struct {
-	// Name is the command as it is typed, and Tagline is the one line that
-	// says what it is for.
+	// Name is the command as a user types it, and Tagline is the one line
+	// that says what the command does.
 	Name    string
 	Tagline string
 
@@ -37,11 +36,11 @@ type spec struct {
 	// Commands are the subcommands, in the order a reader meets them.
 	Commands []command
 
-	// Flags is the parser itself, walked rather than repeated: a flag is
-	// documented by having been defined.
+	// Flags is the parser itself, which the page walks and never repeats: a
+	// flag definition is its documentation.
 	Flags *flag.FlagSet
 
-	// Examples are runs worth copying, and Notes is what is left to say.
+	// Examples are runs worth copying, and Notes holds whatever remains to say.
 	Examples []example
 	Notes    string
 }
@@ -52,13 +51,13 @@ type command struct {
 	About string
 }
 
-// example is one run and what it is for.
+// example is one run and its purpose.
 type example struct {
 	Command string
 	About   string
 }
 
-// flagDoc is one flag as a page reads it: the name, what its value is called,
+// flagDoc is one flag as a page reads it: the name, the name of its value,
 // what it defaults to, and what it does.
 type flagDoc struct {
 	Name        string
@@ -179,7 +178,7 @@ func helpMarkdown(w io.Writer, s spec) error {
 	return err
 }
 
-// spelled is the flag as it is typed, with the name of its value after it
+// spelled is the flag as a user types it, with the name of its value after it
 // where it takes one.
 func (f flagDoc) spelled() string {
 	if f.Placeholder == "" {
@@ -191,7 +190,7 @@ func (f flagDoc) spelled() string {
 // flagDocs reads the flags off the parser, in the order it walks them, which
 // is the order a reader looks them up in.
 //
-// A default that is the zero of its type says nothing, so it is left out: a
+// A default that is the zero of its type says nothing, so flagDocs leaves it out: a
 // bool that is off and a string that is empty are what a flag not given
 // already means.
 func flagDocs(fs *flag.FlagSet) []flagDoc {
@@ -220,8 +219,8 @@ func flagDocs(fs *flag.FlagSet) []flagDoc {
 	return out
 }
 
-// code writes a cell as code, and writes an empty cell as nothing rather than
-// as an empty pair of backticks.
+// code writes a cell as code, and writes an empty cell as nothing, with no
+// empty pair of backticks.
 func code(value string) string {
 	if value == "" {
 		return ""
@@ -229,9 +228,9 @@ func code(value string) string {
 	return "`" + value + "`"
 }
 
-// isTerminal reports whether a writer is a terminal, which is what decides
-// whether the page carries colour. A dumb terminal is not one: it is what a
-// pager or an editor sets when it wants plain text.
+// isTerminal reports whether a writer is a terminal, the test that decides
+// whether the page carries colour. A dumb terminal does not count: a pager or
+// an editor sets it to get plain text.
 func isTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok || os.Getenv("TERM") == "dumb" {

@@ -69,11 +69,12 @@ func releaseSteps(tags []string, kind, prefix string) ([][]string, error) {
 // moduleTags returns the release tags of the module in dir, without the prefix
 // they carry, and that prefix.
 //
-// A go module nested in a larger repository is released as "<subdir>/vX.Y.Z",
-// which is how the go tool tells the releases of one module in a repository
-// from another's. Stripping the prefix leaves plain versions to compare, and
-// it is put back when a tag is created. A module at the root of its repository,
-// and anything that is not a go module, is tagged "vX.Y.Z" and has no prefix.
+// A go module nested in a larger repository releases as "<subdir>/vX.Y.Z";
+// the go tool tells the releases of one module in a repository from
+// another's that way. Stripping the prefix leaves plain versions to compare,
+// and a new tag gets the prefix back. A module at the root of its repository,
+// and anything that is not a go module, takes tags of the form "vX.Y.Z" with
+// no prefix.
 func moduleTags(dir string) (tags []string, prefix string, err error) {
 	all, err := gitTags(dir)
 	if err != nil {
@@ -95,7 +96,7 @@ func moduleTags(dir string) (tags []string, prefix string, err error) {
 }
 
 // releaseCommands returns the git commands that tag and push the next patch
-// or minor release for the given tags. The output is meant to be piped into
+// or minor release for the given tags. The output suits a pipe into
 // "sh -x". When no release tag exists yet, the version starts at v0.0.0 and a
 // shell comment records that.
 func releaseCommands(tags []string, kind, prefix string) ([]string, error) {

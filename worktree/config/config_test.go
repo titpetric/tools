@@ -24,7 +24,7 @@ func TestScanIgnored(t *testing.T) {
 }
 
 // TestDefaultEnablesScanning checks the built-in defaults keep the behaviour
-// the tool had before it was configurable: .gitignore honoured, git
+// the tool has with no configuration file: .gitignore honoured, git
 // repositories listed, the three root markers, and no extra ignores.
 func TestDefaultEnablesScanning(t *testing.T) {
 	cfg := Default()

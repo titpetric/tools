@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestDocAbove covers what go/ast's CommentGroup.Text does, which is what the
+// TestDocAbove covers what go/ast's CommentGroup.Text does, the shape the
 // doc has to read like for the two parsers to agree.
 func TestDocAbove(t *testing.T) {
 	src := newSource("x.go", []byte(`// Open reads a file.
@@ -69,7 +69,7 @@ func TestBlockEnd(t *testing.T) {
 		t.Errorf("blockEnd() = %d, want 3", got)
 	}
 
-	// A block that is never closed ends where the file does, which is what
+	// A block that never closes ends where the file does, and that
 	// makes the parser tolerant of source that does not compile.
 	open := newSource("x.go", []byte("var (\n\ta = 1\n"))
 	if got := blockEnd(open, 0, ')'); got != open.len()-1 {

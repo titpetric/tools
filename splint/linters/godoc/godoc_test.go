@@ -78,14 +78,14 @@ func TestLinterReportsWhatIsWrongWithADoc(t *testing.T) {
 // TestLinterReadsAConstBlock covers the two shapes a set of related constants
 // arrives in.
 //
-// A parenthesised block is one declaration naming several symbols, and the
-// comment above it documents the block rather than any one name, so the name
+// A parenthesised block is one declaration naming many symbols, and the
+// comment above it documents the block and no single name, so the name
 // check does not apply to it. A run of separate declarations is a block by
 // proximity, and a comment on the first of them carries to the rest.
 func TestLinterReadsAConstBlock(t *testing.T) {
 	pkg := model.Package{Package: "x", Path: "."}
 
-	// One declaration, several names: the comment names none of them.
+	// One declaration, two names: the comment names none of them.
 	root := document(pkg, nil, model.DeclarationList{
 		{Kind: model.ConstKind, Names: []string{"KindA", "KindB"}, File: "x.go", Line: 3, Doc: "The kinds of a thing."},
 	})
@@ -145,7 +145,7 @@ func TestLinterSkipsWhatNobodyReads(t *testing.T) {
 
 // TestLinterSkipsAGeneratedFile covers the one undocumented symbol nobody in the
 // tree can document: the comment on a generated declaration is the generator's
-// to write, so a finding on it names work that cannot be done here.
+// to write, so a finding on it names work nobody here can do.
 func TestLinterSkipsAGeneratedFile(t *testing.T) {
 	root := document(model.Package{Package: "x", Path: "./x"},
 		model.DeclarationList{
