@@ -8,7 +8,7 @@ import (
 // fenced ones.
 //
 // A doc comment writes a code block by indenting it, which markdown renders
-// as code without saying what language it is. In Go source it is Go, so each
+// as code without naming its language. In Go source the language is Go, so each
 // run of indented lines becomes a ```go block with one level of indentation
 // removed.
 func fenceCodeBlocks(doc string) string {

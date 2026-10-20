@@ -45,7 +45,7 @@ func packageMarkdown(def *model.Definition, examples model.DeclarationList) stri
 	fmt.Fprintf(&buf, "```\n\n")
 
 	if def.Doc != "" {
-		fmt.Fprintf(&buf, "%s\n\n", fenceCodeBlocks(strings.TrimSpace(def.Doc)))
+		fmt.Fprintf(&buf, "%s\n\n", fenceCodeBlocks(citePackage(strings.TrimSpace(def.Doc), def.Package.Package)))
 	}
 
 	sections := []struct {
@@ -83,8 +83,8 @@ func packageMarkdown(def *model.Definition, examples model.DeclarationList) stri
 				continue
 			}
 
-			fmt.Fprintf(&buf, "### %s\n\n", fn.Name)
-			fmt.Fprintf(&buf, "%s\n\n", fenceCodeBlocks(strings.TrimSpace(fn.Doc)))
+			fmt.Fprintf(&buf, "### `%s`\n\n", fn.Name)
+			fmt.Fprintf(&buf, "%s\n\n", fenceCodeBlocks(citeName(strings.TrimSpace(fn.Doc), fn.Name)))
 			fmt.Fprintf(&buf, "```go\n%s\n```\n\n", symbol(fn))
 		}
 
@@ -94,7 +94,7 @@ func packageMarkdown(def *model.Definition, examples model.DeclarationList) stri
 				continue
 			}
 
-			fmt.Fprintf(&buf, "### %s\n\n", fn.Name)
+			fmt.Fprintf(&buf, "### `%s`\n\n", fn.Name)
 			fmt.Fprintf(&buf, "```go\n%s\n```\n\n", symbol(fn))
 		}
 	}
@@ -102,4 +102,27 @@ func packageMarkdown(def *model.Definition, examples model.DeclarationList) stri
 	fmt.Fprint(&buf, renderExamples(examples))
 
 	return buf.String()
+}
+
+// citePackage writes the name in a "Package name ..." godoc opening as code,
+// the way the page cites every other symbol, so a prose linter reads the
+// identifier as an identifier.
+func citePackage(doc, name string) string {
+	if !strings.HasPrefix(doc, "Package ") {
+		return doc
+	}
+	return "Package " + citeName(doc[len("Package "):], name)
+}
+
+// citeName writes the name a godoc comment opens with as code, so "Load
+// reads" becomes "`Load` reads". It returns any other comment unchanged.
+func citeName(doc, name string) string {
+	if name == "" || !strings.HasPrefix(doc, name) {
+		return doc
+	}
+	rest := doc[len(name):]
+	if rest != "" && !strings.ContainsAny(rest[:1], " \n.,;:") {
+		return doc
+	}
+	return "`" + name + "`" + rest
 }

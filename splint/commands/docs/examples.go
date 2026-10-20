@@ -13,7 +13,7 @@ import (
 //
 // Examples live in a test package, which the reference otherwise leaves out,
 // and they are the one symbol worth printing whole: an example is its body.
-// They are there only when the document was parsed with sources and tests.
+// They appear only in a document parsed with sources and tests.
 func collectExamples(defs model.DefinitionList) map[string]model.DeclarationList {
 	result := map[string]model.DeclarationList{}
 
@@ -63,10 +63,10 @@ func isExample(fn *model.Declaration) bool {
 
 // renderExamples returns the examples of one package, each wrapped in a
 // <section> named after the function, so a reader arrives at the example
-// rather than at the heading above it.
+// itself and skips the heading above it.
 //
-// An example with no source behind it is left out: the document was written
-// without sources, and the signature of an example says nothing.
+// renderExamples leaves out an example with no source behind it: such a
+// document carries no sources, and the signature of an example says nothing.
 func renderExamples(items model.DeclarationList) string {
 	var out strings.Builder
 
@@ -77,7 +77,7 @@ func renderExamples(items model.DeclarationList) string {
 		}
 
 		fmt.Fprintf(&out, "<section name=%q>\n\n", fn.Name)
-		fmt.Fprintf(&out, "### %s\n\n", fn.Name)
+		fmt.Fprintf(&out, "### `%s`\n\n", fn.Name)
 
 		if doc := strings.TrimSpace(fn.Doc); doc != "" {
 			fmt.Fprintf(&out, "%s\n\n", fenceCodeBlocks(doc))

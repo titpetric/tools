@@ -11,11 +11,11 @@ import (
 // renderConfig writes one package's types as a configuration reference: each
 // type under its own heading, each field as a bold line with its json name
 // and its type, and the field doc as the paragraph under it. A field whose
-// type the package declares links to that type's section, which is how a
-// reader walks a nested config from the root.
+// type the package declares links to that type's section, so a reader walks a
+// nested configuration from the root.
 //
 // The root type prints first and the types it reaches follow in reach
-// order, so the page reads from the top of the config down; --title
+// order, so the page reads from the top of the configuration down; --title
 // replaces the root type's heading.
 func renderConfig(w io.Writer, opts Options, defs model.DefinitionList) error {
 	def := configPackage(defs, opts.Root)
@@ -41,9 +41,9 @@ func renderConfig(w io.Writer, opts Options, defs model.DefinitionList) error {
 	return nil
 }
 
-// configPackage returns the package the reference is rendered from: the one
-// declaring the root type, or the first importable package when no root is
-// named.
+// configPackage returns the package the reference renders from: the one
+// declaring the root type, or the first importable package when Options
+// names no root.
 func configPackage(defs model.DefinitionList, root string) *model.Definition {
 	for _, def := range defs {
 		if skipDocs(def) {
@@ -62,7 +62,7 @@ func configPackage(defs model.DefinitionList, root string) *model.Definition {
 }
 
 // orderFromRoot returns the types with the root first and everything it
-// reaches after it, breadth first, then whatever is left in declared order.
+// reaches after it, breadth first, then whatever remains in declared order.
 // With no root, or one the package does not declare, the declared order
 // stands.
 func orderFromRoot(types model.DeclarationList, declared map[string]*model.Declaration, root string) []*model.Declaration {
@@ -97,8 +97,8 @@ func orderFromRoot(types model.DeclarationList, declared map[string]*model.Decla
 	return out
 }
 
-// referencedTypes returns the declared type names one type reaches: the type
-// it is defined as, and the type of each of its fields.
+// referencedTypes returns the declared type names one type reaches: its
+// underlying type, and the types of its fields.
 func referencedTypes(decl *model.Declaration) []string {
 	var out []string
 	if ref := decl.TypeRef(); ref != "" {
@@ -113,7 +113,7 @@ func referencedTypes(decl *model.Declaration) []string {
 }
 
 // renderConfigType writes one type: its heading, its doc, and its fields.
-// The root type's heading is the title when one was given.
+// The root type's heading is the title when Options sets one.
 func renderConfigType(w io.Writer, opts Options, decl *model.Declaration, declared map[string]*model.Declaration) {
 	if decl.Name == opts.Root && opts.Title != "" {
 		fmt.Fprint(w, opts.Title+"\n\n")
@@ -133,7 +133,7 @@ func renderConfigType(w io.Writer, opts Options, decl *model.Declaration, declar
 		return
 	}
 
-	// A typedef has no fields of its own: what it is defined as is the whole
+	// A typedef has no fields of its own: its underlying type is the whole
 	// of it, and a definition over a declared type links there.
 	target := decl.TypeRef()
 	if _, ok := declared[target]; !ok || target == "" {
@@ -164,7 +164,8 @@ func renderConfigField(w io.Writer, field *model.Field, declared map[string]*mod
 	target := field.TypeRef()
 	if _, ok := declared[target]; ok && target != "" {
 		// A pointer dereferences to the type the section describes, so the
-		// star says nothing to a config reader; a slice stays spelled out.
+		// star says nothing to a configuration reader; a slice stays spelled
+		// out.
 		shown := strings.TrimPrefix(field.Type, "*")
 		fmt.Fprintf(w, "**Field: `%s` ([%s](#%s))**\n", name, shown, strings.ToLower(target))
 	} else {
@@ -174,8 +175,9 @@ func renderConfigField(w io.Writer, field *model.Field, declared map[string]*mod
 	fmt.Fprintf(w, "%s\n\n", strings.TrimSpace(field.Doc))
 }
 
-// jsonType names a Go type the way a config reader reads it. A function is
-// not something a document carries, so its signature says nothing here.
+// jsonType names a Go type the way a configuration reader reads it. A
+// function is not something a document carries, so its signature says
+// nothing here.
 func jsonType(name string) string {
 	switch name {
 	case "bool":

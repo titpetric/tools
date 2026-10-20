@@ -12,11 +12,11 @@ import (
 )
 
 // renderSymbol prints one symbol the way go doc would, and then what the
-// document knows that godoc does not: how many tests reach it.
+// document records that godoc does not: how many tests reach it.
 //
-// The query is matched against every package of the document, "Open" against
-// names and "Client.Close" against methods, and every match is printed: a
-// name repeating across packages is a fact of the tree, not a tie to break.
+// renderSymbol matches the query against every package of the document, "Open"
+// against names and "Client.Close" against methods, and prints every match: a
+// name repeating across packages is a fact of the tree, and no tie to break.
 // Verbose adds one line per reference, tests and product code both, at the
 // position of the declaration doing the referencing: the model records who
 // references a symbol, not each place they do it from.
@@ -54,7 +54,7 @@ func renderSymbol(w io.Writer, root *model.DocumentRoot, opts Options) error {
 	return nil
 }
 
-// writeSymbol prints one declaration: the package it is in, the declaration
+// writeSymbol prints one declaration: the package holding it, the declaration
 // itself, its godoc, and the tests that reach it.
 func writeSymbol(w io.Writer, index *refindex.Index, def *model.Definition, decl *model.Declaration, verbose bool) error {
 	fmt.Fprintf(w, "package %s // import %q\n\n", def.Package.Package, def.Package.ImportPath)

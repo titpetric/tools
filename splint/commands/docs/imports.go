@@ -66,8 +66,8 @@ func addImport(s *model.StringSet, src, dest model.Package) {
 	s.Add(from, to)
 }
 
-// sanitize takes the relative path decoration off an import path, which is
-// what a package of the parse root is recorded under.
+// sanitize takes the relative path decoration off an import path; the parse
+// records a package of the parse root under that decorated path.
 func sanitize(n string) string {
 	return strings.Trim(n, "./")
 }

@@ -27,7 +27,7 @@ type dbRelationship struct {
 // It looks for fields with an "ID" suffix and checks whether the target type
 // has an ID field of its own. A target with an ID is a 1:N relationship; one
 // without makes the foreign key the only key, which is 1:1. A foreign key no
-// declared type answers to is drawn as a conceptual type.
+// declared type answers to becomes a conceptual type.
 func detectDBRelationships(t *model.Declaration, allTypes map[string]*model.Declaration) []dbRelationship {
 	// A declaration in a grouped type block carries its names in Names, and
 	// an arrow from a nameless source is a line plantuml stops on.
@@ -38,8 +38,8 @@ func detectDBRelationships(t *model.Declaration, allTypes map[string]*model.Decl
 	var relations []dbRelationship
 
 	for _, f := range t.Fields {
-		// A foreign key field is named for what it points at: UserID, PostId
-		// or post_id.
+		// A foreign key field takes its name from what it points at: UserID,
+		// PostId or post_id.
 		var baseName string
 		fieldNameLower := strings.ToLower(f.Name)
 
@@ -72,7 +72,7 @@ func detectDBRelationships(t *model.Declaration, allTypes map[string]*model.Decl
 			targetTypeName, exists = tryTypeMatches(baseName, allTypes)
 		}
 
-		// A target the tree does not declare is drawn as a conceptual type,
+		// A target the tree does not declare becomes a conceptual type,
 		// which handles OwnerID -> Owner where no Owner exists.
 		isExternal := false
 		if !exists {
@@ -120,7 +120,7 @@ func toPascalCase(s string) string {
 
 // tryTypeMatches finds the type a column base names, trying the full name
 // first and then progressively shorter suffixes: "actor_user" is ActorUser
-// where one is declared, and User otherwise.
+// where the tree declares one, and User otherwise.
 func tryTypeMatches(baseName string, allTypes map[string]*model.Declaration) (string, bool) {
 	candidate := toPascalCase(baseName)
 	if _, exists := allTypes[candidate]; exists {
@@ -252,7 +252,7 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 				for _, f := range t.Fields {
 					typeRef := f.TypeRef()
 
-					// An embedded field is inheritance rather than a field.
+					// An embedded field is inheritance and draws no field.
 					if f.Name == "" {
 						if strings.Contains(typeRef, ".") {
 							packageName, typeName, _ := strings.Cut(typeRef, ".")
@@ -286,8 +286,8 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 								addLink(fmt.Sprintf("%q --> %q : .%s", namespace+name, p.Namespace(".")+typeName, f.Name))
 							}
 						} else if _, ok := model.ToType(typeRef); ok && isTypeName(typeRef) {
-							// An anonymous struct or interface is a shape, not
-							// a declared type an arrow can land on.
+							// An anonymous struct or interface is a shape
+							// with no declared type for an arrow to land on.
 							addLink(fmt.Sprintf("%q --> %q : .%s", namespace+name, namespace+typeRef, f.Name))
 						}
 					}
@@ -335,8 +335,8 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 		}
 	}
 
-	// Conceptual types are drawn as interfaces, so a foreign key pointing
-	// outside the tree still lands somewhere.
+	// The diagram draws conceptual types as interfaces, so a foreign key
+	// pointing outside the tree still lands somewhere.
 	if len(externalTypes) > 0 {
 		fmt.Fprintln(w)
 		for _, typeName := range slices.Sorted(maps.Keys(externalTypes)) {

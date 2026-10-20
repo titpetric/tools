@@ -17,9 +17,9 @@ type PackageDoc struct {
 	Content    string
 }
 
-// splitFilename names the file a package is written to: the import path with
-// the first matching strip prefix taken off, or with its first segment
-// dropped when no prefix was given, slashes turned to underscores.
+// splitFilename names the file split mode writes a package to: the import path
+// with the first matching strip prefix taken off, or with its first segment
+// dropped when the caller passes no prefix, slashes turned to underscores.
 func splitFilename(importPath string, strip []string) string {
 	path := importPath
 
@@ -38,7 +38,7 @@ func splitFilename(importPath string, strip []string) string {
 		}
 	}
 
-	// The root package strips to nothing and is named after itself.
+	// The root package strips to nothing and takes its own name.
 	if path == "" {
 		path = filepath.Base(importPath)
 	}

@@ -6,12 +6,12 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// declaration returns what a type, const or var is printed as.
+// declaration returns the printed form of a type, const or var.
 //
-// It is the source when the document carries it. A document written without
-// sources holds the kind, the name and the doc comment but no source, and
-// those are written out instead: printing the source alone left an empty code
-// block where the symbol should be.
+// That form is the source when the document carries it. A document written
+// without sources holds the kind, the name and the doc comment but no source,
+// and declaration writes those out: printing the source alone leaves an empty
+// code block where the symbol belongs.
 func declaration(decl *model.Declaration) string {
 	if source := strings.TrimSpace(decl.Source); source != "" {
 		return source

@@ -231,7 +231,7 @@ func TestPackageMarkdown(t *testing.T) {
 			{
 				Name:      "DoSomething",
 				Signature: "DoSomething(x int) string",
-				Doc:       "DoSomething does something important",
+				Doc:       "`DoSomething` does something important",
 				Source:    "func DoSomething(x int) string { return \"\" }",
 			},
 		},
@@ -245,6 +245,6 @@ func TestPackageMarkdown(t *testing.T) {
 	require.Contains(t, content, "## Types")
 	require.Contains(t, content, "type MyType struct { Field string }")
 	require.Contains(t, content, "## Function symbols")
-	require.Contains(t, content, "DoSomething does something important")
+	require.Contains(t, content, "`DoSomething` does something important")
 	require.Contains(t, content, "func DoSomething(x int) string")
 }

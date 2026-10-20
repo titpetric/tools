@@ -9,9 +9,9 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// configDefs is a small config tree: a root reaching a nested type through a
-// pointer and a slice, an unreferenced type, and a typedef over a declared
-// one.
+// configDefs is a small configuration tree: a root reaching a nested type
+// through a pointer and a slice, an unreferenced type, and a typedef over a
+// declared one.
 func configDefs() model.DefinitionList {
 	return model.DefinitionList{{
 		Package: model.Package{ImportPath: "example.com/config", Package: "config"},
@@ -84,8 +84,8 @@ func TestRenderConfig(t *testing.T) {
 	require.True(t, serverAt < asideAt, "an unreached type comes last")
 }
 
-// TestRenderConfigTypedef covers a type with no fields of its own, which is
-// described by what it is defined as.
+// TestRenderConfigTypedef covers a type with no fields of its own; its
+// definition describes it.
 func TestRenderConfigTypedef(t *testing.T) {
 	var out strings.Builder
 	err := renderConfig(&out, Options{Root: "Config"}, configDefs())

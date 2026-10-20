@@ -121,7 +121,7 @@ func TestRenderExamples(t *testing.T) {
 
 	require.Contains(t, out, "## Examples\n\n")
 	require.Contains(t, out, "<section name=\"ExampleManager\">\n\n")
-	require.Contains(t, out, "### ExampleManager\n\n")
+	require.Contains(t, out, "### `ExampleManager`\n\n")
 	require.Contains(t, out, "ExampleManager applies a migration.\n\n")
 	require.Contains(t, out, "```go\nfunc ExampleManager() {\n\tfmt.Println(\"ok\")\n}\n```\n\n")
 	require.True(t, strings.HasSuffix(out, "</section>\n\n"))
