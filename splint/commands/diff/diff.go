@@ -204,13 +204,7 @@ type Result struct {
 	Breaking bool `json:"breaking"`
 }
 
-// Compare returns the difference between two sets of definitions. Import path,
-// receiver type and name key each symbol, so a declaration moving to
-// another file, or its group gaining a sibling, is not a difference.
-//
-// Compare also compares the go.mod of each module, since a release changes
-// what it costs to depend on a module as much as it changes what the module
-// exports. Compare skips indirect requires unless includeIndirect holds true.
+// Compare is CompareWith over the two flags a command line carries.
 func Compare(oldDefs, newDefs []*model.Definition, includeInternal, includeIndirect bool) Result {
 	return CompareWith(Options{IncludeInternal: includeInternal, IncludeIndirect: includeIndirect}, oldDefs, newDefs)
 }

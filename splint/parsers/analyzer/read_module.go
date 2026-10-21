@@ -5,8 +5,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// ReadModule parses the go.mod at filename into the module facts the model
-// carries.
+// ReadModule parses the go.mod at filename into a model.Module.
 func ReadModule(filename string) (*model.Module, error) {
 	return gomod.Read(filename)
 }

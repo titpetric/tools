@@ -128,8 +128,7 @@ func (ix *Index) add(key Key, ref Ref) {
 	ix.refs[key] = append(ix.refs[key], ref)
 }
 
-// Refs is every declaration reaching the symbol, tests and product code both,
-// in the order the document holds them.
+// Refs is every declaration reaching the symbol, in document order.
 func (ix *Index) Refs(key Key) []Ref {
 	return ix.refs[key]
 }
@@ -156,11 +155,7 @@ func (ix *Index) TestedDirect(key Key) bool {
 	return false
 }
 
-// TestedTransitive reports a symbol some test reaches through the product
-// code: directly, or through a chain of product declarations that reference
-// it. This reading is the looser one, since a tested caller reaching a symbol
-// does not mean that caller's test runs the symbol, and no linter uses it by
-// default.
+// TestedTransitive reports a symbol a test reaches through product code.
 func (ix *Index) TestedTransitive(key Key) bool {
 	return ix.transitive(key, map[Key]bool{})
 }

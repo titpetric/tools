@@ -41,14 +41,12 @@ func (m *LintMetrics) AddPackage(importPath string, value any) {
 	m.Packages[importPath] = value
 }
 
-// Empty reports metrics holding nothing: a linter that measures nothing, as
-// distinct from one whose measurement came out empty.
+// Empty reports metrics holding nothing.
 func (m LintMetrics) Empty() bool {
 	return len(m.Files) == 0 && len(m.Packages) == 0
 }
 
-// FileKeys and PackageKeys are the keys in order, so a rendering of the
-// metrics reads the same every time.
+// FileKeys and PackageKeys are the keys in order, for a stable rendering.
 func (m LintMetrics) FileKeys() []string    { return sortedKeys(m.Files) }
 func (m LintMetrics) PackageKeys() []string { return sortedKeys(m.Packages) }
 

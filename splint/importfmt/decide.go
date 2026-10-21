@@ -74,14 +74,12 @@ type Decision struct {
 	Tail string
 }
 
-// Text is the declaration the file should hold, and is empty for a file that
-// should hold none.
+// Text is the declaration the file should hold, empty for none.
 func (d Decision) Text() string {
 	return Render(d.Specs, d.Tail)
 }
 
-// Sound reports a decision a rewrite can apply. The fixer leaves a file with a
-// name nothing could place alone.
+// Sound reports a decision a rewrite can apply.
 func (d Decision) Sound() bool {
 	return len(d.Unresolved) == 0
 }

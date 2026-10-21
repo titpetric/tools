@@ -119,9 +119,7 @@ func New() *Client {
 	}
 }
 
-// Flush writes what the client learned about module sizes, and a caller runs
-// it once done with its queries. A cache write failing does not fail the
-// report the cache served.
+// Flush writes what the client learned about module sizes.
 func (c *Client) Flush() error {
 	return c.Sizes.Save()
 }
@@ -151,17 +149,12 @@ func (c *Client) Lookup(ctx context.Context, path, version string) Info {
 	return info
 }
 
-// LookupAll queries many modules at once, as a report needs: a tree of thirty
-// dependencies queried one at a time is thirty round trips end to end.
+// LookupAll queries many modules at once, in place of a round trip each.
 func (c *Client) LookupAll(ctx context.Context, modules map[string]string) map[string]Info {
 	return each(ctx, modules, c.Lookup)
 }
 
-// SizeAll is what a set of module versions weigh, and nothing else about them.
-//
-// SizeAll puts one question and skips the other three. A caller queries a
-// version whose source go.sum records to put a number on a copy the build
-// downloads, and its publish date or its requirements say nothing about that.
+// SizeAll is what a set of module versions weigh, and nothing else.
 func (c *Client) SizeAll(ctx context.Context, modules map[string]string) map[string]int64 {
 	return each(ctx, modules, c.SizeOf)
 }

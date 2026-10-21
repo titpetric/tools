@@ -177,12 +177,13 @@ func TestLinterWeighsADocAgainstItsCode(t *testing.T) {
 		lines int
 		rule  string
 	}{
-		{title: "five lines over three", doc: "Open is\na long\nexplanation\nof very\nlittle.", lines: 3, rule: godoc.RuleOutweighs},
-		{title: "as long as its code", doc: "Open is\nfive lines\nover five\nlines of\ncode.", lines: 5, rule: ""},
-		{title: "under the floor", doc: "Open is\nfour lines\nover one,\nwhich is fine.", lines: 1, rule: ""},
-		{title: "short over shorter", doc: "Open reads\na file.", lines: 1, rule: ""},
-		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\nthree\nand\nsays\nso\nbefore\nthis.", lines: 3, rule: godoc.RuleVerbose},
+		{title: "five lines over one statement", doc: "Open is\na long\nexplanation\nof very\nlittle.", lines: 3, rule: godoc.RuleOutweighs},
+		{title: "two lines over one statement", doc: "Open reads\na file.", lines: 1, rule: godoc.RuleOutweighs},
+		{title: "as long as its body", doc: "Open reads\na file, and\nsays so.", lines: 5, rule: ""},
+		{title: "one over one", doc: "Open reads a file.", lines: 1, rule: ""},
+		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\none\nand\nsays\nso\nbefore\nthis.", lines: 3, rule: godoc.RuleVerbose},
 		{title: "a type measures nothing", doc: "Open is\na type,\nwith no body\nfor a comment\nto outweigh.", lines: 0, rule: ""},
+		{title: "an example weighs nothing", doc: "Open reads\na file.\n\n\tf := Open()\n\tio.Copy(w, f)\n\nThe caller closes it.", lines: 5, rule: ""},
 	}
 
 	for _, test := range tests {

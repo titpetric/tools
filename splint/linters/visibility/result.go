@@ -24,8 +24,7 @@ func (r Results) Linter() string {
 	return Name
 }
 
-// Len is how many findings there are, which is none: the linter reports the counts
-// and judges nothing.
+// Len is none: the linter counts and judges nothing.
 func (r Results) Len() int {
 	return 0
 }

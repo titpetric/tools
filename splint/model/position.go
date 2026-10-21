@@ -30,9 +30,7 @@ type Position struct {
 	EndLine int `json:"EndLine,omitempty" yaml:"EndLine,omitempty"`
 }
 
-// Path is the file as a path a tool resolves against the checkout, without the
-// line: it never begins with a separator, because "/model/x.go" is a path no
-// checkout holds.
+// Path is the file, with no leading separator and no line.
 func (p Position) Path() string {
 	return strings.TrimPrefix(path.Clean(p.File), "/")
 }

@@ -39,8 +39,7 @@ type Spread struct {
 	packages map[string]map[string]bool
 }
 
-// External reports a dependency the tree took on, which is the only thing the
-// rule judges.
+// External reports a dependency the tree took on.
 func (s *Spread) External() bool {
 	return !s.Local && !s.Std
 }

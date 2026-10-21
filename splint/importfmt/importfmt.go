@@ -75,8 +75,7 @@ type Options struct {
 	SetAlias bool
 }
 
-// NewOptions returns the defaults: the standard order, no company prefix, no
-// project, and an alias on every versioned path.
+// NewOptions returns the default options.
 func NewOptions() Options {
 	return Options{Order: slices.Clone(DefaultOrder), SetAlias: true}
 }
@@ -224,11 +223,7 @@ func Canonical(specs []model.ImportSpec, opts Options) []model.ImportSpec {
 	return out
 }
 
-// Format renders the imports as the declaration a file should hold.
-//
-// The result always takes the parenthesised form. A file writing one import on one line
-// and a file writing six in a block then read the same, and two declarations
-// merging into one has nowhere else to go.
+// Format renders the imports a file should hold, always parenthesised.
 func Format(specs []model.ImportSpec, opts Options) string {
 	return Render(Canonical(specs, opts), "")
 }

@@ -25,8 +25,7 @@ type Metric struct {
 	Lines         int `json:"Lines" yaml:"Lines"`
 }
 
-// Exported is the symbols a consumer of the package can reach, types and funcs
-// together.
+// Exported is the types and funcs a consumer can reach.
 func (m Metric) Exported() int {
 	return m.ExportedTypes + m.ExportedFuncs
 }

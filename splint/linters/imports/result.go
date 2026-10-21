@@ -92,8 +92,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as two tables: what each package's imports say, and
-// how far each dependency has reached.
+// Statistics is the count per package and per dependency.
 func (r Results) Statistics() []model.Statistics {
 	return []model.Statistics{r.perPackage(), r.perDependency()}
 }

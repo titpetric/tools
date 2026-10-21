@@ -41,8 +41,7 @@ func NewStatistics(labels []string, rows [][]string, options ...StatisticsOption
 	return out
 }
 
-// Empty reports a table with no rows: a linter that had nothing to count, as
-// distinct from one whose count came out zero.
+// Empty reports a table with no rows, which is not a count of zero.
 func (s Statistics) Empty() bool {
 	return len(s.Rows) == 0
 }

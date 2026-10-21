@@ -192,8 +192,7 @@ func (r *Report) sort() {
 	})
 }
 
-// Line renders one issue as a path a tool resolves, and GitHub Actions reads
-// that out of a log and turns it into an annotation.
+// Line renders one issue as a path a tool resolves.
 func Line(issue model.Issue) string {
 	return issue.Position.Ref() + ": " + issue.RuleName() + ": " + issue.Message
 }

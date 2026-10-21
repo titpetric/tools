@@ -25,11 +25,6 @@ const (
 // symbol doing too much, where a short comment reads as a symbol well explained.
 const maxDocLines = 10
 
-// minOutweighLines is the shortest comment the outweighs rule reads. A
-// one-liner under a sentence or two is a documented wrapper, which is a shape
-// to keep; the rule is about a comment that buries its code.
-const minOutweighLines = 5
-
 // blockGap is how many lines apart two declarations may sit and still read
 // as one const or var block, which one comment above it documents.
 const blockGap = 10
@@ -207,19 +202,36 @@ func validate(pkg model.Package, decl *model.Declaration) []Result {
 	if lines > maxDocLines {
 		return []Result{result(pkg, decl, RuleVerbose, fmt.Sprintf("godoc runs to %d lines, which usually says the symbol does too much", lines))}
 	}
-	if code := codeLines(decl); code > 0 && lines >= minOutweighLines && lines > code {
-		return []Result{result(pkg, decl, RuleOutweighs, fmt.Sprintf("godoc runs to %d lines over %d lines of code", lines, code))}
+	if sentences, code := len(prose(doc)), codeLines(decl); code > 0 && sentences > code {
+		return []Result{result(pkg, decl, RuleOutweighs, fmt.Sprintf("godoc runs to %d lines of prose over %d lines of code", sentences, code))}
 	}
 
 	return nil
 }
 
-// codeLines is how long the body under the comment is, and zero for a
-// declaration with no body to measure: a type, a const, a var and an interface
-// method carry no statements, so there is nothing for a comment to outweigh.
+// prose is the lines of a comment that carry a sentence. A paragraph break
+// carries none, and an indented block is an example, which the generated
+// reference prints and which weighs nothing against the body.
+func prose(doc string) []string {
+	var lines []string
+	for _, line := range strings.Split(doc, "\n") {
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "    ") {
+			continue
+		}
+		lines = append(lines, strings.TrimRight(line, " \t"))
+	}
+	return lines
+}
+
+// codeLines is the body under the comment, which is the block less its
+// signature and its closing brace, and zero where there is no body: a type, a
+// const, a var and an interface method carry no statements.
 func codeLines(decl *model.Declaration) int {
 	if decl.Complexity == nil {
 		return 0
+	}
+	if lines := decl.Complexity.Lines; lines > 2 {
+		return lines - 2
 	}
 	return decl.Complexity.Lines
 }

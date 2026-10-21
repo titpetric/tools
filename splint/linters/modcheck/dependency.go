@@ -90,8 +90,7 @@ func (d Dependency) Kind() string {
 	return "direct"
 }
 
-// Shipped reports a dependency a consumer of this module links, which is every
-// direct one that something outside the tests imports.
+// Shipped reports a dependency a consumer of this module links.
 func (d Dependency) Shipped() bool {
 	return !d.Indirect && !d.testOnly && d.Files > 0
 }
