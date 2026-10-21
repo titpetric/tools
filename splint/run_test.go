@@ -433,7 +433,7 @@ func TestDocsCommand(t *testing.T) {
 
 	out := runIn(t, root, "docs", "-i", "tree", ".")
 
-	for _, want := range []string{"# Package tiny", "example.com/tiny", "Do returns one.", "func Do () int"} {
+	for _, want := range []string{"# Package tiny", "example.com/tiny", "`Do` returns one.", "func Do () int"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the reference is missing %q:\n%s", want, out)
 		}
