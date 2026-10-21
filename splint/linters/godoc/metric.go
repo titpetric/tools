@@ -7,8 +7,9 @@ type Metric struct {
 	Exported   int `json:"Exported" yaml:"Exported"`
 	Documented int `json:"Documented" yaml:"Documented"`
 
-	// Missing, Format and Verbose are the findings, by rule.
-	Missing int `json:"Missing" yaml:"Missing"`
-	Format  int `json:"Format" yaml:"Format"`
-	Verbose int `json:"Verbose" yaml:"Verbose"`
+	// Missing, Format, Verbose and Outweighs are the findings, by rule.
+	Missing   int `json:"Missing" yaml:"Missing"`
+	Format    int `json:"Format" yaml:"Format"`
+	Verbose   int `json:"Verbose" yaml:"Verbose"`
+	Outweighs int `json:"Outweighs" yaml:"Outweighs"`
 }

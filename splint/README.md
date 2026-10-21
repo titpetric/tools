@@ -478,7 +478,7 @@ Twelve of them, every one a set of rules over the parsed document.
 
 | Name            | What it reports                                                                                                                                                                                          | What it measures                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `godoc`         | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, and one long enough to say the symbol does too much. The linter skips a generated file: its comments are the generator's to write | documented against exported, per package                                                                                                                    |
+| `godoc`         | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, one long enough to say the symbol does too much, and one whose comment runs longer than the code under it. The linter skips a generated file: its comments are the generator's to write | documented against exported, per package                                                                                                                    |
 | `imports`       | five rules, listed below: a name meaning two things, a block not written to the house rule, an import nothing reaches, a name nothing can place, and a dependency that has spread                        | import names and collisions, files formatted, unused and unresolved, per package; and how far every external dependency has reached                         |
 | `func-args`     | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct | funcs considered against passing                                                                                                                            |
 | `func-returns`  | a function returning an error or a bool before the value it qualifies                                                                                                                                    | funcs considered against passing                                                                                                                            |
@@ -669,10 +669,10 @@ Every linter reports what it measured as well as what it found, because a check 
 
 Documentation of every exported symbol, by package.
 
-| Package                     | Exported | Documented | Share  | Missing | Format | Verbose |
-|-----------------------------|----------|------------|--------|---------|--------|---------|
-| example.com/fixture         | 5        | 2          | 40.0%  | 1       | 2      | 0       |
-| example.com/fixture/handler | 2        | 2          | 100.0% | 0       | 0      | 0       |
+| Package                     | Exported | Documented | Share  | Missing | Format | Verbose | Outweighs |
+|-----------------------------|----------|------------|--------|---------|--------|---------|-----------|
+| example.com/fixture         | 5        | 2          | 40.0%  | 1       | 2      | 0       | 0         |
+| example.com/fixture/handler | 2        | 2          | 100.0% | 0       | 0      | 0       | 0         |
 
 14 of 18 exported symbols documented, 77.8%, 4 issues.
 

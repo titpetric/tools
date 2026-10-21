@@ -166,6 +166,43 @@ func TestLinterSkipsAGeneratedFile(t *testing.T) {
 	}
 }
 
+// TestLinterWeighsADocAgainstItsCode covers the comment that is longer than
+// the function under it, which reads as the explanation standing in for code
+// that says nothing.
+func TestLinterWeighsADocAgainstItsCode(t *testing.T) {
+	pkg := model.Package{Package: "x", Path: "./x"}
+	tests := []struct {
+		title string
+		doc   string
+		lines int
+		rule  string
+	}{
+		{title: "five lines over three", doc: "Open is\na long\nexplanation\nof very\nlittle.", lines: 3, rule: godoc.RuleOutweighs},
+		{title: "as long as its code", doc: "Open is\nfive lines\nover five\nlines of\ncode.", lines: 5, rule: ""},
+		{title: "under the floor", doc: "Open is\nfour lines\nover one,\nwhich is fine.", lines: 1, rule: ""},
+		{title: "short over shorter", doc: "Open reads\na file.", lines: 1, rule: ""},
+		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\nthree\nand\nsays\nso\nbefore\nthis.", lines: 3, rule: godoc.RuleVerbose},
+		{title: "a type measures nothing", doc: "Open is\na type,\nwith no body\nfor a comment\nto outweigh.", lines: 0, rule: ""},
+	}
+
+	for _, test := range tests {
+		decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 9, Doc: test.doc}
+		if test.lines > 0 {
+			decl.Complexity = &model.Complexity{Lines: test.lines}
+		}
+
+		issues := lint(t, document(pkg, model.DeclarationList{decl}, nil))
+		switch {
+		case test.rule == "" && len(issues) > 0:
+			t.Errorf("%s: reported %q", test.title, issues[0].Message)
+		case test.rule != "" && len(issues) != 1:
+			t.Errorf("%s: reported %d issues, want 1", test.title, len(issues))
+		case test.rule != "" && issues[0].Rule != test.rule:
+			t.Errorf("%s: rule = %q, want %q", test.title, issues[0].Rule, test.rule)
+		}
+	}
+}
+
 func TestLinterName(t *testing.T) {
 	if got := godoc.New().Name(); got != godoc.Name {
 		t.Errorf("Name() = %q, want %q", got, godoc.Name)

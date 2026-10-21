@@ -15,14 +15,20 @@ const Name = "godoc"
 
 // The rules this linter reports under.
 const (
-	RuleMissing = "missing"
-	RuleFormat  = "format"
-	RuleVerbose = "verbose"
+	RuleMissing   = "missing"
+	RuleFormat    = "format"
+	RuleVerbose   = "verbose"
+	RuleOutweighs = "outweighs"
 )
 
 // maxDocLines is how many lines a doc comment may run to before it reads as a
 // symbol doing too much, where a short comment reads as a symbol well explained.
 const maxDocLines = 10
+
+// minOutweighLines is the shortest comment the outweighs rule reads. A
+// one-liner under a sentence or two is a documented wrapper, which is a shape
+// to keep; the rule is about a comment that buries its code.
+const minOutweighLines = 5
 
 // blockGap is how many lines apart two declarations may sit and still read
 // as one const or var block, which one comment above it documents.
@@ -197,11 +203,25 @@ func validate(pkg model.Package, decl *model.Declaration) []Result {
 	if !endsInPunctuation(doc) {
 		return []Result{result(pkg, decl, RuleFormat, "godoc should end in punctuation")}
 	}
-	if lines := strings.Count(doc, "\n") + 1; lines > maxDocLines {
+	lines := strings.Count(doc, "\n") + 1
+	if lines > maxDocLines {
 		return []Result{result(pkg, decl, RuleVerbose, fmt.Sprintf("godoc runs to %d lines, which usually says the symbol does too much", lines))}
+	}
+	if code := codeLines(decl); code > 0 && lines >= minOutweighLines && lines > code {
+		return []Result{result(pkg, decl, RuleOutweighs, fmt.Sprintf("godoc runs to %d lines over %d lines of code", lines, code))}
 	}
 
 	return nil
+}
+
+// codeLines is how long the body under the comment is, and zero for a
+// declaration with no body to measure: a type, a const, a var and an interface
+// method carry no statements, so there is nothing for a comment to outweigh.
+func codeLines(decl *model.Declaration) int {
+	if decl.Complexity == nil {
+		return 0
+	}
+	return decl.Complexity.Lines
 }
 
 // endsInPunctuation reports whether a doc comment ends the way a sentence
