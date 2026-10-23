@@ -23,6 +23,12 @@ type Options struct {
 	// without this setting does not pay for them.
 	IncludeImports bool
 
+	// IncludeTestFacts keeps what the integration rule reads of the test
+	// files: the string literals every test declaration writes, and the test
+	// files a build constraint keeps out of this build. It reads nothing
+	// unless IncludeTests holds too.
+	IncludeTestFacts bool
+
 	// Verbose makes the parser report its progress.
 	Verbose bool
 }

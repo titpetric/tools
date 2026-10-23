@@ -21,7 +21,7 @@ And the common tools it stands in for:
 | `goimports`         | `splint fix` adds the missing imports and drops the unused ones, resolved against the tree, not a global index                                                |
 | `goimports-reviser` | the same pass writes the block in the configured group order                                                                                                  |
 | `gofumpt`           | nothing: gofumpt, a stricter gofmt, rarely rewrites anything, and gofmt already runs. Formatting rules under the same philosophy may land here later |
-| `golangci-lint`     | the twelve linters here, a smaller and more opinionated set                                                                                                   |
+| `golangci-lint`     | the thirteen linters here, a smaller and more opinionated set                                                                                                   |
 
 ## Install
 
@@ -42,7 +42,7 @@ splint sizes --input splint.json       # every file with its byte size, as JSON
 splint --save ./...                   # extract a document to splint.json, and judge nothing
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
-splint --linters godoc,imports ./...  # run two of the twelve
+splint --linters godoc,imports ./...  # run two of the thirteen
 splint --output model.json ./...      # keep the document under another name
 splint --input model.json             # lint a document read back from a file
 splint --include-tests --save ./...   # keep the test packages in what is written
@@ -474,7 +474,7 @@ SPLINT_CORPUS=0 go test ./tests/ -run TestCorpus      # every module in the cach
 
 ## The linters
 
-Twelve of them, every one a set of rules over the parsed document.
+Thirteen of them, every one a set of rules over the parsed document.
 
 | Name            | What it reports                                                                                                                                                                                          | What it measures                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -490,6 +490,7 @@ Twelve of them, every one a set of rules over the parsed document.
 | `visibility`    | nothing                                                                                                                                                                                                  | exported against internal, and the share of a package its private half occupies                                                                             |
 | `selfcontained` | nothing                                                                                                                                                                                                  | what a file needs from the rest of its package: symbols, types and funcs reaching nothing outside the file they are in, and the share that do, **per file** |
 | `modcheck`      | five module rules, listed below                                                                                                                                                                          | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records                                                        |
+| `integration`   | four rules, listed below: a test crossing a process boundary outside the build tag, and a tagged file, or one named for the tag, that breaks the naming. Off until a tree opts in                       | test functions, the ones crossing, and the files behind the tag, per package                                                                                |
 
 `func-args` considers a function taking exactly two arguments. The order of one pair is unambiguous; for three or more the expected order is a heuristic sort.
 
@@ -630,6 +631,51 @@ go.sum carries a hash for every version the module graph offered, beyond the one
 ```
 
 The two majors of a module are one row: they are two module paths and one library, and a build requiring both downloads both. `Versions` counts every version go.sum records of any of them, `Linked` names the ones with a hash of their source, `Size` adds those up, and `Overhead` is every linked copy past the largest.
+
+## integration
+
+An integration test crosses a process boundary: it execs a process (sh, git, ssh, docker, a fake script, the test binary itself), queries a database (sqlite, even `:memory:` or a shared in-memory database), or opens a network listener or dials one (`httptest.NewServer`, `net.Listen`, a real HTTP call). Everything else is a unit test: in-process code, fakes behind interfaces, `httptest.NewRecorder` with a handler's `ServeHTTP`, file IO under `t.TempDir`.
+
+The house rule keeps the two apart. An integration test lives in a `<name>_integration_test.go` file opening on `//go:build integration`, so `go test ./...` runs the unit tests alone and in seconds, and `go test -tags integration ./...` runs the rest on demand.
+
+| Rule       | Severity | What it reports                                                                                        |
+|------------|----------|--------------------------------------------------------------------------------------------------------|
+| `boundary` | WARN     | a test function of a file outside the tag that crosses the boundary, and the reason it does            |
+| `filename` | ERROR    | a test file behind the tag not named `_integration_test.go`                                             |
+| `tag`      | ERROR    | a file named `_integration_test.go` that a plain build still compiles                                   |
+| `outside`  | INFO     | a file behind the tag in a package `integration.allow` does not list; off while the list is empty |
+
+`boundary` reads what a test reaches, as the model records it:
+
+- a call to `exec.Command`, `os.StartProcess`, `syscall.Exec`, `net.Listen` or `net.Dial` and their kin, `httptest.NewServer` and `NewTLSServer`, `http.ListenAndServe` and `http.Get`, `sql.Open`
+- a call into a SQL driver: modernc sqlite, mattn go-sqlite3, pgx, lib/pq, the MySQL driver, sqlx
+- a call to a `New*`, `Open*` or `Must*` of a storage package: a path `integration.storage` lists, or any path ending in `/storage` or `/store` when the list is empty
+- a string literal holding `:memory:` or `mode=memory`
+- a call to a helper of the directory's test files that does any of these, followed as deep as the helpers go
+
+A file whose test functions cross nothing, but which imports `database/sql` or a driver, gets one finding of its own. The message names the reason and the fix: `TestOpen calls newDB (helpers_test.go), which opens sqlite ":memory:"; move it to store_integration_test.go with //go:build integration`. The `reason` attribute carries the reason alone.
+
+The rule guesses, and the guess errs two ways. A fake named like a real thing reads as crossing. A boundary crossed by code the test does not write, a production function that execs, reads as clean: the linter follows the helpers of the test files and stops at the package they test.
+
+A plain build leaves a tagged file out, so its declarations are not in the document. The parse records its name and its constraint under `Definition.Excluded`, the set `filename` and `outside` read, and `Declaration.Literals` holds the string literals of every declaration in a test file.
+
+The linter stays off in a tree that never split its tests, where every test it has would be a finding. `--linters integration` runs it anyway, and `.splint.yml` turns it on for good:
+
+```yaml
+integration:
+  enabled: true
+  tag: integration                          # the default
+  storage:                                  # default: any path ending in /storage or /store
+    - github.com/titpetric/task-ui/storage
+  allow:                                    # where integration tests may live; empty allows every package
+    - storage
+    - git
+    - runner
+    - sshprobe
+    - agent
+```
+
+`allow` takes the path patterns `filecheck.allow` takes, matched against the package directory, and a load refuses one it cannot read.
 
 ## selfcontained
 

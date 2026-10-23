@@ -46,3 +46,19 @@ func TestFileList(t *testing.T) {
 		t.Errorf("Filter() = %#v", got)
 	}
 }
+
+func TestBuildConstraint(t *testing.T) {
+	tests := map[string]string{
+		"//go:build integration\n\npackage x\n":                        "integration",
+		"// Copyright.\n\n//go:build linux && !cgo\npackage x\n":       "linux && !cgo",
+		"package x\n\n//go:build integration\n":                        "",
+		"package x\n":                                                  "",
+		"//go:build   integration  \n// +build integration\npackage x": "integration",
+	}
+
+	for source, want := range tests {
+		if got := BuildConstraint([]byte(source)); got != want {
+			t.Errorf("BuildConstraint(%q) = %q, want %q", source, got, want)
+		}
+	}
+}

@@ -22,8 +22,21 @@ type Definition struct {
 	// declare anything or not.
 	Files FileList `json:"Files,omitempty" yaml:"Files,omitempty"`
 
-	Imports   StringSet `json:"Imports,omitempty" yaml:"Imports,omitempty"`
-	InitCount int       `json:"InitCount,omitempty" yaml:"InitCount,omitempty"`
+	Imports StringSet `json:"Imports,omitempty" yaml:"Imports,omitempty"`
+
+	// Excluded are the test files of the directory a build constraint keeps
+	// out of this build, keyed by filename, each with the constraint as the
+	// file writes it: "integration" for a file opening on
+	// "//go:build integration". The package scope carries them, and the test
+	// scope does when the directory has no package of its own. The parse
+	// fills them when its options include the test facts.
+	//
+	// Nothing else of such a file is in the document. The toolchain does not
+	// compile it, so its declarations are not part of the package a reader
+	// sees; the name and the constraint say the file exists and why the build leaves it out.
+	Excluded StringSet `json:"Excluded,omitempty" yaml:"Excluded,omitempty"`
+
+	InitCount int `json:"InitCount,omitempty" yaml:"InitCount,omitempty"`
 
 	Types  DeclarationList `json:"Types,omitempty" yaml:"Types,omitempty"`
 	Consts DeclarationList `json:"Consts,omitempty" yaml:"Consts,omitempty"`
@@ -111,6 +124,9 @@ func (d *Definition) Merge(in *Definition) {
 
 	for k, v := range in.Imports {
 		d.Imports.Add(k, v...)
+	}
+	for k, v := range in.Excluded {
+		d.Excluded.Add(k, v...)
 	}
 
 	for _, file := range in.Files {

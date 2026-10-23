@@ -25,6 +25,7 @@ func (d *DocumentRoot) WithoutTests() *DocumentRoot {
 		kept := *def
 		kept.Files = def.Files.Filter(func(f File) bool { return !f.Test })
 		kept.Imports = withoutTestFiles(def.Imports)
+		kept.Excluded = withoutTestFiles(def.Excluded)
 		kept.Types = def.Types.Filter(notTestScope)
 		kept.Consts = def.Consts.Filter(notTestScope)
 		kept.Vars = def.Vars.Filter(notTestScope)

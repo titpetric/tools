@@ -10,6 +10,7 @@ import (
 	"github.com/titpetric/tools/splint/linters/godoc"
 	"github.com/titpetric/tools/splint/linters/grouping"
 	"github.com/titpetric/tools/splint/linters/imports"
+	"github.com/titpetric/tools/splint/linters/integration"
 	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/linters/pairing"
 	"github.com/titpetric/tools/splint/linters/selfcontained"
@@ -33,6 +34,7 @@ func All() []model.Linter {
 		visibility.New(),
 		selfcontained.New(),
 		modcheck.New(),
+		integration.New(),
 	}
 }
 

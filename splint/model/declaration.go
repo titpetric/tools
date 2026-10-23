@@ -60,6 +60,12 @@ type Declaration struct {
 	Source    string `json:"Source,omitempty" yaml:"Source,omitempty"`
 
 	Complexity *Complexity `json:"Complexity,omitempty" yaml:"Complexity,omitempty"`
+
+	// Literals are the string literals a declaration of a test file writes,
+	// unquoted, sorted and deduplicated: the DSN a test opens, the command
+	// line it runs. The parse fills them when its options include the test
+	// facts, and only in test files, where a literal says what the test needs.
+	Literals []string `json:"Literals,omitempty" yaml:"Literals,omitempty"`
 }
 
 func (f *Declaration) IsTestScope() bool {

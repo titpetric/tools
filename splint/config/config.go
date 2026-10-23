@@ -31,6 +31,32 @@ type Config struct {
 
 	// Filecheck is the house rule for how long a file may run to.
 	Filecheck Filecheck `yaml:"filecheck"`
+
+	// Integration is the house rule for tests crossing a process boundary.
+	Integration Integration `yaml:"integration"`
+}
+
+// Integration is the house rule for tests crossing a process boundary: they
+// sit behind a build tag, in files named for it, so a plain go test runs the
+// unit tests alone.
+type Integration struct {
+	// Enabled turns the linter on for the tree. A run naming the linter
+	// with --linters turns it on as well.
+	Enabled bool `yaml:"enabled"`
+
+	// Tag is the build tag the integration tests sit behind. It defaults to
+	// integration.
+	Tag string `yaml:"tag,omitempty"`
+
+	// Storage are the import paths whose constructors open the real storage.
+	// An empty list reads any path ending in /storage or /store as one.
+	Storage []string `yaml:"storage,omitempty"`
+
+	// Allow are the package directories that may hold integration tests, as
+	// path patterns in the filecheck syntax: storage, git, runner/**. The
+	// linter reports an integration test anywhere else under the outside
+	// rule. An empty list allows every directory.
+	Allow []string `yaml:"allow,omitempty"`
 }
 
 // Imports is the house rule for an import block.
@@ -158,6 +184,12 @@ func Load(dir string) (*Config, error) {
 
 	if err := cfg.Filecheck.validate(); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+
+	for index, pattern := range cfg.Integration.Allow {
+		if err := pathmatch.Valid(pattern); err != nil {
+			return nil, fmt.Errorf("%s: integration.allow[%d]: %q is not a path pattern: %w", path, index, pattern, err)
+		}
 	}
 
 	return cfg, nil

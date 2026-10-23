@@ -41,6 +41,9 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 	// and the package records it once, and the same goes for init.
 	seen := map[bool]map[string]bool{false: {}, true: {}}
 
+	// The test files a constraint keeps out, which the package scope carries.
+	var excluded model.StringSet
+
 	for _, name := range names {
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
@@ -55,7 +58,11 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 		if !Included(name, data) {
 			// A file behind a build constraint this build does not meet is
 			// one the toolchain never compiles, so that file is not part of the
-			// package a reader would see.
+			// package a reader would see. A test file says it exists, and
+			// under which constraint, when the options include the test facts.
+			if expr := model.BuildConstraint(data); expr != "" && p.options.IncludeTestFacts && strings.HasSuffix(name, "_test.go") {
+				excluded.Add(name, expr)
+			}
 			continue
 		}
 
@@ -92,6 +99,12 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 		def.Files = append(def.Files, entry)
 
 		merge(def, parsed, name, seen[isTest])
+	}
+
+	if def := scopes[false]; def != nil {
+		def.Excluded = excluded
+	} else if def := scopes[true]; def != nil {
+		def.Excluded = excluded
 	}
 
 	defs := make(model.DefinitionList, 0, len(scopes))

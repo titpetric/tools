@@ -272,6 +272,11 @@ func parseOptions(args []string) (*config, error) {
 	// report every file as holding no imports at all.
 	cfg.options.IncludeImports = true
 
+	// The integration rule reads what a test needs to run: the literals it
+	// passes its code and the files kept behind a build tag. The walk is over
+	// the test files alone, which a parse reads anyway.
+	cfg.options.IncludeTestFacts = true
+
 	return cfg, nil
 }
 
@@ -368,7 +373,7 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint --linters none --output model.json ./...", "extract a document and judge nothing"},
 			{"splint --stats ./...", "what the linters measured, rather than what they found"},
 			{"splint --json ./...", "the findings as data, for a program to read"},
-			{"splint --linters godoc,imports ./...", "run two of the twelve"},
+			{"splint --linters godoc,imports ./...", "run two of the thirteen"},
 			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
 		},
 		Notes: `splint fix rewrites the import block of every file that does not hold the

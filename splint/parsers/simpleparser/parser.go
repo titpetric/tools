@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/testfacts"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
@@ -129,6 +130,10 @@ func hasGoFiles(dir string) bool {
 // trim drops what the options leave out.
 func (p *Parser) trim(defs model.DefinitionList) {
 	for _, def := range defs {
+		// The literals come off the sources, so they go first.
+		if p.options.IncludeTestFacts && p.options.IncludeTests {
+			testfacts.Fill(def)
+		}
 		if !p.options.IncludeSources {
 			def.ClearSource()
 		}

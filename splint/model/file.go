@@ -76,6 +76,25 @@ func HasLineDirectives(lines []string) bool {
 	return false
 }
 
+// BuildConstraint returns the expression of the //go:build line a file
+// carries, as the file writes it, and an empty string for a file with none.
+//
+// Only the lines above the package clause can hold the constraint, so the
+// scan stops at the clause. The expression stays text: what it means is a
+// question for go/build/constraint, and the model parses nothing.
+func BuildConstraint(source []byte) string {
+	for _, line := range strings.Split(string(source), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "package ") {
+			return ""
+		}
+		if expr, ok := strings.CutPrefix(trimmed, "//go:build "); ok {
+			return strings.TrimSpace(expr)
+		}
+	}
+	return ""
+}
+
 // UsesName reports whether the file writes the name before a dot.
 func (f File) UsesName(name string) bool {
 	for _, use := range f.Uses {

@@ -66,12 +66,44 @@ func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 
 	results := sink.Clean(options.Verbose)
 
+	var excluded model.StringSet
+	if options.IncludeTestFacts && !in.Package.TestPackage {
+		var err error
+		excluded, err = excludedTests(pkg.IgnoredFiles)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Attach the package information to all returned definitions
 	for _, def := range results {
 		def.ImportPath = in.Package.ImportPath
 		def.ID = in.Package.ID
 		def.Files = facts
+		def.Excluded = excluded
 	}
 
 	return results, nil
+}
+
+// excludedTests reads the test files the toolchain left out of a package and
+// the constraint each carries. The loader lists a file left out for its name
+// as well, handler_windows_test.go on linux, and that one writes no
+// constraint, so it stays out of the set.
+func excludedTests(ignored []string) (model.StringSet, error) {
+	var excluded model.StringSet
+	for _, filename := range ignored {
+		name := path.Base(filename)
+		if !strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+		if expr := model.BuildConstraint(src); expr != "" {
+			excluded.Add(name, expr)
+		}
+	}
+	return excluded, nil
 }

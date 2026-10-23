@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/testfacts"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
@@ -183,6 +184,10 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 // of the files the package is not.
 func (p *Parser) trim(defs []*model.Definition) {
 	for _, def := range defs {
+		// The literals come off the sources, so they go first.
+		if p.options.IncludeTestFacts && p.options.IncludeTests {
+			testfacts.Fill(def)
+		}
 		if !p.options.IncludeSources {
 			def.ClearSource()
 		}
