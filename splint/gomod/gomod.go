@@ -1,7 +1,3 @@
-// Package gomod reads a go.mod into the model.
-//
-// It sits below both parsers because both need it and neither should reach
-// the other: it depends on golang.org/x/mod and on nothing else.
 package gomod
 
 import (
@@ -15,12 +11,7 @@ import (
 )
 
 // Read parses the go.mod at filename into the module facts the model
-// carries.
-//
-// Listing the modules of a tree parses the same file, but only far enough to decide whether the
-// module is importable. What a release comparison needs is the rest of it: the
-// go and toolchain directives, and every require line with its pinned
-// version.
+// carries: the go and toolchain directives and every pinned require.
 func Read(filename string) (*model.Module, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -42,13 +33,8 @@ func Read(filename string) (*model.Module, error) {
 	return module, nil
 }
 
-// Find returns the module governing dir, found by walking up from it
-// until a go.mod turns up.
-//
-// Extraction targets a package directory as often as a module root,
-// and `splint -i model/` has to reach the go.mod a level or more above it. A
-// tree holding no go.mod at all is not an error: it still has
-// packages worth reporting, and the report lists them without a module.
+// Find returns the module governing dir, walking up from it to a go.mod. A
+// tree with no go.mod returns no module and no error.
 func Find(dir string) (*model.Module, error) {
 	current, err := filepath.Abs(dir)
 	if err != nil {

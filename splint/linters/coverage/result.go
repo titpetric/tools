@@ -71,8 +71,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as one table: what each package exports, and how
-// much of it a test reaches.
+// Statistics is one table of what each package exports and how much a test reaches.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var exported, covered, constructors int

@@ -89,12 +89,8 @@ type Index struct {
 	names map[string]string
 }
 
-// Name is the package name code reaches an import path by, and whether the
-// index knows it.
-//
-// The index knows it for a package of the tree, which the document names
-// outright. For anything else the last segment of the path is a guess, and a
-// guess that is not a Go identifier is wrong: no package has the name go-yaml.
+// Name is the package name code reaches importPath by, as the tree names it.
+// Outside the tree the name is the last path segment, true for an identifier.
 func (i *Index) Name(importPath string) (string, bool) {
 	if name, ok := i.names[importPath]; ok {
 		return name, true

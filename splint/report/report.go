@@ -47,8 +47,7 @@ func (r *Report) Len() int {
 	return len(r.Issues)
 }
 
-// Worst is the highest severity in the report, and is the debug level for a
-// report holding nothing.
+// Worst is the highest severity in the report, debug for an empty one.
 func (r *Report) Worst() model.Severity {
 	worst := model.SeverityDebug
 	for _, issue := range r.Issues {
@@ -59,8 +58,7 @@ func (r *Report) Worst() model.Severity {
 	return worst
 }
 
-// Counts is how many issues each linter reported, and a summary line reads
-// it.
+// Counts is how many issues each linter reported.
 func (r *Report) Counts() map[string]int {
 	counts := make(map[string]int, len(r.Linters))
 	for _, issue := range r.Issues {
@@ -93,11 +91,7 @@ type RuleCount struct {
 	Count int    `json:"Count" yaml:"Count"`
 }
 
-// Breakdowns is what each linter that found something reported, in the order
-// the linters ran.
-//
-// Breakdowns omits a linter that found nothing: the run says which linters ran, and
-// a row of zeroes for each of them is a table of what did not happen.
+// Breakdowns is what each linter that found something reported, in run order.
 func (r *Report) Breakdowns() []Breakdown {
 	at := map[string]*Breakdown{}
 	rules := map[string]map[string]int{}

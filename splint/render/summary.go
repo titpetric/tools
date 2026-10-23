@@ -9,12 +9,8 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// Summary draws what each linter found: how many findings at each level, and
-// which of its rules they came under.
-//
-// An operator reads it first. A tree of any size answers with more
-// findings than a screen holds, and which linter is talking and about what is
-// the question a reader has before they read any of them.
+// Summary draws how many findings each linter has at each level and under which
+// rules, which an operator reads before findings that run past a screen.
 func Summary(w io.Writer, found *report.Report) error {
 	breakdowns := found.Breakdowns()
 	if len(breakdowns) == 0 {

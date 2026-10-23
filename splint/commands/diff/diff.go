@@ -387,9 +387,7 @@ func Load(oldFile, newFile string, opts Options) (Result, error) {
 	return CompareWith(opts, oldDoc.Packages, newDoc.Packages), nil
 }
 
-// Write renders the result as lines a reader scans: removed, changed and
-// added symbols each under their marker, the fields that moved, the go.mod
-// changes, and one summary line. Verbose adds what each symbol reads as.
+// Write renders the result as marked lines and a summary, verbose adding each symbol's reading.
 func Write(w io.Writer, result Result, verbose bool) error {
 	for _, symbol := range result.Removed {
 		fmt.Fprintf(w, "- %s\n", symbol.Key)

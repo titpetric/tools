@@ -28,6 +28,7 @@ type Field struct {
 	MapKey string `json:"MapKey,omitempty" yaml:"MapKey,omitempty"`
 }
 
+// TypeRef is the field type without pointer or slice markers.
 func (f *Field) TypeRef() string {
 	return TypeRef(f.Type)
 }

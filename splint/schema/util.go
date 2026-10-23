@@ -7,6 +7,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
+// Title upper-cases the first byte of s.
 func Title(s string) string {
 	if s == "" {
 		return s

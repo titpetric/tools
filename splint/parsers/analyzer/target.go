@@ -23,8 +23,7 @@ type Target struct {
 // TargetList is the packages of one listing.
 type TargetList []*Target
 
-// Packages returns the model entries alone, for a caller that needs the list
-// and not the syntax behind it.
+// Packages returns the model entries without the syntax behind them.
 func (t TargetList) Packages() []*model.Package {
 	result := make([]*model.Package, 0, len(t))
 	for _, target := range t {

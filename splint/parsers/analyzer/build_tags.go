@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// BuildTags returns the expressions of the +build lines in src.
 func BuildTags(src []byte) []string {
 	// Regular expression to match build tags in comments.
 	re := regexp.MustCompile(`(?m)^\s*//\s*\+build\s+(.*)$`)

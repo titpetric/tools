@@ -437,3 +437,20 @@ func TestLinter_Lint_IntegrationName(t *testing.T) {
 		t.Errorf("issues = %v, want every file paired", issues)
 	}
 }
+
+// TestLinter_Lint_PackageDoc covers docs.go holding the package prose: it
+// declares nothing, so nothing pairs it, while a docs.go declaring code does.
+func TestLinter_Lint_PackageDoc(t *testing.T) {
+	pkg := model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"}
+
+	prose := definition(pkg, model.File{Name: "docs.go"}, model.File{Name: "x.go"}, model.File{Name: "x_test.go", Test: true})
+	if issues, _ := lint(t, document(prose)); len(issues) != 0 {
+		t.Errorf("reported %#v on a prose docs.go", issues)
+	}
+
+	code := definition(pkg, model.File{Name: "docs.go"})
+	code.Funcs = model.DeclarationList{{Kind: model.FuncKind, Name: "render", File: "docs.go"}}
+	if issues, _ := lint(t, document(code)); len(issues) != 1 {
+		t.Errorf("reported %d issues on a docs.go with code, want 1", len(issues))
+	}
+}

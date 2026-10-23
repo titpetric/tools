@@ -9,14 +9,8 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Canonical renders a package as a tree keyed by what a thing is, and never by
-// where it sits in a list.
-//
-// The declaration lists become maps keyed on the symbol, so a comparison lines
-// two documents up by identity: one extra declaration is one difference, where
-// a positional walk would shift every declaration after it and report a
-// hundred. Everything else stays exactly as it encodes, so the walk still
-// covers a key nobody thought about.
+// Canonical renders a package as its encoded tree with the declaration lists
+// keyed on the symbol.
 func Canonical(def *model.Definition) map[string]any {
 	tree, ok := encode(def).(map[string]any)
 	if !ok {

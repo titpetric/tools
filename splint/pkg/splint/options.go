@@ -33,8 +33,7 @@ type Options struct {
 	Verbose bool
 }
 
-// NewOptions returns the defaults: the current directory, one package, no
-// tests and no sources.
+// NewOptions returns the defaults: the current directory, one package, no tests, no sources.
 func NewOptions() Options {
 	return Options{
 		SourcePath: ".",

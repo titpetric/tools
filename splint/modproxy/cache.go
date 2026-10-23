@@ -16,16 +16,10 @@ const CacheName = "splint/sizes.yml"
 
 // Cache is what module versions weigh, kept on disk between runs.
 //
-// A version is immutable, so its size is a fact that does not expire and is
-// worth keeping: a tree of forty dependencies is forty requests the next run
-// does not make. The cache holds nothing else the proxy answers. A published
-// date is immutable too and a report reads it once; the latest version is not
-// immutable at all.
-//
 // A module carries the size of every version asked about and one size for the
-// module itself, and the cache reports that size for a version the file does
-// not hold. Modules do not change size much from one release to the next, and an
-// answer within a few percent is worth more than a round trip.
+// module itself, which answers for a version the file does not hold. A cache
+// is an optimisation and never a failure: a file that does not read answers
+// nothing, and the next save writes over it.
 type Cache struct {
 	// Path is the file read and written. A cache with no path answers from
 	// memory and writes nothing.
@@ -59,10 +53,6 @@ func DefaultCachePath() string {
 
 // OpenCache reads the cache at a path, and returns an empty one for a file
 // that is not there or that nobody can read.
-//
-// A cache is an optimisation and never a failure: a file written by a newer
-// version, a half written file, a file nobody can read, each answers nothing
-// and the next save writes over it.
 func OpenCache(path string) *Cache {
 	cache := &Cache{Path: path, modules: map[string]*cachedModule{}}
 

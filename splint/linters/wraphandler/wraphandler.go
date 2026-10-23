@@ -25,7 +25,10 @@ const (
 	requestPointer = "*http.Request"
 )
 
-// Linter reports an exported handler with no unexported wrapper.
+// Linter reports an exported handler with no unexported wrapper. A handler
+// returns nothing, so a test stands up a server to read what it decided; a
+// thin handler over an unexported function of the same name returning an
+// error lets the test call that function.
 type Linter struct{}
 
 // New returns the linter.
@@ -38,13 +41,7 @@ func (l *Linter) Name() string {
 	return Name
 }
 
-// Lint reports every exported handler that nothing but a server can call.
-//
-// A handler returns nothing, so what it decided goes to the response writer
-// and a test has to stand up a server to read it back. The convention that
-// gets around this is a thin exported handler over an unexported function of the
-// same name returning an error, which a test calls directly. This linter
-// reports a handler with no such function behind it.
+// Lint reports every exported handler with no unexported function behind it.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
 

@@ -26,9 +26,13 @@ var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 // yaml.
 var dottedVersion = regexp.MustCompile(`\.v[0-9]+$`)
 
-// StringSet is a key based unique string slice.
+// StringSet is a key based unique string slice. It keeps its values in source
+// order, so a document read back is the document written; Get and All read
+// them in a stable order, since Go walks a map at random and a reader of the
+// set decides things from it, such as which of two colliding imports comes first.
 type StringSet map[string][]string
 
+// NewStringSet returns an empty set.
 func NewStringSet() StringSet {
 	return make(StringSet)
 }
@@ -44,6 +48,7 @@ func (i *StringSet) Keys() []string {
 	return keys
 }
 
+// Add appends the values not yet under key.
 func (i *StringSet) Add(key string, lits ...string) {
 	data := *i
 	if data == nil {
@@ -64,12 +69,8 @@ func (i *StringSet) Add(key string, lits ...string) {
 	*i = data
 }
 
-// Get returns the values under a key, in order.
-//
-// The copy is the point: sorting the stored slice would reorder the document
-// that carries it, so reading a model back from a file would not return the
-// model the writer stored. A reader wanting them in order gets them; the
-// document keeps its source order.
+// Get returns nil for a missing key,
+// and a sorted copy of its values otherwise.
 func (i StringSet) Get(key string) []string {
 	values, ok := i[key]
 	if !ok || values == nil {
@@ -83,11 +84,6 @@ func (i StringSet) Get(key string) []string {
 }
 
 // All returns every value of the set, its keys walked in order.
-//
-// The order is the point. Go walks a map at random, and a reader of this
-// decides something: which of two imports a colliding name appears under
-// first, for one. A run that answered differently each time would report the
-// same collision two ways.
 func (i StringSet) All() []string {
 	result := []string{}
 	for _, key := range i.Keys() {
@@ -96,8 +92,7 @@ func (i StringSet) All() []string {
 	return result
 }
 
-// Map returns a map with the short package name as the key
-// and the full import path as the value.
+// Map returns the short package name to import path, with the conflicts found.
 func (i StringSet) Map(imports []string) (map[string]string, []error) {
 	warnings := []error{}
 	warningSeen := map[string]bool{}

@@ -5,7 +5,7 @@
 // is the files of one directory and says nothing about the directories under
 // it. A configuration file names a kind of file, and the kind a tree names
 // lives at every depth in the common case, so a pattern here reads ** as any
-// number of segments. .gitignore, the shells and every CI configuration spell
+// number of segments, none included: **/*_test.go reaches the root too. .gitignore, the shells and every CI configuration spell
 // the same idea that way, so an author writes it with no prompting.
 package pathmatch
 
@@ -17,18 +17,8 @@ import (
 // doubleStar is the segment that stands for any number of segments.
 const doubleStar = "**"
 
-// Match reports whether pattern covers name.
-//
-// Match reads the pattern in segments and matches every segment but ** with
-// path.Match, so what one segment accepts is exactly what path.Match accepts:
-// a star for any run of characters, a question mark for one, a character class
-// in brackets. A ** segment matches any number of segments including none,
-// so **/*_test.go reaches a test file at any depth and one in the root as
-// well.
-//
-// A malformed pattern returns path.ErrBadPattern, and Match reads the whole
-// pattern before it matches anything, so the error does not depend on the
-// name it gets.
+// Match reports whether pattern covers name, segment by segment with path.Match.
+// A malformed pattern returns path.ErrBadPattern, whatever the name.
 func Match(pattern, name string) (bool, error) {
 	if err := Valid(pattern); err != nil {
 		return false, err
@@ -36,9 +26,8 @@ func Match(pattern, name string) (bool, error) {
 	return match(strings.Split(pattern, "/"), strings.Split(name, "/")), nil
 }
 
-// Valid reports a pattern Match can read. A loader runs this check, so the
-// loader refuses a typo in a configuration file at its source, and the typo
-// never matches nothing for the life of the file.
+// Valid returns the error Match would return for pattern, so a loader refuses a
+// typo at its source.
 func Valid(pattern string) error {
 	for _, segment := range strings.Split(pattern, "/") {
 		if segment == doubleStar {

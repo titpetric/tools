@@ -66,14 +66,10 @@ func LoadStats() (Stats, error) {
 
 // AddFixed adds n to imports.fixed and writes the file back.
 //
-// AddFixed edits the file in place and never re-encodes it from the struct:
-// somebody who wrote a comment beside a counter keeps it, and a key this
-// version does not know stays in its place. AddFixed reads the document whole
-// with its comments kept aside, changes one value, and writes the comments
-// back to their places.
-//
-// A machine with no file gets one holding the count and nothing else. Adding
-// nothing writes nothing.
+// AddFixed edits the file in place and never re-encodes it from the struct,
+// so a comment beside a counter and a key this version does not know both
+// stay. A machine with no file gets one holding the count. Adding nothing
+// writes nothing.
 func AddFixed(n int) error {
 	if n <= 0 {
 		return nil

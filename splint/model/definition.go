@@ -63,6 +63,7 @@ func (d *Definition) Sort() {
 	d.Funcs.Sort()
 }
 
+// Order lists types, funcs, vars and consts, in that order.
 func (d *Definition) Order() DeclarationList {
 	count := len(d.Types) + len(d.Funcs) + len(d.Vars) + len(d.Consts)
 	result := make([]*Declaration, 0, count)
@@ -74,6 +75,7 @@ func (d *Definition) Order() DeclarationList {
 	return DeclarationList(result)
 }
 
+// ClearSource drops the source of every declaration.
 func (d *Definition) ClearSource() {
 	d.Types.ClearSource()
 	d.Vars.ClearSource()
@@ -81,6 +83,7 @@ func (d *Definition) ClearSource() {
 	d.Funcs.ClearSource()
 }
 
+// ClearTestFiles drops what the _test.go files hold.
 func (d *Definition) ClearTestFiles() {
 	for filename := range d.Imports {
 		if strings.HasSuffix(filename, "_test.go") {
@@ -94,6 +97,7 @@ func (d *Definition) ClearTestFiles() {
 	d.Funcs.ClearTestFiles()
 }
 
+// ClearNonTestFiles keeps only what the _test.go files hold.
 func (d *Definition) ClearNonTestFiles() {
 	for filename := range d.Imports {
 		if !strings.HasSuffix(filename, "_test.go") {
@@ -107,12 +111,14 @@ func (d *Definition) ClearNonTestFiles() {
 	d.Funcs.ClearNonTestFiles()
 }
 
+// Fill sets the imports of its file on each declaration.
 func (d *Definition) Fill() {
 	for _, decl := range d.Order() {
 		decl.Imports = d.getImports(decl)
 	}
 }
 
+// Merge folds another definition of the same package into this one.
 func (d *Definition) Merge(in *Definition) {
 	d.TestPackage = d.TestPackage || in.TestPackage
 

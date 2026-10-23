@@ -4,7 +4,8 @@ import (
 	"strings"
 )
 
-// Declaration holds information about a go symbol.
+// Declaration holds information about a go symbol. A declaration records its
+// base filename and its package the directory, so Position joins the two.
 type Declaration struct {
 	Kind DeclarationKind `json:"Kind" yaml:"Kind"`
 	Type string          `json:"Type,omitempty" yaml:"Type,omitempty"`
@@ -76,10 +77,12 @@ type Declaration struct {
 	Calls StringSet `json:"Calls,omitempty" yaml:"Calls,omitempty"`
 }
 
+// IsTestScope reports whether the declaration sits in a _test.go file.
 func (f *Declaration) IsTestScope() bool {
 	return strings.HasSuffix(f.File, "_test.go")
 }
 
+// HasReceiver reports whether the declaration is a method.
 func (f *Declaration) HasReceiver() bool {
 	return f.Receiver != ""
 }
@@ -95,6 +98,7 @@ func (f *Declaration) HasTypeParam(name string) bool {
 	return false
 }
 
+// Ref is a reference to each name the declaration declares.
 func (f *Declaration) Ref(pkg *Package) []Ref {
 	receiver := f.ReceiverTypeRef()
 	result := make([]Ref, 0, len(f.Names)+1)
@@ -115,14 +119,17 @@ func (f *Declaration) Ref(pkg *Package) []Ref {
 	return result
 }
 
+// TypeRef is the declared type without pointer or slice markers.
 func (f *Declaration) TypeRef() string {
 	return TypeRef(f.Type)
 }
 
+// ReceiverTypeRef is the receiver type without its pointer.
 func (f *Declaration) ReceiverTypeRef() string {
 	return TypeRef(f.Receiver)
 }
 
+// GetNames lists the names of a block, or the single name.
 func (d *Declaration) GetNames() []string {
 	if len(d.Names) > 0 {
 		return d.Names
@@ -130,6 +137,8 @@ func (d *Declaration) GetNames() []string {
 	return []string{d.Name}
 }
 
+// HasName reports a name among those declared,
+// or a match of the single name.
 func (d *Declaration) HasName(find string) bool {
 	for _, name := range d.Names {
 		if name == find {
@@ -139,6 +148,9 @@ func (d *Declaration) HasName(find string) bool {
 	return d.Name == find
 }
 
+// IsExported is false for a method on an unexported type,
+// true when a block exports a name,
+// and reports an exported single name otherwise.
 func (d *Declaration) IsExported() bool {
 	if d.Receiver != "" && !isExported(TypeRef(d.Receiver)) {
 		return false
@@ -152,6 +164,7 @@ func (d *Declaration) IsExported() bool {
 	return isExported(d.Name)
 }
 
+// Equal matches the file, kind and name.
 func (d *Declaration) Equal(in *Declaration) bool {
 	if d.File == in.File && d.Kind == in.Kind && d.Name == in.Name {
 		return true
@@ -159,6 +172,9 @@ func (d *Declaration) Equal(in *Declaration) bool {
 	return false
 }
 
+// Keys are the receiver-qualified names,
+// one per declared name,
+// or nil for a declaration with no name.
 func (d *Declaration) Keys() []string {
 	trimPath := "*."
 	if d.Name != "" {
@@ -188,9 +204,7 @@ func (d *Declaration) Symbol() string {
 	return d.Name
 }
 
-// Position returns where the declaration is, relative to the root of the
-// parse. The declaration records the base filename and the package records the
-// directory, so neither says on its own where a reader should look.
+// Position returns where the declaration is, relative to the root of the parse.
 func (d *Declaration) Position(pkg Package) Position {
 	dir := strings.TrimPrefix(strings.TrimPrefix(pkg.Path, "."), "/")
 	file := d.File

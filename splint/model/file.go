@@ -62,10 +62,8 @@ type File struct {
 	Uses []string `json:"Uses,omitempty" yaml:"Uses,omitempty"`
 }
 
-// HasLineDirectives reports source carrying a //line directive.
-//
-// The directive sits at the start of a line, in the two comment forms Go
-// accepts for it. Anything else spelled "line" is a comment about something.
+// HasLineDirectives reports a line opening on //line or /*line,
+// and false for source without one.
 func HasLineDirectives(lines []string) bool {
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " \t")
@@ -76,12 +74,9 @@ func HasLineDirectives(lines []string) bool {
 	return false
 }
 
-// BuildConstraint returns the expression of the //go:build line a file
-// carries, as the file writes it, and an empty string for a file with none.
-//
-// Only the lines above the package clause can hold the constraint, so the
-// scan stops at the clause. The expression stays text: what it means is a
-// question for go/build/constraint, and the model parses nothing.
+// BuildConstraint returns "" at the package clause,
+// the //go:build expression as the file writes it,
+// or "" for a file with none.
 func BuildConstraint(source []byte) string {
 	for _, line := range strings.Split(string(source), "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -105,8 +100,7 @@ func (f File) UsesName(name string) bool {
 	return false
 }
 
-// Base is the filename with the .go suffix and the _test marker taken off;
-// it pairs a file with the one that tests it.
+// Base is the filename without .go and _test, pairing a file with its test.
 func (f File) Base() string {
 	name := strings.TrimSuffix(f.Name, ".go")
 	return strings.TrimSuffix(name, "_test")

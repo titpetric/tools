@@ -22,7 +22,8 @@ import (
 // Name selects the linter and labels its issues.
 const Name = "visibility"
 
-// Linter measures what a package exports against what it keeps.
+// Linter measures what a package exports against what it keeps. A symbol's
+// own name decides, so a method counts as a func, apart from its type.
 type Linter struct{}
 
 // New returns the linter.
@@ -36,10 +37,6 @@ func (l *Linter) Name() string {
 }
 
 // Lint counts the exported and the internal half of every package it measures.
-//
-// The case of a symbol's own name makes it exported or internal, so a method
-// counts as a func and sits with the free functions, away from the type
-// it hangs off.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
 

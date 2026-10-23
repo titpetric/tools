@@ -7,16 +7,9 @@ import (
 	"strings"
 )
 
-// Included reports whether a file is one this build reads.
-//
-// Two things exclude a file: a name ending in a platform the build is not for,
-// "handler_windows.go" on linux, and a build constraint that evaluates false.
-// Both are what the toolchain applies before a compiler ever sees the file, so
-// a parser that read them anyway would describe a package nobody builds.
-//
-// go/build/constraint evaluates the constraint, parsing the
-// expression without building anything: a tag other than the platform reads
-// as unset, the same as a plain "go build" does with it.
+// Included reports whether this build reads a file: its name suffix matches
+// the platform, and its build constraint holds with no tags beyond the
+// platform's set.
 func Included(name string, source []byte) bool {
 	if !platformMatches(name) {
 		return false

@@ -77,8 +77,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as one table, worst documented first: a package a
-// reader should look at is a package near the top.
+// Statistics is the count as one table, one row per package by path.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var exported, documented int

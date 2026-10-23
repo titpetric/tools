@@ -23,18 +23,22 @@ type Package struct {
 	Complexity *Complexity `json:"Complexity,omitempty" yaml:"Complexity,omitempty"`
 }
 
+// Name is the package name.
 func (p Package) Name() string {
 	return p.Package
 }
 
+// String lists the fields for a log line.
 func (p Package) String() string {
 	return fmt.Sprintf("package=%s import_path=%s path=%s test_package=%v", p.Package, p.ImportPath, p.Path, p.TestPackage)
 }
 
+// Equal compares import paths.
 func (p Package) Equal(in Package) bool {
 	return p.ImportPath == in.ImportPath
 }
 
+// Namespace is the dotted path, or the package name at the root, with suffix.
 func (p Package) Namespace(suffix string) string {
 	var namespace string
 	packagePath := strings.Trim(p.Path, "./")

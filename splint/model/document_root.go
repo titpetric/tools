@@ -9,7 +9,8 @@ const SchemaVersion = 1
 //
 // A parser fills it and a linter reads it. Nothing here is Go specific: a
 // parser for another language fills the same document, so the linters port to
-// it.
+// it. A view such as WithoutTests or WithTagged is a copy shallow past the
+// lists it changes, sharing the declarations and leaving the document intact.
 type DocumentRoot struct {
 	// SchemaVersion is the version of the schema the document follows.
 	SchemaVersion int `json:"SchemaVersion" yaml:"SchemaVersion"`
@@ -59,8 +60,7 @@ func (d *DocumentRoot) AddModule(module *Module) {
 	d.Modules = append(d.Modules, module)
 }
 
-// Sort orders the packages by import path, and the declarations within each,
-// so two parses of the same tree produce the same document.
+// Sort orders the packages and their declarations, for a stable document.
 func (d *DocumentRoot) Sort() {
 	for _, def := range d.Packages {
 		def.Sort()

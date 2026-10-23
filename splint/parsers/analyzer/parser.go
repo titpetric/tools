@@ -20,9 +20,10 @@ const ParserName = "astparser"
 // reading: the toolchain resolves the packages, so what comes out is what the
 // compiler sees.
 //
-// The parser is the slower of the two and the one that stops on source that does not
-// build. Its opposite number is simpleparser, constructed the same way and
-// returning the same document.
+// The parser runs slower than simpleparser and stops on source that does not
+// build. A parse moves the process into the tree, where the toolchain
+// resolves a pattern and the loader reads files, and moves it back when it
+// ends, so a relative path the caller holds resolves where the command ran.
 type Parser struct {
 	options splint.Options
 
@@ -36,15 +37,7 @@ func New(options splint.Options) *Parser {
 	return &Parser{options: options}
 }
 
-// Parse reads the tree and returns the document.
-//
-// The parse moves the process into the tree it reads, because the toolchain
-// resolves a pattern from the working directory and the loader reads a file from
-// a path relative to it. The parse restores the directory when it ends: a
-// process left standing in the tree resolved every relative path its caller
-// still held a second time against that tree, so "-i migrate -save" wrote
-// migrate/migrate/splint.json and "-output splint.json" wrote into migrate
-// and missed the directory the user typed the command in.
+// Parse reads the tree and returns the document, back in the directory it started in.
 func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 	root, err := filepath.Abs(p.options.SourcePath)
 	if err != nil {

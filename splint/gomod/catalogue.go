@@ -73,12 +73,8 @@ func NewCatalogue(doc *model.DocumentRoot) *Catalogue {
 	return c
 }
 
-// Owner returns the required module that serves an import path, and whether
-// any of them does.
-//
-// The match is on a path boundary: "example.com/x" owns "example.com/x/inner"
-// and does not own "example.com/xylophone". The longest match wins, since a
-// go.mod may require a module alongside a submodule of itself.
+// Owner returns the required module that serves an import path, matched on a
+// path boundary with the longest module path first.
 func (c *Catalogue) Owner(importPath string) (model.Require, bool) {
 	for _, path := range c.paths {
 		if importPath == path || strings.HasPrefix(importPath, path+"/") {
@@ -98,11 +94,7 @@ func (c *Catalogue) Requires() []model.Require {
 	return out
 }
 
-// Sums returns every version go.sum records, in path and version order.
-//
-// A version two of the modules read both record is one version: they resolve
-// against one module cache, and a report of what the build carries counts it
-// once.
+// Sums returns every version go.sum records once, in path and version order.
 func (c *Catalogue) Sums() []model.Sum {
 	var out []model.Sum
 	at := map[string]int{}
@@ -166,12 +158,8 @@ func (c *Catalogue) Owns(importPath string) bool {
 	return false
 }
 
-// Base is a module path with its major version suffix removed, so the two
-// majors of one module answer to the same name.
-//
-// "example.com/x/v2" is "example.com/x", and so is "example.com/x". A module
-// requiring both links both into the binary, and the types of one do not
-// fit the interfaces of the other.
+// Base is a module path without its major version suffix: "example.com/x/v2"
+// is "example.com/x", so the majors of one module answer to one name.
 func Base(path string) string {
 	at := strings.LastIndex(path, "/")
 	if at < 0 {

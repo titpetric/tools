@@ -25,7 +25,9 @@ const Name = "coverage"
 // RuleUncovered is the one rule this linter reports under.
 const RuleUncovered = "uncovered"
 
-// Linter reports an exported symbol no test reaches.
+// Linter reports an exported symbol no test reaches. It reads a command and a
+// test package for tests only: neither exports a surface anyone tests, and the
+// tests of a package commonly sit in a package of their own.
 type Linter struct {
 	// Tag is the build tag integration tests sit behind. A test behind it
 	// counts like any other: the file it tests has its test.
@@ -43,10 +45,6 @@ func (l *Linter) Name() string {
 }
 
 // Lint reports the exported symbols of every package that no test reaches.
-//
-// A command exports nothing anyone reaches and a test package is not a surface
-// anyone tests, so the linter reads neither for symbols. It still reads both for tests,
-// because a test of a package commonly sits in a package of its own.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	root = root.WithTagged(l.Tag)
 

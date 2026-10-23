@@ -15,8 +15,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Fill records the string literals of every declaration in a test file of
-// the definition. A parser calls it before it clears the sources.
+// Fill records the string literals of the test declarations, before the sources clear.
 func Fill(def *model.Definition) {
 	for _, decl := range def.Order() {
 		if !decl.IsTestScope() || decl.Source == "" {

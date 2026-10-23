@@ -12,7 +12,9 @@ import (
 	"github.com/titpetric/tools/splint/modproxy"
 )
 
-// Result is one finding about the dependencies of a module.
+// Result is one finding about the dependencies of a module. A finding about a
+// module names the go.mod it came from, where a reader acts on it, and one
+// about an import names the file that writes it.
 type Result struct {
 	// Rule is which of the module rules the finding is under, and Severity is
 	// how much it means: a replace fails a run, a thin dependency is a
@@ -31,10 +33,6 @@ type Result struct {
 }
 
 // Issue renders the finding as the framework reads it.
-//
-// A module is not in a file, so a finding about one names the go.mod it came
-// from: that is where a reader goes to act on it. A finding about an import is
-// in the file that writes it, and says so.
 func (r Result) Issue() model.Issue {
 	position := r.Position
 	if position.File == "" {
@@ -51,7 +49,9 @@ func (r Result) Issue() model.Issue {
 	}
 }
 
-// Results is what the linter found and what it measured.
+// Results is what the linter found and what it measured. Its metrics key a
+// dependency by module path as a package, the half of the model a module sits
+// closer to than a file on disk.
 type Results struct {
 	findings []Result
 
@@ -204,11 +204,6 @@ func (r Results) All() iter.Seq[model.Issue] {
 }
 
 // Metrics is what the linter measured, one entry per dependency.
-//
-// The key is the module path, the name a dependency carries everywhere
-// else. They are packages and not files because a module is neither: of
-// the two halves the model exposes, a dependency is much closer to a package
-// than to a file on disk.
 func (r Results) Metrics() model.LintMetrics {
 	metrics := model.LintMetrics{}
 	for path, dep := range r.deps {

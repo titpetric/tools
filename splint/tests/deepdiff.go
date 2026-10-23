@@ -1,8 +1,3 @@
-// Package tests holds the harness that compares the two parsers.
-//
-// The harness lives in a package of its own so a reader can read and reuse the
-// comparison: it walks two documents and says where they differ, and that is
-// worth having outside the test that runs it.
 package tests
 
 import (
@@ -21,17 +16,7 @@ import (
 // the summary can drop the key and count every element under the field.
 type KeyedList map[string]any
 
-// Diff walks two values and returns every place they disagree.
-//
-// Diff compares the encoded form deeply and checks no hand-picked list of
-// fields: a key that only one side carries is a difference, and so is a key
-// added to the model tomorrow. Coverage here never depends on an enumeration,
-// because this code enumerates nothing.
-//
-// The normalise function takes a path and the two values at it, and returns
-// the values to compare in their place. A caller uses it to take a known and
-// explained difference, such as column alignment inside a source listing, out
-// of the comparison without taking the field out of it.
+// Diff walks the encoded forms of two values and returns every place they disagree, after normalise.
 func Diff(left, right any, normalise func(path string, a, b any) (any, any)) []Difference {
 	var found []Difference
 	walk("", encode(left), encode(right), normalise, &found)
@@ -43,8 +28,8 @@ func Diff(left, right any, normalise func(path string, a, b any) (any, any)) []D
 // what makes the walk indifferent to the types behind it.
 //
 // encode passes a tree that is already generic through: encoding it again
-// would turn a KeyedList back into its underlying map, and the walk would lose
-// the one thing that lines two documents up by identity.
+// would turn a KeyedList back into its underlying map, and the walk would no
+// longer line two documents up by identity.
 func encode(value any) any {
 	switch value.(type) {
 	case KeyedList, map[string]any, []any, string, float64, bool, nil:
@@ -212,9 +197,7 @@ func join(path, key string) string {
 	return path + "." + key
 }
 
-// Field is a path with its array indices removed, so a count puts every
-// element of a list under the field it belongs to and ignores its position:
-// "Fields[2].Tag" and "Fields[7].Tag" are both "Fields[].Tag".
+// Field is a path without its array indices: "Fields[2].Tag" is "Fields[].Tag".
 func Field(path string) string {
 	var out strings.Builder
 

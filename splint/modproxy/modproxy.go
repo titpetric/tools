@@ -1,13 +1,3 @@
-// Package modproxy queries the Go module proxy about a dependency.
-//
-// It answers four things a document cannot: how big the module is, the
-// publish date of the version in use, what the latest one is, and what that version
-// itself requires. All four come from the proxy protocol without downloading
-// anything: the size is the Content-Length of a HEAD on the zip, and the rest
-// is one small document each.
-//
-// A report needs nothing from here. A machine with no network answers
-// nothing and says so, and the caller reports what the document told it.
 package modproxy
 
 import (
@@ -103,12 +93,7 @@ type Client struct {
 	known map[string]Info
 }
 
-// New returns a client reading GOPROXY, GOPRIVATE and GONOPROXY the way the
-// toolchain reads them.
-//
-// New reads a GOPROXY listing more than one proxy down to the first real URL:
-// the fallbacks are what the toolchain does when a download fails, and this
-// client puts one question that either answers or does not.
+// New returns a client reading GOPROXY, GOPRIVATE and GONOPROXY the way the toolchain does.
 func New() *Client {
 	return &Client{
 		Proxy:   proxyFromEnv(),

@@ -4,11 +4,8 @@ import (
 	"strings"
 )
 
-// WithoutTests returns the document with the test packages left out, and with
-// the test files of the packages that remain left out of those.
-//
-// The copy is shallow past the lists it filters, so both documents point at the
-// same declarations.
+// WithoutTests returns nil for nil,
+// and a view without test packages and test files otherwise.
 func (d *DocumentRoot) WithoutTests() *DocumentRoot {
 	if d == nil {
 		return nil

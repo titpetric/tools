@@ -4,13 +4,8 @@ import (
 	"strings"
 )
 
-// WithTagged returns the document with the test files behind a build tag
-// merged into the test definitions of their directories, the view of a linter
-// that counts the tests of a file: a test behind
-// "//go:build integration" is still a test of the file it names.
-//
-// The copy is shallow past the definitions it merges into, so both documents
-// point at the same declarations, and the method leaves the document intact.
+// WithTagged returns the document itself when it holds no tagged tests,
+// and otherwise a view with the tests behind tag merged into their test packages.
 func (d *DocumentRoot) WithTagged(tag string) *DocumentRoot {
 	if d == nil || len(d.Tagged) == 0 {
 		return d

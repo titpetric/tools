@@ -22,15 +22,10 @@ type Linter interface {
 
 // LintReport is what one linter found and what it measured.
 //
-// LintReport is an interface so a linter keeps its own result type and the
-// framework ranges over it in place: the framework walks a rule that carries
-// twenty fields per finding without copying any of them into a common struct,
-// and materialises only the Issue view of each.
-//
-// Findings and numbers come back together because a linter produces them
-// together. A check that counts what it looked at has the count in hand by
-// the time its findings are complete, and requesting the count separately
-// would run the check twice.
+// A linter keeps its own result type and the framework ranges over it in
+// place, building only the Issue view of each finding. Findings and numbers
+// come back together because a check has the count in hand by the time its
+// findings are complete.
 type LintReport interface {
 	// Linter names the linter the report came from.
 	Linter() string

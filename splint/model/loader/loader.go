@@ -1,5 +1,8 @@
 // Package loader reads a parsed document back from disk.
 //
+// A document without a root is a bare list of packages, the shape "go-fsck
+// extract" writes, and Decode reads it as a document holding those packages.
+//
 // A document a parser writes is the input a linter runs against, so a slow
 // parse runs once and the linters run over its output many times, and the
 // linters here run over a document produced elsewhere.
@@ -21,6 +24,7 @@ import (
 // Format is the encoding of a document.
 type Format string
 
+// The formats a document encodes to.
 const (
 	FormatJSON Format = "json"
 	FormatYAML Format = "yaml"
@@ -46,11 +50,8 @@ func Load(filename string) (*model.DocumentRoot, error) {
 	return Decode(data, FormatOf(filename))
 }
 
-// Decode reads a document from bytes.
-//
-// A document without a root is a bare list of packages, the shape "go-fsck
-// extract" writes; Decode reads it as a document holding those packages and
-// nothing else, so a file already on disk still loads.
+// Decode reads a document from bytes, a rooted document or a bare package list,
+// or fails with the error of reading it.
 func Decode(data []byte, format Format) (*model.DocumentRoot, error) {
 	unmarshal := json.Unmarshal
 	if format == FormatYAML {

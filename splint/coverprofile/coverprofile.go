@@ -31,13 +31,8 @@ func Apply(root *model.DocumentRoot, filename string) error {
 	return nil
 }
 
-// Overlay writes the coverage of a parsed profile onto the document: the share
-// of statements that ran, for every function and method, and for every package
-// over the declarations in it.
-//
-// A package is also given the complexity of its declarations added up. Nothing
-// else fills model.Package.Complexity, and a report that prints coverage beside
-// complexity reads both off the same struct.
+// Overlay writes the share of statements that ran onto every function and package,
+// and sets each package to the summed complexity of its declarations.
 func Overlay(root *model.DocumentRoot, profiles []*cover.Profile) {
 	if root == nil {
 		return

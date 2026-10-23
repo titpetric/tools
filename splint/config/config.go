@@ -24,7 +24,9 @@ import (
 // tree under parse.
 const Filename = ".splint.yml"
 
-// Config is the file.
+// Config is the file. Its accessors convert to the types the linters take,
+// since a configuration type describes a document a person writes, and a
+// linter takes data.
 type Config struct {
 	// Imports is the house rule for an import block.
 	Imports Imports `yaml:"imports"`
@@ -210,10 +212,7 @@ func (f Filecheck) validate() error {
 	return nil
 }
 
-// FilecheckAllowances is the file length rule as the linter takes it. The two
-// types carry the same two fields and stay separate: the
-// configuration types describe a document a person writes, and a linter takes
-// data.
+// FilecheckAllowances is the file length rule as the linter takes it.
 func (c *Config) FilecheckAllowances() filecheck.Allowances {
 	out := make(filecheck.Allowances, 0, len(c.Filecheck.Allow))
 	for _, entry := range c.Filecheck.Allow {
@@ -222,8 +221,7 @@ func (c *Config) FilecheckAllowances() filecheck.Allowances {
 	return out
 }
 
-// ImportOptions is the import rule as importfmt takes it. The module path is
-// the one the tree builds under, and is what the project group defaults to.
+// ImportOptions is the import rule as importfmt takes it, module heading the project group.
 func (c *Config) ImportOptions(module string) importfmt.Options {
 	project := c.Imports.Project
 	if project == "" {

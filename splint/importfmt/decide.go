@@ -35,9 +35,7 @@ type Unresolved struct {
 	Candidates []string
 }
 
-// Message says what nothing could place and why, quoting a use so a reader can
-// find the line to look at. The linter reports it, and the fixer says it about
-// a file it leaves alone.
+// Message says what nothing could place and why, quoting a use of the name.
 func (u Unresolved) Message() string {
 	reached := u.Name
 	if len(u.Symbols) > 0 {
@@ -85,13 +83,6 @@ func (d Decision) Sound() bool {
 }
 
 // Changed reports a file's import block that differs from the canonical one.
-//
-// The comparison is between two renderings of the same shape, and never
-// between the file on disk and a string, so it answers the same whichever
-// parser read the tree and whether the parse read the file from disk at all.
-// Whitespace inside a declaration is gofmt's business and does not show
-// up here; the order of the imports, the groups, the aliases and the number of
-// declarations do.
 func (d Decision) Changed(all model.ImportDeclList) bool {
 	// The preamble above the import of "C" pins it. A rewrite never writes
 	// it, so it plays no part in deciding whether the file needs one.
@@ -119,14 +110,7 @@ func (d Decision) Changed(all model.ImportDeclList) bool {
 }
 
 // Decide returns what each file of a package should import, keyed by the base
-// filename.
-//
-// A file with no import declarations and no name to place is not in the
-// result, and neither is a generated one.
-//
-// Decide reads the document for the test half of a package, which is a definition
-// of its own holding only the test files. Without it a white box test reaching
-// a name the package declares beside it reads as a missing import.
+// filename, leaving out generated files and files with nothing to import.
 func Decide(root *model.DocumentRoot, def *model.Definition, idx Resolver, opts Options) map[string]Decision {
 	if def == nil {
 		return nil
@@ -312,11 +296,8 @@ func reachedBy(spec model.ImportSpec, idx Resolver) (string, bool) {
 	return idx.Name(spec.Path)
 }
 
-// Project is the module of a document, the shortest module path it holds: a
-// nested module sits under the one at the root of the tree.
-//
-// The project group defaults to it for a tree whose configuration does not
-// name one.
+// Project is the module of a document, the shortest module path it holds,
+// and the default project group.
 func Project(root *model.DocumentRoot) string {
 	if root == nil || len(root.Modules) == 0 {
 		return ""

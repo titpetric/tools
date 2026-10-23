@@ -30,7 +30,9 @@ const maxDocLines = 10
 // as one const or var block, which one comment above it documents.
 const blockGap = 10
 
-// Linter checks the godoc of every exported symbol.
+// Linter checks the godoc of every exported symbol outside main and the test
+// packages: a command documents nothing to a consumer, and a test package is
+// no surface anyone reads.
 type Linter struct{}
 
 // New returns the linter.
@@ -43,9 +45,7 @@ func (l *Linter) Name() string {
 	return Name
 }
 
-// Lint reports the godoc of every exported symbol outside main and the test
-// packages. A command documents nothing to a consumer, and a test package is
-// not a surface anyone reads.
+// Lint reports the godoc of every exported symbol it reads.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
 

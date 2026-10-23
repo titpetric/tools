@@ -11,6 +11,7 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+// Module is one go.mod a tree holds, and whether a build can import it.
 type Module struct {
 	Filename   string
 	Dir        string
@@ -21,6 +22,7 @@ type Module struct {
 	Error error
 }
 
+// String describes the module and its error, if any.
 func (m Module) String() string {
 	if m.Error != nil {
 		return fmt.Sprintf("%v (dir: %v, valid: %v, error: %v)", m.ImportPath, m.Dir, m.Valid, m.Error)

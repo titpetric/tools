@@ -25,7 +25,7 @@ const Name = "filecheck"
 const RuleLong = "long"
 
 // DefaultMaxLines is how many lines a file may run to before it reads as more
-// than one thing. The count has blanks and comments taken out of it already,
+// than one job. The count has blanks and comments taken out of it already,
 // so this is the code itself, and four hundred lines of code is about where a
 // reader stops holding a file in their head and starts searching it. A file
 // that needs a search has more than one subject in it. The number also marks where
@@ -36,7 +36,10 @@ const RuleLong = "long"
 // so the configuration names it and carries no second four hundred.
 const DefaultMaxLines = 400
 
-// Linter checks the length of every file.
+// Linter checks the length of every file against the ceiling it runs under, so
+// a file the tree gave room to counts into the histogram and stays out of the
+// findings. It measures no generated file, whose length speaks for the
+// generator, and a protobuf stub would drown the histogram on its own.
 type Linter struct {
 	// MaxLines is the ceiling for a file no Allow entry covers. Zero turns
 	// the rule off for those files.
@@ -57,14 +60,6 @@ func (l *Linter) Name() string {
 }
 
 // Lint measures every file of every package and reports the long ones.
-//
-// The linter measures no generated file: its length says something about
-// the generator and nothing about the code, and a protobuf stub would drown
-// the histogram on its own.
-//
-// The linter measures every file against the ceiling it runs under, and no single
-// number, so a file the tree gave room to counts into the histogram
-// and stays out of the findings.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	results := Results{max: l.MaxLines, tuned: len(l.Allow) > 0}
 

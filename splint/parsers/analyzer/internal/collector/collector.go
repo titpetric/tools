@@ -19,6 +19,7 @@ import (
 	. "github.com/titpetric/tools/splint/parsers/analyzer/internal/ast"
 )
 
+// The model types the collector fills, by their short names.
 type (
 	Definition  = model.Definition
 	Declaration = model.Declaration
@@ -44,6 +45,7 @@ type collector struct {
 	pkgPath    string // Current package path for relative file paths
 }
 
+// NewCollector returns a collector for one package, type checked or not.
 func NewCollector(fset *token.FileSet, info *types.Info, pkg *types.Package) *collector {
 	c := &collector{
 		fset:       fset,

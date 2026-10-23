@@ -1,10 +1,3 @@
-// Package importfmt is the house rule for an import block, written as a
-// function of the imports and nothing else.
-//
-// It reads no files and holds no state. The linter calls it to find out what a
-// file's import declaration should look like, and the fixer calls it to write
-// that. One function answering both is what keeps a rule that reports an error
-// and a rewrite that clears it from disagreeing.
 package importfmt
 
 import (
@@ -143,11 +136,8 @@ func under(importPath, prefix string) bool {
 	return importPath == prefix || strings.HasPrefix(importPath, prefix+"/")
 }
 
-// Normalize is one import written the way the house writes it.
-//
-// An alias repeating the last segment of the path says nothing the path does
-// not, and comes off. Code reaches a path ending in a major version by a name
-// the path does not spell, so it gets one.
+// Normalize drops an alias that repeats the path's last segment, and with
+// SetAlias names a path ending in a major version.
 func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 	switch spec.Name {
 	case "_", ".":
@@ -169,11 +159,7 @@ func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 	return spec
 }
 
-// Canonical is the imports in the order and the form the house writes them:
-// normalized, deduplicated, grouped and sorted within each group.
-//
-// Canonical sets Break on the first spec of every group after the first, so a caller
-// rendering the result puts the blank lines where the groups end.
+// Canonical is the imports normalized, deduplicated, grouped and sorted.
 func Canonical(specs []model.ImportSpec, opts Options) []model.ImportSpec {
 	order := opts.order()
 
@@ -228,14 +214,8 @@ func Format(specs []model.ImportSpec, opts Options) string {
 	return Render(Canonical(specs, opts), "")
 }
 
-// Render writes the specs as a declaration, in the order of the slice and
-// with the aliases they carry, followed by the comment lines that belong to no
-// import.
-//
-// Render is the half of Format that does no deciding. A caller holding the imports
-// a file actually writes renders them with this and compares the result
-// against Format of the same imports: the two strings differ exactly when the
-// file does not follow the rule.
+// Render writes the specs as a declaration as they stand, followed by the
+// comment lines that belong to no import.
 func Render(specs []model.ImportSpec, tail string) string {
 	if len(specs) == 0 {
 		return ""
@@ -316,9 +296,7 @@ func Parse(literal string) (model.ImportSpec, bool) {
 	}, true
 }
 
-// FormatLiterals renders a list of import literals as the declaration a file
-// should hold. FormatLiterals is Format over the form Definition.Imports
-// records, the form a caller holding a list of strings already has.
+// FormatLiterals is Format over the import literals Definition.Imports records.
 func FormatLiterals(literals []string, opts Options) string {
 	specs := make([]model.ImportSpec, 0, len(literals))
 	for _, literal := range literals {

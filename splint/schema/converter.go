@@ -8,11 +8,8 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Write renders a document as a JSON Schema.
-//
-// Every package of the document contributes its types, so a schema of a tree
-// describes the whole tree. A type carries its bare name where that is
-// unambiguous and its package-qualified name everywhere else.
+// Write renders the types of every package of a document as a JSON Schema,
+// bare names where unambiguous and package-qualified names elsewhere.
 func Write(w io.Writer, root *model.DocumentRoot, options Options) error {
 	schema, err := Convert(root, options)
 	if err != nil {

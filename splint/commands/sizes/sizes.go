@@ -59,8 +59,7 @@ func Write(w io.Writer, defs model.DefinitionList) error {
 	return err
 }
 
-// Data measures the document: every file it carries, whatever scope declared
-// it, so a document written with tests counts the test files too.
+// Data measures every file the document carries, test files included.
 func Data(defs model.DefinitionList) *Stats {
 	seen := map[string]bool{}
 	stats := &Stats{Files: []*File{}, Packages: []*Package{}, Histogram: histogram(nil)}
@@ -140,14 +139,8 @@ func histogram(files []*File) []*Bucket {
 	return buckets
 }
 
-// WriteD2 renders the histogram as a d2 source document, one rectangle per
-// non-empty bucket holding the count of files in it, chained in size order. A
-// bucket with no files is a gap in the range and not a measurement, so WriteD2
-// leaves it out.
-//
-// The d2 binary turns the output into the diagram a README embeds:
-//
-//	splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
+// WriteD2 renders the histogram as d2 source, one rectangle per non-empty
+// bucket chained in size order, for `d2 --layout elk - size.svg` to draw.
 func WriteD2(w io.Writer, defs model.DefinitionList) error {
 	stats := Data(defs)
 

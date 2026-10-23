@@ -3,6 +3,7 @@ package model
 // DeclarationKind is an enum of go symbol types.
 type DeclarationKind string
 
+// The kinds of declaration a document records.
 const (
 	StructKind  DeclarationKind = "struct"
 	ImportKind                  = "import"
@@ -13,6 +14,7 @@ const (
 	CommentKind                 = "comment"
 )
 
+// String is the kind as written.
 func (d DeclarationKind) String() string {
 	return string(d)
 }

@@ -23,6 +23,8 @@ import (
 )
 
 // Index is every name a package declares, mapped to the file that declares it.
+// It holds no methods: a caller reaches one through its receiver, which is a
+// type the index holds.
 type Index struct {
 	where map[string]string
 
@@ -33,11 +35,7 @@ type Index struct {
 	defs []*model.Definition
 }
 
-// New indexes the definitions of one package directory, which is the package
-// and the external test package beside it.
-//
-// The name index leaves methods out. A caller reaches a method through its
-// receiver, and the receiver is a type the index already holds.
+// New indexes one package directory: the package and its external test package.
 func New(defs []*model.Definition) *Index {
 	index := &Index{
 		where:     map[string]string{},
@@ -62,13 +60,9 @@ func New(defs []*model.Definition) *Index {
 	return index
 }
 
-// Coupled reports a declaration that reaches a name declared in another file
-// of its own package.
-//
-// Two things reach one: a global the parse recorded, and the receiver of a
-// method, since a method cannot move without the type it hangs off. A name
-// the package does not declare is a local the parse did not see bound, or a
-// builtin, and neither couples anything to anything.
+// Coupled reports a declaration reaching a name of another file of its package,
+// through a global it uses or the receiver of a method. A name the package
+// does not declare, an unbound local or a builtin, couples nothing.
 func (i *Index) Coupled(decl *model.Declaration) bool {
 	if receiver := model.TypeRef(decl.Receiver); receiver != "" {
 		if file, known := i.where[receiver]; known && file != decl.File {

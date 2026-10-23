@@ -10,23 +10,11 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// Annotations writes every finding as a GitHub Actions workflow command.
+// Annotations writes every finding as a GitHub Actions workflow command:
 //
 //	::warning file=frontend/view/page.go,line=42,title=godoc/missing::Page - exported symbol lacks a godoc comment
 //
-// A person reads a log line and the runner reads a workflow command, and the
-// runner turns it into an annotation on the file and the line of a pull request
-// review. Nothing else in a log does that: a compiler shaped line becomes an
-// annotation only where a workflow registers a problem matcher for it, and
-// this form needs no matcher.
-//
-// GitHub shows ten warnings and ten errors per step and fifty annotations per
-// job, and drops the rest without saying so, so a gate reads the exit code and
-// the statistics and ignores the count of these.
-//
-// The reference is
-// https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands
-// and the escaping is what @actions/core does in command.ts.
+// A report with no findings gets one line saying so.
 func Annotations(w io.Writer, found *report.Report) error {
 	if found.Len() == 0 {
 		_, err := io.WriteString(w, empty(found)+"\n")

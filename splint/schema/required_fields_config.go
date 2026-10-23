@@ -5,7 +5,7 @@ type RequiredFieldsConfig struct {
 	Fields map[string][]string
 }
 
-// NewDefaultConfig just returns a sample required-fields configuration
+// NewDefaultConfig returns a sample required-fields configuration.
 func NewDefaultConfig() *RequiredFieldsConfig {
 	return &RequiredFieldsConfig{
 		Fields: map[string][]string{

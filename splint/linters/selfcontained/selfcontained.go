@@ -23,7 +23,9 @@ import (
 // Name selects the linter and labels its measurements.
 const Name = "selfcontained"
 
-// Linter measures the file scope of every package.
+// Linter measures the file scope of every package and reports nothing:
+// coupling has no share a package ought to have, and one unit written in
+// three files is as legitimate as three.
 type Linter struct{}
 
 // New returns the linter.
@@ -36,11 +38,7 @@ func (l *Linter) Name() string {
 	return Name
 }
 
-// Lint measures every package of two or more files and reports nothing.
-//
-// Coupling is a measurement and no finding: there is no share of it a
-// package ought to have, and a package written as one unit in three files is
-// as legitimate as one written as three.
+// Lint measures every package of two or more files.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	results := &Results{}
 

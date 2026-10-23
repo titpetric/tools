@@ -43,8 +43,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as one table, by package path, so a reader finds a
-// package where they expect it, whatever its numbers.
+// Statistics is the count as one table, by package path.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var exported, internal int

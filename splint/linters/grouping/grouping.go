@@ -19,7 +19,9 @@ const Name = "grouping"
 // RuleFilename is the one rule this linter reports under.
 const RuleFilename = "filename"
 
-// Linter reports an exported symbol in a file not named for it.
+// Linter reports an exported symbol in a file not named for it. It skips a
+// command and a test package, which nobody navigates by filename, and a file
+// that compiles on its own, which moves as one unit, as filescope answers.
 type Linter struct{}
 
 // New returns the linter.
@@ -32,14 +34,7 @@ func (l *Linter) Name() string {
 	return Name
 }
 
-// Lint reports the exported symbols of every package outside main and the test
-// packages.
-//
-// A command exports nothing anyone imports, so where it puts a symbol is
-// nobody's business, and a test package is not a surface a reader navigates by
-// filename either. Neither is a file that compiles on its own: it moves as one
-// unit, so where a symbol sits inside is the file's own business. filescope
-// is what answers that, and collect leaves those symbols alone.
+// Lint reports every exported symbol it reads that sits in a file not named for it.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	var results Results
 

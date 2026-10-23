@@ -78,10 +78,8 @@ func (p *Plan) Len() int {
 	return len(p.Files)
 }
 
-// Build works out what every file of the tree should hold.
-//
-// Build reads nothing from disk and writes nothing. The plan is a value the
-// caller can print, count or hand to Apply.
+// Build works out what every file of the tree should hold, touching no disk.
+// The caller prints the plan, counts it or passes it to Apply.
 func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]string) *Plan {
 	plan := &Plan{}
 	if root == nil {
@@ -205,12 +203,8 @@ func name(root *model.DocumentRoot, path string) string {
 	return filepath.ToSlash(relative)
 }
 
-// Apply writes the plan and returns the files whose import block it rewrote and
-// the files it only formatted.
-//
-// A file whose rewrite comes to the bytes already on disk is not written and is
-// in neither list: a run over a tree that is already formatted changes nothing
-// and says so.
+// Apply writes the plan and returns the files it rewrote and those it only formatted.
+// A file already holding its rewrite is not written and is in neither list.
 func Apply(plan *Plan) (rewritten, formatted []string, err error) {
 	for _, file := range plan.Files {
 		wrote, err := applyFile(file)
@@ -284,7 +278,7 @@ func applyFile(file FileFix) (bool, error) {
 //
 // A file that does not parse is not this command's finding: the compiler and
 // the editor both say so already, and refusing to write the import block over a
-// syntax error would leave the one thing this can fix unfixed.
+// syntax error would leave the import block, all this can fix, unfixed.
 func formatted(text string) string {
 	out, err := format.Source([]byte(text))
 	if err != nil {
@@ -293,16 +287,9 @@ func formatted(text string) string {
 	return string(out)
 }
 
-// Splice applies the edits to a file and returns the result, from the bottom
-// up so each edit lands on the line numbers the parse recorded and the edit
-// before it leaves them unchanged.
-//
-// It reports false when any edit does not land on an import declaration, and
-// the caller then writes nothing at all. The line range comes from a parse,
-// and a parse that reads the range wrong would have this overwrite whatever
-// sits there: a range that runs to the end of the file replaces the file with
-// an import block. Checking the lines about to go costs one string comparison
-// per edit and bounds the damage a parser bug can do to nothing.
+// Splice applies the edits bottom up, so each lands on the lines the parse recorded.
+// It reports false when an edit misses an import declaration, and the caller writes nothing:
+// checking the lines first keeps a misread range from overwriting the file.
 func Splice(text string, edits []Edit) (string, bool) {
 	lines := strings.Split(text, "\n")
 

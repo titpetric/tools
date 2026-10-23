@@ -34,7 +34,8 @@ func (r Result) Issue() model.Issue {
 	}
 }
 
-// Results is what the linter found and what it counted.
+// Results is what the linter found and what it counted. Its table leaves out a
+// package with no handlers, whose row of zeroes would bury the ones that serve.
 type Results struct {
 	findings []Result
 	packages map[string]*Metric
@@ -71,9 +72,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is the count as one table. Only a package that serves something
-// is in it: a package with no handlers has no share to report, and a row of
-// zeroes for every other package in the tree buries the ones that do.
+// Statistics is the count as one table.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var handlers, wrapped int

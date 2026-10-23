@@ -47,8 +47,7 @@ type Row struct {
 	Cognitive int
 }
 
-// Data returns the function rows of the report, sorted by package and
-// function. Without verbose, Data leaves out a function with no coverage.
+// Data is the function rows by package and function, less the uncovered ones unless verbose.
 func Data(root *model.DocumentRoot, verbose bool) []Row {
 	var result []Row
 

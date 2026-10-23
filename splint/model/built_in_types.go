@@ -4,7 +4,8 @@ import (
 	"strings"
 )
 
-// To type returns a sanitized type name.
+// ToType strips a type down to its named type, and reports a type outside the builtins.
+// ToType returns <func> for a function type.
 func ToType(s string) (string, bool) {
 	// variadic ...
 	s = strings.TrimLeft(s, ".")
@@ -37,6 +38,7 @@ func ToType(s string) (string, bool) {
 	return s, true
 }
 
+// BuiltInTypes is the set of Go builtin type names.
 var BuiltInTypes = map[string]bool{
 	"string":      true,
 	"int":         true,

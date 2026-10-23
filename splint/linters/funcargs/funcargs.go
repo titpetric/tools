@@ -20,7 +20,11 @@ const (
 	RuleDuplicate = "duplicate-type"
 )
 
-// Linter checks the argument order of every two argument function.
+// Linter checks the argument order of every two argument function. For three
+// or more the expected order is a heuristic sort, which reports too much to
+// be worth reading. Two arguments means two parameters, ArgumentCount:
+// Arguments lists the distinct types, so seven parameters of two types would
+// read as a pair.
 type Linter struct {
 	// defs is the document under lint, kept so a lookup can find a parameter
 	// type: whether a named type is an interface decides where it sorts.
@@ -43,16 +47,7 @@ func (l *Linter) Name() string {
 	return Name
 }
 
-// Lint reports the argument order of every function in the document.
-//
-// The linter considers a function taking exactly two arguments alone. The order of one
-// pair is unambiguous; for three or more the expected order is a heuristic
-// sort, and a heuristic reports too much to be worth reading.
-//
-// Two arguments means two parameters, which is ArgumentCount and not the
-// length of Arguments: that list holds the distinct types, so a function of
-// seven parameters sharing two types would read as a pair, and the linter
-// would tell it to reverse itself.
+// Lint reports the argument order of every two parameter function in the document.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	l.defs = root.Packages
 	l.results = Results{}

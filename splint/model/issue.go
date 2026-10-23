@@ -9,6 +9,7 @@ import (
 // how much it means in the vocabulary the rest of a Go program already uses.
 type Severity = slog.Level
 
+// The severities a linter reports at.
 const (
 	SeverityDebug = slog.LevelDebug
 	SeverityInfo  = slog.LevelInfo
@@ -16,7 +17,7 @@ const (
 	SeverityError = slog.LevelError
 )
 
-// Issue is one thing a linter found.
+// Issue is one finding of a linter.
 type Issue struct {
 	// Linter is the linter that reported it, and Rule the rule within that
 	// linter. A linter with one rule leaves Rule empty.
@@ -41,8 +42,8 @@ type Issue struct {
 	Attrs map[string]string `json:"Attrs,omitempty" yaml:"Attrs,omitempty"`
 }
 
-// Rule names the issue as a reader selects it: the linter, and the rule within
-// it when there is more than one.
+// RuleName is the linter for an issue without a rule,
+// and linter/rule otherwise.
 func (i Issue) RuleName() string {
 	if i.Rule == "" {
 		return i.Linter
@@ -56,8 +57,7 @@ func (i Issue) Attr(key string) (string, bool) {
 	return value, ok
 }
 
-// AttrKeys returns the attribute names in order, so a rendering of the
-// attributes reads the same every time.
+// AttrKeys returns the attribute names, sorted for a stable rendering.
 func (i Issue) AttrKeys() []string {
 	keys := make([]string, 0, len(i.Attrs))
 	for key := range i.Attrs {

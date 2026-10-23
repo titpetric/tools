@@ -9,9 +9,7 @@ import (
 	"github.com/titpetric/tools/splint/report"
 )
 
-// MarkdownTable renders a table with every column padded to its widest cell,
-// the way mdox fmt pads one, so the next documentation build leaves a
-// document holding it unchanged.
+// MarkdownTable renders a table padded the way mdox fmt pads one, which a docs build leaves alone.
 func MarkdownTable(header []string, rows [][]string) string {
 	widths := make([]int, len(header))
 	for i, cell := range header {

@@ -9,14 +9,8 @@ import (
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
-// ReadTagged reads the test files a build constraint keeps out of a parsed
-// document into its Tagged definitions, one test definition per directory.
-//
-// The parse records the names of those files under Definition.Excluded, and
-// this reads them the way the simple parser reads any file: what they declare
-// and reach, the facts a linter counting the tests of a file reads. The ast
-// parser fills the same field from a second load under the tags the
-// constraints name, which resolves the methods a test calls as well.
+// ReadTagged reads the test files under Definition.Excluded into the Tagged
+// definitions, one test definition per directory.
 func ReadTagged(doc *model.DocumentRoot, options splint.Options) error {
 	for _, def := range doc.Packages {
 		if def == nil || len(def.Excluded) == 0 {

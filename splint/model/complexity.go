@@ -1,5 +1,6 @@
 package model
 
+// Complexity is how much a declaration branches, how long it runs and how it exits.
 type Complexity struct {
 	Cognitive  int `json:"Cognitive" yaml:"Cognitive"`
 	Cyclomatic int `json:"Cyclomatic" yaml:"Cyclomatic"`

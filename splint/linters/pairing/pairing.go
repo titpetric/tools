@@ -40,7 +40,9 @@ const (
 	RuleOrphan = "orphan"
 )
 
-// Linter reports a file with no test beside it.
+// Linter reports a file with no test beside it. A package and its test package
+// arrive as two definitions of one directory, so it gathers the files by
+// directory before it pairs any.
 type Linter struct {
 	// Tag is the build tag integration tests sit behind. A test behind it
 	// counts like any other: the file it tests has its test.
@@ -58,11 +60,6 @@ func (l *Linter) Name() string {
 }
 
 // Lint pairs every file with the test named after it.
-//
-// A package and the package holding its tests arrive as two definitions of the
-// same directory, so the linter gathers the files by directory before it pairs
-// anything: the foo_test.go recorded against the test half has to meet the
-// foo.go recorded against the other one, and neither definition sees both.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
 	root = root.WithTagged(l.Tag)
 
@@ -153,7 +150,7 @@ func (g *group) read(def *model.Definition) {
 		if !file.Test {
 			g.bases[file.Base()] = true
 		}
-		if file.Generated {
+		if file.Generated || packageDoc(def, file) {
 			continue
 		}
 		if file.Test {
@@ -179,6 +176,22 @@ func (g *group) read(def *model.Definition) {
 			Symbol:     decl.Symbol(),
 		})
 	}
+}
+
+// packageDoc reports a doc.go or docs.go declaring nothing, which holds the
+// package's prose and no code to test.
+func packageDoc(def *model.Definition, file model.File) bool {
+	if file.Test || (file.Name != "doc.go" && file.Name != "docs.go") {
+		return false
+	}
+	for _, decls := range []model.DeclarationList{def.Types, def.Funcs, def.Consts, def.Vars} {
+		for _, decl := range decls {
+			if decl.File == file.Name {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // testBase is the name of the file a test file pairs: foo for foo_test.go

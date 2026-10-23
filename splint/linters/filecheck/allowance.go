@@ -6,9 +6,9 @@ import (
 
 // Allowance is a ceiling a tree stated for the files one pattern covers.
 //
-// It exists because the rule is about a file doing one thing and the number is
+// It exists because the rule is about a file with one job and the number is
 // a proxy for it. A recursive descent parser and a bytecode interpreter loop
-// are each one thing at a length no general number can name, and splitting one
+// each do one job at a length no general number can name, and splitting one
 // on a line a linter picked is a worse file than the long one. Naming the path
 // in a committed file says which files those are, and leaves a new long file
 // reported.
@@ -26,22 +26,14 @@ type Allowance struct {
 	MaxLines int
 }
 
-// Allowances are the ceilings a tree stated, in the order it stated them.
+// Allowances are the ceilings a tree stated, in the order it stated them. The
+// first entry covering a file wins, not the most specific: an author lists a
+// narrow entry above the broad one it carves a hole in, and which of two globs
+// is narrower is a guess, as with parser/*.go and **/*_test.go.
 type Allowances []Allowance
 
-// MaxLinesFor is the ceiling a file runs under: the first entry whose pattern
-// covers it, and fallback when none does.
-//
-// The first match wins, and the most specific one does not. A reader takes a list top to
-// bottom, so the order an author wrote is the order of application, and a
-// narrow entry sits above the broad entry it carves a hole in. Most
-// specific would need a definition of specific, which for two globs is a
-// guess: parser/*.go and **/*_test.go both cover parser/parser_test.go and
-// neither contains the other.
-//
-// A pattern a loader would have refused matches nothing here and leaves the
-// run alone. The loader reports a malformed pattern, and a
-// linter handed one has no reader to report it to.
+// MaxLinesFor is the ceiling of the first entry covering path, or fallback.
+// A malformed pattern, which the loader reports, matches nothing.
 func (a Allowances) MaxLinesFor(path string, fallback int) int {
 	for _, entry := range a {
 		matched, err := pathmatch.Match(entry.Path, path)
