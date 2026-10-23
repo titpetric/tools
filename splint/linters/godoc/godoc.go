@@ -5,6 +5,7 @@ package godoc
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
@@ -202,16 +203,16 @@ func validate(pkg model.Package, decl *model.Declaration) []Result {
 	if lines > maxDocLines {
 		return []Result{result(pkg, decl, RuleVerbose, fmt.Sprintf("godoc runs to %d lines, which usually says the symbol does too much", lines))}
 	}
-	if sentences, code := len(prose(doc)), codeLines(decl); code > 0 && sentences > code {
-		return []Result{result(pkg, decl, RuleOutweighs, fmt.Sprintf("godoc runs to %d lines of prose over %d lines of code", sentences, code))}
+	if text, exits := len(prose(doc)), exitPoints(decl); exits > 0 && text > exits {
+		return []Result{result(pkg, decl, RuleOutweighs, fmt.Sprintf("godoc runs to %d lines over %s; keep the function's comment to its exits, put intent on the type or in docs.go", text, plural(exits, "exit point", "exit points")))}
 	}
 
 	return nil
 }
 
-// prose is the lines of a comment that carry a sentence. A paragraph break
-// carries none, and an indented block is an example, which the generated
-// reference prints and which weighs nothing against the body.
+// prose is the lines of a comment that carry text. A paragraph break carries
+// none, and an indented block is an example, which the generated reference
+// prints and which weighs nothing against the exits.
 func prose(doc string) []string {
 	var lines []string
 	for _, line := range strings.Split(doc, "\n") {
@@ -223,17 +224,18 @@ func prose(doc string) []string {
 	return lines
 }
 
-// codeLines is the body under the comment, which is the block less its
-// signature and its closing brace, and zero where there is no body: a type, a
-// const, a var and an interface method carry no statements.
-func codeLines(decl *model.Declaration) int {
-	if decl.Complexity == nil {
+// exitPoints is how many prose lines a function's comment may run to, one per
+// exit and at least one. Zero exempts a declaration with no body, and doc.go
+// and docs.go, where a package keeps its long prose.
+func exitPoints(decl *model.Declaration) int {
+	if decl.Complexity == nil || decl.Complexity.Lines == 0 {
 		return 0
 	}
-	if lines := decl.Complexity.Lines; lines > 2 {
-		return lines - 2
+	switch path.Base(decl.File) {
+	case "doc.go", "docs.go":
+		return 0
 	}
-	return decl.Complexity.Lines
+	return max(decl.Complexity.Exits, 1)
 }
 
 // endsInPunctuation reports whether a doc comment ends the way a sentence

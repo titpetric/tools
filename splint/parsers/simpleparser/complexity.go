@@ -63,6 +63,7 @@ func complexity(src *source, open, from, to int) *model.Complexity {
 		Cognitive:  cognitive,
 		Cyclomatic: cyclomatic,
 		Lines:      lines,
+		Exits:      exits(src, from, to),
 	}
 }
 

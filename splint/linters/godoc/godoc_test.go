@@ -166,30 +166,38 @@ func TestLinterSkipsAGeneratedFile(t *testing.T) {
 	}
 }
 
-// TestLinterWeighsADocAgainstItsCode covers the comment that is longer than
-// the function under it, which reads as the explanation standing in for code
-// that says nothing.
-func TestLinterWeighsADocAgainstItsCode(t *testing.T) {
+// TestLinterWeighsADocAgainstItsExits covers the function comment running to
+// more lines than the function has exits, which belongs on the type or in
+// docs.go.
+func TestLinterWeighsADocAgainstItsExits(t *testing.T) {
 	pkg := model.Package{Package: "x", Path: "./x"}
 	tests := []struct {
 		title string
+		file  string
 		doc   string
-		lines int
+		exits int
+		body  bool
 		rule  string
 	}{
-		{title: "five lines over one statement", doc: "Open is\na long\nexplanation\nof very\nlittle.", lines: 3, rule: godoc.RuleOutweighs},
-		{title: "two lines over one statement", doc: "Open reads\na file.", lines: 1, rule: godoc.RuleOutweighs},
-		{title: "as long as its body", doc: "Open reads\na file, and\nsays so.", lines: 5, rule: ""},
-		{title: "one over one", doc: "Open reads a file.", lines: 1, rule: ""},
-		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\none\nand\nsays\nso\nbefore\nthis.", lines: 3, rule: godoc.RuleVerbose},
-		{title: "a type measures nothing", doc: "Open is\na type,\nwith no body\nfor a comment\nto outweigh.", lines: 0, rule: ""},
-		{title: "an example weighs nothing", doc: "Open reads\na file.\n\n\tf := Open()\n\tio.Copy(w, f)\n\nThe caller closes it.", lines: 5, rule: ""},
+		{title: "two lines over one exit", doc: "Open reads\na file.", exits: 1, body: true, rule: godoc.RuleOutweighs},
+		{title: "two lines over two exits", doc: "Open reads\na file.", exits: 2, body: true, rule: ""},
+		{title: "five lines over three exits", doc: "Open is\na long\nexplanation\nof very\nlittle.", exits: 3, body: true, rule: godoc.RuleOutweighs},
+		{title: "one line, no exit counted", doc: "Open reads a file.", exits: 0, body: true, rule: ""},
+		{title: "two lines, no exit counted, counts one", doc: "Open reads\na file.", exits: 0, body: true, rule: godoc.RuleOutweighs},
+		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\none\nand\nsays\nso\nbefore\nthis.", exits: 1, body: true, rule: godoc.RuleVerbose},
+		{title: "a type measures nothing", doc: "Open is\na type,\nwith no body\nfor a comment\nto outweigh.", rule: ""},
+		{title: "docs.go measures nothing", file: "docs.go", doc: "Open reads\na file.", exits: 1, body: true, rule: ""},
+		{title: "an example weighs nothing", doc: "Open reads\na file:\n\n\tf := Open()\n\nThe caller closes it.", exits: 3, body: true, rule: ""},
 	}
 
 	for _, test := range tests {
-		decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 9, Doc: test.doc}
-		if test.lines > 0 {
-			decl.Complexity = &model.Complexity{Lines: test.lines}
+		file := test.file
+		if file == "" {
+			file = "x.go"
+		}
+		decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: file, Line: 9, Doc: test.doc}
+		if test.body {
+			decl.Complexity = &model.Complexity{Lines: 5, Exits: test.exits}
 		}
 
 		issues := lint(t, document(pkg, model.DeclarationList{decl}, nil))
@@ -201,6 +209,13 @@ func TestLinterWeighsADocAgainstItsCode(t *testing.T) {
 		case test.rule != "" && issues[0].Rule != test.rule:
 			t.Errorf("%s: rule = %q, want %q", test.title, issues[0].Rule, test.rule)
 		}
+	}
+
+	decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 9, Doc: "Open reads\na file\nand more\nof it.", Complexity: &model.Complexity{Lines: 9, Exits: 2}}
+	issues := lint(t, document(pkg, model.DeclarationList{decl}, nil))
+	want := "godoc runs to 4 lines over 2 exit points; keep the function's comment to its exits, put intent on the type or in docs.go"
+	if len(issues) != 1 || issues[0].Message != want {
+		t.Errorf("reported %#v, want %q", issues, want)
 	}
 }
 
