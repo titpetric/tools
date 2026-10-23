@@ -143,7 +143,12 @@ func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 	case "_", ".":
 		return spec
 	case path.Base(spec.Path):
-		spec.Name = ""
+		// An alias spelling the version of a versioned path stays: the
+		// package may declare that name or the one before it, and writing
+		// either in its place renames what the file reaches.
+		if !majorVersion.MatchString(spec.Path) {
+			spec.Name = ""
+		}
 	}
 
 	// Code reaches a versioned path by a name it does not spell, so it gets one,

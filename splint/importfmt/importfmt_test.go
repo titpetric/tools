@@ -296,3 +296,20 @@ func TestNormalizeAliasesOnlyAVersionedPath(t *testing.T) {
 		})
 	}
 }
+
+// TestNormalizeKeepsAVersionAlias covers an alias spelling the version of a
+// versioned path: aws-sdk-go-v2 writes v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+// and reaches it as v4, so the alias stays where Normalize would otherwise
+// take it off and write signer in its place.
+func TestNormalizeKeepsAVersionAlias(t *testing.T) {
+	opts := importfmt.NewOptions()
+
+	got := importfmt.Normalize(model.ImportSpec{Name: "v4", Path: "github.com/aws/aws-sdk-go-v2/aws/signer/v4"}, opts)
+	assert.Equal(t, "v4", got.Name)
+
+	got = importfmt.Normalize(model.ImportSpec{Name: "v2", Path: "github.com/google/s2a-go/internal/v2"}, opts)
+	assert.Equal(t, "v2", got.Name)
+
+	got = importfmt.Normalize(model.ImportSpec{Name: "v1", Path: "k8s.io/api/core/v1"}, opts)
+	assert.Empty(t, got.Name, "v1 is a directory, and the alias repeats it")
+}
