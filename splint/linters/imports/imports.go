@@ -12,6 +12,7 @@ package imports
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/titpetric/tools/splint/importfmt"
@@ -62,6 +63,34 @@ type Pollution struct {
 
 	// Tests counts the test files.
 	Tests bool
+
+	// Ignore are the dependencies the rule never reports, as import path
+	// prefixes. An entry covers the path it names and every path below it,
+	// so golang.org/x covers golang.org/x/sync/errgroup and not golang.org/xx.
+	Ignore []string
+}
+
+// DefaultIgnore are the dependencies the pollution rule leaves alone unless a
+// tree says otherwise: the golang.org/x modules, which the Go project keeps
+// beside the standard library, and the flag package the go tool's own flag
+// syntax lives in.
+var DefaultIgnore = []string{
+	"golang.org/x",
+	"github.com/spf13/pflag",
+}
+
+// Ignores reports whether the rule leaves path alone.
+func (p Pollution) Ignores(path string) bool {
+	for _, prefix := range p.Ignore {
+		prefix = strings.TrimSuffix(prefix, "/")
+		if prefix == "" {
+			continue
+		}
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // Linter checks the imports of every package.
@@ -82,7 +111,7 @@ type Linter struct {
 func New() *Linter {
 	return &Linter{
 		Options:   importfmt.NewOptions(),
-		Pollution: Pollution{PerPackage: 2, FileShare: 0.5, Tests: true},
+		Pollution: Pollution{PerPackage: 2, FileShare: 0.5, Tests: true, Ignore: slices.Clone(DefaultIgnore)},
 	}
 }
 

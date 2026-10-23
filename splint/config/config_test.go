@@ -10,6 +10,7 @@ import (
 	"github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/linters/imports"
 )
 
 // TestLoadDefaults covers a tree with no file, which gets the defaults and
@@ -191,4 +192,27 @@ func TestIntegration(t *testing.T) {
 		Tag:     "slow",
 		Storage: []string{"example.com/app/storage"},
 	}, cfg.Integration)
+}
+
+// TestLoadPollutionIgnore covers the ignore list: the default when the file
+// says nothing, an empty list clearing it, and a list replacing it.
+func TestLoadPollutionIgnore(t *testing.T) {
+	t.Parallel()
+
+	load := func(body string) []string {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(config.Path(dir), []byte(body), 0o644))
+		cfg, err := config.Load(dir)
+		require.NoError(t, err)
+		return cfg.Imports.Pollution.Ignore
+	}
+
+	defaults, err := config.Load(t.TempDir())
+	require.NoError(t, err)
+	assert.Equal(t, imports.DefaultIgnore, defaults.Imports.Pollution.Ignore)
+
+	assert.Equal(t, imports.DefaultIgnore, load("imports:\n  pollution:\n    per-package: 3\n"),
+		"a pollution section that does not name the list keeps the default")
+	assert.Empty(t, load("imports:\n  pollution:\n    ignore: []\n"))
+	assert.Equal(t, []string{"example.com/kit"}, load("imports:\n  pollution:\n    ignore: [example.com/kit]\n"))
 }

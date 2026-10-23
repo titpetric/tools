@@ -8,7 +8,7 @@ The command runs in a pipeline. It exits on a code a job branches on, and it ren
 
 ## What it obsoletes
 
-Two earlier tools of ours:
+Three earlier tools of ours:
 
 - [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) - the extract/lint/docs/coverage/diff toolchain over the same document model. Every subcommand lives on here, and a document it wrote still loads.
 - [gofsck](https://github.com/titpetric/tools/tree/main/gofsck) - the single-pass package layout analyser. Its six checks (pairing, coverage, grouping, wraphandler, filecheck, visibility) run here as linters.
@@ -99,7 +99,7 @@ The fixer writes an import block as one parenthesised declaration, the groups in
 
 That order is the default, `std,blanked,general,company,project`. `imports.order` in `.splint.yml` changes it, and a group the list leaves out follows the ones it names; the fixer drops none.
 
-The fixer takes off an alias repeating the last segment of the path, because the path already says it. A path ending in a major version gets one, because the path does not: `github.com/go-pg/pg/v9` becomes `pg "github.com/go-pg/pg/v9"`, and `gopkg.in/yaml.v3` needs none because the segment already reads `yaml`. A path that implies no name gets none: `example.com/v2` without the version reads `example.com`, which no import can take as its name. An alias somebody chose stays, in the group its path belongs to.
+The fixer takes off an alias repeating the last segment of the path, because the path already says it. A path ending in a major version gets one, because the path does not: `github.com/go-pg/pg/v9` becomes `pg "github.com/go-pg/pg/v9"`, and `gopkg.in/yaml.v3` needs none because the segment already reads `yaml`. A path that implies no name gets none: `example.com/v2` without the version reads `example.com`, which no import can take as its name. An alias spelling the version stays as well: `v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"` reaches a package that declares `v4`, and taking the alias off would rename it `signer`. An alias somebody chose stays, in the group its path belongs to.
 
 Two import declarations in one file merge into one. A comment above an import and a comment beside it both survive the rewrite.
 
@@ -142,10 +142,10 @@ Two files, and they belong to different people.
 
 | File                                                | Holds                                  | Written by                          |
 |-----------------------------------------------------|----------------------------------------|-------------------------------------|
-| `.splint.yml` beside `go.mod`                       | the rules the fixer formats a tree by  | its authors, by hand, and committed |
+| `.splint.yml` beside `go.mod`                       | the rules splint holds a tree to       | its authors, by hand, and committed |
 | `splint.yml` under the user configuration directory | what runs on this machine have counted | `splint fix`                        |
 
-`.splint.yml` sits at the root of the tree. The fixer formats a tree with no such file by the defaults.
+`.splint.yml` sits at the root of the tree and holds the import rules the fixer formats by, the line allowance `filecheck` reads, and the `integration` switch. A tree with no such file gets the defaults, and a file stating one section keeps the defaults of the rest.
 
 ```yaml
 imports:
@@ -160,6 +160,14 @@ imports:
     per-package: 2
     file-share: 0.5
     include-tests: true
+    ignore: [golang.org/x, github.com/spf13/pflag]  # the default
+filecheck:
+  max-lines: 400                  # the default; zero turns the rule off
+  allow:                          # the first entry covering a file applies
+    - path: parser/*.go
+      max-lines: 1500
+integration:
+  enabled: true                   # off by default
 ```
 
 The file states rules and nothing else. What a run counted stays on the machine, in `splint.yml` under the directory the operating system keeps a user's configuration in, which is `~/.config/splint.yml` on Linux:
@@ -247,7 +255,7 @@ A parser that builds no tree cannot fill a schema that names one, so the model c
 
 ### Speed
 
-`task bench` times both parsers by running the command over every project, which measures what a caller of the command experiences; a benchmark inside the process measures something else.
+`atkins bench` times both parsers by running the command over every project, which measures what a caller of the command experiences; a benchmark inside the process measures something else.
 
 ```
 project           files  astparser     simple    ratio
@@ -264,7 +272,7 @@ The timing runs one linter. `modcheck` queries the module proxy about every depe
 
 ### Profile
 
-`task profile` takes ten seconds of parsing with a cpu and a memory profile and prints the top of both. What it reported, in the order of what each cost:
+`atkins profile` takes ten seconds of parsing with a cpu and a memory profile and prints the top of both. What it reported, in the order of what each cost:
 
 | Fixed                                                                          | Cost                         |
 |--------------------------------------------------------------------------------|------------------------------|
@@ -287,7 +295,7 @@ Together, on the same tree with the same output:
 
 ### Parity
 
-`task parity` runs both parsers over sixteen repositories and compares what they produced for the same tree, value by value, with the ast parser as the reference.
+`atkins parity` runs both parsers over sixteen repositories and compares what they produced for the same tree, value by value, with the ast parser as the reference.
 
 The comparison walks the encoded documents value by value and checks no fixed list of fields: the walk visits every key either side carries, a key only one of them has is a difference, and the walk covers a key added to the model later without an edit here. The harness keys the declaration lists on the symbol before the walk, so one extra declaration counts as one difference and never shifts the lists so that every declaration after it misreports.
 
@@ -478,7 +486,7 @@ Thirteen of them, every one a set of rules over the parsed document.
 
 | Name            | What it reports                                                                                                                                                                                          | What it measures                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `godoc`         | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, one long enough to say the symbol does too much, and a function whose comment runs to more prose lines than the function has exits, counting each `return`, each `panic`, `os.Exit` and `log.Fatal` call, and a body that runs off its end, with at least one. Intent goes on the type, and long prose in the package's `doc.go` or `docs.go`, which the exit count exempts. The linter skips a generated file: its comments are the generator's to write | documented against exported, per package                                                                                                                    |
+| `godoc`         | an exported symbol with no doc comment, one that does not open on the symbol it documents, one that does not end in punctuation, one long enough to say the symbol does too much, and a function whose comment runs to more prose lines than the function has exits, counting each `return`, each `panic`, `os.Exit` and `log.Fatal` call, and a body that runs off its end, with at least one; a blank line and an indented example weigh nothing. Intent goes on the type, and long prose in the package's `doc.go` or `docs.go`, which the exit count exempts. The linter skips a generated file, whose comments are the generator's to write, and the `main` and test packages, which no consumer reads | documented against exported, per package                                                                                                                    |
 | `imports`       | five rules, listed below: a name meaning two things, a block not written to the house rule, an import nothing reaches, a name nothing can place, and a dependency that has spread                        | import names and collisions, files formatted, unused and unresolved, per package; and how far every external dependency has reached                         |
 | `func-args`     | a two argument function whose arguments read in an order a caller has to look up: a context that is not first, a duration that is not last, two parameters of the same type, an interface after a struct | funcs considered against passing                                                                                                                            |
 | `func-returns`  | a function returning an error or a bool before the value it qualifies                                                                                                                                    | funcs considered against passing                                                                                                                            |
@@ -525,6 +533,32 @@ The rule counts a package of the tree and never reports it. A package structure 
 The rule reports an external dependency when two or more files of one directory import it, or when it reaches half the files of the tree. `per-package`, `file-share` and `include-tests` under `imports.pollution` in `.splint.yml` move those, and a zero turns either rule off.
 
 The count is per directory, so a package and its test half count together, and the rule reports a package whose two test files both reach `testify/assert`. Set `include-tests: false` for a tree where that reads as noise.
+
+`imports.pollution.ignore` lists the dependencies the rule never reports, as import path prefixes. An entry covers the path it names and every path below it, matched on whole segments: `golang.org/x` covers `golang.org/x/sync/errgroup`, `golang.org/x/term` and `golang.org/x/crypto/ssh`, and leaves `golang.org/xx` alone. A trailing slash reads the same as none. The default list holds two entries:
+
+| Entry                    | Why the rule leaves it alone                                                  |
+|--------------------------|-------------------------------------------------------------------------------|
+| `golang.org/x`           | the Go project's own modules, kept beside the standard library                |
+| `github.com/spf13/pflag` | the flag package of a command, which every file declaring its flags imports   |
+
+A list in `.splint.yml` replaces the default and does not add to it, so a tree that keeps the defaults and ignores one more module states all three. An empty list clears it and the rule checks every dependency again:
+
+```yaml
+imports:
+  pollution:
+    ignore: []                                  # check every dependency
+```
+
+```yaml
+imports:
+  pollution:
+    ignore:                                     # the defaults and one of our own
+      - golang.org/x
+      - github.com/spf13/pflag
+      - github.com/titpetric/cli
+```
+
+A `pollution` section that does not name `ignore` keeps the default list.
 
 `modcheck` counts files, packages and symbols per dependency as well. The two measure different things: modcheck measures what a dependency costs to carry, and `pollution` measures how far one import path has spread.
 
@@ -809,6 +843,6 @@ A `bool` reads as `boolean` and an `interface{}` as `any`, because the reference
 
 ## Development
 
-`atkins` formats, tests and installs the command. `task` runs the same three, then `splint ./...` over this tree. `task parity` prints how far the two parsers are apart, value by value, and `task bench` how far apart they are in time.
+`atkins` formats, tests and installs the command, then runs the installed `splint ./...` over this tree without gating on it. `atkins fix` regenerates the formatter fixture, `atkins parity` prints how far the two parsers are apart, value by value, `atkins bench` how far apart they are in time, and `atkins corpus` runs the fixer over every module in the module cache.
 
 `SPLINT_WORKSPACE` points the harness at the checkout directory of the projects it reads. The harness skips a project that is missing, so it reads whatever the machine has.

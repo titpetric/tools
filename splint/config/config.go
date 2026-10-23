@@ -12,11 +12,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/goccy/go-yaml"
 
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/pathmatch"
 )
 
@@ -102,6 +104,13 @@ type Pollution struct {
 	// whose three test files all reach testify shows up in the report. Set it
 	// false when that reads as noise and not as a finding.
 	IncludeTests *bool `yaml:"include-tests"`
+
+	// Ignore are the dependencies the rule never reports, as import path
+	// prefixes: an entry covers the path it names and every path below it.
+	// It defaults to the golang.org/x modules and github.com/spf13/pflag. A
+	// list in the file replaces the default, and an empty list clears it so
+	// the rule checks every dependency.
+	Ignore []string `yaml:"ignore"`
 }
 
 // Filecheck is the house rule for how long a file may run to.
@@ -148,7 +157,7 @@ func Default() *Config {
 		Imports: Imports{
 			Order:     append([]string(nil), importfmt.DefaultOrder...),
 			SetAlias:  &yes,
-			Pollution: Pollution{PerPackage: 2, FileShare: 0.5, IncludeTests: &yes},
+			Pollution: Pollution{PerPackage: 2, FileShare: 0.5, IncludeTests: &yes, Ignore: slices.Clone(imports.DefaultIgnore)},
 		},
 		Filecheck: Filecheck{MaxLines: filecheck.DefaultMaxLines},
 	}

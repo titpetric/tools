@@ -147,6 +147,7 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 				PerPackage: rules.Imports.Pollution.PerPackage,
 				FileShare:  rules.Imports.Pollution.FileShare,
 				Tests:      rules.Imports.Pollution.CountTests(),
+				Ignore:     rules.Imports.Pollution.Ignore,
 			}
 		case *filecheck.Linter:
 			rule.MaxLines = rules.Filecheck.MaxLines

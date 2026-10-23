@@ -102,7 +102,7 @@ func (l *Linter) spread(root *model.DocumentRoot, results *Results) {
 	results.files = files
 
 	for _, entry := range results.spread {
-		if !entry.External() {
+		if !entry.External() || l.Pollution.Ignores(entry.Path) {
 			continue
 		}
 
