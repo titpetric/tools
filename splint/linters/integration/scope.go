@@ -71,23 +71,25 @@ type scope struct {
 	imports map[string]map[string][]model.ImportSpec
 
 	// crosses holds the functions that cross the boundary, each with its
-	// step, read once for the document.
-	crosses map[*model.Declaration]step
-	nodes   map[*model.Declaration]node
+	// step, read once for the document, and database the ones that reach a
+	// database, which the testmain rule reads.
+	crosses  map[*model.Declaration]step
+	database map[*model.Declaration]step
+	nodes    map[*model.Declaration]node
 }
 
 // newScope indexes the document and works out which functions cross.
 func newScope(root *model.DocumentRoot, storage func(string) bool) *scope {
 	s := &scope{
-		storage: storage,
-		funcs:   map[string]node{},
-		tests:   map[string]node{},
-		imports: map[string]map[string][]model.ImportSpec{},
-		crosses: map[*model.Declaration]step{},
-		nodes:   map[*model.Declaration]node{},
+		storage:  storage,
+		funcs:    map[string]node{},
+		tests:    map[string]node{},
+		imports:  map[string]map[string][]model.ImportSpec{},
+		crosses:  map[*model.Declaration]step{},
+		database: map[*model.Declaration]step{},
+		nodes:    map[*model.Declaration]node{},
 	}
 
-	calls := false
 	for _, def := range root.Packages {
 		if def == nil {
 			continue
@@ -114,13 +116,10 @@ func newScope(root *model.DocumentRoot, storage func(string) bool) *scope {
 				index = s.tests
 			}
 			index[owner+" "+decl.Symbol()] = n
-			if decl.Calls != nil {
-				calls = true
-			}
 		}
 	}
 
-	s.solve(calls)
+	s.solve()
 	return s
 }
 
@@ -128,10 +127,11 @@ func newScope(root *model.DocumentRoot, storage func(string) bool) *scope {
 // own first, then their callers, a ring at a time, so the chain a finding
 // names is the shortest there is.
 //
-// The pass follows a document that records calls, as the ast parser writes
-// one, down its calls; one without them, from the simple parser, down the
-// references and the package level names its functions reach.
-func (s *scope) solve(calls bool) {
+// The pass follows a function whose calls the parse recorded, as the ast
+// parser does, down its calls; one without them, from the simple parser or a
+// file behind a build tag, down the references and the package level names
+// it reaches.
+func (s *scope) solve() {
 	order := make([]*model.Declaration, 0, len(s.nodes))
 	for decl := range s.nodes {
 		order = append(order, decl)
@@ -148,17 +148,26 @@ func (s *scope) solve(calls bool) {
 	})
 
 	callers := map[*model.Declaration][]*model.Declaration{}
-	var queue []*model.Declaration
 	for _, decl := range order {
-		n := s.nodes[decl]
-		if reason := s.direct(n); reason != "" {
-			s.crosses[decl] = step{reason: reason}
-			queue = append(queue, decl)
-		}
-		for _, callee := range s.edges(n, calls) {
+		for _, callee := range s.edges(s.nodes[decl]) {
 			if callee != decl {
 				callers[callee] = append(callers[callee], decl)
 			}
+		}
+	}
+
+	s.spread(order, callers, s.crosses, false)
+	s.spread(order, callers, s.database, true)
+}
+
+// spread fills one map of steps: the functions with a reason of their own,
+// then their callers, breadth first.
+func (s *scope) spread(order []*model.Declaration, callers map[*model.Declaration][]*model.Declaration, steps map[*model.Declaration]step, database bool) {
+	var queue []*model.Declaration
+	for _, decl := range order {
+		if reason := s.direct(s.nodes[decl], database); reason != "" {
+			steps[decl] = step{reason: reason}
+			queue = append(queue, decl)
 		}
 	}
 
@@ -166,17 +175,17 @@ func (s *scope) solve(calls bool) {
 		callee := queue[0]
 		queue = queue[1:]
 		for _, caller := range callers[callee] {
-			if _, known := s.crosses[caller]; known {
+			if _, known := steps[caller]; known {
 				continue
 			}
-			s.crosses[caller] = step{next: callee, depth: s.crosses[callee].depth + 1}
+			steps[caller] = step{next: callee, depth: steps[callee].depth + 1}
 			queue = append(queue, caller)
 		}
 	}
 }
 
 // edges are the functions of the document a function calls.
-func (s *scope) edges(n node, calls bool) []*model.Declaration {
+func (s *scope) edges(n node) []*model.Declaration {
 	var out []*model.Declaration
 	add := func(found node, ok bool) {
 		if ok {
@@ -184,7 +193,7 @@ func (s *scope) edges(n node, calls bool) []*model.Declaration {
 		}
 	}
 
-	if calls {
+	if n.decl.Calls != nil {
 		for _, target := range n.decl.Calls.Keys() {
 			for _, symbol := range n.decl.Calls[target] {
 				add(s.lookup(target, symbol))
@@ -238,7 +247,17 @@ func (s *scope) lookup(target, symbol string) (node, bool) {
 // chain longer than depth reads as clean: the deeper the crossing call, the
 // likelier it sits behind a branch the test never takes.
 func (s *scope) reason(decl *model.Declaration, depth int) string {
-	first, ok := s.crosses[decl]
+	return chain(s, s.crosses, decl, depth)
+}
+
+// databaseReason says how a function reaches a database, the same way.
+func (s *scope) databaseReason(decl *model.Declaration, depth int) string {
+	return chain(s, s.database, decl, depth)
+}
+
+// chain renders the steps from a function down to its reason.
+func chain(s *scope, steps map[*model.Declaration]step, decl *model.Declaration, depth int) string {
+	first, ok := steps[decl]
 	if !ok || first.depth > depth {
 		return ""
 	}
@@ -246,32 +265,33 @@ func (s *scope) reason(decl *model.Declaration, depth int) string {
 		return first.reason
 	}
 
-	var chain []string
+	var labels []string
 	seen := map[*model.Declaration]bool{decl: true}
 	current := first
 	for current.next != nil && !seen[current.next] {
 		seen[current.next] = true
-		chain = append(chain, label(s.nodes[current.next]))
-		current = s.crosses[current.next]
+		labels = append(labels, label(s.nodes[current.next]))
+		current = steps[current.next]
 	}
-	return fmt.Sprintf("calls %s, which %s", strings.Join(chain, " → "), current.reason)
+	return fmt.Sprintf("calls %s, which %s", strings.Join(labels, " → "), current.reason)
 }
 
 // direct is a boundary the function crosses itself: a call into a package
-// that does, or a literal naming an in-memory database.
-func (s *scope) direct(n node) string {
+// that does, or a literal naming an in-memory database. With database set,
+// only a database counts.
+func (s *scope) direct(n node, database bool) string {
 	for _, name := range n.decl.References.Keys() {
 		target, ok := s.resolve(n, name)
 		if !ok {
 			continue
 		}
-		if reason := s.reaches(target, name, n.decl.References[name]); reason != "" {
+		if reason := s.reaches(target, name, n.decl.References[name], database); reason != "" {
 			return reason
 		}
 	}
 
 	for _, target := range n.decl.Calls.Keys() {
-		if reason := s.reaches(target, path.Base(target), n.decl.Calls[target]); reason != "" {
+		if reason := s.reaches(target, path.Base(target), n.decl.Calls[target], database); reason != "" {
 			return reason
 		}
 	}
@@ -285,12 +305,16 @@ func (s *scope) direct(n node) string {
 	return ""
 }
 
-// reaches says how a call into one package crosses the boundary.
-func (s *scope) reaches(target, name string, symbols []string) string {
+// reaches says how a call into one package crosses the boundary, and with
+// database set, only how it reaches a database.
+func (s *scope) reaches(target, name string, symbols []string, database bool) string {
 	sorted := append([]string(nil), symbols...)
 	sort.Strings(sorted)
 
 	if known, ok := crossing[target]; ok {
+		if database && target != "database/sql" {
+			return ""
+		}
 		for _, symbol := range sorted {
 			for _, listed := range known.symbols {
 				if symbol == listed {

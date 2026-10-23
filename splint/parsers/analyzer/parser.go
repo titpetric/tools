@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
-	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/parsers/testfacts"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
@@ -26,6 +25,10 @@ const ParserName = "astparser"
 // returning the same document.
 type Parser struct {
 	options splint.Options
+
+	// tagged collects the test files behind a build constraint over the
+	// walk, for DocumentRoot.Tagged.
+	tagged model.DefinitionList
 }
 
 // New returns a parser for the options given.
@@ -62,9 +65,12 @@ func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 	}
 
 	doc.Packages = model.DefinitionList(defs)
-	if p.options.IncludeTestFacts && p.options.IncludeTests {
-		if err := simpleparser.ReadTagged(doc, p.options); err != nil {
-			return nil, err
+	doc.Tagged = p.tagged
+	p.tagged = nil
+	for _, def := range doc.Tagged {
+		testfacts.Fill(def)
+		if !p.options.IncludeSources {
+			def.ClearSource()
 		}
 	}
 	doc.Sort()
@@ -114,6 +120,7 @@ func (p *Parser) walkModules(ctx context.Context, doc *model.DocumentRoot, root 
 	var result []*model.Definition
 
 	for _, m := range modules {
+		from := len(p.tagged)
 		defs, err := p.walkPackage(ctx, m.Dir)
 		if err != nil {
 			return nil, err
@@ -129,7 +136,7 @@ func (p *Parser) walkModules(ctx context.Context, doc *model.DocumentRoot, root 
 
 		// Paths are relative to the root of the parse, not to the module.
 		if rel := strings.TrimPrefix(strings.TrimPrefix(m.Dir, root), string(filepath.Separator)); rel != "" {
-			for _, def := range defs {
+			for _, def := range append(defs, p.tagged[from:]...) {
 				def.Package.Path = "." + filepath.Join(rel, strings.TrimPrefix(def.Package.Path, "."))
 			}
 		}
@@ -182,6 +189,10 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 
 		defs = append(defs, d...)
 		runtime.GC()
+	}
+
+	if p.options.IncludeTestFacts && p.options.IncludeTests {
+		p.tagged = append(p.tagged, p.loadTagged(defs)...)
 	}
 	return defs, nil
 }

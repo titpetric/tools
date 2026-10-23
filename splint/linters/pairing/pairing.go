@@ -84,7 +84,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 		found, known := groups[key]
 		if !known {
-			found = newGroup()
+			found = newGroup(l.Tag)
 			groups[key] = found
 			order = append(order, key)
 		}
@@ -105,6 +105,11 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 // group is the files of one directory, whatever the count of definitions they arrived
 // in, split into the half a test binary compiles and the half it does not.
 type group struct {
+	// tag names the integration tests: foo_integration_test.go pairs foo.go
+	// the way foo_test.go does, so a file has a unit test, an integration
+	// test, or both.
+	tag string
+
 	pkg    model.Package
 	named  bool
 	files  map[string]model.File
@@ -120,9 +125,11 @@ type group struct {
 	symbols map[string][]refindex.Key
 }
 
-// newGroup returns an empty group, ready to fill.
-func newGroup() *group {
+// newGroup returns an empty group, ready to fill, pairing the integration
+// tests behind a tag by the name of the file they test.
+func newGroup(tag string) *group {
 	return &group{
+		tag:     tag,
 		files:   map[string]model.File{},
 		tested:  map[string]model.File{},
 		bases:   map[string]bool{},
@@ -150,7 +157,7 @@ func (g *group) read(def *model.Definition) {
 			continue
 		}
 		if file.Test {
-			g.tested[file.Base()] = file
+			g.tested[g.testBase(file)] = file
 			continue
 		}
 		g.files[file.Base()] = file
@@ -172,6 +179,19 @@ func (g *group) read(def *model.Definition) {
 			Symbol:     decl.Symbol(),
 		})
 	}
+}
+
+// testBase is the name of the file a test file pairs: foo for foo_test.go
+// and for foo_integration_test.go alike.
+func (g *group) testBase(file model.File) string {
+	base := file.Base()
+	if g.tag == "" {
+		return base
+	}
+	if trimmed := strings.TrimSuffix(base, "_"+g.tag); trimmed != base && trimmed != "" {
+		return trimmed
+	}
+	return base
 }
 
 // report counts the group and reports both halves of the pairing.

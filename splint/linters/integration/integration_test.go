@@ -174,3 +174,55 @@ func TestLintImportsAndStorage(t *testing.T) {
 		}
 	}
 }
+
+// TestLint_TestMain covers the testmain rule: a TestMain reaching a database,
+// in a file of the build or behind the tag, makes its package an integration
+// package; one that only runs a process does not, and the rule lets a
+// package named for its tests be.
+func TestLint_TestMain(t *testing.T) {
+	t.Parallel()
+
+	main := func(file string, refs model.StringSet) *model.Declaration {
+		return &model.Declaration{Kind: model.FuncKind, Name: "TestMain", File: file, Line: 5, References: refs}
+	}
+	pkg := func(name, path, file string, refs model.StringSet, imports ...string) *model.Definition {
+		return &model.Definition{
+			Package: model.Package{Package: name + "_test", ImportPath: "example.com/" + path + "_test", Path: "./" + path, TestPackage: true},
+			Files:   model.FileList{{Name: file, Test: true}},
+			Imports: model.StringSet{file: imports},
+			Funcs:   model.DeclarationList{main(file, refs)},
+		}
+	}
+	open := model.StringSet{"sql": {"Open"}}
+	root := &model.DocumentRoot{
+		Packages: model.DefinitionList{
+			pkg("store", "store", "main_test.go", open, `"database/sql"`),
+			pkg("skillstest", "skillstest", "main_test.go", open, `"database/sql"`),
+			pkg("e2e", "e2e", "main_test.go", open, `"database/sql"`),
+			pkg("runner", "runner", "main_test.go", model.StringSet{"exec": {"Command"}}, `"os/exec"`),
+		},
+		Tagged: model.DefinitionList{func() *model.Definition {
+			def := pkg("api", "api", "main_integration_test.go", open, `"database/sql"`)
+			def.Excluded = model.StringSet{"main_integration_test.go": {"integration"}}
+			return def
+		}()},
+	}
+
+	_, issues := lint(t, enabled(), root)
+
+	var files []string
+	for _, issue := range issues {
+		if issue.Rule != integration.RuleTestMain {
+			continue
+		}
+		assert.Equal(t, model.SeverityError, issue.Severity)
+		files = append(files, issue.Position.File)
+	}
+	assert.ElementsMatch(t, []string{"api/main_integration_test.go", "store/main_test.go"}, files)
+
+	for _, issue := range issues {
+		if issue.Rule == integration.RuleTestMain && issue.Position.File == "store/main_test.go" {
+			assert.Equal(t, "TestMain opens a database through sql.Open: every test of store needs a database; move them behind //go:build integration, or name the package e2e or *test*", issue.Message)
+		}
+	}
+}

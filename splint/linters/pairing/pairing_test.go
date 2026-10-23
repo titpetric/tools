@@ -413,3 +413,27 @@ func TestLinter_Lint_Tagged(t *testing.T) {
 		t.Errorf("issues = %v, want linux.go unpaired alone", issues)
 	}
 }
+
+// TestLinter_Lint_IntegrationName covers a test file named for the
+// integration tag: foo_integration_test.go pairs foo.go the way foo_test.go
+// does, behind the tag or not, and names no foo_integration.go.
+func TestLinter_Lint_IntegrationName(t *testing.T) {
+	pkg := model.Package{Package: "store", ImportPath: "example.com/store", Path: "./store"}
+	tests := model.Package{Package: "store_test", ImportPath: "example.com/store_test", Path: "./store", TestPackage: true}
+	root := document(
+		definition(pkg, model.File{Name: "root.go"}, model.File{Name: "store.go"}, model.File{Name: "both.go"}),
+		definition(tests, model.File{Name: "store_integration_test.go", Test: true}, model.File{Name: "both_test.go", Test: true}),
+	)
+	root.Tagged = model.DefinitionList{{
+		Package: tests,
+		Files: model.FileList{
+			{Name: "root_integration_test.go", Test: true},
+			{Name: "both_integration_test.go", Test: true},
+		},
+		Excluded: model.StringSet{"root_integration_test.go": {"integration"}, "both_integration_test.go": {"integration"}},
+	}}
+
+	if issues, _ := lint(t, root); len(issues) != 0 {
+		t.Errorf("issues = %v, want every file paired", issues)
+	}
+}

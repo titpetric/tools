@@ -39,6 +39,9 @@ const (
 	// RuleTag is a file named _integration_test.go that the tag does not keep
 	// out of a plain build.
 	RuleTag = "tag"
+	// RuleTestMain is a TestMain that reaches a database, which makes every
+	// test of its package an integration test.
+	RuleTestMain = "testmain"
 )
 
 // DefaultTag is the build tag integration tests sit behind.
@@ -95,18 +98,61 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 		tag = DefaultTag
 	}
 
-	scope := newScope(root, l.storage)
+	// The scope reads the files behind the tag too: a TestMain there runs
+	// for the integration tests of its package, and the testmain rule asks
+	// about it as well.
+	tagged := root.WithTagged(tag)
+	scope := newScope(tagged, l.storage)
 	for _, dir := range directories(root.Packages) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		l.lintDir(&results, scope, dir, tag)
 	}
+	for _, def := range tagged.Packages {
+		if def != nil && def.TestPackage {
+			l.lintTestMain(&results, scope, def, tag)
+		}
+	}
 
 	return results, nil
 }
 
-// lintDir applies the three rules to one directory.
+// lintTestMain reports a TestMain that reaches a database: it runs before
+// every test of the package, so each of them needs one, and the package is
+// an integration package whatever the names of its files.
+//
+// The rule lets a package be whose name says it holds such tests: e2e, or a name
+// holding "test", such as skillstest or testutil. The name is the one the
+// package declares, with the _test suffix of a test package taken off, so
+// store_test reads as store and is not excused.
+func (l *Linter) lintTestMain(results *Results, scope *scope, def *model.Definition, tag string) {
+	name := strings.TrimSuffix(def.Package.Package, "_test")
+	if name == "e2e" || strings.Contains(name, "test") {
+		return
+	}
+
+	for _, decl := range def.Funcs {
+		if decl.Name != "TestMain" || decl.Receiver != "" || !decl.IsTestScope() {
+			continue
+		}
+		reason := scope.databaseReason(decl, l.Depth)
+		if reason == "" {
+			continue
+		}
+		results.add(Result{
+			Rule:     RuleTestMain,
+			Severity: model.SeverityError,
+			Symbol:   decl.Name,
+			Position: decl.Position(def.Package),
+			Reason:   reason,
+			Message: fmt.Sprintf("TestMain %s: every test of %s needs a database; move them behind //go:build %s, or name the package e2e or *test*",
+				reason, name, tag),
+		})
+	}
+}
+
+// lintDir applies the file rules and boundary to one directory.
 func (l *Linter) lintDir(results *Results, scope *scope, dir []*model.Definition, tag string) {
 	metric := results.count(dir[0].Package)
 	path := dirPath(dir[0].Package)
