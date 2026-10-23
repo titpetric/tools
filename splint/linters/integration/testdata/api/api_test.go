@@ -32,6 +32,10 @@ func TestHelper(t *testing.T) {
 	_ = openMemory()
 }
 
+func TestStart(t *testing.T) {
+	_ = api.Start()
+}
+
 func TestPure(t *testing.T) {
 	_ = label()
 }

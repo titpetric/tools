@@ -10,11 +10,12 @@
 // the expensive ones run under -tags integration, on demand.
 //
 // The linter reads the model and guesses from what a test reaches: the
-// packages it calls into, the literals it writes and the helpers of its own
-// test files it calls. A guess that is wrong one way is a fake that looks
-// like a real thing; the other way is a boundary reached through code the
-// test does not write, such as a production function that execs, which the
-// linter does not follow.
+// packages it calls into, the literals it writes, and every function of the
+// module it calls, its own helpers and the code it tests alike, followed down
+// to the call that crosses. A guess that is wrong one way is a fake that
+// looks like a real thing, or a branch the test never takes; the other way is
+// a call through an interface or a func value, which names no function to
+// follow.
 package integration
 
 import (
@@ -24,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
-	"github.com/titpetric/tools/splint/pathmatch"
 )
 
 // Name selects the linter and labels its issues.
@@ -39,9 +39,6 @@ const (
 	// RuleTag is a file named _integration_test.go that the tag does not keep
 	// out of a plain build.
 	RuleTag = "tag"
-	// RuleOutside is an integration test in a package the tree does not list
-	// as one that may hold them.
-	RuleOutside = "outside"
 )
 
 // DefaultTag is the build tag integration tests sit behind.
@@ -65,14 +62,19 @@ type Linter struct {
 	// /store as one.
 	Storage []string
 
-	// Allow are the package directories that may hold integration tests, as
-	// path patterns. An empty list turns the outside rule off.
-	Allow []string
+	// Depth is how many calls into the module a test's chain may run before
+	// the call that crosses, and still read as crossing.
+	Depth int
 }
+
+// DefaultDepth is the longest chain of calls a finding follows. Over task-ui
+// it keeps precision and recall both above 98%: a deeper chain is most often
+// a branch the test never takes.
+const DefaultDepth = 3
 
 // New returns the linter, switched off, under the default tag.
 func New() *Linter {
-	return &Linter{Tag: DefaultTag}
+	return &Linter{Tag: DefaultTag, Depth: DefaultDepth}
 }
 
 // Name is the linter name.
@@ -93,24 +95,25 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 		tag = DefaultTag
 	}
 
+	scope := newScope(root, l.storage)
 	for _, dir := range directories(root.Packages) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		l.lintDir(&results, dir, tag)
+		l.lintDir(&results, scope, dir, tag)
 	}
 
 	return results, nil
 }
 
-// lintDir applies the four rules to one directory.
-func (l *Linter) lintDir(results *Results, dir []*model.Definition, tag string) {
+// lintDir applies the three rules to one directory.
+func (l *Linter) lintDir(results *Results, scope *scope, dir []*model.Definition, tag string) {
 	metric := results.count(dir[0].Package)
 	path := dirPath(dir[0].Package)
 
 	for _, def := range dir {
 		for _, name := range def.Excluded.Keys() {
-			if !behindTag(def.Excluded[name], tag) {
+			if !model.BehindTag(def.Excluded[name], tag) {
 				continue
 			}
 			metric.Integration++
@@ -125,19 +128,9 @@ func (l *Linter) lintDir(results *Results, dir []*model.Definition, tag string) 
 						name, tag, strings.TrimSuffix(name, "_test.go")+suffix),
 				})
 			}
-			if !l.allowed(path) {
-				results.add(Result{
-					Rule:     RuleOutside,
-					Severity: model.SeverityInfo,
-					Symbol:   name,
-					Position: position,
-					Message:  fmt.Sprintf("integration test outside the packages allowed to hold them (%s)", strings.Join(l.Allow, ", ")),
-				})
-			}
 		}
 	}
 
-	scope := newScope(dir, l.storage)
 	for _, def := range dir {
 		for _, file := range def.Files {
 			if !file.Test || file.Generated {
@@ -160,22 +153,20 @@ func (l *Linter) lintDir(results *Results, dir []*model.Definition, tag string) 
 }
 
 // lintFile reports every test function of one untagged file that crosses
-// the boundary, and the file itself when only its imports do.
+// the boundary.
 func (l *Linter) lintFile(results *Results, metric *Metric, scope *scope, def *model.Definition, file model.File, tag string) {
 	fix := fmt.Sprintf("move it to %s with //go:build %s", strings.TrimSuffix(file.Name, "_test.go")+suffix, tag)
 
-	found := false
 	for _, decl := range def.Funcs {
 		if decl.File != file.Name || !isTest(decl) {
 			continue
 		}
 		metric.Tests++
-		reason := scope.reason(decl)
+		reason := scope.reason(decl, l.Depth)
 		if reason == "" {
 			continue
 		}
 		metric.Crossing++
-		found = true
 		results.add(Result{
 			Rule:     RuleBoundary,
 			Severity: model.SeverityWarn,
@@ -183,20 +174,6 @@ func (l *Linter) lintFile(results *Results, metric *Metric, scope *scope, def *m
 			Position: decl.Position(def.Package),
 			Reason:   reason,
 			Message:  fmt.Sprintf("%s %s; %s", decl.Name, reason, fix),
-		})
-	}
-	if found {
-		return
-	}
-
-	if reason := scope.fileReason(file.Name); reason != "" {
-		results.add(Result{
-			Rule:     RuleBoundary,
-			Severity: model.SeverityWarn,
-			Symbol:   file.Name,
-			Position: model.Position{Package: def.Package.Package, File: join(dirPath(def.Package), file.Name)},
-			Reason:   reason,
-			Message:  fmt.Sprintf("%s %s; %s", file.Name, reason, fix),
 		})
 	}
 }
@@ -208,20 +185,6 @@ func (l *Linter) storage(path string) bool {
 	}
 	for _, listed := range l.Storage {
 		if path == listed {
-			return true
-		}
-	}
-	return false
-}
-
-// allowed reports a directory that may hold integration tests. With no list,
-// every directory may.
-func (l *Linter) allowed(path string) bool {
-	if len(l.Allow) == 0 {
-		return true
-	}
-	for _, pattern := range l.Allow {
-		if ok, _ := pathmatch.Match(pattern, path); ok {
 			return true
 		}
 	}
@@ -251,22 +214,6 @@ func directories(defs model.DefinitionList) [][]*model.Definition {
 		out = append(out, byPath[path])
 	}
 	return out
-}
-
-// behindTag reports a constraint that holds only with the tag set: the tag
-// appears in it and not negated.
-func behindTag(exprs []string, tag string) bool {
-	for _, expr := range exprs {
-		words := strings.FieldsFunc(expr, func(r rune) bool {
-			return r == ' ' || r == '(' || r == ')' || r == '&' || r == '|'
-		})
-		for _, word := range words {
-			if word == tag {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // isTest reports a function the test binary runs: a test, a benchmark, a fuzz

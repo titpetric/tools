@@ -16,6 +16,7 @@ func (d *DocumentRoot) WithoutTests() *DocumentRoot {
 
 	out := *d
 	out.Packages = make(DefinitionList, 0, len(d.Packages))
+	out.Tagged = nil
 
 	for _, def := range d.Packages {
 		if def == nil || def.TestPackage {

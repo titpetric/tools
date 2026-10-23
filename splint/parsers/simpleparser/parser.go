@@ -74,6 +74,12 @@ func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 		}
 	}
 
+	if p.options.IncludeTestFacts && p.options.IncludeTests {
+		if err := ReadTagged(doc, p.options); err != nil {
+			return nil, err
+		}
+	}
+
 	p.trim(doc.Packages)
 	doc.Sort()
 	return doc, nil

@@ -393,3 +393,23 @@ func contains(report model.LintReport, want string) bool {
 	}
 	return false
 }
+
+// TestLinter_Lint_Tagged covers a test file behind the integration tag: it
+// pairs the file it names, and one behind another constraint does not.
+func TestLinter_Lint_Tagged(t *testing.T) {
+	pkg := model.Package{Package: "store", ImportPath: "example.com/store", Path: "./store"}
+	root := document(definition(pkg, model.File{Name: "store.go"}, model.File{Name: "linux.go"}))
+	root.Tagged = model.DefinitionList{{
+		Package: model.Package{Package: "store_test", ImportPath: "example.com/store_test", Path: "./store", TestPackage: true},
+		Files: model.FileList{
+			{Name: "store_test.go", Test: true},
+			{Name: "linux_test.go", Test: true},
+		},
+		Excluded: model.StringSet{"store_test.go": {"integration"}, "linux_test.go": {"linux"}},
+	}}
+
+	issues, _ := lint(t, root)
+	if len(issues) != 1 || !strings.HasPrefix(issues[0].Message, "linux.go has no") {
+		t.Errorf("issues = %v, want linux.go unpaired alone", issues)
+	}
+}

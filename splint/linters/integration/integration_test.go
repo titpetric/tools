@@ -3,7 +3,6 @@ package integration_test
 import (
 	"context"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,29 +74,36 @@ func TestLint(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			linter := enabled()
-			linter.Allow = []string{"store"}
-			report, issues := lint(t, linter, root)
+			// The files behind the tag come back as a test definition of
+			// their own, for the linters that count tests.
+			require.Len(t, root.Tagged, 1)
+			assert.Equal(t, "./api", root.Tagged[0].Package.Path)
+			assert.ElementsMatch(t, []string{"db_integration_test.go", "misnamed_test.go"}, root.Tagged[0].Excluded.Keys())
+			assert.Len(t, root.Tagged[0].Funcs, 2)
+
+			report, issues := lint(t, enabled(), root)
 
 			assert.Equal(t, map[string][]string{
-				integration.RuleBoundary: {"TestExec", "TestHelper", "TestServer", "TestStore"},
+				integration.RuleBoundary: {"TestExec", "TestHelper", "TestServer", "TestStart", "TestStore"},
 				integration.RuleFilename: {"misnamed_test.go"},
 				integration.RuleTag:      {"loose_integration_test.go"},
-				integration.RuleOutside:  {"db_integration_test.go", "misnamed_test.go"},
 			}, byRule(issues))
 
 			for _, issue := range issues {
-				if issue.Symbol != "TestHelper" {
-					continue
+				switch issue.Symbol {
+				case "TestHelper":
+					assert.Equal(t, "api/api_test.go", issue.Position.File)
+					assert.Contains(t, issue.Message, "calls api.openMemory, which opens sqlite")
+					assert.Contains(t, issue.Message, "move it to api_integration_test.go with //go:build integration")
+				case "TestStart":
+					reason, _ := issue.Attr("reason")
+					assert.Equal(t, "calls api.Start, which runs a process through exec.Command", reason)
 				}
-				assert.Equal(t, "api/api_test.go", issue.Position.File)
-				assert.Contains(t, issue.Message, "calls openMemory (helpers_test.go), which opens sqlite")
-				assert.Contains(t, issue.Message, "move it to api_integration_test.go with //go:build integration")
 			}
 
 			metric, ok := report.Metrics().Packages["./api"].(integration.Metric)
 			require.True(t, ok, "metrics hold nothing for ./api")
-			assert.Equal(t, integration.Metric{Tests: 6, Crossing: 4, Integration: 2}, metric)
+			assert.Equal(t, integration.Metric{Tests: 7, Crossing: 5, Integration: 2}, metric)
 			assert.NotEmpty(t, report.Statistics())
 		})
 	}
@@ -117,9 +123,9 @@ func TestLintDisabled(t *testing.T) {
 	assert.Empty(t, issues)
 }
 
-// TestLintImportsAndStorage reads a document written by hand: a file whose
-// only crossing is a driver import, a storage path the tree names, a
-// negated tag, and a tag the tree renames.
+// TestLintImportsAndStorage reads a document written by hand: a file that
+// imports a driver and calls nothing, which crosses nothing, a storage path
+// the tree names, a negated tag, and a tag the tree renames.
 func TestLintImportsAndStorage(t *testing.T) {
 	t.Parallel()
 
@@ -157,17 +163,14 @@ func TestLintImportsAndStorage(t *testing.T) {
 	_, issues := lint(t, linter, root)
 
 	assert.Equal(t, map[string][]string{
-		integration.RuleBoundary: {"TestDial", "TestRepo", "driver_test.go"},
+		integration.RuleBoundary: {"TestDial", "TestRepo"},
 		integration.RuleFilename: {"slow_test.go"},
 	}, byRule(issues))
 
 	for _, issue := range issues {
-		switch issue.Symbol {
-		case "TestRepo":
+		if issue.Symbol == "TestRepo" {
 			reason, _ := issue.Attr("reason")
 			assert.Equal(t, "imports example.com/app/repo and calls repo.Open", reason)
-		case "driver_test.go":
-			assert.True(t, strings.HasPrefix(issue.Message, "driver_test.go imports modernc.org/sqlite;"), issue.Message)
 		}
 	}
 }

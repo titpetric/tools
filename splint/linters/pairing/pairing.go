@@ -41,11 +41,15 @@ const (
 )
 
 // Linter reports a file with no test beside it.
-type Linter struct{}
+type Linter struct {
+	// Tag is the build tag integration tests sit behind. A test behind it
+	// counts like any other: the file it tests has its test.
+	Tag string
+}
 
-// New returns the linter.
+// New returns the linter, reading the tests behind the integration tag.
 func New() *Linter {
-	return &Linter{}
+	return &Linter{Tag: "integration"}
 }
 
 // Name is the linter name.
@@ -60,6 +64,8 @@ func (l *Linter) Name() string {
 // anything: the foo_test.go recorded against the test half has to meet the
 // foo.go recorded against the other one, and neither definition sees both.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
+	root = root.WithTagged(l.Tag)
+
 	var (
 		results Results
 		groups  = map[string]*group{}

@@ -490,7 +490,7 @@ Thirteen of them, every one a set of rules over the parsed document.
 | `visibility`    | nothing                                                                                                                                                                                                  | exported against internal, and the share of a package its private half occupies                                                                             |
 | `selfcontained` | nothing                                                                                                                                                                                                  | what a file needs from the rest of its package: symbols, types and funcs reaching nothing outside the file they are in, and the share that do, **per file** |
 | `modcheck`      | five module rules, listed below                                                                                                                                                                          | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records                                                        |
-| `integration`   | four rules, listed below: a test crossing a process boundary outside the build tag, and a tagged file, or one named for the tag, that breaks the naming. Off until a tree opts in                       | test functions, the ones crossing, and the files behind the tag, per package                                                                                |
+| `integration`   | three rules, listed below: a test crossing a process boundary outside the build tag, and a tagged file, or one named for the tag, that breaks the naming. Off until a tree opts in                       | test functions, the ones crossing, and the files behind the tag, per package                                                                                |
 
 `func-args` considers a function taking exactly two arguments. The order of one pair is unambiguous; for three or more the expected order is a heuristic sort.
 
@@ -643,7 +643,6 @@ The house rule keeps the two apart. An integration test lives in a `<name>_integ
 | `boundary` | WARN     | a test function of a file outside the tag that crosses the boundary, and the reason it does            |
 | `filename` | ERROR    | a test file behind the tag not named `_integration_test.go`                                             |
 | `tag`      | ERROR    | a file named `_integration_test.go` that a plain build still compiles                                   |
-| `outside`  | INFO     | a file behind the tag in a package `integration.allow` does not list; off while the list is empty |
 
 `boundary` reads what a test reaches, as the model records it:
 
@@ -651,13 +650,15 @@ The house rule keeps the two apart. An integration test lives in a `<name>_integ
 - a call into a SQL driver: modernc sqlite, mattn go-sqlite3, pgx, lib/pq, the MySQL driver, sqlx
 - a call to a `New*`, `Open*` or `Must*` of a storage package: a path `integration.storage` lists, or any path ending in `/storage` or `/store` when the list is empty
 - a string literal holding `:memory:` or `mode=memory`
-- a call to a helper of the directory's test files that does any of these, followed as deep as the helpers go
+- a call to any function of the module that does any of these, directly or down a chain of calls: a helper of the test files, the package under test, or any other package of the tree, through package functions, constructors and methods on concrete types
 
-A file whose test functions cross nothing, but which imports `database/sql` or a driver, gets one finding of its own. The message names the reason and the fix: `TestOpen calls newDB (helpers_test.go), which opens sqlite ":memory:"; move it to store_integration_test.go with //go:build integration`. The `reason` attribute carries the reason alone.
+The linter works out once per document which functions of the module cross, a breadth-first pass from the ones that cross themselves out to their callers, so the chain a finding names is the shortest one. The message names the chain and the fix: `TestRun calls main.run → app.New → storage.Open, which opens a database through sql.Open; move it to run_integration_test.go with //go:build integration`. The `reason` attribute carries the reason alone.
 
-The rule guesses, and the guess errs two ways. A fake named like a real thing reads as crossing. A boundary crossed by code the test does not write, a production function that execs, reads as clean: the linter follows the helpers of the test files and stops at the package they test.
+The rule guesses, and the guess errs two ways. A fake named like a real thing reads as crossing, and so does a call whose crossing sits behind a branch the test never takes; a chain longer than `integration.depth` calls, 3 by default, reads as clean for that reason. A call through an interface or a func value names no function, so the linter does not follow it, and a crossing reached that way reads as clean. Over task-ui at d0125db, measured against each test run alone under strace, the rule finds 628 of 633 crossing tests with 6 false findings: 99.1% precision, 99.2% recall.
 
-A plain build leaves a tagged file out, so its declarations are not in the document. The parse records its name and its constraint under `Definition.Excluded`, the set `filename` and `outside` read, and `Declaration.Literals` holds the string literals of every declaration in a test file.
+The ast parser records the calls of every function, resolved by the type checker, under `Declaration.Calls`. The simple parser resolves no types: it follows the package functions a body names through its imports and the package level names it reaches, which misses a method called on a value.
+
+A plain build leaves a tagged file out, so its declarations are not in the package. The parse records its name and its constraint under `Definition.Excluded`, the set `filename` reads, reads the file itself into `DocumentRoot.Tagged`, and `Declaration.Literals` holds the string literals of every declaration in a test file. `pairing` and `coverage` read the tests behind the tag along with the rest: a file whose test sits in `store_integration_test.go` has its test.
 
 The linter stays off in a tree that never split its tests, where every test it has would be a finding. `--linters integration` runs it anyway, and `.splint.yml` turns it on for good:
 
@@ -667,15 +668,10 @@ integration:
   tag: integration                          # the default
   storage:                                  # default: any path ending in /storage or /store
     - github.com/titpetric/task-ui/storage
-  allow:                                    # where integration tests may live; empty allows every package
-    - storage
-    - git
-    - runner
-    - sshprobe
-    - agent
+  depth: 3                                  # the default: the longest chain of calls a finding follows
 ```
 
-`allow` takes the path patterns `filecheck.allow` takes, matched against the package directory, and a load refuses one it cannot read.
+Any package may hold integration tests.
 
 ## selfcontained
 

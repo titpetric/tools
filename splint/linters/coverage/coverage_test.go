@@ -297,3 +297,20 @@ func TestLinter_Lint_Globals(t *testing.T) {
 		t.Errorf("reported %q, want Load: Open is referenced bare", issues[0].Symbol)
 	}
 }
+
+// TestLinter_Lint_Tagged covers a test behind the integration tag: a plain
+// build leaves it out, and it still names the symbol it tests.
+func TestLinter_Lint_Tagged(t *testing.T) {
+	open := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 3}
+	root := document(definition(source, nil, model.DeclarationList{open}))
+	root.Tagged = model.DefinitionList{{
+		Package:  model.Package{Package: "x_test", ImportPath: source.ImportPath + "_test", Path: source.Path, TestPackage: true},
+		Files:    model.FileList{{Name: "x_integration_test.go", Test: true}},
+		Excluded: model.StringSet{"x_integration_test.go": {"integration"}},
+		Funcs:    model.DeclarationList{{Kind: model.FuncKind, Name: "TestOpen", File: "x_integration_test.go"}},
+	}}
+
+	if issues := lint(t, root); len(issues) != 0 {
+		t.Errorf("reported %q", issues[0].Message)
+	}
+}

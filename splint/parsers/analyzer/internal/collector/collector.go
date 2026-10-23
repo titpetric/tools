@@ -399,6 +399,7 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 	}
 
 	v.resolveMethods(file, filename, decl, declaration)
+	declaration.Calls = v.calls(decl)
 
 	return declaration
 }

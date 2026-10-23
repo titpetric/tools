@@ -66,6 +66,14 @@ type Declaration struct {
 	// line it runs. The parse fills them when its options include the test
 	// facts, and only in test files, where a literal says what the test needs.
 	Literals []string `json:"Literals,omitempty" yaml:"Literals,omitempty"`
+
+	// Calls are the functions and methods on concrete types a function body
+	// calls, keyed by the import path of the package declaring them, with
+	// the symbol as Func or Type.Method: "os/exec": {"Command"}. A call
+	// through an interface or a func value names no declaration and is not
+	// recorded. The ast parser fills them when its options include the test
+	// facts; the simple parser resolves no types and leaves them empty.
+	Calls StringSet `json:"Calls,omitempty" yaml:"Calls,omitempty"`
 }
 
 func (f *Declaration) IsTestScope() bool {

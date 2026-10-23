@@ -174,28 +174,21 @@ func TestLoadFile(t *testing.T) {
 	assert.False(t, opts.SetAlias)
 }
 
-// TestIntegration covers the section that turns the integration rule on, and
-// a pattern under allow that no match can read.
+// TestIntegration covers the section that turns the integration rule on.
 func TestIntegration(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(config.Path(dir), []byte(`integration:
   enabled: true
+  tag: slow
   storage:
     - example.com/app/storage
-  allow:
-    - storage
-    - runner/**
 `), 0o644))
 
 	cfg, err := config.Load(dir)
 	require.NoError(t, err)
 	assert.Equal(t, config.Integration{
 		Enabled: true,
+		Tag:     "slow",
 		Storage: []string{"example.com/app/storage"},
-		Allow:   []string{"storage", "runner/**"},
 	}, cfg.Integration)
-
-	require.NoError(t, os.WriteFile(config.Path(dir), []byte("integration:\n  allow: [\"[\"]\n"), 0o644))
-	_, err = config.Load(dir)
-	assert.ErrorContains(t, err, "integration.allow[0]")
 }

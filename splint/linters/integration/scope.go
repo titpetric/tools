@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 
@@ -23,7 +24,8 @@ var sqlDrivers = []string{
 }
 
 // crossing are the symbols of the standard library that cross the boundary,
-// by import path, each with the words a finding says about it.
+// by import path, each with the words a finding says about it. The list
+// names a method as Type.Method, the way a resolved call records one.
 var crossing = map[string]struct {
 	symbols []string
 	verb    string
@@ -31,94 +33,250 @@ var crossing = map[string]struct {
 	"os/exec":           {[]string{"Command", "CommandContext"}, "runs a process through"},
 	"os":                {[]string{"StartProcess"}, "runs a process through"},
 	"syscall":           {[]string{"Exec", "ForkExec", "StartProcess"}, "runs a process through"},
-	"net":               {[]string{"Listen", "ListenTCP", "ListenUDP", "ListenUnix", "ListenPacket", "ListenIP", "ListenConfig", "Dial", "DialTimeout", "DialTCP", "DialUDP", "DialUnix", "DialIP", "Dialer"}, "opens a socket through"},
+	"net":               {[]string{"Listen", "ListenTCP", "ListenUDP", "ListenUnix", "ListenPacket", "ListenIP", "ListenConfig", "Dial", "DialTimeout", "DialTCP", "DialUDP", "DialUnix", "DialIP", "Dialer", "Dialer.Dial", "Dialer.DialContext", "ListenConfig.Listen", "ListenConfig.ListenPacket"}, "opens a socket through"},
 	"net/http/httptest": {[]string{"NewServer", "NewTLSServer", "NewUnstartedServer"}, "listens on a port through"},
-	"net/http":          {[]string{"ListenAndServe", "ListenAndServeTLS", "Serve", "ServeTLS", "Get", "Head", "Post", "PostForm"}, "goes over the network through"},
+	"net/http":          {[]string{"ListenAndServe", "ListenAndServeTLS", "Serve", "ServeTLS", "Get", "Head", "Post", "PostForm", "Server.ListenAndServe", "Server.ListenAndServeTLS", "Server.Serve", "Server.ServeTLS"}, "goes over the network through"},
 	"database/sql":      {[]string{"Open", "OpenDB"}, "opens a database through"},
 }
 
-// scope is one directory as the reasons read it: the declarations of its test
-// files by name, and the imports of every file.
-type scope struct {
-	decls   map[string]*model.Declaration
-	imports map[string][]model.ImportSpec
-	storage func(string) bool
-
-	// memo holds the reason found for a declaration, and visiting marks one
-	// under evaluation, so two helpers calling each other end.
-	memo     map[*model.Declaration]string
-	visiting map[*model.Declaration]bool
+// node is one function of the document and the definition holding it.
+type node struct {
+	decl *model.Declaration
+	def  *model.Definition
 }
 
-// newScope indexes a directory.
-func newScope(dir []*model.Definition, storage func(string) bool) *scope {
+// step is how a function crosses the boundary: by a reason of its own, or
+// through the function it calls next.
+type step struct {
+	reason string
+	next   *model.Declaration
+
+	// depth is how many calls down the chain the reason sits, 0 for a
+	// function with a reason of its own.
+	depth int
+}
+
+// scope is the document as the boundary rule reads it: every function, what
+// it calls, and whether that crosses the boundary, directly or down a chain
+// of calls into the module.
+type scope struct {
+	storage func(string) bool
+
+	// funcs and tests find a function by the import path of its package and
+	// its symbol, the declarations outside the test files and inside them.
+	funcs map[string]node
+	tests map[string]node
+
+	// imports are the imports of every file, by directory and filename.
+	imports map[string]map[string][]model.ImportSpec
+
+	// crosses holds the functions that cross the boundary, each with its
+	// step, read once for the document.
+	crosses map[*model.Declaration]step
+	nodes   map[*model.Declaration]node
+}
+
+// newScope indexes the document and works out which functions cross.
+func newScope(root *model.DocumentRoot, storage func(string) bool) *scope {
 	s := &scope{
-		decls:    map[string]*model.Declaration{},
-		imports:  map[string][]model.ImportSpec{},
-		storage:  storage,
-		memo:     map[*model.Declaration]string{},
-		visiting: map[*model.Declaration]bool{},
+		storage: storage,
+		funcs:   map[string]node{},
+		tests:   map[string]node{},
+		imports: map[string]map[string][]model.ImportSpec{},
+		crosses: map[*model.Declaration]step{},
+		nodes:   map[*model.Declaration]node{},
 	}
 
-	for _, def := range dir {
+	calls := false
+	for _, def := range root.Packages {
+		if def == nil {
+			continue
+		}
+		files := s.imports[def.Package.Path]
+		if files == nil {
+			files = map[string][]model.ImportSpec{}
+			s.imports[def.Package.Path] = files
+		}
 		for file, literals := range def.Imports {
 			for _, literal := range literals {
 				if spec, ok := importfmt.Parse(literal); ok {
-					s.imports[file] = append(s.imports[file], spec)
+					files[file] = append(files[file], spec)
 				}
 			}
 		}
-		for _, decl := range def.Order() {
-			if !decl.IsTestScope() {
-				continue
+
+		owner := basePath(def)
+		for _, decl := range def.Funcs {
+			n := node{decl: decl, def: def}
+			s.nodes[decl] = n
+			index := s.funcs
+			if decl.IsTestScope() {
+				index = s.tests
 			}
-			if decl.Receiver != "" {
-				s.decls[model.TypeRef(decl.Receiver)+"."+decl.Name] = decl
-				continue
-			}
-			for _, name := range decl.GetNames() {
-				s.decls[name] = decl
+			index[owner+" "+decl.Symbol()] = n
+			if decl.Calls != nil {
+				calls = true
 			}
 		}
 	}
 
+	s.solve(calls)
 	return s
 }
 
-// reason says how a declaration crosses the boundary, and is empty for one
-// that does not.
-func (s *scope) reason(decl *model.Declaration) string {
-	if reason, known := s.memo[decl]; known {
-		return reason
+// solve finds every function that crosses: the ones with a reason of their
+// own first, then their callers, a ring at a time, so the chain a finding
+// names is the shortest there is.
+//
+// The pass follows a document that records calls, as the ast parser writes
+// one, down its calls; one without them, from the simple parser, down the
+// references and the package level names its functions reach.
+func (s *scope) solve(calls bool) {
+	order := make([]*model.Declaration, 0, len(s.nodes))
+	for decl := range s.nodes {
+		order = append(order, decl)
 	}
-	if s.visiting[decl] {
-		return ""
-	}
-	s.visiting[decl] = true
-	defer delete(s.visiting, decl)
+	sort.Slice(order, func(i, j int) bool {
+		a, b := s.nodes[order[i]], s.nodes[order[j]]
+		if a.def.Package.Path != b.def.Package.Path {
+			return a.def.Package.Path < b.def.Package.Path
+		}
+		if a.decl.File != b.decl.File {
+			return a.decl.File < b.decl.File
+		}
+		return a.decl.Line < b.decl.Line
+	})
 
-	reason := s.direct(decl)
-	if reason == "" {
-		reason = s.helpers(decl)
+	callers := map[*model.Declaration][]*model.Declaration{}
+	var queue []*model.Declaration
+	for _, decl := range order {
+		n := s.nodes[decl]
+		if reason := s.direct(n); reason != "" {
+			s.crosses[decl] = step{reason: reason}
+			queue = append(queue, decl)
+		}
+		for _, callee := range s.edges(n, calls) {
+			if callee != decl {
+				callers[callee] = append(callers[callee], decl)
+			}
+		}
 	}
-	s.memo[decl] = reason
-	return reason
+
+	for len(queue) > 0 {
+		callee := queue[0]
+		queue = queue[1:]
+		for _, caller := range callers[callee] {
+			if _, known := s.crosses[caller]; known {
+				continue
+			}
+			s.crosses[caller] = step{next: callee, depth: s.crosses[callee].depth + 1}
+			queue = append(queue, caller)
+		}
+	}
 }
 
-// direct is a boundary the declaration crosses itself: a call into a package
-// that does, or a literal naming an in-memory database.
-func (s *scope) direct(decl *model.Declaration) string {
-	for _, name := range decl.References.Keys() {
-		path, ok := s.resolve(decl.File, name)
+// edges are the functions of the document a function calls.
+func (s *scope) edges(n node, calls bool) []*model.Declaration {
+	var out []*model.Declaration
+	add := func(found node, ok bool) {
+		if ok {
+			out = append(out, found.decl)
+		}
+	}
+
+	if calls {
+		for _, target := range n.decl.Calls.Keys() {
+			for _, symbol := range n.decl.Calls[target] {
+				add(s.lookup(target, symbol))
+			}
+		}
+		return out
+	}
+
+	for _, name := range n.decl.References.Keys() {
+		target, ok := s.resolve(n, name)
 		if !ok {
 			continue
 		}
-		if reason := s.reaches(path, name, decl.References[name]); reason != "" {
+		for _, symbol := range n.decl.References[name] {
+			add(s.lookup(target, symbol))
+		}
+	}
+
+	owner := basePath(n.def)
+	if n.decl.IsTestScope() {
+		owner += "_test"
+	}
+	for _, name := range n.decl.Globals.Keys() {
+		add(s.lookup(owner, name))
+		for _, symbol := range n.decl.Globals[name] {
+			add(s.lookup(owner, name+"."+symbol))
+		}
+	}
+	return out
+}
+
+// lookup finds a function by the import path of its package and its symbol.
+// A path ending in _test is a test package, whose functions sit in the test
+// files; the other path prefers the functions outside them.
+func (s *scope) lookup(target, symbol string) (node, bool) {
+	base := strings.TrimSuffix(target, "_test")
+	key := base + " " + symbol
+	first, second := s.funcs, s.tests
+	if base != target {
+		first, second = second, first
+	}
+	if found, ok := first[key]; ok {
+		return found, true
+	}
+	found, ok := second[key]
+	return found, ok
+}
+
+// reason says how a test crosses the boundary, and is empty for one that does
+// not: its own reason, or the chain of calls down to the one that does. A
+// chain longer than depth reads as clean: the deeper the crossing call, the
+// likelier it sits behind a branch the test never takes.
+func (s *scope) reason(decl *model.Declaration, depth int) string {
+	first, ok := s.crosses[decl]
+	if !ok || first.depth > depth {
+		return ""
+	}
+	if first.next == nil {
+		return first.reason
+	}
+
+	var chain []string
+	seen := map[*model.Declaration]bool{decl: true}
+	current := first
+	for current.next != nil && !seen[current.next] {
+		seen[current.next] = true
+		chain = append(chain, label(s.nodes[current.next]))
+		current = s.crosses[current.next]
+	}
+	return fmt.Sprintf("calls %s, which %s", strings.Join(chain, " → "), current.reason)
+}
+
+// direct is a boundary the function crosses itself: a call into a package
+// that does, or a literal naming an in-memory database.
+func (s *scope) direct(n node) string {
+	for _, name := range n.decl.References.Keys() {
+		target, ok := s.resolve(n, name)
+		if !ok {
+			continue
+		}
+		if reason := s.reaches(target, name, n.decl.References[name]); reason != "" {
 			return reason
 		}
 	}
 
-	for _, literal := range decl.Literals {
+	for _, target := range n.decl.Calls.Keys() {
+		if reason := s.reaches(target, path.Base(target), n.decl.Calls[target]); reason != "" {
+			return reason
+		}
+	}
+
+	for _, literal := range n.decl.Literals {
 		if strings.Contains(literal, ":memory:") || strings.Contains(literal, "mode=memory") {
 			return fmt.Sprintf("opens sqlite %q", literal)
 		}
@@ -128,11 +286,11 @@ func (s *scope) direct(decl *model.Declaration) string {
 }
 
 // reaches says how a call into one package crosses the boundary.
-func (s *scope) reaches(path, name string, symbols []string) string {
+func (s *scope) reaches(target, name string, symbols []string) string {
 	sorted := append([]string(nil), symbols...)
 	sort.Strings(sorted)
 
-	if known, ok := crossing[path]; ok {
+	if known, ok := crossing[target]; ok {
 		for _, symbol := range sorted {
 			for _, listed := range known.symbols {
 				if symbol == listed {
@@ -143,14 +301,14 @@ func (s *scope) reaches(path, name string, symbols []string) string {
 		return ""
 	}
 
-	if driver(path) {
-		return "reaches the SQL driver " + path
+	if driver(target) {
+		return "reaches the SQL driver " + target
 	}
 
-	if s.storage(path) {
+	if s.storage(target) {
 		for _, symbol := range sorted {
 			if strings.HasPrefix(symbol, "New") || strings.HasPrefix(symbol, "Open") || strings.HasPrefix(symbol, "Must") {
-				return fmt.Sprintf("imports %s and calls %s.%s", path, name, symbol)
+				return fmt.Sprintf("imports %s and calls %s.%s", target, name, symbol)
 			}
 		}
 	}
@@ -158,41 +316,9 @@ func (s *scope) reaches(path, name string, symbols []string) string {
 	return ""
 }
 
-// helpers is a boundary the declaration crosses through a declaration of the
-// test files it calls.
-func (s *scope) helpers(decl *model.Declaration) string {
-	for _, name := range decl.Globals.Keys() {
-		targets := []string{name}
-		for _, symbol := range decl.Globals[name] {
-			targets = append(targets, name+"."+symbol)
-		}
-		for _, target := range targets {
-			helper, ok := s.decls[target]
-			if !ok || helper == decl {
-				continue
-			}
-			if reason := s.reason(helper); reason != "" {
-				return fmt.Sprintf("calls %s (%s), which %s", target, helper.File, reason)
-			}
-		}
-	}
-	return ""
-}
-
-// fileReason is a boundary a file crosses by what it imports alone: a SQL
-// driver, registered for its side effect, or database/sql.
-func (s *scope) fileReason(file string) string {
-	for _, spec := range s.imports[file] {
-		if driver(spec.Path) || spec.Path == "database/sql" {
-			return "imports " + spec.Path
-		}
-	}
-	return ""
-}
-
-// resolve returns the import path a file reaches under a name.
-func (s *scope) resolve(file, name string) (string, bool) {
-	for _, spec := range s.imports[file] {
+// resolve returns the import path a function's file reaches under a name.
+func (s *scope) resolve(n node, name string) (string, bool) {
+	for _, spec := range s.imports[n.def.Package.Path][n.decl.File] {
 		ref := spec.Ref()
 		if ref == name || (spec.Name == "" && strings.TrimPrefix(ref, "go-") == name) {
 			return spec.Path, true
@@ -201,10 +327,26 @@ func (s *scope) resolve(file, name string) (string, bool) {
 	return "", false
 }
 
+// label names a function in a chain the way a reader calls it: package.Func
+// or package.Type.Method.
+func label(n node) string {
+	if n.decl == nil {
+		return "?"
+	}
+	return strings.TrimSuffix(n.def.Package.Package, "_test") + "." + n.decl.Symbol()
+}
+
+// basePath is the import path a call names the functions of a definition by: a
+// test definition carries the _test suffix, and a call into a white box test
+// names the package it compiles into.
+func basePath(def *model.Definition) string {
+	return strings.TrimSuffix(def.Package.ImportPath, "_test")
+}
+
 // driver reports the import path of a SQL driver, or a package under one.
-func driver(path string) bool {
+func driver(target string) bool {
 	for _, prefix := range sqlDrivers {
-		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+		if target == prefix || strings.HasPrefix(target, prefix+"/") {
 			return true
 		}
 	}

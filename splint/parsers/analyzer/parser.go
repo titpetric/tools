@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/titpetric/tools/splint/model"
+	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/parsers/testfacts"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
@@ -61,6 +62,11 @@ func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 	}
 
 	doc.Packages = model.DefinitionList(defs)
+	if p.options.IncludeTestFacts && p.options.IncludeTests {
+		if err := simpleparser.ReadTagged(doc, p.options); err != nil {
+			return nil, err
+		}
+	}
 	doc.Sort()
 	return doc, nil
 }
@@ -190,6 +196,12 @@ func (p *Parser) trim(defs []*model.Definition) {
 		}
 		if !p.options.IncludeSources {
 			def.ClearSource()
+		}
+		// The calls are a fact of the integration rule, which follows them.
+		if !p.options.IncludeTestFacts {
+			for _, decl := range def.Funcs {
+				decl.Calls = nil
+			}
 		}
 		if !def.TestPackage || !p.options.IncludeTests {
 			def.ClearTestFiles()

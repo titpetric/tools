@@ -9,7 +9,8 @@ import (
 )
 
 // TestScope follows the helpers of the test files: through a method of a
-// test type, past two helpers calling each other, and down to the literal.
+// test type, past two helpers calling each other, and down to the literal,
+// and stops at a chain longer than the linter's depth.
 func TestScope(t *testing.T) {
 	t.Parallel()
 
@@ -37,5 +38,10 @@ func TestScope(t *testing.T) {
 	assert.Len(t, issues, 1, "two helpers calling each other cross nothing")
 	reason, _ := issues[0].Attr("reason")
 	assert.Equal(t, "TestHarness", issues[0].Symbol)
-	assert.Equal(t, `calls harness.start (x_test.go), which calls open (x_test.go), which opens sqlite "file:x?mode=memory"`, reason)
+	assert.Equal(t, `calls x.harness.start → x.open, which opens sqlite "file:x?mode=memory"`, reason)
+
+	shallow := enabled()
+	shallow.Depth = 1
+	_, issues = lint(t, shallow, root)
+	assert.Empty(t, issues, "a chain two calls deep is past a depth of one")
 }

@@ -52,11 +52,9 @@ type Integration struct {
 	// An empty list reads any path ending in /storage or /store as one.
 	Storage []string `yaml:"storage,omitempty"`
 
-	// Allow are the package directories that may hold integration tests, as
-	// path patterns in the filecheck syntax: storage, git, runner/**. The
-	// linter reports an integration test anywhere else under the outside
-	// rule. An empty list allows every directory.
-	Allow []string `yaml:"allow,omitempty"`
+	// Depth is how many calls into the module a test's chain may run before
+	// the call that crosses. It defaults to 3.
+	Depth int `yaml:"depth,omitempty"`
 }
 
 // Imports is the house rule for an import block.
@@ -184,12 +182,6 @@ func Load(dir string) (*Config, error) {
 
 	if err := cfg.Filecheck.validate(); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-
-	for index, pattern := range cfg.Integration.Allow {
-		if err := pathmatch.Valid(pattern); err != nil {
-			return nil, fmt.Errorf("%s: integration.allow[%d]: %q is not a path pattern: %w", path, index, pattern, err)
-		}
 	}
 
 	return cfg, nil

@@ -27,6 +27,13 @@ type DocumentRoot struct {
 
 	// Packages are the packages the parse found.
 	Packages DefinitionList `json:"Packages" yaml:"Packages"`
+
+	// Tagged are the test files a build constraint keeps out of the build,
+	// read the same way as the rest: one test definition per directory,
+	// whose Excluded names the constraint of each file. The linters that
+	// count tests read them through WithTagged; no other reads them. The
+	// parse fills them when its options include the test facts.
+	Tagged DefinitionList `json:"Tagged,omitempty" yaml:"Tagged,omitempty"`
 }
 
 // NewDocumentRoot returns a document ready for a parser to fill.

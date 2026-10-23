@@ -26,11 +26,15 @@ const Name = "coverage"
 const RuleUncovered = "uncovered"
 
 // Linter reports an exported symbol no test reaches.
-type Linter struct{}
+type Linter struct {
+	// Tag is the build tag integration tests sit behind. A test behind it
+	// counts like any other: the file it tests has its test.
+	Tag string
+}
 
-// New returns the linter.
+// New returns the linter, reading the tests behind the integration tag.
 func New() *Linter {
-	return &Linter{}
+	return &Linter{Tag: "integration"}
 }
 
 // Name is the linter name.
@@ -44,6 +48,8 @@ func (l *Linter) Name() string {
 // anyone tests, so the linter reads neither for symbols. It still reads both for tests,
 // because a test of a package commonly sits in a package of its own.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
+	root = root.WithTagged(l.Tag)
+
 	var results Results
 
 	claimed := claims(root)

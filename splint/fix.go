@@ -9,9 +9,11 @@ import (
 	"github.com/titpetric/tools/splint/commands/fix"
 	settings "github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/importfmt"
+	"github.com/titpetric/tools/splint/linters/coverage"
 	"github.com/titpetric/tools/splint/linters/filecheck"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/linters/integration"
+	"github.com/titpetric/tools/splint/linters/pairing"
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
@@ -149,6 +151,14 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 		case *filecheck.Linter:
 			rule.MaxLines = rules.Filecheck.MaxLines
 			rule.Allow = rules.FilecheckAllowances()
+		case *pairing.Linter:
+			if rules.Integration.Tag != "" {
+				rule.Tag = rules.Integration.Tag
+			}
+		case *coverage.Linter:
+			if rules.Integration.Tag != "" {
+				rule.Tag = rules.Integration.Tag
+			}
 		case *integration.Linter:
 			// A run naming the linter runs it, whatever the tree says.
 			rule.Enabled = rules.Integration.Enabled || slices.Contains(cfg.linters, integration.Name)
@@ -156,7 +166,9 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 				rule.Tag = rules.Integration.Tag
 			}
 			rule.Storage = rules.Integration.Storage
-			rule.Allow = rules.Integration.Allow
+			if rules.Integration.Depth > 0 {
+				rule.Depth = rules.Integration.Depth
+			}
 		}
 	}
 
