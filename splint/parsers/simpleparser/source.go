@@ -133,7 +133,7 @@ func (s *source) split(i int) (code, comment string) {
 }
 
 // text returns the lines from through to, raw, joined back
-// into one string. A declaration records this as its source.
+// into one string.
 func (s *source) text(from, to int) string {
 	if from < 0 {
 		from = 0
@@ -145,6 +145,44 @@ func (s *source) text(from, to int) string {
 		return ""
 	}
 	return strings.Join(s.lines[from:to+1], "\n")
+}
+
+// declText is text with the spacing before a comment trailing the last line
+// rewritten the way go/printer writes it, which is a declaration's source as
+// the ast collector records it. The printer separates the comment from the
+// code with a tab where the source may hold a single space, so the raw line
+// differs in whitespace alone.
+func (s *source) declText(from, to int) string {
+	if from < 0 {
+		from = 0
+	}
+	if to >= len(s.lines) {
+		to = len(s.lines) - 1
+	}
+	if from > to {
+		return ""
+	}
+
+	last := s.lines[to]
+	if to < len(s.read) && !s.read[to].raw {
+		at := int(s.read[to].commentAt)
+		if at >= 0 && at <= len(last) && strings.TrimSpace(s.read[to].code[at:]) == "" {
+			comment := last[at:]
+			last = strings.TrimRight(last[:at], " \t") + "\t" + comment
+			if strings.HasPrefix(comment, "//") {
+				// The printer ends a line comment with a newline, which the
+				// node it was attached to then carries at its end.
+				last += "\n"
+			}
+		}
+	}
+
+	if from == to {
+		return last
+	}
+	lines := make([]string, 0, to-from+1)
+	lines = append(lines, s.lines[from:to]...)
+	return strings.Join(append(lines, last), "\n")
 }
 
 // strip blanks out everything on a line that is not code: the inside of a

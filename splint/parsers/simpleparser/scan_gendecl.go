@@ -26,7 +26,7 @@ func (f *file) scanGenDecl(src *source, line int, kind model.DeclarationKind) in
 		File:   src.name,
 		Line:   line + 1,
 		Doc:    docAbove(src, line),
-		Source: src.text(docStart(src, line), end),
+		Source: src.declText(docStart(src, line), end),
 	}
 
 	var names []string
@@ -47,6 +47,9 @@ func (f *file) scanGenDecl(src *source, line int, kind model.DeclarationKind) in
 		decl.Name = names[0]
 	} else {
 		decl.Names = names
+		if kind == model.TypeKind {
+			flattenFieldPaths(decl)
+		}
 	}
 
 	switch kind {
@@ -103,22 +106,31 @@ func genDeclEntries(src *source, line int, keyword string) ([]entry, int) {
 // entryEnd is the line one spec ends on, which is past the line it opens on
 // when it declares a struct, an interface or a parenthesised value.
 func entryEnd(src *source, line int) int {
+	// A value written as a raw string runs to wherever the string closes,
+	// which the code on the line says nothing about: every brace and keyword
+	// inside the string is text. The line reads as an opening brace or paren
+	// once the string is blanked out, so this test comes first.
+	if src.rawOpen(line) {
+		end := line
+		for src.rawOpen(end) && end < src.len()-1 {
+			end++
+		}
+		return end
+	}
+
 	code := strings.TrimSpace(src.codeLine(line))
 	switch {
 	case strings.HasSuffix(code, "{"):
-		return blockEnd(src, line, '}')
+		// A composite literal closes more than once: "var x = []T{" ends on
+		// the brace after the elements, and a line holding "}{" in between
+		// closes the element type and opens the value. Counting depth finds
+		// the last of them; a brace at column zero finds the first.
+		return bodyEnd(src, line)
 	case strings.HasSuffix(code, "("):
 		return blockEnd(src, line, ')')
 	}
 
-	// A value written as a raw string runs to wherever the string closes,
-	// which the code on the line says nothing about: every brace and keyword
-	// inside the string is text.
-	end := line
-	for src.rawOpen(end) && end < src.len()-1 {
-		end++
-	}
-	return end
+	return line
 }
 
 // readType reads one type spec into the declaration and returns the name it
@@ -129,7 +141,7 @@ func entryEnd(src *source, line int) int {
 // the ast collector does with the same input.
 func (f *file) readType(decl *model.Declaration, src *source, in entry) []string {
 	name, rest, found := cutTypeName(in.code)
-	decl.Arguments = append(decl.Arguments, typeParams(name)...)
+	params := typeParams(name)
 	name = trimTypeParams(strings.TrimSpace(name))
 	if name == "" {
 		return nil
@@ -143,7 +155,10 @@ func (f *file) readType(decl *model.Declaration, src *source, in entry) []string
 
 	switch {
 	case rest == "struct" || strings.HasPrefix(rest, "struct{"), strings.HasPrefix(rest, "struct "):
-		// A struct describes itself by its fields and records no type.
+		// A struct describes itself by its fields and records no type. Its
+		// type parameters are the arguments the collector records, which it
+		// reads off a struct alone.
+		decl.Arguments = append(decl.Arguments, params...)
 		decl.Fields = append(decl.Fields, structFields(src, in.open, in.close)...)
 	case rest == "interface" || strings.HasPrefix(rest, "interface{"), strings.HasPrefix(rest, "interface "):
 		decl.Type = "interface"
@@ -153,6 +168,20 @@ func (f *file) readType(decl *model.Declaration, src *source, in entry) []string
 	}
 
 	return []string{name}
+}
+
+// flattenFieldPaths drops the type prefix from the fields of a block
+// declaring more than one type. The ast collector records such a block as one
+// declaration with no single name, so its fields are known by the field name
+// alone.
+func flattenFieldPaths(decl *model.Declaration) {
+	for _, field := range decl.Fields {
+		if dot := strings.Index(field.Path, "."); dot >= 0 {
+			field.Path = field.Path[dot+1:]
+			continue
+		}
+		field.Path = ""
+	}
 }
 
 // readValue reads one const or var spec and returns the names it declares.

@@ -262,11 +262,13 @@ func (v *collector) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 			return true
 		}
 
-		// If there's a function declaration in the stack,
-		// the var/const/struct is internal to a function.
+		// If there's a function declaration in the stack, the
+		// var/const/struct is internal to a function. A func literal is a
+		// function too: the body of one initializing a package level var
+		// declares locals of its own, and none of them is a package var.
 		for _, k := range stack {
-			_, ok := k.(*ast.FuncDecl)
-			if ok {
+			switch k.(type) {
+			case *ast.FuncDecl, *ast.FuncLit:
 				return true
 			}
 		}

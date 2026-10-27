@@ -13,24 +13,19 @@ import (
 // single brace inside the body. A declaration with no body, the shape of a
 // forward declaration to assembly, is one line.
 func (f *file) scanFunc(src *source, line int) int {
-	header, end := funcHeader(src, line)
+	header, end, column := funcHeader(src, line)
 	if header == "" {
 		return line
 	}
 
-	// A body written on the same line as the signature closes on that line;
-	// one opened at the end of it closes on a brace at column zero. Where the
-	// body starts is what keeps the signature out of the references. A
-	// declaration with no body at all, a forward declaration to assembly or a
-	// go:linkname target, ends with its signature: scanning it for a closing
-	// brace would read every declaration under it as the body, up to wherever
-	// some later brace closes.
-	body, column := end, 0
-	switch {
-	case closedOnLine(src.codeLine(end)):
-		column = bodyColumn(src.codeLine(end))
-	case strings.HasSuffix(strings.TrimSpace(src.codeLine(end)), "{"):
-		body = blockEnd(src, end, '}')
+	// column is where the body opens on its header line, and is zero for a
+	// declaration with no body at all: a forward declaration to assembly or a
+	// go:linkname target. Scanning such a line for a closing brace would read
+	// every declaration under it as the body, up to wherever some later brace
+	// closes.
+	body := end
+	if column > 0 {
+		body = bodyEndFrom(src, end, column-1)
 	}
 
 	decl := parseFuncHeader(header)
@@ -41,7 +36,7 @@ func (f *file) scanFunc(src *source, line int) int {
 	decl.File = src.name
 	decl.Line = line + 1
 	decl.Doc = docAbove(src, line)
-	decl.Source = src.text(docStart(src, line), body)
+	decl.Source = src.declText(docStart(src, line), body)
 	shadowed := localNames(header)
 	if column > 0 {
 		decl.References = f.references(src, end, column, body, shadowed)
@@ -61,17 +56,22 @@ func (f *file) scanFunc(src *source, line int) int {
 }
 
 // funcHeader joins the lines of a signature that runs over more than one, and
-// returns it with the line it ended on.
+// returns it with the line it ended on and the column the body opens at.
 //
-// A signature ends where its parens balance and the line ends in an opening
-// brace or in the result type. Reading it as one string lets the
-// split happen once and not per line.
-func funcHeader(src *source, line int) (string, int) {
+// A signature ends where its parens balance and the body brace follows the
+// result type. Reading it as one string lets the split happen once and not per
+// line. A struct or interface written as the result type carries a body of its
+// own, which is kept as the source spells it: the ast collector prints the
+// result with its line breaks and indentation, and the signature has to match.
+func funcHeader(src *source, line int) (string, int, int) {
 	// A signature that opens and closes on one line is that line. Most of them
 	// are, and building a new string for each is most of what reading a func
 	// costs.
-	if code := src.codeLine(line); balanced(code) {
-		return strings.TrimSpace(code), line
+	if code := src.codeLine(line); balanced(code) && !resultOpen(code) {
+		if at := bodyBrace(code); at >= 0 {
+			return strings.TrimSpace(code), line, at + 1
+		}
+		return strings.TrimSpace(code), line, 0
 	}
 
 	var (
@@ -81,45 +81,44 @@ func funcHeader(src *source, line int) (string, int) {
 
 	for i := line; i < src.len(); i++ {
 		code := src.codeLine(i)
+		indent := len(code) - len(strings.TrimLeft(code, " \t"))
+		start, base, text := header.Len(), indent, strings.TrimSpace(code)
+
 		if i > line {
-			header.WriteString(" ")
+			end := header.Len()
+			if resultOpen(header.String()) {
+				header.WriteString("\n")
+				text, base = src.line(i), 0
+			} else {
+				header.WriteString(" ")
+			}
+			start = end + 1
 		}
-		header.WriteString(strings.TrimSpace(code))
+		header.WriteString(text)
 
 		depth += strings.Count(code, "(") - strings.Count(code, ")")
 		if depth > 0 {
 			continue
 		}
 
+		joined := header.String()
+		if resultOpen(joined) {
+			continue
+		}
+		if at := bodyBrace(joined); at >= 0 {
+			return strings.TrimSpace(joined), i, at - start + base + 1
+		}
+
 		trimmed := strings.TrimSpace(code)
 		if strings.HasSuffix(trimmed, ",") {
 			continue
 		}
-		if strings.HasSuffix(trimmed, "{") || i > line || strings.Contains(code, ")") {
-			return strings.TrimSpace(header.String()), i
+		if i > line || strings.Contains(code, ")") {
+			return strings.TrimSpace(joined), i, 0
 		}
 	}
 
-	return strings.TrimSpace(header.String()), src.len() - 1
-}
-
-// closedOnLine reports whether a body opened on a line also closes on it,
-// the shape of a one line func.
-func closedOnLine(code string) bool {
-	depth := 0
-	opened := false
-
-	for i := 0; i < len(code); i++ {
-		switch code[i] {
-		case '{':
-			depth++
-			opened = true
-		case '}':
-			depth--
-		}
-	}
-
-	return opened && depth == 0
+	return strings.TrimSpace(header.String()), src.len() - 1, 0
 }
 
 // parseFuncHeader reads a joined signature into a declaration.
@@ -254,34 +253,6 @@ func matchBrace(text string, open int) int {
 		}
 	}
 	return -1
-}
-
-// bodyColumn is where the body opens on a line that holds the whole
-// declaration, which is the brace that a matching one closes at the end of it.
-func bodyColumn(code string) int {
-	depth := 0
-
-	for i := 0; i < len(code); i++ {
-		switch code[i] {
-		case '(', '[':
-			depth++
-		case ')', ']':
-			depth--
-		case '{':
-			if depth > 0 {
-				continue
-			}
-			if opensComposite(code[:i]) {
-				if end := matchBrace(code, i); end > 0 {
-					i = end
-				}
-				continue
-			}
-			return i + 1
-		}
-	}
-
-	return 0
 }
 
 // localNames are the names a signature binds, which are the parameters, the

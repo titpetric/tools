@@ -293,10 +293,20 @@ func specNames(spec, keyword string) []string {
 // anonymous struct declared as a field's type, closes at whatever
 // indentation it opened at, so the scan has to count its extent.
 func bodyEnd(src *source, from int) int {
+	return bodyEndFrom(src, from, 0)
+}
+
+// bodyEndFrom counts from a column of the line the body opens on, which is
+// what a signature ending in "} {" needs: the brace that opens the body is not
+// the first one on its line, and the one before it belongs to the result type.
+func bodyEndFrom(src *source, from, column int) int {
 	depth := 0
 
 	for i := from; i < src.len(); i++ {
 		code := src.codeLine(i)
+		if i == from && column > 0 && column < len(code) {
+			code = code[column:]
+		}
 		depth += strings.Count(code, "{") - strings.Count(code, "}")
 		if i > from || strings.Contains(code, "{") {
 			if depth <= 0 {
@@ -306,4 +316,42 @@ func bodyEnd(src *source, from int) int {
 	}
 
 	return src.len() - 1
+}
+
+// bodyBrace returns the index of the brace opening a func body in a joined
+// signature, and -1 when the signature declares no body.
+//
+// A brace closing a struct or interface written as the result type is skipped
+// with what it opens, since the body follows it.
+func bodyBrace(header string) int {
+	for i := 0; i < len(header); i++ {
+		if header[i] != '{' {
+			continue
+		}
+		if opensComposite(header[:i]) {
+			if close := matchBrace(header, i); close > i {
+				i = close
+			}
+			continue
+		}
+		return i
+	}
+	return -1
+}
+
+// resultOpen reports whether a joined signature holds a struct or interface
+// result type whose brace is still open, the state that makes the next source
+// line part of the signature.
+func resultOpen(header string) bool {
+	for i := 0; i < len(header); i++ {
+		if header[i] != '{' || !opensComposite(header[:i]) {
+			continue
+		}
+		close := matchBrace(header, i)
+		if close < 0 {
+			return true
+		}
+		i = close
+	}
+	return false
 }

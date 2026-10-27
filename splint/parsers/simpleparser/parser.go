@@ -74,6 +74,21 @@ func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 		}
 	}
 
+	// A tree holding modules is read the way the go tool reads it: a directory
+	// outside every module is no package the pattern names, so the ast parser
+	// has none of them and neither does this one. A tree holding no module at
+	// all is read whole, which is what a fixture under testdata is.
+	if len(doc.Modules) > 0 {
+		packages := doc.Packages[:0]
+		for _, def := range doc.Packages {
+			if def.ImportPath == "" {
+				continue
+			}
+			packages = append(packages, def)
+		}
+		doc.Packages = packages
+	}
+
 	if p.options.IncludeTestFacts && p.options.IncludeTests {
 		if err := ReadTagged(doc, p.options); err != nil {
 			return nil, err
