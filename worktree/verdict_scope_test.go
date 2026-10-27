@@ -30,7 +30,7 @@ func TestScopeVerdictNarrowsToTheRootPackage(t *testing.T) {
 	requireSplint(t)
 
 	alpha := scopedRepo(t)
-	whole, err := readVerdict(alpha, "", "", false)
+	whole, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestScopeVerdictKeepsWhatTheRootTakesAway(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: drop Greet")
 
-	whole, err := readVerdict(alpha, "", "", false)
+	whole, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 )
 
@@ -72,13 +74,20 @@ type verdict struct {
 // The --from and --to flags name the two revisions outright, so a report can
 // cover a range away from the current checkout.
 //
+// The detailed flag reads every commit of the range on its own, which fills in
+// the commit table and the commits behind each symbol. Without it the report
+// compares the two ends alone: a commit is immutable, and modelling each one
+// costs a splint extraction, so a range of a few hundred commits takes minutes
+// rather than seconds. -v turns it on.
+//
 // The cached flag says whether the cache keeps the models of the commits it
 // reads between runs; --no-cache turns that off.
-func readVerdict(dir, from, to string, cached bool) (verdict, error) {
+func readVerdict(dir, from, to string, detailed, cached bool) (verdict, error) {
 	tags, prefix, err := moduleTags(dir)
 	if err != nil {
 		return verdict{}, err
 	}
+	reportTags(tags)
 
 	v := verdict{Module: moduleName(dir), RepoURL: repoURL(dir)}
 
@@ -91,16 +100,16 @@ func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 	defer func() { _ = models.Close() }()
 
 	if from != "" || to != "" {
-		return v.between(dir, tags, prefix, from, to, models)
+		return v.between(dir, tags, prefix, from, to, detailed, models)
 	}
 
 	latest, found := LatestRelease(tags)
 	if !found {
-		return v.report(dir, tags, prefix, "", "", models)
+		return v.report(dir, tags, prefix, "", "", detailed, models)
 	}
 
 	if ahead := commitsSinceTag(dir, prefix+latest.String()); ahead > 0 {
-		return v.report(dir, tags, prefix, latest.String(), "", models)
+		return v.report(dir, tags, prefix, latest.String(), "", detailed, models)
 	}
 
 	// Level with the tag: the release to report on is the existing one,
@@ -109,13 +118,20 @@ func readVerdict(dir, from, to string, cached bool) (verdict, error) {
 	if previous, ok := PreviousRelease(tags); ok {
 		from = previous.String()
 	}
-	return v.report(dir, tags, prefix, from, latest.String(), models)
+	return v.report(dir, tags, prefix, from, latest.String(), detailed, models)
+}
+
+// reportTags writes the number of tags the run found, before it reads any
+// revision. A run over a long range takes minutes, and this line says the
+// repository was read and the range is being measured.
+func reportTags(tags []string) {
+	fmt.Fprintf(os.Stderr, "%d tags found\n", len(tags))
 }
 
 // between reports on the range the caller named. An empty from falls back to
 // the release before the one named by to, and an empty to is the working tree.
 // The report function reports the range it settles on.
-func (v verdict) between(dir string, tags []string, prefix, from, to string, models *apiModels) (verdict, error) {
+func (v verdict) between(dir string, tags []string, prefix, from, to string, detailed bool, models *apiModels) (verdict, error) {
 	if from == "" {
 		// Measure from whatever came before the requested revision: the
 		// release below it when it names one.
@@ -131,7 +147,7 @@ func (v verdict) between(dir string, tags []string, prefix, from, to string, mod
 		}
 	}
 
-	return v.report(dir, tags, prefix, from, to, models)
+	return v.report(dir, tags, prefix, from, to, detailed, models)
 }
 
 // report fills in the verdict for a range whose two ends are already settled,
@@ -147,14 +163,18 @@ func (v verdict) between(dir string, tags []string, prefix, from, to string, mod
 // proposal, since there is no tag to call it by.
 //
 // The models are the cache the comparison reads revisions through, and may be
-// nil, in which case report reads the revisions for this range alone.
-func (v verdict) report(dir string, tags []string, prefix, from, to string, models *apiModels) (verdict, error) {
+// nil, in which case report reads the revisions for this range alone. The
+// detailed flag reads each commit of the range on its own; without it the
+// report compares the two ends and leaves the commit attribution out.
+func (v verdict) report(dir string, tags []string, prefix, from, to string, detailed bool, models *apiModels) (verdict, error) {
 	fromRef, toRef := taggedRef(from, prefix, tags), taggedRef(to, prefix, tags)
 
 	v.Since = from
 	v.Commits = commitLogBetween(dir, fromRef, toRef)
 	v.API = compareRefs(dir, fromRef, toRef, models)
-	v.CommitAPI = scanCommits(dir, fromRef, v.Commits, models)
+	if detailed {
+		v.CommitAPI = scanCommits(dir, fromRef, v.Commits, models)
+	}
 	v.GoBefore, v.GoAfter = goVersionAt(dir, fromRef), goVersionAt(dir, toRef)
 	v.Visibility = readVisibility(dir)
 

@@ -98,7 +98,7 @@ func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "go.mod"), "module example.com/alpha\n\ngo 1.27\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: move to go 1.27")
 
-	got, err := readVerdict(alpha, "", "", false)
+	got, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestVerdictMovingGoSeriesCostsAMinor(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "go.mod"), "module example.com/alpha\n\ngo 1.27.3\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: move to go 1.27.3")
 
-	got, err = readVerdict(alpha, "", "", false)
+	got, err = readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}

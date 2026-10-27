@@ -68,7 +68,7 @@ func main() {
 			}
 			verdicts = chain
 		} else {
-			v, err := readVerdict(dir, opts.From, opts.To, !opts.NoCache)
+			v, err := readVerdict(dir, opts.From, opts.To, opts.Verbose, !opts.NoCache)
 			if err != nil {
 				log.Fatalf("failed to read the release verdict: %v", err)
 			}

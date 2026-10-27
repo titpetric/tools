@@ -130,7 +130,7 @@ func changelog(w io.Writer, dir string, opts *Options, styled bool) error {
 
 	failed := 0
 	for _, r := range ranges {
-		v, err := base.report(dir, tags, prefix, r.From, r.To, models)
+		v, err := base.report(dir, tags, prefix, r.From, r.To, true, models)
 		if err != nil {
 			return err
 		}

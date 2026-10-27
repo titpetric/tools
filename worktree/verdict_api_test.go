@@ -149,7 +149,7 @@ func TestRenderVerdictNamesTheCommitsBehindASymbol(t *testing.T) {
 	requireSplint(t)
 
 	alpha := commitScanRepo(t)
-	v, err := readVerdict(alpha, "", "", false)
+	v, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestRenderVerdictLinksTheCommitsBehindASymbol(t *testing.T) {
 func TestRenderVerdictNamesAPackageByItsPathBelowTheModule(t *testing.T) {
 	requireSplint(t)
 
-	v, err := readVerdict(twoModelsRepo(t), "", "", false)
+	v, err := readVerdict(twoModelsRepo(t), "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}

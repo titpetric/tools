@@ -121,8 +121,11 @@ worktree verdict .                          # the root package alone
 worktree verdict > NOTES.md                 # markdown, for a release note
 worktree verdict --from v0.4.4 --to v0.5.5  # a range of your choosing
 worktree verdict --all                      # every release the repository has made
+worktree verdict -v                         # read every commit of the range
 worktree verdict --no-cache                 # read every commit again, cache nothing
 ```
+
+Verdict reads the number of tags the repository carries as it starts, so a run that goes on to measure a long range says it found them before it goes quiet. By default it compares the two ends of the range: the latest tag and the working tree, or the two revisions `--from` and `--to` name. Each commit costs a `splint` extraction of its own, so reading the range commit by commit is opt-in: `-v` fills the per-commit counts and the commits behind each symbol, and takes minutes on a long range.
 
 A path of `.` narrows the verdict to the package at the module root, the way the go tool reads the pattern; the implicit default is `./...`, the whole module. Verdict judges a repository whose root package is its public API on that package: a symbol a subpackage loses is a refactor there, not a breaking release, and the API, data model and commit count tables narrow with it.
 
@@ -194,13 +197,13 @@ The `Package` column is the import path below the module, written from the modul
 
 Exported and unexported symbols share the `Symbol` column. Within a package the API comes first and what a consumer cannot reach comes under a divider, so the reader after what the release costs stops at the rule and the reader after what the refactor moved carries on past it. Verdict draws the rule across the symbol column alone, as `---` in markdown and as a line on a terminal. A package whose symbols are all internal draws no rule: there is nothing above it to part it from, and the whole of its block is internal.
 
-The `External` and `Internal` columns of the commit table count what one commit did on its own, in the order the rest of the report reads: what it added, what it reshaped, what it took away. External is what a consumer can see and Internal what it cannot; the two columns tell a release from a refactor. Verdict compares each commit against the one under it, so a range of twenty commits is twenty comparisons and a reader can pick the commit behind a removal out of them. A commit that moved neither half leaves the cells empty where three zeroes would stand, and a commit that touched no file of the module does not appear at all.
+The `External` and `Internal` columns of the commit table count what one commit did on its own, in the order the rest of the report reads: what it added, what it reshaped, what it took away. External is what a consumer can see and Internal what it cannot; the two columns tell a release from a refactor. With `-v` verdict compares each commit against the one under it, so a range of twenty commits is twenty comparisons and a reader can pick the commit behind a removal out of them. A commit that moved neither half leaves the cells empty where three zeroes would stand, and a commit that touched no file of the module does not appear at all.
 
 The `Commits` column of the API table names the commits behind each symbol, oldest first, linked the way the commit table links them. A symbol added by one commit and reshaped by another lists both. The data model table carries the same column, for the commits behind each field.
 
 ### Reading history once
 
-Reading a range commit by commit means modelling every commit in it, and on a repository with a few hundred of them that takes minutes, not seconds. A commit cannot change, and neither can the model of one, so verdict keeps the models on disk and every later run reads them back:
+Reading a range commit by commit means modelling every commit in it, and on a repository with a few hundred of them that takes minutes, not seconds; that is why `-v` asks for it and the default does not. A commit cannot change, and neither can the model of one, so verdict keeps the models on disk and every later run reads them back:
 
 ```
 ~/.cache/worktree/verdict-<key>.json

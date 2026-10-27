@@ -47,7 +47,7 @@ func TestVerdictCacheKeepsTheModelOfACommit(t *testing.T) {
 	dir := cacheHome(t)
 	alpha := verdictRepo(t)
 
-	if _, err := readVerdict(alpha, "", "", true); err != nil {
+	if _, err := readVerdict(alpha, "", "", true, true); err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
 	written := cacheEntries(t, dir)
@@ -67,7 +67,7 @@ func TestVerdictCacheKeepsTheModelOfACommit(t *testing.T) {
 		stamps[entry] = info.ModTime().UnixNano()
 	}
 
-	if _, err := readVerdict(alpha, "", "", true); err != nil {
+	if _, err := readVerdict(alpha, "", "", true, true); err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
 	again := cacheEntries(t, dir)
@@ -89,7 +89,7 @@ func TestVerdictCacheIsNotWrittenWithoutIt(t *testing.T) {
 	requireSplint(t)
 
 	dir := cacheHome(t)
-	if _, err := readVerdict(verdictRepo(t), "", "", false); err != nil {
+	if _, err := readVerdict(verdictRepo(t), "", "", true, false); err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
 

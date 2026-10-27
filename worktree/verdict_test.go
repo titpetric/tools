@@ -31,7 +31,7 @@ func verdictRepo(t *testing.T) string {
 func TestReadVerdictReportsTheLastReleaseWhenLevelWithItsTag(t *testing.T) {
 	requireSplint(t)
 
-	got, err := readVerdict(verdictRepo(t), "", "", false)
+	got, err := readVerdict(verdictRepo(t), "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestReadVerdictProposesAReleaseWhenBehind(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Bye parts.\nfunc Bye(name string) string { return name }\n\n// Hi greets.\nfunc Hi() string { return \"hi\" }\n")
 	runGit(t, filepath.Dir(alpha), "commit", "--quiet", "-am", "alpha: add Hi")
 
-	got, err := readVerdict(alpha, "", "", false)
+	got, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestReadVerdictWithOneTagAddsEverythingItExports(t *testing.T) {
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
 	runGit(t, root, "tag", "alpha/v0.1.0")
 
-	got, err := readVerdict(alpha, "", "", false)
+	got, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestReadVerdictWithoutAReleaseTag(t *testing.T) {
 	writeTestFile(t, filepath.Join(alpha, "alpha.go"), "package alpha\n\n// Greet greets.\nfunc Greet(name string) string { return name }\n\n// Tag is a release tag.\ntype Tag struct {\n\tName string\n}\n")
 	runGit(t, root, "commit", "--quiet", "-am", "alpha: add Greet")
 
-	got, err := readVerdict(alpha, "", "", false)
+	got, err := readVerdict(alpha, "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	// A working tree the report must not read, since the call names a range.
 	writeTestFile(t, filepath.Join(alpha, "stray.go"), "package alpha\n\n// Stray is uncommitted.\nfunc Stray() {}\n")
 
-	got, err := readVerdict(alpha, "v0.1.0", "v0.2.0", false)
+	got, err := readVerdict(alpha, "v0.1.0", "v0.2.0", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	}
 
 	// Naming only the newer revision measures from the release below it.
-	got, err = readVerdict(alpha, "", "v0.2.0", false)
+	got, err = readVerdict(alpha, "", "v0.2.0", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestReadVerdictBetweenNamedRevisions(t *testing.T) {
 	}
 
 	// Naming only the older one measures to the working tree, where Stray is.
-	got, err = readVerdict(alpha, "v0.1.0", "", false)
+	got, err = readVerdict(alpha, "v0.1.0", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -363,7 +363,7 @@ func commitScanRepo(t *testing.T) string {
 func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
 	requireSplint(t)
 
-	got, err := readVerdict(commitScanRepo(t), "", "", false)
+	got, err := readVerdict(commitScanRepo(t), "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}
@@ -388,6 +388,34 @@ func TestReadVerdictCountsTheAPIOfEachCommit(t *testing.T) {
 		if counts != want[i] {
 			t.Errorf("readVerdict() %q = %q, want %q", commit.Subject, counts, want[i])
 		}
+	}
+}
+
+// The default verdict compares the two ends of the range and leaves the
+// commit-by-commit scan out, since one splint extraction per commit is what
+// makes a long range take minutes. -v reads the commits.
+func TestReadVerdictSkipsTheCommitScanUnlessDetailed(t *testing.T) {
+	requireSplint(t)
+
+	alpha := commitScanRepo(t)
+
+	fast, err := readVerdict(alpha, "", "", false, false)
+	if err != nil {
+		t.Fatalf("readVerdict() error: %v", err)
+	}
+	if len(fast.CommitAPI) != 0 {
+		t.Errorf("readVerdict() scanned %d commits by default, want none", len(fast.CommitAPI))
+	}
+	if len(fast.Commits) != 3 {
+		t.Errorf("readVerdict() Commits = %d, want the three commits since the tag", len(fast.Commits))
+	}
+
+	detailed, err := readVerdict(alpha, "", "", true, false)
+	if err != nil {
+		t.Fatalf("readVerdict(detailed) error: %v", err)
+	}
+	if len(detailed.CommitAPI) != 3 {
+		t.Errorf("readVerdict(detailed) scanned %d commits, want 3", len(detailed.CommitAPI))
 	}
 }
 

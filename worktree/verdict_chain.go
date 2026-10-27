@@ -17,6 +17,7 @@ func readVerdicts(dir string, verbose bool, from, upTo string, cached bool) ([]v
 	if err != nil {
 		return nil, err
 	}
+	reportTags(tags)
 
 	ahead := false
 	if latest, found := LatestRelease(tags); found {
@@ -38,7 +39,7 @@ func readVerdicts(dir string, verbose bool, from, upTo string, cached bool) ([]v
 
 	var verdicts []verdict
 	for _, r := range chain {
-		v, err := base.report(dir, tags, prefix, r.From, r.To, models)
+		v, err := base.report(dir, tags, prefix, r.From, r.To, true, models)
 		if err != nil {
 			return nil, err
 		}

@@ -209,7 +209,7 @@ func TestRenderVerdictOmitsEmptySections(t *testing.T) {
 func TestRenderVerdictWritesTheCountColumnsOfEachCommit(t *testing.T) {
 	requireSplint(t)
 
-	v, err := readVerdict(commitScanRepo(t), "", "", false)
+	v, err := readVerdict(commitScanRepo(t), "", "", true, false)
 	if err != nil {
 		t.Fatalf("readVerdict() error: %v", err)
 	}

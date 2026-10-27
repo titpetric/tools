@@ -63,7 +63,7 @@ func (o *Options) bind(fs *flag.FlagSet) {
 	fs.BoolVar(&o.PUML, "puml", false, "output PlantUML dependency diagram to stdout")
 	fs.BoolVar(&o.D2, "d2", false, "output D2 dependency diagram to stdout")
 	fs.BoolVar(&o.Matrix, "t", false, "output dependency matrix to stdout")
-	fs.BoolVar(&o.Verbose, "v", false, "verbose output: show module details, every untracked file, and commands run during updates")
+	fs.BoolVar(&o.Verbose, "v", false, "verbose output: module details, untracked files and commands; verdict reads every commit of the range")
 	fs.BoolVar(&o.Verbose, "verbose", false, "alias of -v")
 	fs.BoolVar(&o.Apply, "apply", false, "perform the resolution, or publish the release notes, instead of rendering either")
 	fs.BoolVar(&o.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
