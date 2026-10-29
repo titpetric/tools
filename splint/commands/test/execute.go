@@ -35,15 +35,16 @@ func (s *selection) run(ctx context.Context, src *source, opts Options, w, progr
 		}
 		args = withFlags(args, "-v")
 
+		module, rel := src.module(dir)
 		cmdArgs := append([]string{"test"}, args...)
-		cmdArgs = append(cmdArgs, packageArg(dir))
+		cmdArgs = append(cmdArgs, packageArg(rel))
 
 		if opts.Verbose {
 			fmt.Fprintf(progress, "splint test: go %s\n", strings.Join(cmdArgs, " "))
 		}
 
 		cmd := exec.CommandContext(ctx, "go", cmdArgs...)
-		cmd.Dir = src.root
+		cmd.Dir = module
 		out, err := cmd.CombinedOutput()
 
 		code := 0

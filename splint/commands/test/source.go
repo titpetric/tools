@@ -57,6 +57,30 @@ func newSource(ctx context.Context, opts Options) (*source, error) {
 	return &source{root: root, repo: strings.TrimSpace(repo), base: base}, nil
 }
 
+// module returns the module directory that holds dir's package, and the
+// package's path below it.
+//
+// go test resolves a module from the directory it runs in. A tree with one
+// go.mod at its root answers the root for every package. A tree holding a
+// module per project, with no go.mod at its root, answers each package's own
+// module, so a run over the whole tree starts every invocation inside the
+// module that owns the package.
+func (s *source) module(dir string) (string, string) {
+	abs := filepath.Join(s.root, dir)
+	for d := abs; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
+			rel, err := filepath.Rel(d, abs)
+			if err != nil {
+				return d, "."
+			}
+			return d, rel
+		}
+		if parent := filepath.Dir(d); parent == d {
+			return s.root, dir
+		}
+	}
+}
+
 // git runs git in dir and returns what it wrote.
 func git(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
