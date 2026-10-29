@@ -39,6 +39,7 @@ splint docs ./... > docs/api.md       # render the tree as an API reference
 splint coverage --input splint.json   # report the coverage a document carries
 splint diff --old a.json --new b.json # what a release takes away
 splint sizes --input splint.json       # every file with its byte size, as JSON
+splint test ./...                     # run the tests the working tree changed
 splint --save ./...                   # extract a document to splint.json, and judge nothing
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
@@ -804,6 +805,21 @@ splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
 `--render d2` writes the histogram as a d2 source document, one rectangle per non-empty bucket; the size diagram in a README renders from it.
 
 The command counts every file the document carries, in every scope: a document written with `--include-tests` carries the test files, and the command counts them.
+
+## Test
+
+`splint test` starts only the tests a change reaches. It compares the working tree with `HEAD`, or the revision `--base` names, keeps the functions whose signature or body moved, and maps each to the tests that exercise it:
+
+```shell
+splint test ./...                       # what the working tree changed
+splint test --base origin/main ./...    # what a branch changed, against main
+splint test --split ./pkg               # one go test invocation per test
+splint test ./... -count=1 -timeout 2m  # flags after the pattern go to go test
+```
+
+A changed test runs itself. A changed benchmark runs itself under `-benchtime 10s`. A changed function runs `Test<Func>`, and a method on type `T` runs every `Test<T>*`; a test that reaches the function through a helper of its own package runs too, and a test in another package runs when its file imports the changed package and writes the name. When no test names or calls a changed function, the run starts the tests of its package, which is the narrow answer left.
+
+A type's fields and a doc comment are not changes here: `go build` judges the type, and a comment changes no behaviour. The run is quiet: it writes one `PASS TestName` or `FAIL TestName` line per test it started, and the output of a failing `go test` behind a `FAIL` line. `--list` writes what would run and runs nothing, and `-v` says which functions changed and which command ran. A flag splint does not know is forwarded to every `go test` invocation, and `--` forwards the rest of the command line unchanged.
 
 ## Schemas
 
