@@ -16,9 +16,9 @@ func TestLatestGoVersion(t *testing.T) {
 	}{
 		{"picks highest", []string{"1.24", "1.27", "1.25.1"}, "1.27.0", true},
 		{"compares numerically", []string{"1.9", "1.10"}, "1.10.0", true},
-		{"patch wins", []string{"1.27", "1.27.3"}, "1.27.3", true},
-		{"rc beats prior release", []string{"1.27rc1", "1.26"}, "1.27.0-rc1", true},
-		{"release beats its rc", []string{"1.27rc1", "1.27"}, "1.27.0", true},
+		{"picks the patch release", []string{"1.27", "1.27.3"}, "1.27.3", true},
+		{"picks an rc of the next minor", []string{"1.27rc1", "1.26"}, "1.27.0-rc1", true},
+		{"picks the release of an rc", []string{"1.27rc1", "1.27"}, "1.27.0", true},
 		{"skips unparseable", []string{"", "tip", "1.25"}, "1.25.0", true},
 		{"no versions", []string{"", "tip"}, "", false},
 	}

@@ -20,9 +20,9 @@
 // since they resolve against one module cache.
 //
 // The Catalogue matches an import path to a module on a path boundary:
-// "example.com/x" owns "example.com/x/inner" and not "example.com/xylophone",
-// and the longest match wins, since a go.mod may require a module alongside a
-// submodule of itself. Base folds the major versions of a module together: a
+// "example.com/x" owns "example.com/x/inner" and leaves "example.com/xylophone"
+// to its own module. The longest matching module owns a path, since a go.mod
+// may require a module alongside a submodule of itself. Base folds the major versions of a module together: a
 // module requiring both links both into the binary, and the types of one do
 // not fit the interfaces of the other.
 package gomod

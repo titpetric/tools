@@ -49,8 +49,8 @@ func NewCatalogue(doc *model.DocumentRoot) *Catalogue {
 
 		for _, require := range module.Requires {
 			// A module required by two of the modules read is one dependency.
-			// The direct require wins: something imports it directly, and
-			// that is what a reader is deciding about.
+			// The catalogue keeps the direct require: something imports it
+			// directly, and that is what a reader is deciding about.
 			if known, seen := c.requires[require.Path]; !seen || (known.Indirect && !require.Indirect) {
 				c.requires[require.Path] = require
 			}

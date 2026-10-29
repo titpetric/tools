@@ -46,8 +46,8 @@ func constraintOf(source []byte) constraint.Expr {
 			continue
 		}
 
-		// The //go:build line wins outright, as the toolchain does
-		// with a file carrying both.
+		// A file carrying both lines builds by its //go:build line,
+		// as the toolchain reads it.
 		if expr, err := constraint.Parse(trimmed); err == nil {
 			if constraint.IsGoBuild(trimmed) {
 				return expr

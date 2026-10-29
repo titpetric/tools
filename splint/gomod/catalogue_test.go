@@ -40,8 +40,8 @@ func TestCatalogue_Owner(t *testing.T) {
 	c := gomod.NewCatalogue(document())
 
 	tests := map[string]string{
-		// The longest match wins, so a submodule required on its own is not
-		// attributed to the module it sits under.
+		// The longest matching module owns the path. A submodule required
+		// on its own resolves to itself.
 		"example.com/x":              "example.com/x",
 		"example.com/x/sub":          "example.com/x",
 		"example.com/x/inner":        "example.com/x/inner",
@@ -63,7 +63,7 @@ func TestCatalogue_Owner(t *testing.T) {
 }
 
 // TestCatalogue_Requires covers the merge: a module required by two of the
-// modules read is one dependency, and the direct require wins.
+// modules read is one dependency, and the catalogue keeps the direct require.
 func TestCatalogue_Requires(t *testing.T) {
 	c := gomod.NewCatalogue(document())
 

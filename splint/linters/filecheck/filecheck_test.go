@@ -105,9 +105,9 @@ func TestLinter_New_IsTheDefaultCeiling(t *testing.T) {
 // zero turns the rule off whatever the length, and the default covers a
 // file no entry names.
 //
-// The test files come first because first match wins and parser*.go
-// covers parser_test.go too. That is the ordering an author writes, and
-// getting it backwards here is what the entry order is for.
+// The test files come first because the first matching entry applies and
+// parser*.go covers parser_test.go too. That is the ordering an author
+// writes, and the entry order exists to express it.
 func TestLinter_Lint_Allowance(t *testing.T) {
 	linter := filecheck.New()
 	linter.Allow = filecheck.Allowances{

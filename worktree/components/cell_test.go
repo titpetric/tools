@@ -69,7 +69,7 @@ func TestRows_RowHeight(t *testing.T) {
 	}{
 		{name: "no cells", in: nil, want: 1},
 		{name: "every cell empty", in: Rows{nil, nil}, want: 1},
-		{name: "the tallest cell wins", in: Rows{Cell{"a"}, Cell{"a", "b", "c"}, Cell{"a", "b"}}, want: 3},
+		{name: "the tallest cell sets the height", in: Rows{Cell{"a"}, Cell{"a", "b", "c"}, Cell{"a", "b"}}, want: 3},
 	}
 	for _, test := range tests {
 		if got := test.in.RowHeight(); got != test.want {

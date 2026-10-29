@@ -8,9 +8,9 @@ import (
 	"github.com/titpetric/tools/splint/linters/filecheck"
 )
 
-// TestAllowances_MaxLinesFor reads the resolution on its own: which entry wins,
-// what a file no entry covers runs under, and that a zero survives as a zero
-// and never falls through to the default.
+// TestAllowances_MaxLinesFor reads the resolution on its own: which entry
+// applies, what a file no entry covers runs under, and that a zero stays a
+// zero.
 func TestAllowances_MaxLinesFor(t *testing.T) {
 	allow := filecheck.Allowances{
 		{Path: "parser/*.go", MaxLines: 1500},

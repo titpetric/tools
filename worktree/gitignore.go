@@ -153,8 +153,8 @@ func (s ignoreStack) push(dir string) ignoreStack {
 }
 
 // ignored reports whether any .gitignore on the stack excludes the walked path
-// itself. The innermost file wins, and within a file the last matching pattern
-// wins, as in git.
+// itself. The innermost file with a matching pattern decides, and within a
+// file the last matching pattern decides, as in git.
 func (s ignoreStack) ignored(walkPath string, isDir bool) bool {
 	walkPath = filepath.ToSlash(walkPath)
 	for i := len(s) - 1; i >= 0; i-- {

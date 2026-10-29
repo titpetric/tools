@@ -67,8 +67,8 @@ func (r Result) Ambiguous() bool {
 
 // Index is the document read as a resolver.
 type Index struct {
-	// aliases is what the configuration named, which wins over everything
-	// else: it states what the tree could not.
+	// aliases is what the configuration named. Lookup checks it first: it
+	// states what the tree could not.
 	aliases map[string]string
 
 	// byParent are the packages of the tree, keyed on the directory holding
@@ -179,8 +179,8 @@ func (i *Index) addRequire(modulePath string) {
 // Lookup resolves a name as a package writes it.
 //
 // The order is the order of confidence. A configured alias is a decision
-// somebody made and wins outright. A package of the tree found by walking up
-// from the directory is the next surest thing, and is what makes the same
+// somebody made, and Lookup checks it first. A package of the tree found by
+// walking up from the directory comes next, and is what makes the same
 // spelling mean two packages in two services. After that comes what the rest
 // of the tree already writes, and last a required module of the go.mod whose
 // name matches.

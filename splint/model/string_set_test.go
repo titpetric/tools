@@ -68,9 +68,10 @@ func TestStringSetAllIsOrdered(t *testing.T) {
 	}
 }
 
-// TestStringSetMapKeepsAnAlias covers the name a file actually writes. A major
-// version is not a package name, so x reaches "example.com/x/v2", but an
-// alias in front of it wins: that is the name in the source.
+// TestStringSetMapKeepsAnAlias covers the name a file writes. x reaches
+// "example.com/x/v2" by its last path segment before the major version, and
+// an alias in front of the path names the package: that is the name in the
+// source.
 func TestStringSetMapKeepsAnAlias(t *testing.T) {
 	set := NewStringSet()
 	set.Add("x.go",

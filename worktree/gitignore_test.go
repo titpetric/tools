@@ -143,7 +143,8 @@ func TestScannerSkipsTestdata(t *testing.T) {
 }
 
 // TestScannerAppliesGitignoreWhenEnabled checks the .gitignore rules apply
-// with the setting on, and that an ignore path still wins over a negation.
+// with the setting on, and that a path the ignore paths setting names stays
+// skipped when a .gitignore negation re-includes it.
 func TestScannerAppliesGitignoreWhenEnabled(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, filepath.Join(root, ".gitignore"), "build\n!vendor\n")

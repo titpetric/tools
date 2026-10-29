@@ -6,8 +6,8 @@
 # editing through the setup screen cannot drop one.
 #
 # Command line flags cover what to display and what to update; this file
-# covers how the workspace is scanned. Where the two ever overlap, a flag
-# given on the command line wins.
+# covers how the workspace is scanned. Where the two overlap, the tool
+# follows the flag given on the command line.
 
 # Document version, so a later build can tell what it is reading. A file
 # without one is accepted as unversioned.

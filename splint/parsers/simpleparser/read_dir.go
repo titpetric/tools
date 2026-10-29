@@ -133,7 +133,7 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 func merge(def *model.Definition, parsed *file, name string, seen map[string]bool) {
 	// A package comment on more than one file leaves the last of them
 	// standing, the same as the collector records: it assigns the doc of
-	// every file it walks, so the last one to have one wins.
+	// every file it walks, and the last file with a doc sets it.
 	if parsed.Doc != "" {
 		def.Doc = parsed.Doc
 	}

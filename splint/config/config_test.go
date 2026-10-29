@@ -170,7 +170,7 @@ func TestLoadFile(t *testing.T) {
 	assert.False(t, cfg.Imports.Pollution.CountTests())
 
 	opts := cfg.ImportOptions("example.com/app")
-	assert.Equal(t, "example.com/other", opts.Project, "a project the file names wins over the module")
+	assert.Equal(t, "example.com/other", opts.Project, "the project comes from the file when the file names one")
 	assert.Equal(t, []string{"github.com/titpetric/"}, opts.Company)
 	assert.False(t, opts.SetAlias)
 }
