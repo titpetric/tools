@@ -187,6 +187,13 @@ func TestFixIsIdempotent(t *testing.T) {
 func planFor(t *testing.T, parser, dir string) *fix.Plan {
 	t.Helper()
 
+	// The fixture is a copy of a module the toolchain loads, and the load must
+	// not write into it: a go that adds a go.sum or an indirect requirement to
+	// the copy would rewrite files the golden tree does not hold. The module
+	// mode an environment exports is not part of what this test states, so pin
+	// the one that reads the module and writes nothing.
+	t.Setenv("GOFLAGS", "-mod=readonly")
+
 	options := splint.Options{
 		SourcePath:     dir,
 		Pattern:        "./...",
@@ -401,6 +408,31 @@ func TestAPathThatDoesNotSpellItsPackage(t *testing.T) {
 				assert.NotEqual(t, "goyaml.go", issue.Position.Path(),
 					"%s reported %s on an import whose name the path does not spell", dir, rule)
 			}
+		}
+	}
+}
+
+// TestAnIndirectRequirementIsNotASecondImport covers the module a go.mod
+// requires whose last path segment is the name a file writes for a different
+// package.
+//
+// goyaml.go imports github.com/goccy/go-yaml and writes yaml, while the module
+// graph of a real project also requires gopkg.in/yaml.v3: reading that
+// requirement as the import the name needs would add a second yaml to a file
+// that builds.
+func TestAnIndirectRequirementIsNotASecondImport(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "tree")
+	copyTree(t, inputDir, dir)
+
+	mod := filepath.Join(dir, "go.mod")
+	require.NoError(t, os.WriteFile(mod, []byte(read(t, mod)+"\nrequire gopkg.in/yaml.v3 v3.0.1 // indirect\n"), 0o644))
+
+	byRule := fixture(t, dir, nil)
+
+	for _, rule := range []string{imports.RuleFormat, imports.RuleUnused, imports.RuleUnresolved} {
+		for _, issue := range byRule[rule] {
+			assert.NotEqual(t, "goyaml.go", issue.Position.Path(),
+				"%s reported on a file whose import answers to a name a required module also ends in", rule)
 		}
 	}
 }
