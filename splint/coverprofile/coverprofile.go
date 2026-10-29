@@ -124,7 +124,7 @@ type statements struct {
 //
 // Nothing to count reports 0. The cover tool never measures a declaration
 // with no statements and reports 0 for it, so a report reads the same
-// whichever of the two produced it.
+// from either of the two.
 func (s statements) percent() float64 {
 	if s.total == 0 {
 		return 0

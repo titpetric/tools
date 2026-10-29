@@ -120,7 +120,7 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 	// Find uncovered symbols (excluding constructors and those defined in test files)
 	var uncovered []UncoveredSymbol
 	for symbol := range idx.symbols {
-		// Skip symbols defined in test files (they're test helpers, not part of the public API)
+		// Skip symbols defined in test files: they're test helpers
 		if idx.testFileSymbols[symbol] {
 			continue
 		}
@@ -130,7 +130,7 @@ func (a *Analyzer) Analyze(pkgs []*packages.Package) (*Report, error) {
 			continue
 		}
 
-		// Skip methods - only require tests for receiver types, not individual methods
+		// Skip methods - require tests for receiver types alone
 		if strings.Contains(symbol, ".") {
 			continue
 		}

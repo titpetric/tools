@@ -115,9 +115,8 @@ func (p *Parser) directories(root string) ([]string, error) {
 		if !entry.IsDir() {
 			return nil
 		}
-		// The walk reads the root whatever its name: a caller reaches a fixture
-		// under testdata by pointing at it, and skipping the requested root
-		// reads nothing at all.
+		// The walk always reads the root: a caller reaches a fixture under
+		// testdata by pointing at it.
 		if path != root && skipDir(entry.Name()) {
 			return filepath.SkipDir
 		}

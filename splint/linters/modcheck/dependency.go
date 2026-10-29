@@ -32,7 +32,7 @@ type Dependency struct {
 	// the module and everything it drags in behind it. The linter counts the two
 	// over the modules this build carries, so a dependency of a dependency
 	// counts for each dependency that reaches it: the question each answers
-	// is what this one costs, not how the total divides.
+	// is what this one costs.
 	Reach  int   `json:"Reach,omitempty" yaml:"Reach,omitempty"`
 	Weight int64 `json:"Weight,omitempty" yaml:"Weight,omitempty"`
 
@@ -65,7 +65,7 @@ type Dependency struct {
 
 	// blank reports a module some file imports for its side effect. A
 	// registration is not a symbol and no caller can inline it, so a dependency
-	// carrying one is not thin, whatever little of it the tree reaches by name.
+	// carrying one counts as used, however little of it the tree reaches by name.
 	//
 	// It answers whether a file writes an import for a side effect and not
 	// whether that is worth reporting, so the exemptions the blank rule makes

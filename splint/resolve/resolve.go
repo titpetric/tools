@@ -2,8 +2,8 @@
 // that writes it.
 //
 // A file reaching model.User with no import of model needs a resolver to name
-// the model package. goimports queries a global index and takes whichever one
-// it indexed first, so it formats wrong a tree where /service1 and /service2
+// the model package. goimports queries a global index and takes the one it
+// indexed first, and it formats wrong a tree where /service1 and /service2
 // each hold a model package. Resolution here is source relative: from
 // service2/storage, model is ../model and never service1/model.
 //

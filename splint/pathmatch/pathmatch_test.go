@@ -49,7 +49,7 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// TestMatchBadPattern proves Match reports a malformed pattern whatever the
+// TestMatchBadPattern proves Match reports a malformed pattern for any
 // name: the name here matches the readable half of the pattern, so an
 // implementation that stopped matching before it reached the rest would return
 // a verdict and drop the error.

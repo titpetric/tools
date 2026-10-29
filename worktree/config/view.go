@@ -222,8 +222,8 @@ func valueText(field Field, v value) string {
 }
 
 // caretText renders text with the caret marked at a rune position, windowed to
-// width. The window follows the caret, so the typing end stays on screen
-// whatever the length of the text.
+// width. The window follows the caret, and the typing end stays on screen
+// at any length of the text.
 func caretText(text string, caret, width int) string {
 	runes := []rune(text)
 	caret = min(max(caret, 0), len(runes))

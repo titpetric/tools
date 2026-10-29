@@ -127,7 +127,7 @@ func Decide(root *model.DocumentRoot, def *model.Definition, idx Resolver, opts 
 	out := map[string]Decision{}
 	for _, file := range def.Files {
 		if file.Generated {
-			// Whatever generated a file owns its imports, and goimports-reviser
+			// The generator of a file owns its imports, and goimports-reviser
 			// leaves such a file alone too.
 			continue
 		}

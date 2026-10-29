@@ -45,7 +45,7 @@ func TestReadVerdictReportsTheLastReleaseWhenLevelWithItsTag(t *testing.T) {
 	if len(got.Commits) != 1 || got.Commits[0].Subject != "alpha: replace Greet with Bye" {
 		t.Errorf("readVerdict() Commits = %#v, want the commit between the two tags", got.Commits)
 	}
-	// The comparison is between the tags, not against the working tree.
+	// The comparison is between the two tags.
 	if len(got.API.Removed) != 1 || got.API.Removed[0].Name != "Greet" {
 		t.Errorf("readVerdict() API.Removed = %#v, want Greet", got.API.Removed)
 	}

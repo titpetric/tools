@@ -7,9 +7,8 @@ import (
 
 // allowlist are the filenames that hold anything.
 //
-// A package collects its data types in one place often enough that naming that
-// place after every type in it would be worse than naming it after none of
-// them.
+// A package often collects its data types in one place, and that file
+// carries a name of its own.
 var allowlist = []string{
 	"model*.go",
 	"types*.go",

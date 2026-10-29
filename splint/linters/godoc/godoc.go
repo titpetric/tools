@@ -144,7 +144,7 @@ func check(pkg model.Package, decls model.DeclarationList, generated map[string]
 
 // blocks groups the exported declarations that read as one block.
 //
-// The check leaves out a generated file. Whatever wrote the file writes its
+// The check leaves out a generated file. The generator writes its
 // comment, so any finding there is a finding nobody in this tree can act on: the
 // comment has to come from the generator or not at all.
 func blocks(decls model.DeclarationList, generated map[string]bool) []model.DeclarationList {

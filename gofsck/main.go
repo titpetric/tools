@@ -139,9 +139,9 @@ are not selectable, and the report holds a section for each.
 		Flags: fs,
 		Examples: []example{
 			{"gofsck ./...", "run the six over the whole module, and write the report as text"},
-			{"gofsck ./pkg/mypackage", "one package rather than the tree"},
+			{"gofsck ./pkg/mypackage", "lint one package"},
 			{"gofsck -format json ./...", "the same report as JSON, for a program to read"},
-			{"gofsck -format yaml -output report.yaml ./...", "write the report to a file instead of stdout"},
+			{"gofsck -format yaml -output report.yaml ./...", "write the report to a file"},
 			{"gofsck -skip-generated ./...", "leave out the generated files, which nobody organized by hand"},
 		},
 		Notes: `-checker hands the grouping analyzer to singlechecker, which is what a
@@ -183,13 +183,13 @@ func newCoverageAnalyzer() *analysis.Analyzer {
 
 // runPairingAnalyzer is a no-op for singlechecker (pairing needs packages.Package data)
 func runPairingAnalyzer(pass *analysis.Pass) (interface{}, error) {
-	// Pairing analysis requires package-level data, not AST-based analysis
+	// Pairing analysis runs on package-level data, outside this pass.
 	return nil, nil
 }
 
 // runCoverageAnalyzer is a no-op for singlechecker (coverage needs packages.Package data)
 func runCoverageAnalyzer(pass *analysis.Pass) (interface{}, error) {
-	// Coverage analysis requires package-level data, not AST-based analysis
+	// Coverage analysis runs on package-level data, outside this pass.
 	return nil, nil
 }
 

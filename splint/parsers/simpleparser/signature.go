@@ -178,8 +178,8 @@ func splitParam(param string) (name, typ string) {
 		return "", ""
 	}
 
-	// A name is one identifier, and the type is whatever follows it. Anything
-	// that is not a plain identifier followed by a space is a type on its own.
+	// A name is one identifier, and the type is the text that follows it. A
+	// parameter without a plain identifier and a space is a type on its own.
 	space := indexTop(param, ' ')
 	if space < 0 {
 		if isIdentifier(param) {
@@ -205,7 +205,7 @@ func indexTop(list string, sep byte) int {
 		case ')', ']', '}':
 			// The same as splitTop: "} else if a, b := f(); b != nil {" opens
 			// on the brace that closed the block above it, and the := after it
-			// is at the top level of the line whatever that brace did.
+			// is at the top level of the line.
 			if depth > 0 {
 				depth--
 			}
@@ -305,8 +305,8 @@ func signature(name string, params, results []paramGroup) string {
 		written = append(written, group.String())
 	}
 
-	// A result reads as its type, whatever its name: the collector
-	// prints the field's type and never the names in front of it.
+	// A result reads as its type: the collector prints the field's type
+	// and drops the names in front of it.
 	var returns string
 	switch len(results) {
 	case 0:
@@ -330,7 +330,7 @@ func signature(name string, params, results []paramGroup) string {
 //
 // The collector walks a type expression and writes each layer back: a pointer,
 // a slice, an ellipsis and a map are rebuilt from what they hold, and an
-// interface comes out as "any" whatever it declares. Anything it has no case
+// interface comes out as "any" with any method set. Anything it has no case
 // for, a func type or a struct written out in place, it prints as the source
 // spells it, so "func(interface{}) error" keeps its interface and
 // "map[string]interface{}" does not.

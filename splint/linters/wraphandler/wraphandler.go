@@ -93,8 +93,8 @@ func handlers(def *model.Definition) model.DeclarationList {
 }
 
 // generated reports a declaration in a file nobody wrote. A generator emits
-// whatever shape its author chose, and no convention it skips
-// is worth reporting to the person who ran it.
+// the shape its author chose, and the person who ran it can act
+// on none of its conventions.
 func generated(def *model.Definition, decl *model.Declaration) bool {
 	file, known := def.Files.Find(decl.File)
 	return known && file.Generated

@@ -15,7 +15,7 @@ func TestNewModelForReadsTheDocument(t *testing.T) {
 		t.Fatalf("newModelFor() error: %v", err)
 	}
 	if model.config.Scan.EnableGitignore {
-		t.Fatal("the screen opened on the defaults rather than the document")
+		t.Fatal("the screen opened on the defaults; want the document")
 	}
 	if model.status != "" {
 		t.Fatalf("status = %q, want none", model.status)
@@ -81,7 +81,7 @@ func TestRun(t *testing.T) {
 		t.Errorf("the form opened on %q, want %q", model.path, path)
 	}
 
-	// A run that does not save returns whatever reading the document cost,
+	// A run that does not save returns the error reading the document gave,
 	// which for a broken file is the parse error the status line also carries.
 	writeTestFile(t, path, "scan: [this is not a mapping]\n")
 	broken, loadErr := newModelFor(path)

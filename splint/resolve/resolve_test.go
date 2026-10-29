@@ -124,7 +124,7 @@ func TestLookupFallsBackToTheModuleRequirement(t *testing.T) {
 }
 
 // TestLookupAliasWins covers the escape hatch: a name the configuration named
-// resolves to what it says, whatever else answers to it.
+// resolves to what it says, before any other source.
 func TestLookupAliasWins(t *testing.T) {
 	root := tree()
 	index := resolve.New(root, map[string]string{"model": "example.com/other/model"})

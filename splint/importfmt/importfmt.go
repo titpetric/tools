@@ -178,8 +178,8 @@ func Canonical(specs []model.ImportSpec, opts Options) []model.ImportSpec {
 
 		key := spec.Name + " " + spec.Path
 		if index, seen := at[key]; seen {
-			// The same import written twice keeps whatever either writing
-			// said about it.
+			// The same import written twice keeps the comments either
+			// writing carried.
 			if out[index].Doc == "" {
 				out[index].Doc = spec.Doc
 			}

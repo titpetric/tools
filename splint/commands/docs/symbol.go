@@ -19,7 +19,7 @@ import (
 // name repeating across packages is a fact of the tree, and no tie to break.
 // Verbose adds one line per reference, tests and product code both, at the
 // position of the declaration doing the referencing: the model records who
-// references a symbol, not each place they do it from.
+// references a symbol, once per referencing declaration.
 func renderSymbol(w io.Writer, root *model.DocumentRoot, opts Options) error {
 	index := refindex.Build(root)
 

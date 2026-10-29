@@ -36,7 +36,7 @@ func (p *Parser) readDir(root, moduleDir, modulePath, dir string) (model.Definit
 	// One definition per package scope: the package itself, and its tests.
 	scopes := map[bool]*model.Definition{}
 
-	// A package records one declaration per name, whatever the count of files that declare
+	// A package records one declaration per name, across all the files that declare
 	// it. Two files each holding a blank "var _" declare the same name twice
 	// and the package records it once, and the same goes for init.
 	seen := map[bool]map[string]bool{false: {}, true: {}}
@@ -220,7 +220,7 @@ func packagePath(root, moduleDir, dir string) string {
 // splitGlobals moves every reference the package does not import into Globals.
 //
 // The collector applies the same test the same way: a name that the package
-// import table does not answer for is not a package, whatever it looked like
+// import table does not answer for is a local name, however it looked
 // in the body. The table is package wide, so the split waits until
 // the parser has read every file of the package.
 func splitGlobals(def *model.Definition) {

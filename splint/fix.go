@@ -161,7 +161,7 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 				rule.Tag = rules.Integration.Tag
 			}
 		case *integration.Linter:
-			// A run naming the linter runs it, whatever the tree says.
+			// A run naming the linter runs it, with any tree setting.
 			rule.Enabled = rules.Integration.Enabled || slices.Contains(cfg.linters, integration.Name)
 			if rules.Integration.Tag != "" {
 				rule.Tag = rules.Integration.Tag

@@ -221,7 +221,7 @@ func limitBody(body string) string {
 // changelogStatus reports what a tag's note takes, given the release the remote
 // carries under the tag and whether the tag is on the remote at all.
 //
-// The run fills an existing release whatever the tag says, since GitHub
+// The run fills an existing release for any tag, since GitHub
 // publishes a draft against a tag that does not have to exist yet. The run
 // reports a tag with no release and no place on the remote and leaves it
 // alone.

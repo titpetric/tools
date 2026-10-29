@@ -224,7 +224,7 @@ func eachIdentifier(line string, fn func(name string)) {
 	}
 }
 
-// ellipsis reports a dot that is part of the variadic marker, whichever of the
+// ellipsis reports a dot that is part of the variadic marker, for any of the
 // three the index names.
 func ellipsis(line string, at int) bool {
 	for start := at - 2; start <= at; start++ {

@@ -37,7 +37,7 @@ type Issue struct {
 	// Message is the issue in a sentence.
 	Message string `json:"Message" yaml:"Message"`
 
-	// Attrs carries whatever else the linter has to say, so a rule reports a
+	// Attrs carries the rest of what the linter has to say, so a rule reports a
 	// count or a suggestion without the schema growing a field per rule.
 	Attrs map[string]string `json:"Attrs,omitempty" yaml:"Attrs,omitempty"`
 }

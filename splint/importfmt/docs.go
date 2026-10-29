@@ -18,7 +18,7 @@
 // against Format of the same imports: the two strings differ exactly when the
 // file does not follow the rule. Decision.Changed compares two renderings of
 // the same shape, and never the file on disk against a string, so it answers
-// the same whichever parser read the tree. Whitespace inside a declaration is
+// the same for either parser. Whitespace inside a declaration is
 // gofmt's business; the order of the imports, the groups, the aliases and the
 // number of declarations are this package's.
 //

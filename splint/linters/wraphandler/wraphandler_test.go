@@ -152,7 +152,7 @@ func TestLint_Signature(t *testing.T) {
 		{title: "unexported", decl: handler("serve", "", "api.go", 3)},
 		{title: "returns an error of its own", decl: returnsError},
 		{title: "takes one argument", decl: oneArgument},
-		{title: "takes a context rather than a writer", decl: otherArguments},
+		{title: "takes a context and a request", decl: otherArguments},
 		{title: "is not a function", decl: notAFunc},
 	}
 

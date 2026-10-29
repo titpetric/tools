@@ -20,7 +20,7 @@ const verdictCacheSchema = 2
 // models history once and every later run reads it back.
 //
 // A commit is immutable, and so is the model of one: the same commit read by
-// the same splint makes the same model, whichever range requested it. That
+// the same splint makes the same model, for any range that requests it. That
 // makes the entry safe to keep between runs, and the key comes from the same
 // material. The working tree is the one revision that can change under a run,
 // and the cache never holds it.

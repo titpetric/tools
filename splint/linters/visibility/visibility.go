@@ -57,7 +57,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 //
 // A command exports nothing anyone imports, a test package is not a surface
 // anyone reads, and an internal tree stays closed to importers outside the module
-// whatever it exports, so Go has already answered the question this asks. A
+// with all it exports, so Go has already answered the question this asks. A
 // package left with no file anybody wrote has nothing to measure.
 func skip(def *model.Definition) bool {
 	if def.Package.Package == "main" || def.Package.TestPackage {

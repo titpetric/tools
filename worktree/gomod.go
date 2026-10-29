@@ -190,7 +190,7 @@ func Diff(before, after []requireInfo) []DiffResult {
 		changes = append(changes, DiffResult{Path: path, Change: fieldAdded, New: is.version})
 	}
 
-	// The map walk follows whatever order the runtime hands out, so Diff
+	// The map walk follows the order the runtime hands out, and Diff
 	// sorts the result to make two identical runs identical.
 	sort.Slice(changes, func(i, j int) bool {
 		if changes[i].Change != changes[j].Change {

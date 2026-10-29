@@ -27,7 +27,7 @@ func TestRenderVerdictMarkdown(t *testing.T) {
 		"| Added | / | type Client struct |",
 		"| Changed | / | Before: Open ()<br>After: Open (string) |",
 		"| Removed | / | func Legacy () error |",
-		// One table, whatever the release did to any number of types.
+		// One table, for any number of types the release touched.
 		"## Data model since v1.0.0",
 		"| Change | Package | Type | Field |",
 		// A type the release adds shows as the shape it declares, and

@@ -120,7 +120,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 // lintTestMain reports a TestMain that reaches a database: it runs before
 // every test of the package, so each of them needs one, and the package is
-// an integration package whatever the names of its files.
+// an integration package under any file names.
 //
 // The rule lets a package be whose name says it holds such tests: e2e, or a name
 // holding "test", such as skillstest or testutil. The name is the one the

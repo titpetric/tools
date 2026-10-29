@@ -68,7 +68,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 // expectedOrder is the returns as they ought to read: the values first, then
 // the bool that says whether they are there, then the error that says why they
-// are not. A caller reads them in that order whatever the order they come in.
+// are not. A caller reads them in that order.
 func expectedOrder(returns []string) []string {
 	var normal []string
 	var bools []string

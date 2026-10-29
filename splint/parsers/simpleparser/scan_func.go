@@ -256,8 +256,8 @@ func matchBrace(text string, open int) int {
 }
 
 // localNames are the names a signature binds, which are the parameters, the
-// results and the receiver. Every one of them shadows whatever else the name
-// means, a package included.
+// results and the receiver. Every one of them shadows the same name outside
+// the function, a package included.
 func localNames(header string) []string {
 	rest := strings.TrimSpace(strings.TrimPrefix(header, "func"))
 

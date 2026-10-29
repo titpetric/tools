@@ -15,7 +15,7 @@ import (
 //
 // It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
 // /v1 is a directory of that name: prometheus api/prometheus/v1 is package
-// v1, not package prometheus.
+// v1.
 //
 // The package compiles it once. Compiling it inside the loop costs more than
 // everything else the loop does.
@@ -116,7 +116,7 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 		var short, long string
 
 		// That name reaches an import written with a name in front of it,
-		// whatever the path says.
+		// for any path.
 		aliased := strings.Contains(imported, " ")
 		if aliased {
 			line := strings.Split(imported, " ")
@@ -138,7 +138,7 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 		}
 
 		// A major version is not a package name: a file imports
-		// "example.com/x/v2" as x. An alias overrides that, because the file
+		// "example.com/x/v2" as x. An alias names the package, because the file
 		// writes the alias: tea reaches tea "charm.land/bubbletea/v2", and
 		// bubbletea never does.
 		if !aliased && majorVersion.MatchString(long) {

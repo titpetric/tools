@@ -75,7 +75,7 @@ func (l *Linter) spread(root *model.DocumentRoot, results *Results) {
 					byPath[spec.Path] = entry
 				}
 
-				// The count is per directory, not per import path. A
+				// The count is per directory. A
 				// package and its test half are two definitions of one
 				// directory, and a reader asking how many files of a package
 				// reach a dependency counts the tests among them.

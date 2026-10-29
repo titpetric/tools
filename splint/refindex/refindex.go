@@ -145,7 +145,7 @@ func (ix *Index) TestRefs(key Key) []Ref {
 }
 
 // TestedDirect reports a symbol some test reaches by name: it appears in the
-// references of a test function, whatever way the test came to hold it.
+// references of a test function, however the test came to hold it.
 func (ix *Index) TestedDirect(key Key) bool {
 	for _, ref := range ix.refs[key] {
 		if ref.Test {

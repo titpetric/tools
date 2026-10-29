@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// metric stands in for whatever a linter measures, which the framework carries
+// metric stands in for a linter's measurements, which the framework carries
 // and does not read.
 type metric struct {
 	Files  int `json:"Files"`

@@ -426,7 +426,7 @@ func TestDiffRequiresBothFiles(t *testing.T) {
 }
 
 // TestDocsCommand covers the reference end to end: the parse includes sources
-// whatever the command line says, and the markdown holds the declaration.
+// with any command line, and the markdown holds the declaration.
 func TestDocsCommand(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, "tree")
@@ -667,7 +667,7 @@ func TestSaveRunsNoLinter(t *testing.T) {
 }
 
 // TestOutputWithASourcePath covers the other flag naming a file: -output is
-// relative to the directory the command started in, whichever tree it reads.
+// relative to the directory the command started in, for any tree it reads.
 func TestOutputWithASourcePath(t *testing.T) {
 	root := t.TempDir()
 	tree := writeTree(t, root, "tree")
@@ -678,7 +678,7 @@ func TestOutputWithASourcePath(t *testing.T) {
 		t.Errorf("-output wrote nothing where it was told: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(tree, "doc.json")); err == nil {
-		t.Error("-output wrote into the tree it read rather than into the working directory")
+		t.Error("-output wrote into the tree it read; want the working directory")
 	}
 
 	// The same path names the same file on the way back in.

@@ -98,7 +98,7 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 				continue
 			}
 
-			// The plan leaves out a generated file whatever its block holds:
+			// The plan leaves out every generated file:
 			// what a generator writes belongs to the generator, down to the
 			// bytes.
 			if file.Generated {
@@ -168,7 +168,7 @@ func edits(decls model.ImportDeclList, text string) []Edit {
 	for _, decl := range decls[1:] {
 		// The doc comment goes with the declaration it describes. The block
 		// that replaces the first declaration carries it, and leaving it
-		// here would attach it to whatever follows.
+		// here would attach it to the declaration that follows.
 		from := decl.Line
 		if decl.DocLine > 0 && decl.DocLine < from {
 			from = decl.DocLine

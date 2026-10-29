@@ -77,8 +77,8 @@ func TestParserTiming(t *testing.T) {
 	}
 }
 
-// build compiles the command under test, so the timing covers this tree and
-// never whatever binary sits on the PATH.
+// build compiles the command under test, and the timing covers the binary
+// built from this tree.
 func build(t *testing.T) string {
 	t.Helper()
 

@@ -4,7 +4,7 @@
 // Size is the shallow half of that cost and the one every tool reports. The
 // half that decides whether a consumer can remove a dependency is how far into the
 // tree it reaches: a library pulled into one file through one symbol is cheap
-// to drop whatever it weighs, and one reached from forty files through twelve
+// to drop at any weight, and one reached from forty files through twelve
 // symbols holds the code up. Both halves are here, and the coupling half comes
 // out of the document.
 //

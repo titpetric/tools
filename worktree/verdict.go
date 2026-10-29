@@ -77,8 +77,8 @@ type verdict struct {
 // The detailed flag reads every commit of the range on its own, which fills in
 // the commit table and the commits behind each symbol. Without it the report
 // compares the two ends alone: a commit is immutable, and modelling each one
-// costs a splint extraction, so a range of a few hundred commits takes minutes
-// rather than seconds. -v turns it on.
+// costs a splint extraction, and a range of a few hundred commits takes
+// minutes. -v turns it on.
 //
 // The cached flag says whether the cache keeps the models of the commits it
 // reads between runs; --no-cache turns that off.
@@ -133,7 +133,7 @@ func reportTags(tags []string) {
 // The report function reports the range it settles on.
 func (v verdict) between(dir string, tags []string, prefix, from, to string, detailed bool, models *apiModels) (verdict, error) {
 	if from == "" {
-		// Measure from whatever came before the requested revision: the
+		// Measure from the revision before the requested one: the
 		// release below it when it names one.
 		if version, ok := ParseVersion(to); ok {
 			if previous, found := PreviousRelease(releasesBelow(version, tags)); found {

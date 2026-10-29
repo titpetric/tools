@@ -2,7 +2,7 @@
 // the go.mod behind it.
 //
 // The import path, receiver and name key a symbol, so the comparison finds it
-// across revisions whichever file it moved to. The comparison strips parameter
+// across revisions in any file it moved to. The comparison strips parameter
 // names from a signature, because renaming a parameter changes no caller.
 // Breaking is a removed or changed exported symbol, or a field moved on an
 // exported type; the report lists what --include-unexported surfaces but never
@@ -260,9 +260,9 @@ func CompareWith(opts Options, oldDefs, newDefs []*model.Definition) Result {
 		}
 	}
 
-	// Ranging over a map follows whatever order the runtime hands out, and the
-	// declaration order of the input is not dependable either, so sorting the
-	// lists makes the output of two identical runs identical.
+	// Ranging over a map follows the order the runtime hands out, and the
+	// declaration order of the input varies too. Sorting the lists makes the
+	// output of two identical runs identical.
 	sortSymbols(result.Removed)
 	sortSymbols(result.Added)
 	sort.Slice(result.Changed, func(i, j int) bool { return result.Changed[i].Key < result.Changed[j].Key })
@@ -283,7 +283,7 @@ func CompareWith(opts Options, oldDefs, newDefs []*model.Definition) Result {
 }
 
 // exportedKey reports whether the symbol behind a key is part of the API,
-// reading whichever revision still carries it.
+// reading the revision that still carries it.
 func exportedKey(cur, old map[string]entry, key string) bool {
 	if entry, ok := cur[key]; ok {
 		return entry.symbol.Exported

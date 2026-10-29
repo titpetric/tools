@@ -127,7 +127,7 @@ func (p *Parser) walkModules(ctx context.Context, doc *model.DocumentRoot, root 
 			doc.AddModule(module)
 		}
 
-		// Paths are relative to the root of the parse, not to the module.
+		// Paths are relative to the root of the parse.
 		if rel := strings.TrimPrefix(strings.TrimPrefix(m.Dir, root), string(filepath.Separator)); rel != "" {
 			for _, def := range append(defs, p.tagged[from:]...) {
 				def.Package.Path = "." + filepath.Join(rel, strings.TrimPrefix(def.Package.Path, "."))
@@ -190,8 +190,8 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 	return defs, nil
 }
 
-// trim drops what the options leave out: the sources, and whichever half
-// of the files the package is not.
+// trim drops what the options leave out: the sources, and the half of the
+// files that belongs to the other package.
 func (p *Parser) trim(defs []*model.Definition) {
 	for _, def := range defs {
 		// The literals come off the sources, so they go first.

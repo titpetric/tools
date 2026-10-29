@@ -227,7 +227,7 @@ func (s *scope) edges(n node) []*model.Declaration {
 
 // lookup finds a function by the import path of its package and its symbol.
 // A path ending in _test is a test package, whose functions sit in the test
-// files; the other path prefers the functions outside them.
+// files; the other path looks up the functions outside them first.
 func (s *scope) lookup(target, symbol string) (node, bool) {
 	base := strings.TrimSuffix(target, "_test")
 	key := base + " " + symbol

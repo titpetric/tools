@@ -47,7 +47,7 @@ type entry struct {
 // symbols skips test packages and commands. It skips internal packages and
 // unexported declarations too unless the include flags hold true: neither
 // belongs to the API another module can depend on, and the report lists both
-// separately when a caller reviews a refactor in place of a release.
+// separately when a caller reviews a refactor.
 func symbols(defs []*model.Definition, includeInternal, includeUnexported bool) map[string]entry {
 	result := make(map[string]entry)
 	for _, def := range defs {

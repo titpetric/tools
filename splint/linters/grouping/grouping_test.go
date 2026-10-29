@@ -17,7 +17,7 @@ var zoo = model.Package{Package: "zoo", Path: "./zoo", ImportPath: "example.com/
 // Every declaration gets a reach into a second file, because a file that
 // compiles by itself is the file's own business and the rule leaves it alone:
 // a fixture of one declaration reaching nothing is a self-contained file, and
-// every case below would report nothing whatever its filename.
+// every case below would report nothing under any filename.
 func document(pkg model.Package, types, funcs model.DeclarationList, files model.FileList) *model.DocumentRoot {
 	const shared = "shared.go"
 
@@ -64,7 +64,7 @@ func lint(t *testing.T, root *model.DocumentRoot) []model.Issue {
 
 // TestLinterReportsATypeAwayFromItsFile covers the whole of the rule for a
 // type: the name is the filename, and the file named for the package holds
-// whatever nobody has split out of it yet.
+// the declarations still waiting to be split out.
 func TestLinterReportsATypeAwayFromItsFile(t *testing.T) {
 	tests := []struct {
 		file   string

@@ -24,11 +24,11 @@ scan:
   # List git repositories that are not also go modules.
   enable_git_repos: true
 
-  # Directory names never descended into, whether or not a .gitignore
-  # mentions them. Matched against the directory name alone, at any depth.
-  # This is the way to keep a listing clean with enable_gitignore off; it is
-  # empty by default because it also overrides a negation that re-includes
-  # the name, for example "!vendor". Add entries such as:
+  # Directory names the scan always skips, including names a .gitignore
+  # re-includes. Matched against the directory name alone, at any depth.
+  # This is the way to keep a listing clean with enable_gitignore off. The
+  # list starts empty because a name on it stays skipped when a negation
+  # such as "!vendor" re-includes it. Add entries such as:
   #
   #   ignore_paths:
   #     - node_modules

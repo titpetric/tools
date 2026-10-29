@@ -99,7 +99,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	return results, nil
 }
 
-// group is the files of one directory, whatever the count of definitions they arrived
+// group is the files of one directory, across all the definitions they arrived
 // in, split into the half a test binary compiles and the half it does not.
 type group struct {
 	// tag names the integration tests: foo_integration_test.go pairs foo.go
@@ -210,7 +210,7 @@ func (g *group) testBase(file model.File) string {
 // report counts the group and reports both halves of the pairing.
 //
 // The linter counts, and does not report, a standalone file whose exported symbols
-// tests reference in full: its tests exist, in whatever package their authors
+// tests reference in full: its tests exist, in the package their authors
 // chose. A file exporting nothing has no surface to excuse it, and
 // the linter reports it as before.
 func (g *group) report(index *refindex.Index, results *Results) {

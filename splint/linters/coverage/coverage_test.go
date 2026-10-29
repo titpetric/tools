@@ -218,7 +218,7 @@ func TestResults_Statistics(t *testing.T) {
 }
 
 // TestLinter_Lint_References covers the reference reading: a symbol a test
-// reaches under another name counts as covered, whatever the test's name.
+// reaches under another name counts as covered, under any test name.
 func TestLinter_Lint_References(t *testing.T) {
 	client := &model.Declaration{Kind: model.TypeKind, Name: "Client", File: "x.go", Line: 3}
 	closeMethod := &model.Declaration{Kind: model.FuncKind, Name: "Close", Receiver: "*Client", File: "x.go", Line: 7}

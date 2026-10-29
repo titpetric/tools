@@ -284,8 +284,8 @@ func TestLinter_LintBlank(t *testing.T) {
 		if issue.Severity != model.SeverityWarn {
 			t.Errorf("a blank import reports at %v, want warn", issue.Severity)
 		}
-		// The finding is in the file that writes the import, not in the go.mod
-		// the rest of this linter reports against.
+		// The finding sits in the file that writes the import. The rest of
+		// this linter reports against the go.mod.
 		if issue.Position.Ref() != "a/a.go" {
 			t.Errorf("position = %q, want a/a.go", issue.Position.Ref())
 		}

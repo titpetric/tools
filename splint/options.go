@@ -50,8 +50,8 @@ type config struct {
 	// and stays the default: it reads the tree exactly, and a caller names the
 	// quick one explicitly.
 	//
-	// parserNamed reports that the command line set the flag, so the fixer can
-	// pick its own default without overriding a choice.
+	// parserNamed reports that the command line set the flag. The fixer picks
+	// its own default when the flag is unset.
 	parser      string
 	parserNamed bool
 
@@ -76,7 +76,7 @@ type config struct {
 	stats  bool
 
 	// render names the rendering splint docs writes, and split writes one
-	// markdown file per package under out in place of one document.
+	// markdown file per package under out.
 	render string
 	split  bool
 	out    string
@@ -142,13 +142,13 @@ func parseOptions(args []string) (*config, error) {
 	fs.SetOutput(io.Discard)
 	fs.StringVarP(&cfg.options.SourcePath, "i", "i", cfg.options.SourcePath, "read the tree at `PATH`")
 	fs.StringVar(&cfg.parser, "parser", cfg.parser, "read the tree with `NAME`: "+analyzer.ParserName+" or "+simpleparser.ParserName)
-	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` instead of parsing a tree")
+	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` and skip the parse")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
 	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one and format every file, then lint what is left")
 	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+" beside the tree, and run no linter")
 	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
-	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema instead of linting it")
-	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured instead of what they found")
+	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema and skip the linters")
+	fs.BoolVar(&cfg.stats, "stats", false, "write what the linters measured")
 	fs.BoolVar(&cfg.offline, "offline", false, "do not ask the module proxy, and read the sizes from the cache")
 	fs.StringVar(&strip, "strip-prefix", "", "strip the package prefixes in `LIST` from schema and split file names, comma separated")
 	fs.StringVar(&cfg.render, "render", docs.FormatMarkdown, "write the docs as `FORMAT`: markdown, spec, imports, puml or json; sizes takes json or d2")
@@ -197,14 +197,14 @@ func parseOptions(args []string) (*config, error) {
 	// by -input comes from an earlier extract, and appending to it would mean
 	// rewriting a file the run only reads.
 	if cfg.coverageProfile != "" && cfg.input != "" {
-		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and --input reads a document instead of parsing: ask for one")
+		return nil, fmt.Errorf("--append-coverage folds a profile into a parse, and --input reads a saved document: ask for one")
 	}
 
 	// The fixer writes the files that make up a tree. A document named by
 	// -input describes a tree the run never looked at, and rewriting from one
-	// would edit whatever tree the process happens to be standing in.
+	// would edit the tree the process happens to be standing in.
 	if (cfg.fix || cfg.command == commandFix) && cfg.input != "" {
-		return nil, fmt.Errorf("a fix rewrites the tree and --input reads a document instead of a tree: ask for one")
+		return nil, fmt.Errorf("a fix rewrites the tree and --input reads a saved document: ask for one")
 	}
 
 	// A diff is between two documents already written, so there is nothing
@@ -371,7 +371,7 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint coverage --input " + saveFile + " --template docs/testing-coverage.md.tpl", "the report of a document already written"},
 			{"splint diff --old old.json --new new.json", "what a release takes away"},
 			{"splint --linters none --output model.json ./...", "extract a document and judge nothing"},
-			{"splint --stats ./...", "what the linters measured, rather than what they found"},
+			{"splint --stats ./...", "what the linters measured"},
 			{"splint --json ./...", "the findings as data, for a program to read"},
 			{"splint --linters godoc,imports ./...", "run two of the thirteen"},
 			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},

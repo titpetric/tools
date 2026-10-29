@@ -1,7 +1,7 @@
 package splint
 
 // Options holds the settings of a parse. A caller builds one of these and
-// passes it to whichever parser it imports; nothing else differs between them.
+// passes it to the parser it imports; both parsers take the same Options.
 type Options struct {
 	// SourcePath is the root directory of the parse.
 	SourcePath string

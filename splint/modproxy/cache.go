@@ -133,8 +133,8 @@ func (c *Cache) Add(path, version string, size int64) {
 //
 // Save writes the file beside itself and renames it over the old one, so a
 // reader sees one file or the other and never half of a write. Save reads the
-// new file back before the rename: a file that does not parse is a file the next
-// run would throw away, and throwing it away here costs nobody a round trip.
+// new file back before the rename and removes a file that does not parse,
+// leaving the old cache in place.
 func (c *Cache) Save() error {
 	if c == nil || c.Path == "" {
 		return nil
@@ -187,7 +187,7 @@ func validate(path string, modules int) error {
 		return fmt.Errorf("the cache written to %s does not parse: %w", path, err)
 	}
 	if len(read) != modules {
-		return fmt.Errorf("the cache written to %s holds %d modules, not %d", path, len(read), modules)
+		return fmt.Errorf("the cache written to %s holds %d modules, want %d", path, len(read), modules)
 	}
 
 	return nil

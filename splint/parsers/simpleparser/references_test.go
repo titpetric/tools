@@ -15,7 +15,7 @@ func TestSelectors(t *testing.T) {
 			{pkg: "http", symbol: "StatusNotFound"},
 		}},
 		// A chained selector reaches one package through one symbol; what
-		// follows belongs to whatever that returned.
+		// follows belongs to the value that returned.
 		{line: "a.B.C()", want: []selector{{pkg: "a", symbol: "B"}}},
 		// A number is not a selector, and neither is a call result.
 		{line: "x := 1.5", want: nil},
@@ -66,7 +66,7 @@ func f() {
 }
 
 // TestFileReferencesSkipsShadowedNames covers a parameter named after a
-// package, which is the package's name everywhere but inside that function.
+// package: inside that function the name is the parameter.
 func TestFileReferencesSkipsShadowedNames(t *testing.T) {
 	src := newSource("x.go", []byte(`package p
 

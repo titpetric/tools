@@ -145,7 +145,7 @@ func blankLines(name string) map[int]bool {
 
 // skipPackage reports whether a package is one the count would distort:
 // commands, the synthetic test packages, anything loaded without syntax, and
-// the internal tree, which stays scoped to the module whatever it exports.
+// the internal tree, which Go scopes to the module with all it exports.
 func skipPackage(pkg *packages.Package) bool {
 	return pkg.Name == "main" ||
 		strings.HasSuffix(pkg.Name, "_test") ||

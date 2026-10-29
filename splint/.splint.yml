@@ -6,7 +6,7 @@ imports:
   company:
     - github.com/titpetric/
 
-  # The tree's own naming: goccy/go-yaml declares package yaml, which no path
-  # segment says, so the fixer is told rather than left to guess gopkg.in.
+  # The tree's own naming: goccy/go-yaml declares package yaml, a name its
+  # path leaves out. The alias tells the fixer which module yaml means.
   aliases:
     yaml: github.com/goccy/go-yaml

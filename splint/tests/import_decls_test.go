@@ -63,7 +63,7 @@ func TestImportDeclsAcrossParsers(t *testing.T) {
 	assert.Equal(t, astFile.ImportDecls, simpleFile.ImportDecls, "the two parsers read different import declarations")
 	assert.Equal(t, astFile.Uses, simpleFile.Uses, "the two parsers read different uses")
 
-	require.Len(t, astFile.ImportDecls, 2, "two import declarations, not one merged set")
+	require.Len(t, astFile.ImportDecls, 2, "two import declarations, each kept apart")
 	assert.True(t, astFile.ImportDecls[0].Block)
 	assert.False(t, astFile.ImportDecls[1].Block)
 

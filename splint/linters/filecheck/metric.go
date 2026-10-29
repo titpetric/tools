@@ -2,7 +2,7 @@ package filecheck
 
 // Metric is what the linter measured on one file.
 //
-// The metric is per file, not per package, because length is a property of a
+// The metric is per file, because length is a property of a
 // file: a package of ten short files and a package of one long one hold the
 // same code, and only the second is worth reporting.
 type Metric struct {

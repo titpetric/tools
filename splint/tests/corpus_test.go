@@ -31,10 +31,10 @@ import (
 // somebody thought of; the cache holds the ones nobody did.
 const (
 	// corpusModules is how many modules a run reads, newest path order first.
-	// SPLINT_CORPUS overrides it, and 0 reads every module in the cache.
+	// SPLINT_CORPUS sets it, and 0 reads every module in the cache.
 	corpusModules = 300
 
-	// corpusEnv names the override.
+	// corpusEnv names the variable that sets corpusModules.
 	corpusEnv = "SPLINT_CORPUS"
 )
 

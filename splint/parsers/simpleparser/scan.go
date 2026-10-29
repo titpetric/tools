@@ -290,7 +290,7 @@ func specNames(spec, keyword string) []string {
 //
 // blockEnd anchors on column zero, where gofmt puts the brace closing
 // a top level declaration and nowhere else. A body nested inside one, an
-// anonymous struct declared as a field's type, closes at whatever
+// anonymous struct declared as a field's type, closes at the
 // indentation it opened at, so the scan has to count its extent.
 func bodyEnd(src *source, from int) int {
 	return bodyEndFrom(src, from, 0)

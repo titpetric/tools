@@ -74,7 +74,7 @@ func TestGitArchiveUnpacksTheModuleSubtreeOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(content), "later") {
-		t.Errorf("gitArchive() wrote the working tree rather than the tag:\n%s", content)
+		t.Errorf("gitArchive() wrote the working tree; want the tag:\n%s", content)
 	}
 }
 

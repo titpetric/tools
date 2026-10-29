@@ -57,7 +57,7 @@ func Find(dir string) (*model.Module, error) {
 
 // moduleFrom copies a parsed go.mod into the model.
 //
-// The require block sits in whatever order go mod tidy last left it, and a
+// The require block sits in the order go mod tidy last left it, and a
 // module is free to hold more than one, so moduleFrom sorts the lists by module
 // path. Two revisions that require the same things then produce the same
 // model, and a diff of the two reports nothing.

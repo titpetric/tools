@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// Release subcommands work on the git repository of the current
-	// directory, not on the workspace scan root.
+	// directory.
 	if opts.Release != "" {
 		tags, prefix, err := moduleTags(".")
 		if err != nil {

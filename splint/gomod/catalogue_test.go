@@ -46,7 +46,7 @@ func TestCatalogue_Owner(t *testing.T) {
 		"example.com/x/sub":          "example.com/x",
 		"example.com/x/inner":        "example.com/x/inner",
 		"example.com/x/inner/deeper": "example.com/x/inner",
-		// A path boundary, not a prefix: xylophone is not x.
+		// The match stops at a path boundary: xylophone is a module of its own.
 		"example.com/xylophone": "",
 		"example.com/nothing":   "",
 	}

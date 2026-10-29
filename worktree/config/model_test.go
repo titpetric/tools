@@ -337,7 +337,7 @@ func TestModelReportsSaveFailure(t *testing.T) {
 		t.Fatalf("the form does not show the failure %q:\n%s", m.status, got)
 	}
 	if strings.Contains(got, m.legend()) {
-		t.Fatalf("the form still shows the key legend instead of the failure:\n%s", got)
+		t.Fatalf("the form shows the key legend; want the failure:\n%s", got)
 	}
 }
 

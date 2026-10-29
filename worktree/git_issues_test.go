@@ -26,8 +26,8 @@ func TestParseGHIssueList(t *testing.T) {
 		t.Errorf("parseGHIssueList() = %+v, want %+v", got, want)
 	}
 
-	// Output that is not a list of issues is no issues, not a failed run: gh
-	// runs once and the parser takes its output or leaves it.
+	// Output other than a list of issues reads as an empty list and the run
+	// succeeds: gh runs once and the parser takes its output or leaves it.
 	for _, data := range []string{"", "[]", "not json", `{"number":1}`} {
 		if got := parseGHIssueList([]byte(data)); len(got) != 0 {
 			t.Errorf("parseGHIssueList(%q) = %+v, want nothing", data, got)

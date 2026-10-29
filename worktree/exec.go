@@ -14,9 +14,9 @@ import (
 )
 
 // execModules runs a shell command in every Go module, one bash -c invocation
-// per module, streaming a status row as each finishes. Unlike -u, the command's
-// output is always part of the row, not only with -v: the command is the
-// caller's, so its output is the result. It returns the number of modules the
+// per module, streaming a status row as each finishes. The command's output is
+// always part of the row: the command is the caller's, and its output is the
+// result. It returns the number of modules the
 // command failed in.
 func execModules(w io.Writer, modPaths map[string]string, command string, verbose, styled bool) int {
 	mods := make([]string, 0, len(modPaths))

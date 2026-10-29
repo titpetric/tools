@@ -52,9 +52,8 @@ const commandChangelog = "changelog"
 // valueFlags lists the flags that take a value as a separate argument.
 var valueFlags = map[string]bool{"-go": true, "--go": true, "-from": true, "--from": true, "-to": true, "--to": true, "-exec": true, "--exec": true}
 
-// bind defines the command-line flags on a flag set, and sets the help page as
-// its usage, so -h and --help print the page in place of the defaults the flag
-// package would list.
+// bind defines the command-line flags on a flag set and sets the help page as
+// its usage: -h and --help print the page.
 func (o *Options) bind(fs *flag.FlagSet) {
 	fs.BoolVar(&o.Update, "u", false, "update the workspace dependencies that are behind their latest tag, and tidy")
 	fs.BoolVar(&o.UpdateAll, "U", false, "update every dependency with go get -u ./..., including ones outside the workspace")
@@ -65,9 +64,9 @@ func (o *Options) bind(fs *flag.FlagSet) {
 	fs.BoolVar(&o.Matrix, "t", false, "output dependency matrix to stdout")
 	fs.BoolVar(&o.Verbose, "v", false, "verbose output: module details, untracked files and commands; verdict reads every commit of the range")
 	fs.BoolVar(&o.Verbose, "verbose", false, "alias of -v")
-	fs.BoolVar(&o.Apply, "apply", false, "perform the resolution, or publish the release notes, instead of rendering either")
+	fs.BoolVar(&o.Apply, "apply", false, "perform the resolution, or publish the release notes")
 	fs.BoolVar(&o.Stats, "stats", false, "collapse worktree verdict to a table of counts, one row per release")
-	fs.BoolVar(&o.NoCache, "no-cache", false, "read every commit again instead of the models kept under the user cache directory")
+	fs.BoolVar(&o.NoCache, "no-cache", false, "read every commit again and skip the models kept under the user cache directory")
 	fs.StringVar(&o.From, "from", "", "the `REVISION` worktree verdict measures from, a tag by default; all, 0 or HEAD report every release")
 	fs.StringVar(&o.To, "to", "", "the `REVISION` worktree verdict measures to, the working tree by default")
 	fs.StringVar(&o.GoVersion, "go", "", "set the go directive of every go.mod and go.work to `VERSION`, then update dependencies")

@@ -15,7 +15,7 @@ import (
 //
 // It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
 // /v1 is a directory of that name: prometheus api/prometheus/v1 is package
-// v1, not package prometheus.
+// v1.
 var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // resolveMethods records the methods a body reaches, which the reference scan
@@ -30,8 +30,8 @@ var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 // package records nothing, because References are what a declaration reaches
 // through an import of its own file.
 //
-// A call through an interface records the interface's method, not any
-// implementation's: which implementation runs is not the model's to say.
+// A call through an interface records the interface's method: the
+// implementation that runs is decided at run time.
 func (v *collector) resolveMethods(file *ast.File, filename string, fn *ast.FuncDecl, decl *Declaration) {
 	if v.info == nil || v.pkg == nil || fn == nil || fn.Body == nil {
 		return

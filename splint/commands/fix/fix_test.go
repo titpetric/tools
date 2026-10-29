@@ -14,7 +14,7 @@ import (
 // parser bug can cost.
 //
 // The line range comes from a parse. A parse that reads the range wrong makes
-// this replace whatever sits there: a parser that reads a block with an
+// this replace the lines that sit there: a parser that reads a block with an
 // indented closing paren as ending at the end of the file makes the rewrite
 // replace the file with an import block. splice writes nothing unless the
 // lines about to go hold an import declaration.

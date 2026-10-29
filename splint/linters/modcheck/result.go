@@ -101,7 +101,7 @@ func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[stri
 		}
 	}
 
-	// The linter puts one question to the versions go.sum records, not four: what a
+	// The linter puts one question to the versions go.sum records: what a
 	// copy of the source weighs. The publish date and the requires list
 	// say nothing about that.
 	unasked := r.unasked()

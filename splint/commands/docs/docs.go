@@ -7,8 +7,8 @@
 //
 // Markdown is the default rendering. The others are a spec of the declared
 // symbols, two plantuml diagrams of what the packages reach, and the document
-// itself as JSON. Split mode writes one markdown file per package in place of
-// one document on the writer.
+// itself as JSON. Split mode writes one markdown file per package to a
+// directory.
 package docs
 
 import (
@@ -37,7 +37,7 @@ type Options struct {
 	Format string
 
 	// Split writes one markdown file per package under OutDir, with a README
-	// listing them, in place of one document on the writer.
+	// listing them.
 	Split  bool
 	OutDir string
 
@@ -60,8 +60,8 @@ type Options struct {
 	Title string
 
 	// Symbol names one declaration to print alone, godoc style, with how
-	// many tests reach it: "Open" or "Client.Close". Naming one overrides
-	// the format.
+	// many tests reach it: "Open" or "Client.Close". Naming one sets
+	// the format to that symbol view.
 	Symbol string
 
 	// Verbose keeps the unexported symbols in the spec rendering, and lists

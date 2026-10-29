@@ -38,8 +38,8 @@ type Model struct {
 	// a save from an abandoned form.
 	saved bool
 
-	// status is the message shown in place of the key legend, cleared on the
-	// next key.
+	// status is the message the form shows in the key legend's line, cleared
+	// on the next key.
 	status string
 
 	width  int

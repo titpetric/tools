@@ -28,8 +28,8 @@ type symbol struct {
 	file     string
 	position model.Position
 
-	// fallback is the file named for the package, which holds whatever the
-	// package has not split out yet.
+	// fallback is the file named for the package, which holds the
+	// declarations the package keeps together.
 	fallback string
 }
 
@@ -236,7 +236,7 @@ func receiverName(receiver string) string {
 // generic is a shape built out of a type and no type itself, and a
 // function returning one is not the constructor of anything. Neither is a
 // generic function returning one of its own type parameters: the T that
-// Exec[T] returns is whatever the caller picks, and no type to name a
+// Exec[T] returns is the type the caller picks, and no type to name a
 // file after.
 func returnName(decl *model.Declaration) string {
 	if len(decl.Returns) == 0 {

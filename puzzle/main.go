@@ -38,7 +38,7 @@ var options struct {
 // same parser, so defining a flag documents it.
 func bindFlags(fs *flag.FlagSet) {
 	fs.StringVar(&options.Style, "style", "default", "render with `STYLE`: default or matrix")
-	fs.BoolVar(&options.WholeWordColor, "whole", false, "color per word instead of per character")
+	fs.BoolVar(&options.WholeWordColor, "whole", false, "color per word")
 	fs.BoolVar(&options.FullPackageName, "full", false, "print full package name")
 	fs.IntVar(&options.Width, "width", 120, "terminal `WIDTH`")
 	fs.IntVar(&options.Height, "height", 80, "terminal `HEIGHT`")
@@ -65,7 +65,7 @@ the accent colour; the packages around it are shaded.`,
 		Examples: []example{
 			{"puzzle", "draw the packages of the module in this directory"},
 			{"puzzle -style matrix", "draw the same puzzle in green, on a field of noise"},
-			{"puzzle -full", "use the full module path as the primary word, not its last element"},
+			{"puzzle -full", "use the full module path as the primary word"},
 			{"puzzle -whole -width 160 -height 120", "one colour per word, on a larger canvas"},
 		},
 		Notes: `Placement is random, so two runs over one module draw two puzzles. A run that

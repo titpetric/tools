@@ -53,7 +53,7 @@ func TestDocumentRoot_WithTagged(t *testing.T) {
 	assert.Len(t, in.WithTagged("slow").Packages[1].Files, 1, "a tag no file carries adds nothing")
 }
 
-// TestBehindTag reads a constraint for the tag, not negated.
+// TestBehindTag reads a constraint that requires the tag.
 func TestBehindTag(t *testing.T) {
 	t.Parallel()
 

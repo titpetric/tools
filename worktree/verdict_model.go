@@ -328,7 +328,7 @@ func fieldReads(field apiField) string {
 // records it under, as "Put (key string) error", where the struct field's type
 // does not.
 //
-// fieldLabel recognises the name by the parameter list, not the name alone: a
+// fieldLabel recognises the name by the parameter list: a
 // field often takes its own name as its type, and "Mode Mode" is a field named
 // Mode of type Mode, and not one name typed twice.
 func fieldLabel(name, shape string) string {

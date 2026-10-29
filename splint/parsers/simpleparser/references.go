@@ -11,9 +11,9 @@ import (
 // references reads the package symbols a body reaches, which is every
 // "pkg.Symbol" where pkg is a name the file imports and Symbol carries a capital.
 //
-// A selector reaches a package when nothing in scope answers to the name: not
-// a parameter, not a local of the body, and not something the file declares at
-// the top level. That is the rule go/parser applies, and the rule is file scoped,
+// A selector reaches a package when the name is free in scope: the
+// parameters, the locals of the body and the top level declarations of the
+// file all leave it unbound. That is the rule go/parser applies, and the rule is file scoped,
 // so a package level var shared between two files is a reference in
 // the file that does not declare it.
 //
@@ -22,8 +22,8 @@ import (
 // that. splitGlobals does it once the parser has read every file.
 //
 // The shadowed names are the parameters and the receiver, which are locals
-// whatever else they name: "func Run(store store.Store)" reaches its
-// argument in the body and not the package that shares its name.
+// in the body: "func Run(store store.Store)" reaches its argument in the
+// body, and the package that shares its name stays unreached.
 func (f *file) references(src *source, from, column, to int, shadowed []string) model.StringSet {
 	var refs model.StringSet
 
@@ -127,8 +127,7 @@ func afterEllipsis(line string, start int) bool {
 // the package would keep one of them.
 //
 // A chained selector reports only its first pair: "a.B.C" reaches package a
-// through B, and B.C is a field of whatever B returned, never a second
-// package.
+// through B, and B.C is a field of the value B returned.
 func selectors(line string) []selector {
 	var found []selector
 
@@ -202,8 +201,8 @@ func trimTypeParams(name string) string {
 	return name
 }
 
-// bodyLocals are the names a function body binds, which shadow whatever else
-// they name.
+// bodyLocals are the names a function body binds, which shadow the same
+// names outside the body.
 //
 // It reads the two forms a body declares with, "x :=" and "var x", and the
 // range clause, which is enough for the names that turn up on the left of a

@@ -110,7 +110,7 @@ type ImportDecl struct {
 
 	// Doc is the comment lines directly above the declaration, markers
 	// trimmed, and DocLine is the first of them. A declaration merged into
-	// another takes its doc with it: leaving it behind attaches it to whatever
+	// another takes its doc with it: leaving it behind attaches it to the
 	// declaration follows, which is a comment about the imports now reading as
 	// a comment about a type.
 	Doc     string `json:"Doc,omitempty" yaml:"Doc,omitempty"`

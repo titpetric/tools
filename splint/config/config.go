@@ -87,7 +87,7 @@ type Imports struct {
 
 // Pollution says when the linter reports a dependency reaching many files.
 //
-// The linter never reports a package of the tree, whatever its reach. A
+// The linter skips every package of the tree, at any reach. A
 // package structure exists so that every consumer under a model package
 // imports it. The rule is about the dependencies a tree took on.
 type Pollution struct {

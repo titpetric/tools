@@ -306,7 +306,7 @@ func TestCompareReportsAChangedUnderlyingTypeAsAChangedSymbol(t *testing.T) {
 		t.Fatalf("Compare().Changed = %#v, want %#v", got.Changed, want)
 	}
 	if len(got.Types) != 0 {
-		t.Errorf("Compare().Types = %#v, want none: the shape changed, not its fields", got.Types)
+		t.Errorf("Compare().Types = %#v, want none: the shape changed and the fields stayed", got.Types)
 	}
 	if !got.Breaking {
 		t.Error("Compare() did not call a changed underlying type breaking")
@@ -401,8 +401,8 @@ func TestCompareWithUnexportedIsNeverBreaking(t *testing.T) {
 	before := []*model.Definition{def("example.com/x", "x", false,
 		model.DeclarationList{{Names: []string{"parse"}, Signature: "parse() error"}}, nil)}
 
-	// Dropping an unexported func is a refactor, not a release: nothing
-	// outside the module compiled against it.
+	// Dropping an unexported func is a refactor: only the module itself
+	// compiled against it.
 	got := CompareWith(Options{IncludeUnexported: true}, before, nil)
 	if len(got.Removed) != 1 {
 		t.Fatalf("Compare().Removed = %v, want the unexported func", keys(got.Removed))

@@ -108,7 +108,7 @@ func (s *source) codeLine(i int) string {
 }
 
 // rawOpen reports whether a line left a raw string open, which is a
-// declaration that has not ended, whatever its code reads like.
+// declaration that has not ended, however its code reads.
 func (s *source) rawOpen(i int) bool {
 	return i >= 0 && i < len(s.read) && s.read[i].raw
 }
@@ -192,9 +192,9 @@ func (s *source) declText(from, to int) string {
 // It returns the line, where the comment on it begins, and what is still open
 // at the end of it, the state the scan carries into the next line.
 func strip(line string, open openState) (string, int, openState) {
-	// Most lines hold nothing to blank, and a line that holds
-	// nothing is the line itself: looking is cheaper than blanking, and the
-	// line goes on sharing the memory of the file it came from.
+	// Most lines hold no string or comment to blank, and strip returns
+	// such a line as it is: the check costs one scan, and the line goes
+	// on sharing the memory of the file it came from.
 	if open == (openState{}) && !strings.ContainsAny(line, "\"`'/") {
 		return line, -1, open
 	}

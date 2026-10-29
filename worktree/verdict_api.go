@@ -30,9 +30,9 @@ type symbolEntry struct {
 // leave the column empty. The table draws no rule between rows, so a group
 // reads as one block under its heading.
 //
-// The package a symbol belongs to has a column of its own, whatever the module
-// holds: without it "const Name" says nothing about where it lives, and a
-// module of one package still has to say which one that is. symbolRows keeps
+// The package a symbol belongs to has a column of its own in every module:
+// "const Name" needs the package it lives in, and a module of one package
+// still names that package. symbolRows keeps
 // the symbols of a package together and only the first of them names it, the
 // same way the data model table reads.
 //
@@ -51,7 +51,7 @@ func symbolRows(v verdict, styled bool, wrap int) ([]string, [][]string) {
 	for _, symbol := range v.API.Added {
 		entries = append(entries, symbolEntry{"Added", symbol.Package, symbol.String(), symbol.Exported, touched[symbol.Key]})
 		// An added type arrives with its exported fields and interface
-		// methods; unlike a removal, what came along is worth reading.
+		// methods, and the report lists them.
 		for _, field := range symbol.Fields {
 			text := symbol.Name + "." + tidySignature(fieldReads(field))
 			if field.Embedded {

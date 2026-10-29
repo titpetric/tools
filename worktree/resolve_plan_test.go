@@ -40,7 +40,7 @@ func TestResolveOrder(t *testing.T) {
 			order: []string{"app"},
 		},
 		{
-			name:   "a cycle is reported rather than ordered",
+			name:   "a cycle is reported and left unordered",
 			mods:   []string{"a", "b", "c"},
 			uses:   map[string][]string{"a": {"b"}, "b": {"a"}, "c": nil},
 			order:  []string{"c"},

@@ -40,7 +40,7 @@ type spec struct {
 	// flag definition is its documentation.
 	Flags *flag.FlagSet
 
-	// Examples are runs worth copying, and Notes holds whatever remains to say.
+	// Examples are runs worth copying, and Notes holds the remaining prose.
 	Examples []example
 	Notes    string
 }

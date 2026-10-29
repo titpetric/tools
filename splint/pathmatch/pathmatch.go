@@ -18,7 +18,7 @@ import (
 const doubleStar = "**"
 
 // Match reports whether pattern covers name, segment by segment with path.Match.
-// A malformed pattern returns path.ErrBadPattern, whatever the name.
+// A malformed pattern returns path.ErrBadPattern for any name.
 func Match(pattern, name string) (bool, error) {
 	if err := Valid(pattern); err != nil {
 		return false, err

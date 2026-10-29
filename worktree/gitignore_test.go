@@ -159,7 +159,7 @@ func TestScannerAppliesGitignoreWhenEnabled(t *testing.T) {
 		t.Fatal("scanner did not apply a .gitignore rule")
 	}
 	if !s.skip(filepath.Join(root, "vendor"), true) {
-		t.Fatal("an ignore path did not override the negation re-including it")
+		t.Fatal("a negation re-included a directory the ignore paths name")
 	}
 	if s.skip(filepath.Join(root, "apps"), true) {
 		t.Fatal("scanner excluded a directory no rule names")

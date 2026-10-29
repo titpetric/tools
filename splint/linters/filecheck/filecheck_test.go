@@ -102,7 +102,7 @@ func TestLinter_New_IsTheDefaultCeiling(t *testing.T) {
 
 // TestLinter_Lint_Allowance covers the three answers an allow list returns: a
 // raised ceiling leaves a long file alone and still reports one past it, a
-// zero turns the rule off whatever the length, and the default covers a
+// zero turns the rule off at any length, and the default covers a
 // file no entry names.
 //
 // The test files come first because the first matching entry applies and
@@ -190,7 +190,7 @@ func TestLinter_Lint_FooterNamesTheRule(t *testing.T) {
 	tuned.Allow = filecheck.Allowances{{Path: "parser/*.go", MaxLines: 1500}}
 	stats := lintWith(t, tuned, document(files...)).Statistics()[0]
 	if !strings.Contains(stats.Footer, "1 over the ceiling each runs under.") {
-		t.Errorf("footer = %q, want the rule named rather than one number", stats.Footer)
+		t.Errorf("footer = %q, want the footer to name the rule", stats.Footer)
 	}
 }
 

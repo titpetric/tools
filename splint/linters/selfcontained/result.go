@@ -51,7 +51,7 @@ func (r *Results) pkg(importPath string) *packageMetric {
 // file returns what a file measured, adding it on first sight.
 //
 // A directory holding an external test package is two definitions of one path,
-// so the linter records a file once, whatever the count of definitions naming it.
+// so the linter records a file once, across the definitions naming it.
 func (r *Results) file(pkg *packageMetric, at model.Position, file model.File) *Metric {
 	path := at.Ref()
 

@@ -417,7 +417,7 @@ func apiDiffBetween(dir, oldRef, newRef string) apiDiff {
 // exactly that case: the tool exists and the command does not.
 //
 // diffModels compares the go.mod each model carries itself, with no call to
-// the tool, so the dependency report stays the same whichever splint the
+// the tool, and the dependency report stays the same with any splint the
 // system has, and this module tests the rule behind it on its own.
 func diffModels(oldModel, newModel string) apiDiff {
 	out, err := exec.Command("splint", "diff", "--old", oldModel, "--new", newModel, "--json", "--include-unexported").CombinedOutput()

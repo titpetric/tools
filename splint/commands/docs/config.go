@@ -62,7 +62,7 @@ func configPackage(defs model.DefinitionList, root string) *model.Definition {
 }
 
 // orderFromRoot returns the types with the root first and everything it
-// reaches after it, breadth first, then whatever remains in declared order.
+// reaches after it, breadth first, then the rest in declared order.
 // With no root, or one the package does not declare, the declared order
 // stands.
 func orderFromRoot(types model.DeclarationList, declared map[string]*model.Declaration, root string) []*model.Declaration {

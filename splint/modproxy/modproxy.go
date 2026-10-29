@@ -134,7 +134,7 @@ func (c *Client) Lookup(ctx context.Context, path, version string) Info {
 	return info
 }
 
-// LookupAll queries many modules at once, in place of a round trip each.
+// LookupAll queries many modules at once, concurrently.
 func (c *Client) LookupAll(ctx context.Context, modules map[string]string) map[string]Info {
 	return each(ctx, modules, c.Lookup)
 }

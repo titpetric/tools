@@ -103,7 +103,7 @@ func (l *Linter) check(def *model.Definition, decl *model.Declaration) {
 	variadics := getVariadicArgs(args)
 
 	// Check if time.Duration is present - it must be the last non-variadic argument
-	// This takes precedence over other ordering rules
+	// The linter checks this first.
 	if hasTimeDuration(nonVariadic) && !isTimeDurationLast(nonVariadic) {
 		expectedOrder := moveTimeDurationToEnd(nonVariadic)
 		if len(variadics) > 0 {
@@ -119,8 +119,8 @@ func (l *Linter) check(def *model.Definition, decl *model.Declaration) {
 		return
 	}
 
-	// If time.Duration is present and last, don't apply general ordering rules
-	// (time.Duration placement takes precedence)
+	// If time.Duration is present and last, the argument order is settled
+	// and the general ordering rules stop here.
 	if hasTimeDuration(nonVariadic) && isTimeDurationLast(nonVariadic) {
 		return
 	}
@@ -439,7 +439,7 @@ func getExpectedOrderWithDefs(args []string, defs model.DefinitionList) []string
 	return result
 }
 
-// sortInterfaces sorts interface types by preferred order.
+// sortInterfaces sorts interface types by getInterfaceOrder.
 func sortInterfaces(interfaces []string) {
 	// Simple bubble sort for small slices
 	for i := 0; i < len(interfaces)-1; i++ {
@@ -451,7 +451,7 @@ func sortInterfaces(interfaces []string) {
 	}
 }
 
-// sortStructs sorts struct types by preferred order.
+// sortStructs sorts struct types by their expected order.
 func sortStructs(structs []string) {
 	// Simple bubble sort for small slices
 	for i := 0; i < len(structs)-1; i++ {

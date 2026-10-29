@@ -16,8 +16,8 @@ import (
 )
 
 // workspace is the checkout directory of the projects the harness reads, and
-// SPLINT_WORKSPACE overrides it. The harness skips a project that is not
-// there, so it reads whatever the machine has and requires none in particular.
+// SPLINT_WORKSPACE sets it. The harness skips a project that is missing and
+// reads the ones the machine has.
 var workspace = envOr("SPLINT_WORKSPACE", "/root/workspace/github")
 
 // projects are the trees to compare on. They are real repositories and no
@@ -195,7 +195,7 @@ func compare(t *testing.T, root string) result {
 }
 
 // index keys every package of a document, so two documents of the same tree
-// compare one package at a time whatever order they list them in.
+// compare one package at a time in any listing order.
 func index(doc *model.DocumentRoot) map[string]*model.Definition {
 	out := map[string]*model.Definition{}
 

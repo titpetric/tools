@@ -9,7 +9,7 @@ import (
 // scanGenDecl reads a type, const or var declaration and returns the line it
 // ended on.
 //
-// A parenthesised block is one declaration, whatever the count of names
+// A parenthesised block is one declaration, for any count of names
 // it introduces: the parser records "const ( A = 1; B = 2 )" once under both names,
 // with the block as its source and the comment above the keyword as its doc.
 // That is what the ast parser records, because a block is one node to it.

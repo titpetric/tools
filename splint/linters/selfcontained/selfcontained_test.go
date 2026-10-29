@@ -38,7 +38,7 @@ func document() *model.DocumentRoot {
 					Globals: model.StringSet{"open": nil},
 				},
 				// A method whose receiver sits in the other file, which
-				// is a reach whatever its body does.
+				// is a reach for any body.
 				{Kind: model.FuncKind, Name: "Close", Receiver: "*Store", File: "handler.go"},
 			},
 		}},
