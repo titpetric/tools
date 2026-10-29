@@ -197,6 +197,11 @@ on type T every Test<T>*. A test that reaches the function through a helper
 in its own package runs too. Doc comments and type declarations are not
 changes: go build judges a type, and a comment changes no behaviour.
 
+Coverage is collected for every invocation and merged into a scan: one row
+per changed symbol with its covered and measured lines, and the share of the
+tree's tests that ran. Internal symbols are marked indirect; an internal
+method is followed to the functions on its type that call it.
+
 Flags splint does not know are forwarded to every go test invocation.
 
 Flags:

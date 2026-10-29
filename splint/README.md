@@ -836,6 +836,8 @@ A changed test runs itself. A changed benchmark runs itself under `-benchtime 10
 
 A type's fields and a doc comment are not changes here: `go build` judges the type, and a comment changes no behaviour. The run is quiet: it writes one `PASS TestName` or `FAIL TestName` line per test it started, and the output of a failing `go test` behind a `FAIL` line. `--list` writes what would run and runs nothing, and `-v` says which functions changed and which command ran. A flag splint does not know is forwarded to every `go test` invocation, and `--` forwards the rest of the command line unchanged.
 
+Coverage is collected for every `go test` invocation and merged into the scan. The run then prints a table with one row per changed symbol: its mode (`direct` or `indirect`), the covered and measured lines, and the coverage percentage. Internal symbols are marked indirect; for an internal method, the functions on its receiver that call it are followed and their tests run as indirect. Below the table are the statistics: how many tests ran over how many the tree holds, and the share of changed lines covered.
+
 ## Schemas
 
 `--schema` writes the types of a tree as a JSON Schema draft-07 document and lints nothing. It reads a source tree or a document already written for one:
