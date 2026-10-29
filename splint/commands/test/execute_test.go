@@ -51,6 +51,31 @@ func TestRunReportsVerdicts(t *testing.T) {
 	}
 }
 
+// TestRunFindsModule covers a tree holding a module per project and no go.mod
+// at its root, the layout a repository of tools uses. go test resolves a module
+// from the directory it runs in, so the run has to start in the package's.
+func TestRunFindsModule(t *testing.T) {
+	dir := t.TempDir()
+	gitRun(t, dir, "init", "-q", "-b", "main")
+	gitRun(t, dir, "config", "user.email", "test@example.com")
+	gitRun(t, dir, "config", "user.name", "test")
+
+	write(t, dir, "tool/go.mod", "module example.com/tool\n\ngo 1.21\n")
+	write(t, dir, "tool/p.go", "package tool\n\nfunc Add(a, b int) int {\n\treturn a + b\n}\n")
+	write(t, dir, "tool/p_test.go", "package tool\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) { Add(1, 2) }\n")
+	commit(t, dir, "initial")
+
+	write(t, dir, "tool/p.go", "package tool\n\nfunc Add(a, b int) int {\n\treturn b + a\n}\n")
+
+	out, said, code := runStart(t, Options{SourcePath: dir, Pattern: "./..."})
+	if code != 0 {
+		t.Fatalf("Run() exited %d, want 0\n%s\n%s", code, out, said)
+	}
+	if out != "PASS TestAdd\n" {
+		t.Fatalf("Run() wrote %q, want %q\n%s", out, "PASS TestAdd\n", said)
+	}
+}
+
 // TestSplitRunsOneCommandPerTest covers --split: every test is an invocation of
 // its own.
 func TestSplitRunsOneCommandPerTest(t *testing.T) {
