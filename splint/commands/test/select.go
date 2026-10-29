@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"go/ast"
 	"io"
 	"sort"
 	"strings"
@@ -17,6 +18,13 @@ type testID struct {
 type selection struct {
 	Tests   map[testID]bool
 	Benches map[testID]bool
+
+	// Changed is every changed symbol, and TotalTests is how many test
+	// functions the tree holds. The scan compares the first with the tests
+	// that ran from the second.
+	Changed      []changedFunc
+	TotalTests   int
+	TotalBenches int
 }
 
 // selectChanged maps every changed function to the tests that exercise it.
@@ -27,9 +35,21 @@ type selection struct {
 // reach it through a helper of that package. A test in another package runs
 // when its file imports the changed package and its body writes the name.
 func selectChanged(inv *inventory, changed []changedFunc, verbose bool, said io.Writer) *selection {
-	sel := &selection{Tests: map[testID]bool{}, Benches: map[testID]bool{}}
+	sel := &selection{Tests: map[testID]bool{}, Benches: map[testID]bool{}, Changed: changed}
 
-	for _, one := range changed {
+	for _, dir := range inv.Dirs {
+		for _, tf := range dir.Tests {
+			switch tf.Kind {
+			case kindBenchmark:
+				sel.TotalBenches++
+			default:
+				sel.TotalTests++
+			}
+		}
+	}
+
+	for i := range changed {
+		one := changed[i]
 		id := testID{Dir: one.Dir, Name: one.Name}
 		switch one.Kind {
 		case kindTest, kindFuzz, kindExample:
@@ -41,6 +61,16 @@ func selectChanged(inv *inventory, changed []changedFunc, verbose bool, said io.
 		}
 
 		matched := sameDir(inv, one, sel)
+
+		// An internal method is reached through the functions on its type.
+		// Running their tests covers the method without naming it.
+		if !ast.IsExported(one.Name) && one.Receiver != "" {
+			if via := invokers(inv, one, sel); len(via) > 0 {
+				matched = true
+				changed[i].Via = via
+			}
+		}
+
 		if otherDirs(inv, one, sel) {
 			matched = true
 		}
@@ -57,6 +87,55 @@ func selectChanged(inv *inventory, changed []changedFunc, verbose bool, said io.
 	}
 
 	return sel
+}
+
+// invokers selects the tests that exercise a function on the changed method's
+// receiver, and reports whether one did.
+func invokers(inv *inventory, one changedFunc, sel *selection) []string {
+	index := inv.Dirs[one.Dir]
+	if index == nil {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	for name, fns := range index.Funcs {
+		if name == one.Name {
+			continue
+		}
+		for _, fn := range fns {
+			if fn.Receiver != one.Receiver || fn.Kind != kindFunc {
+				continue
+			}
+			if !fn.Calls[one.Name] && !fn.Refs[one.Name] {
+				continue
+			}
+			if sameDir(inv, changedOf(one.Dir, one.ImportPath, fn), sel) {
+				seen[fn.Key] = true
+			}
+		}
+	}
+
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// changedOf is a changedFunc for a declaration, used to follow an internal
+// method to the functions that call it.
+func changedOf(dir, importPath string, fn *funcDecl) changedFunc {
+	return changedFunc{
+		Dir:        dir,
+		Key:        fn.Key,
+		Name:       fn.Name,
+		Receiver:   fn.Receiver,
+		Kind:       fn.Kind,
+		ImportPath: importPath,
+		StartLine:  fn.StartLine,
+		EndLine:    fn.EndLine,
+	}
 }
 
 // sameDir selects the tests of the changed function's own directory and

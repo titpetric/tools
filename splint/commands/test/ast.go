@@ -44,6 +44,11 @@ type funcDecl struct {
 	Calls     map[string]bool
 	Qualified map[string]bool
 
+	// StartLine and EndLine are the lines the declaration spans, which a
+	// coverage profile needs to place its blocks.
+	StartLine int
+	EndLine   int
+
 	Kind testKind
 	File string
 	Dir  string
@@ -105,6 +110,8 @@ func parseFile(path, rel, dir string) (*fileDecls, error) {
 			Refs:      map[string]bool{},
 			Calls:     map[string]bool{},
 			Qualified: map[string]bool{},
+			StartLine: fset.Position(fn.Pos()).Line,
+			EndLine:   fset.Position(fn.End()).Line,
 			File:      rel,
 			Dir:       dir,
 		}
@@ -138,6 +145,8 @@ func parseSource(src []byte, name, rel, dir string) (*fileDecls, error) {
 			Receiver:  receiverType(fn),
 			Signature: printNode(fset, fn.Type),
 			Body:      printNode(fset, fn.Body),
+			StartLine: fset.Position(fn.Pos()).Line,
+			EndLine:   fset.Position(fn.End()).Line,
 			Kind:      kindFunc,
 			File:      rel,
 			Dir:       dir,

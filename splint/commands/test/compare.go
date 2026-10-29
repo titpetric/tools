@@ -14,6 +14,12 @@ type changedFunc struct {
 	Receiver   string
 	Kind       testKind
 	ImportPath string
+	File       string
+	StartLine  int
+	EndLine    int
+
+	// Via names the functions on the receiver that reach an internal method.
+	Via []string
 }
 
 // changedFuncs compares every changed file with the revision and returns the
@@ -65,6 +71,9 @@ func (s *source) changedFuncs(ctx context.Context, changes []change) ([]changedF
 				Receiver:   fn.Receiver,
 				Kind:       fn.Kind,
 				ImportPath: s.importPath(dir),
+				File:       fn.File,
+				StartLine:  fn.StartLine,
+				EndLine:    fn.EndLine,
 			})
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -19,6 +20,7 @@ import (
 func (s *selection) run(ctx context.Context, src *source, opts Options, w, progress io.Writer) (int, error) {
 	status := map[testID]bool{}
 	var failed []string
+	cov := newCoverageData()
 
 	start := func(dir string, ids []testID, benchmark bool) error {
 		pattern := regexpPattern(ids)
@@ -36,6 +38,19 @@ func (s *selection) run(ctx context.Context, src *source, opts Options, w, progr
 		args = withFlags(args, "-v")
 
 		module, rel := src.module(dir)
+		profile, err := os.CreateTemp("", "splint-test-cover-*.out")
+		if err != nil {
+			return err
+		}
+		profilePath := profile.Name()
+		profile.Close()
+		defer os.Remove(profilePath)
+
+		args = append(args, "-coverprofile="+profilePath)
+		if pkgs := s.coverPackages(src, module); pkgs != "" {
+			args = append(args, "-coverpkg="+pkgs)
+		}
+
 		cmdArgs := append([]string{"test"}, args...)
 		cmdArgs = append(cmdArgs, packageArg(rel))
 
@@ -52,6 +67,12 @@ func (s *selection) run(ctx context.Context, src *source, opts Options, w, progr
 			if exit, ok := err.(*exec.ExitError); ok {
 				code = exit.ExitCode()
 			} else {
+				return err
+			}
+		}
+
+		if info, statErr := os.Stat(profilePath); statErr == nil && info.Size() > 0 {
+			if err := cov.add(profilePath); err != nil {
 				return err
 			}
 		}
@@ -128,7 +149,33 @@ func (s *selection) run(ctx context.Context, src *source, opts Options, w, progr
 		}
 	}
 
+	// The scan merges the coverage of every invocation and maps it onto the
+	// symbols the change touched.
+	if err := s.writeScan(w, cov); err != nil {
+		return 0, err
+	}
+
 	return exit, nil
+}
+
+// coverPackages names the changed packages in module for -coverpkg, so a
+// changed package is measured even when its tests live in another package.
+func (s *selection) coverPackages(src *source, module string) string {
+	seen := map[string]bool{}
+	var out []string
+
+	for _, one := range s.Changed {
+		if one.ImportPath == "" || seen[one.ImportPath] {
+			continue
+		}
+		if dir, _ := src.module(one.Dir); dir != module {
+			continue
+		}
+		seen[one.ImportPath] = true
+		out = append(out, one.ImportPath)
+	}
+	sort.Strings(out)
+	return strings.Join(out, ",")
 }
 
 // group collects tests by directory, in a stable order.
