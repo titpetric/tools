@@ -53,9 +53,9 @@ from limited context and a screenshot of Lovable.
 - Speaking as a book author, the **extreme** category is real when you have hundreds of pages to edit.
 - My own rules generally aim for 10-20KB for both markdown and code.
 
-Smaller models have limited context size, so text-oriented agentic
+Smaller models have limited context size. A text-oriented agentic
 proofreader/editor that chunks articles for review and language updates
-would have to consider splitting.
+has to plan for splitting.
 
 Agents do better with code, with progressive discovery they can read
 code structure with better tools than `grep`, notably `go doc` for

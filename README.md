@@ -12,7 +12,7 @@ go install github.com/titpetric/tools/worktree@main
 
 ### [splint](splint/)
 
-A data model of Go source, two parsers that fill it, and twelve linters over the top. The model imports no third party package, so a linter written against it links neither `go/ast` nor `x/tools`; one parser reads through `go/ast` and the other reads bytes, roughly ten times quicker and tolerant of source that does not compile.
+A data model of Go source, two parsers that fill it, and twelve linters over the top. The model is a plain data package, and a linter written against it links the model alone. One parser reads through `go/ast`. The other reads bytes, runs about ten times quicker, and reads source that does not compile.
 
 The linters cover file-test pairing, symbol-test coverage, symbol grouping by filename, HTTP handler wrappers, file size, visibility, godoc, import collisions, argument and return order, module dependencies, and what a file needs from the rest of its package.
 

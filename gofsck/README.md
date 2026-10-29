@@ -1,11 +1,11 @@
 # gofsck
 
-Deprecated, superseded by [splint](../splint/). The six analyzers - pairing,
-coverage, grouping, wraphandler, filecheck, visibility - run there as linters
-over a parsed document, alongside checks this tool never had.
+Deprecated; use [splint](../splint/). The six analyzers - pairing, coverage,
+grouping, wraphandler, filecheck, visibility - run there as linters over a
+parsed document, together with further checks.
 
 ```bash
 splint ./...
 ```
 
-The source stays for history. Nothing installs or invokes it.
+The source stays in the repository for history.
