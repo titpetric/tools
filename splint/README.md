@@ -6,17 +6,17 @@ The model is a schema. It imports only the standard library, and a linter writte
 
 The command runs in a pipeline. It exits on a code a job branches on, and it renders the one report three ways for the three readers a check has: the pipeline that gates on it, the operator watching a terminal, and whoever reads the artifact afterwards. Where the output goes decides which rendering a run produces. One command line serves all three.
 
-## What it obsoletes
+## Earlier tools
 
-Three earlier tools of ours:
+splint carries the work of three earlier tools of ours:
 
 - [go-fsck](https://github.com/titpetric/exp/tree/main/cmd/go-fsck) - the extract/lint/docs/coverage/diff toolchain over the same document model. Every subcommand lives on here, and a document it wrote still loads.
 - [gofsck](https://github.com/titpetric/tools/tree/main/gofsck) - the single-pass package layout analyser. Its six checks (pairing, coverage, grouping, wraphandler, filecheck, visibility) run here as linters.
 - [go-ddd-stats](https://github.com/titpetric/exp/tree/main/cmd/go-ddd-stats) - the per file size report. `splint sizes` writes the same JSON and the same d2 histogram off the document, and one walk of the tree serves both.
 
-And the common tools it stands in for:
+It also covers the jobs of these common tools:
 
-| Tool                | What splint does instead                                                                                                                      |
+| Tool                | What splint does                                                                                                                              |
 |---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | `goimports`         | `splint fix` adds the missing imports and drops the unused ones, resolved against the tree                                                    |
 | `goimports-reviser` | the same pass writes the block in the configured group order                                                                                  |
@@ -49,15 +49,15 @@ splint --include-tests --save ./...   # keep the test packages in what is writte
 splint ./... --json                   # the findings as JSON, no rendering
 splint ./... --yaml                   # the same, as YAML
 splint --schema ./...                 # write the tree as a JSON Schema
-splint --stats ./...                   # what the linters measured, not what they found
+splint --stats ./...                   # what the linters measured
 splint --offline ./...                # never ask the module proxy
 ```
 
 A flag reads the same before the pattern or after it. The exit code is 0 for a clean run, 1 when a linter reported something, and 2 when the run itself failed. A pipeline can tell a finding from a failure.
 
-`--linters none` runs no linter at all, which is the extract: splint parses the tree and writes the document, and the run exits 0 whatever the tree looks like. A job that needs only the document calls this, in place of suffixing a lint with `|| true`.
+`--linters none` runs no linter at all, which is the extract: splint parses the tree and writes the document, and the run exits 0 on any tree. A job that needs only the document calls this.
 
-`--save` writes the parsed document to `splint.json`, beside the tree it describes, and runs no linter: a run given `--save` is there for the document it writes, and its exit code covers the parse alone. `--output` names another file. splint resolves both against the directory the command ran in, whichever tree `-i` pointed the parse at: the parse moves the process into that tree and puts it back when it finishes.
+`--save` writes the parsed document to `splint.json`, beside the tree it describes, and runs no linter: a run given `--save` is there for the document it writes, and its exit code covers the parse alone. `--output` names another file. splint resolves both against the directory the command ran in, for any tree `-i` points the parse at: the parse moves the process into that tree and puts it back when it finishes.
 
 Every run parses the tree. `--input` is the one way to read a document a previous run wrote, and it makes a second run quick. Over oida:
 
@@ -68,9 +68,9 @@ Every run parses the tree. `--input` is the one way to read a document a previou
 
 Every run without `--input` parses the tree, even with a `splint.json` beside it. A job that extracts twice gets the second document, and the second run reports the tree it read.
 
-`--include-tests` decides what the written document keeps. Every parse reads the test files, because `pairing` and `coverage` have nothing to check without them, and a document written without the flag carries no test package and no declaration from a `_test.go` file. A report rendered off one listed `cmd/lessgo_test` as a package otherwise.
+`--include-tests` decides what the written document keeps. Every parse reads the test files, because `pairing` and `coverage` check them. A document written without the flag leaves out the test packages and every declaration from a `_test.go` file.
 
-`splint --help` prints a page in place of a list of flag defaults: what the tool is, how to call it, every flag with its default, and runs worth copying. A terminal gets it in colour and anything else gets it as markdown; `splint --help > docs/splint.md` writes that markdown.
+`splint --help` prints a page: what the tool is, how to call it, every flag with its default, and runs worth copying. A terminal gets it in colour and anything else gets it as markdown; `splint --help > docs/splint.md` writes that markdown.
 
 ## splint fix
 
@@ -134,7 +134,7 @@ A name two paths answer to stays unresolved. A formatter guessing between them w
 - It does not add an import of the package the file is part of. A file writing `package whitebox` reaches `whitebox.Bar` by a name it already has, and importing it would be a cycle. A file writing `package whitebox_test` is a package of its own and has to import the one it tests, so that one gets the import.
 - It does not lose a line. A comment above an import, beside it, or belonging to no import at all comes back in the rewritten block. The line endings of the file and its lack of a trailing newline come back too.
 
-Before writing anything, the fixer checks that the lines up for replacement hold an import declaration. The range comes from a parse, and a parse that read it wrong would otherwise have the rewrite overwrite whatever is really there.
+Before writing anything, the fixer checks that the lines up for replacement hold an import declaration. The range comes from a parse, and the check stops a misread range from reaching the file.
 
 ### Configuration
 
@@ -441,7 +441,7 @@ splint -i testdata ./...
 splint --stats -i testdata ./...
 ```
 
-A walk reads its root whatever the root's name, and `-i testdata` reads the fixture.
+A walk always reads its root, and `-i testdata` reads the fixture.
 
 ### The formatter fixture
 
@@ -573,7 +573,7 @@ splint diff --old old.json --new new.json
 splint diff --old old.json --new new.json --json
 ```
 
-The diff keys a symbol by import path, receiver and name. It finds the symbol across revisions whichever file it moved to, and a move between files reports as unchanged. It compares a signature with its parameter names stripped, because renaming a parameter leaves every caller unchanged.
+The diff keys a symbol by import path, receiver and name. It finds the symbol across revisions in any file it moved to, and a move between files reports as unchanged. It compares a signature with its parameter names stripped, because renaming a parameter leaves every caller unchanged.
 
 Breaking is a removed or changed exported symbol, or a field moved on an exported type; an added symbol is not, an added struct field is not, and an added interface method is, because every implementation is now short one. `--include-unexported` compares the unexported declarations and the internal packages too, reported but never breaking, and a go.mod change is never breaking either. `--include-indirect` keeps the indirect requirements in the go.mod comparison.
 
@@ -596,7 +596,7 @@ github.com/a-h/templ:
 
 `size` is the mean of the versions below it, and the linter answers with it for a version the file does not hold. A module is much the same size from one release to the next. An answer within a few percent of the truth saves a round trip.
 
-The linter writes the file beside itself and renames it over the old one, and reads the new file back before the rename: a cache that does not parse is one the next run would throw away, and throwing it away here costs nobody anything.
+The linter writes the file beside itself and renames it over the old one, and reads the new file back before the rename: a cache that fails to parse stays unwritten, and the old file stays in place.
 
 `--offline` queries nobody. The sizes come from the cache alone, and the columns only the proxy can fill, the reach of a dependency and how far behind it lags, stay blank; the run never reports them as zero. One run fills the cache and every run after it can be offline.
 
@@ -766,7 +766,7 @@ go test -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
 splint --save --append-coverage=pkg.cov ./...
 ```
 
-The fold fills `model.Complexity.Coverage` on every function and method, from the profile blocks that fall inside the file and the line range the parse recorded for it, and on every package, over the declarations in it. Both weigh by statement and not by block, the same as `go tool cover -func` reports: covered statements over total statements. A declaration with no statements reports 0, matching the cover tool.
+The fold fills `model.Complexity.Coverage` on every function and method, from the profile blocks that fall inside the file and the line range the parse recorded for it, and on every package, over the declarations in it. Both weigh by statement, the same as `go tool cover -func` reports: covered statements over total statements. A declaration with no statements reports 0, matching the cover tool.
 
 At the same time, a package gets the complexity of its declarations added up. This fold fills `model.Package.Complexity`, and a report printing coverage beside complexity reads both off the same struct.
 
@@ -774,7 +774,7 @@ The flag belongs to a parse. `--input` reads a document a previous run extracted
 
 The package figure weights every function by the statements behind it. A package of one long uncovered function and ten short covered ones reads low.
 
-`splint coverage` renders what the fold added: one markdown row per covered function with its cognitive complexity beside the coverage, and one per package with the lines added up. `-v` keeps the uncovered functions in, `--json` writes the rows as data, and `--template` renders a text/template with both tables, `.Functions` and `.Packages`, in place of printing the function table alone.
+`splint coverage` renders what the fold added: one markdown row per covered function with its cognitive complexity beside the coverage, and one per package with the lines added up. `-v` keeps the uncovered functions in, `--json` writes the rows as data, and `--template` renders a text/template with both tables, `.Functions` and `.Packages`.
 
 ```bash
 go test -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
@@ -782,7 +782,7 @@ splint coverage --append-coverage=pkg.cov ./... > docs/testing-coverage.md
 splint coverage --input splint.json --template docs/testing-coverage.md.tpl
 ```
 
-The report reads the same two fields whichever way the document arrived: a parse with the profile folded in, or `--input` naming a document written with one.
+The report reads the same two fields from either source: a parse with the profile folded in, or `--input` naming a document written with one.
 
 ## Sizes
 
@@ -803,7 +803,7 @@ splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
 
 `--render d2` writes the histogram as a d2 source document, one rectangle per non-empty bucket; the size diagram in a README renders from it.
 
-The command counts every file the document carries, whatever scope declared it: a document written with `--include-tests` counts the test files, one written without does not.
+The command counts every file the document carries, in every scope: a document written with `--include-tests` carries the test files, and the command counts them.
 
 ## Schemas
 

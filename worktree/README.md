@@ -27,7 +27,7 @@ worktree /abs/path   # show modules matching an absolute path
 
 By default the scan honours `.gitignore` files. The scan skips an ignored folder along with the Git repositories and Go modules inside it, and vendored checkouts and build output stay out of the listing. The scan reads `.gitignore` files alone, and a pattern applies to paths the repository tracks as well. `.git/info/exclude` and the global excludes file play no part. Set `enable_gitignore: false` in the configuration to turn this off; see [Configuration](#configuration).
 
-Two directory names are never descended into, whatever the configuration says: `testdata`, whose `go.mod` files are test fixtures, and `.git`. A module below either is not listed, and `-u` and `-go` do not rewrite it.
+The scan always skips two directory names: `testdata`, whose `go.mod` files are test fixtures, and `.git`. A module below either stays out of the listing and out of `-u` and `-go`.
 
 Two commands print the git commands for tagging a new release of the git repository in the current directory. They read the existing tags, detect the latest semver release, ignoring prereleases and tags that aren't semantic versions, and increment it:
 
@@ -89,7 +89,7 @@ Resolve pins each module to the version its dependency reaches in this run, mean
 
 ### Choosing between a patch and a minor
 
-The release is a minor when it costs a consumer something, and a patch otherwise. The API side of that comes from comparing the exported symbols of the working tree against the latest tag with [`splint diff`](https://github.com/titpetric/tools/tree/main/splint):
+The release is a minor when it costs a consumer something, and a patch in every other case. The API side of that comes from comparing the exported symbols of the working tree against the latest tag with [`splint diff`](https://github.com/titpetric/tools/tree/main/splint):
 
 - a removed exported symbol, or one whose signature changed, is breaking, and earns a minor,
 - so does an exported field a type loses or reshapes, and a method an interface gains, see [Data model changes](#data-model-changes),
@@ -127,7 +127,7 @@ worktree verdict --no-cache                 # read every commit again, cache not
 
 Verdict reads the number of tags the repository carries as it starts, and a run that goes on to measure a long range reports them before it goes quiet. By default it compares the two ends of the range: the latest tag and the working tree, or the two revisions `--from` and `--to` name. Each commit costs a `splint` extraction of its own, and reading the range commit by commit is opt-in: `-v` fills the per-commit counts and the commits behind each symbol, and takes minutes on a long range.
 
-A path of `.` narrows the verdict to the package at the module root, the way the go tool reads the pattern; the implicit default is `./...`, the whole module. Verdict judges a repository whose root package is its public API on that package: a symbol a subpackage loses is a refactor there, not a breaking release, and the API, data model and commit count tables narrow with it.
+A path of `.` narrows the verdict to the package at the module root, the way the go tool reads the pattern; the implicit default is `./...`, the whole module. Verdict judges a repository whose root package is its public API on that package: a symbol a subpackage loses counts as a refactor there, and the API, data model and commit count tables narrow with it.
 
 It draws a table on a terminal and writes markdown when its output goes to a file or a pipe. The redirected form pastes into GitHub release notes with the commit hashes already linked.
 
@@ -161,7 +161,7 @@ Verdict draws the chain between `major.minor` series. A repository with forty pa
 
 Verdict compares a series against the release that opened the one below it: it measures `v0.2.0` from `v0.1.0`. The opener is the lowest release of the series, which is its `.0` when somebody tagged it. The patch releases between them sit inside the section spanning them, with their commits. The latest release gets a section of its own when it does not open its own series, which keeps it covered.
 
-Add `-v` to report every tag instead, each against the one before it: the same history at the granularity of its tags.
+Add `-v` to report every tag, each against the one before it: the same history at the granularity of its tags.
 
 `--from` and `--to` bound the chain at either end, naming the releases it runs between. `worktree verdict --all --to v0.5.0` stops at `v0.5.0` and reports nothing after it, including the working tree, which is past its end. `worktree verdict --all --from v0.3.0` starts there and not at the first commit. A range holding no release at all is an error, and verdict writes no empty report for it.
 
@@ -267,7 +267,7 @@ A package is only half of what a consumer takes on. The other half is the depend
 
 The section follows the layout of the tables above it: grouped by what the release did, the category naming the first row of its group, and the cells that repeat the row above them left empty. A dependency that moved appears with the version on either side of the move, the way a changed signature does. The module path appears in full, since the path identifies the dependency and does not locate it. A release that touched no `go.mod` gets no section.
 
-The section lists the dependencies the module imports itself. `go mod tidy` writes the indirect ones on its own, and a routine tidy rewrites dozens of them; the section keeps to the handful of direct ones that make the release note. A dependency direct on either side of the comparison counts as direct, and the section reports one the module took on an import of, whichever way it moved.
+The section lists the dependencies the module imports itself. `go mod tidy` writes the indirect ones on its own, and a routine tidy rewrites dozens of them; the section keeps to the handful of direct ones that make the release note. A dependency direct on either side of the comparison counts as direct, and the section reports one the module took on an import of, in either direction.
 
 **Dependencies explain a release and leave the verdict to the API.** A dependency change leaves the compiler with nothing to report to a consumer, and the section explains the release. The report names it after the reason, in the sentence that follows the verdict:
 
@@ -293,7 +293,7 @@ The report ends on what each package of the working tree declares, split into th
 | ./model | 23 / 2 | 70 / 32 | 21.4% |
 ```
 
-`Types` and `Funcs` read exported over internal, counted by the case of the declared name: a method counts as a func, and `(*Tracer).serveHTTP` is internal the way a free function is. `Ratio` is the code inside internal func bodies over the func code of the package, blank lines and comments left out of both. Test files stay out, and so does the `internal` tree: Go scopes it to the module already, whatever it exports.
+`Types` and `Funcs` read exported over internal, counted by the case of the declared name: a method counts as a func, and `(*Tracer).serveHTTP` is internal the way a free function is. `Ratio` is the code inside internal func bodies over the func code of the package, blank lines and comments left out of both. Test files stay out, and so does the `internal` tree: Go already scopes it to the module, with everything it exports.
 
 The report states the counts and does not judge them. There is no share of internal code a package ought to carry: a parser keeps most of its code private and a data model exports most of its own, and both are right that way. What the table is for is reading one package against another, and against what the same package looked like a release ago.
 
@@ -331,11 +331,11 @@ These flags invoke tool functionality:
 - `-t` outputs a dependency matrix, with a green `▲` for current and yellow `▲*` for outdated dependencies. Project names show dark-grey `(+N)` for commits ahead and a dark-orange `*` for local Git changes; the matrix drops empty rows and columns, except that projects with local changes always show. A footer summarizes these workspace states,
 - `-puml` will render a plantuml representation of the workspace,
 - `-d2` will render a d2 representation of the workspace,
-- `--apply` makes `worktree resolve` perform the plan it would otherwise only render, and `worktree changelog` write the release notes it would otherwise only list; see [Resolving a release chain](#resolving-a-release-chain) and [Backfilling release notes](#backfilling-release-notes).
+- `--apply` makes `worktree resolve` perform the plan it renders, and `worktree changelog` write the release notes it lists; see [Resolving a release chain](#resolving-a-release-chain) and [Backfilling release notes](#backfilling-release-notes).
 
 Table output uses the rounded, colored terminal format when stdout is an ANSI terminal and falls back to Markdown when redirected or piped.
 
-The `Git State` column lists the untracked paths of a module. A fully untracked folder stands in for everything below it, named in orange with what it holds, `demos/common/ +17 dirs, +91 files, +7921 SLOC`, and a new subtree costs one line whatever number of files it holds. A new file in a tracked folder gets named, with the lines it adds. `-v` and `--all` name every file.
+The `Git State` column lists the untracked paths of a module. A fully untracked folder stands in for everything below it, named in orange with what it holds, `demos/common/ +17 dirs, +91 files, +7921 SLOC`, and a new subtree costs one line. A new file in a tracked folder gets named, with the lines it adds. `-v` and `--all` name every file.
 
 The `Go` column holds each module's go directive. The tool compares the versions as semantic versions, where a missing patch reads as `.0` and a release candidate such as `1.27rc1` sorts below `1.27`. Every module below the highest version the workspace declares shows in orange, the rest in teal. Module import paths lose their `github.com/` prefix, and the module column stays narrow.
 
@@ -412,7 +412,7 @@ The settings are:
 |-------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `scan.enable_gitignore` | `true`                      | Honour `.gitignore` files while walking.                                                                                                                            |
 | `scan.enable_git_repos` | `true`                      | List Git repositories that are not also Go modules.                                                                                                                 |
-| `scan.ignore_paths`     | empty                       | Directory names never descended into, whatever a `.gitignore` says about them. Matched against the directory name alone, at any depth.                              |
+| `scan.ignore_paths`     | empty                       | Directory names the scan always skips, including names a `.gitignore` re-includes. Matched against the directory name alone, at any depth.                          |
 | `scan.root_markers`     | `go.work`, `go.mod`, `.git` | Files marking the workspace root. The nearest parent directory holding one of them becomes the scan root; with no markers the scan starts in the current directory. |
 
 Turn `enable_gitignore` off when a repository consolidates further Git checkouts below it and gitignores those folders to keep them out of its own index. With the setting on, the scan skips those checkouts and they stay out of the listing:
@@ -422,7 +422,7 @@ scan:
   enable_gitignore: false
 ```
 
-`ignore_paths` is the way to keep such a listing clean. The list starts empty because it also overrides a negation that re-includes the name, such as `!vendor`:
+`ignore_paths` is the way to keep such a listing clean. The list starts empty because a name on it stays skipped when a negation such as `!vendor` re-includes it:
 
 ```yaml
 scan:
