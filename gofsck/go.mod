@@ -3,11 +3,11 @@ module github.com/titpetric/tools/gofsck
 go 1.27.0
 
 require (
+	github.com/goccy/go-yaml v1.19.2
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/stoewer/go-strcase v1.3.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/tools v0.52.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -19,4 +19,5 @@ require (
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
