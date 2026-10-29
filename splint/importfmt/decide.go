@@ -231,6 +231,16 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 
 		found := idx.Lookup(def, name)
 
+		// A module of the go.mod is placed by the last segment of its path,
+		// which is a guess: code reaches github.com/goccy/go-yaml as yaml, and a
+		// module required beside it, gopkg.in/yaml.v3, ends in the same name.
+		// A file holding an import whose name nothing states already builds,
+		// and adding the second import for a name the first may answer to
+		// would stop it.
+		if guessing && found.Source == resolve.SourceModule {
+			continue
+		}
+
 		// The name resolves to a path the file already imports, so the import
 		// is there and the file reaches it by a name the path does not spell.
 		// Nothing is missing and Decide adds nothing: a second import of one path under

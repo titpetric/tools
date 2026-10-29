@@ -25,6 +25,12 @@ var unformatted = absolute("linters/imports/testdata/input")
 func tree(t *testing.T) string {
 	t.Helper()
 
+	// The copy is a module the toolchain loads, and the load must not write
+	// into it: a go that adds a go.sum or an indirect requirement would have
+	// the test reading the toolchain's edits as the fixer's. The module mode
+	// an environment exports is not part of what these tests state.
+	t.Setenv("GOFLAGS", "-mod=readonly")
+
 	root := filepath.Join(t.TempDir(), "tree")
 
 	err := filepath.WalkDir(unformatted, func(path string, entry fs.DirEntry, err error) error {

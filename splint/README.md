@@ -39,6 +39,7 @@ splint docs ./... > docs/api.md       # render the tree as an API reference
 splint coverage --input splint.json   # report the coverage a document carries
 splint diff --old a.json --new b.json # what a release takes away
 splint sizes --input splint.json       # every file with its byte size, as JSON
+splint test ./...                     # run the tests the working tree changed
 splint --save ./...                   # extract a document to splint.json, and judge nothing
 splint -i ../oida ./...               # lint another tree
 splint --parser=simpleparser ./...    # read it without building a syntax tree
@@ -482,7 +483,7 @@ SPLINT_CORPUS=0 go test ./tests/ -run TestCorpus      # every module in the cach
 
 ## The linters
 
-Thirteen of them, every one a set of rules over the parsed document.
+Fourteen of them, every one a set of rules over the parsed document.
 
 | Name            | What it reports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | What it measures                                                                                                                                            |
 |-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -499,6 +500,7 @@ Thirteen of them, every one a set of rules over the parsed document.
 | `selfcontained` | no issues                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | what a file needs from the rest of its package: symbols, types and funcs reaching nothing outside the file they are in, and the share that do, **per file** |
 | `modcheck`      | five module rules, listed below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records                                                        |
 | `integration`   | four rules, listed below: a test crossing a process boundary outside the build tag, and a tagged file, or one named for the tag, that breaks the naming. Off until a tree opts in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | test functions, the ones crossing, and the files behind the tag, per package                                                                                |
+| `blacklist`     | an import from a module host the tree discourages, with the replacement to use instead. `gopkg.in` is blocked by default: `yaml.v2` and `yaml.v3` name `github.com/goccy/go-yaml`, and `check.v1` names `github.com/stretchr/testify`                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | imports blocked, per file                                                                                                                                   |
 
 `func-args` considers a function taking exactly two arguments. The order of one pair is unambiguous; for three or more the expected order is a heuristic sort.
 
@@ -561,6 +563,20 @@ imports:
 A `pollution` section that does not name `ignore` keeps the default list.
 
 `modcheck` counts files, packages and symbols per dependency as well. The two measure different things: modcheck measures what a dependency costs to carry, and `pollution` measures how far one import path has spread.
+
+## blacklist
+
+`blacklist` reports an import from a module host the tree discourages, and names the path to use instead. `gopkg.in` is the host it starts with: it serves a module the Go versioning rule cannot name, it writes the major version onto the name's own segment (`gopkg.in/yaml.v3` is imported as `yaml`), and the packages it serves live in repositories the module graph reads without a special case. A tree importing from it keeps a name the tooling has to special-case, which splint carries in `model` and `importfmt` and would rather not.
+
+The finding names the replacement when there is one: `gopkg.in/yaml.v2` and `gopkg.in/yaml.v3` read as `github.com/goccy/go-yaml`, and `gopkg.in/check.v1` as `github.com/stretchr/testify`. Any other path below the host still reports, with no substitute. A block covers the path it names and everything below it, so `gopkg.in/yaml.v3` does not cover `gopkg.in/yaml.v30`; the host entry behind it still does.
+
+The rule is a WARN: it discourages the import, and `splint fix` writes nothing for it.
+
+```shell
+splint --linters blacklist ./...
+```
+
+:::warning file=config/config.go,title=blacklist/blocked::gopkg.in/yaml.v3 - gopkg.in/yaml.v3 is from a blocked module host: import github.com/goccy/go-yaml instead
 
 ## Diff
 
@@ -804,6 +820,23 @@ splint sizes --render d2 ./... | d2 --layout elk - docs/assets/size.svg
 `--render d2` writes the histogram as a d2 source document, one rectangle per non-empty bucket; the size diagram in a README renders from it.
 
 The command counts every file the document carries, in every scope: a document written with `--include-tests` carries the test files, and the command counts them.
+
+## Test
+
+`splint test` starts only the tests a change reaches. It compares the working tree with `HEAD`, or the revision `--base` names, keeps the functions whose signature or body moved, and maps each to the tests that exercise it:
+
+```shell
+splint test ./...                       # what the working tree changed
+splint test --base origin/main ./...    # what a branch changed, against main
+splint test --split ./pkg               # one go test invocation per test
+splint test ./... -count=1 -timeout 2m  # flags after the pattern go to go test
+```
+
+A changed test runs itself. A changed benchmark runs itself under `-benchtime 10s`. A changed function runs `Test<Func>`, and a method on type `T` runs every `Test<T>*`; a test that reaches the function through a helper of its own package runs too, and a test in another package runs when its file imports the changed package and writes the name. When no test names or calls a changed function, the run starts the tests of its package, which is the narrow answer left.
+
+A type's fields and a doc comment are not changes here: `go build` judges the type, and a comment changes no behaviour. The run is quiet: it writes one `PASS TestName` or `FAIL TestName` line per test it started, and the output of a failing `go test` behind a `FAIL` line. `--list` writes what would run and runs nothing, and `-v` says which functions changed and which command ran. A flag splint does not know is forwarded to every `go test` invocation, and `--` forwards the rest of the command line unchanged.
+
+Coverage is collected for every `go test` invocation and merged into the scan. The run then prints a table with one row per changed symbol: its mode (`direct` or `indirect`), the covered and measured lines, and the coverage percentage. Internal symbols are marked indirect; for an internal method, the functions on its receiver that call it are followed and their tests run as indirect. Below the table are the statistics: how many tests ran over how many the tree holds, and the share of changed lines covered.
 
 ## Schemas
 

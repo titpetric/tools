@@ -3,6 +3,7 @@
 package linters
 
 import (
+	"github.com/titpetric/tools/splint/linters/blacklist"
 	"github.com/titpetric/tools/splint/linters/coverage"
 	"github.com/titpetric/tools/splint/linters/filecheck"
 	"github.com/titpetric/tools/splint/linters/funcargs"
@@ -34,6 +35,7 @@ func All() []model.Linter {
 		visibility.New(),
 		selfcontained.New(),
 		modcheck.New(),
+		blacklist.New(),
 		integration.New(),
 	}
 }

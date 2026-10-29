@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	yaml "gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 )
 
 // Encode renders the configuration document, with the version this build
@@ -20,8 +20,7 @@ func Encode(cfg *Config) ([]byte, error) {
 	buf.WriteString("# applied underneath it, so a setting removed from this file reads as off.\n")
 	buf.WriteString("\n")
 
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
+	enc := yaml.NewEncoder(&buf, yaml.Indent(2), yaml.IndentSequence(true))
 	if err := enc.Encode(&out); err != nil {
 		return nil, fmt.Errorf("encode config: %w", err)
 	}

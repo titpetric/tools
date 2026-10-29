@@ -13,6 +13,7 @@ import (
 	"github.com/titpetric/tools/splint/commands/diff"
 	"github.com/titpetric/tools/splint/commands/docs"
 	"github.com/titpetric/tools/splint/commands/sizes"
+	testcmd "github.com/titpetric/tools/splint/commands/test"
 	"github.com/titpetric/tools/splint/coverprofile"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
@@ -40,6 +41,13 @@ const (
 // and two for splint --fix, where w is carrying a report a program parses: a
 // line of progress inside that report makes a line of invalid JSON.
 func run(ctx context.Context, args []string, w, progress io.Writer) (int, error) {
+	// splint test forwards the flags it does not know to go test, so it reads
+	// its own command line rather than the pflag set every other command
+	// shares.
+	if len(args) > 0 && args[0] == commandTest {
+		return runTest(ctx, args[1:], w, progress)
+	}
+
 	cfg, err := parseOptions(args)
 	if err != nil {
 		return 0, err
@@ -183,6 +191,19 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		return exitFound, nil
 	}
 	return exitClean, nil
+}
+
+// runTest reads the command line splint test takes and runs the tests a
+// change reaches.
+func runTest(ctx context.Context, args []string, w, progress io.Writer) (int, error) {
+	opts, help, err := testcmd.ParseOptions(args)
+	if err != nil {
+		return 0, err
+	}
+	if help {
+		return exitClean, testcmd.WriteHelp(w)
+	}
+	return testcmd.Run(ctx, opts, w, progress)
 }
 
 // written is the document as a file holds it. The linters read every test file
