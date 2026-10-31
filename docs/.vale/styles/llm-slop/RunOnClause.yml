@@ -1,0 +1,27 @@
+---
+extends: existence
+message: "Run-on: '%s'. Two sentences welded with a comma. End the first."
+level: error
+scope: ~table
+ignorecase: true
+nonword: true
+tokens:
+  # Two complete sentences joined by ", and" where a full stop belongs:
+  # "it merges paths where duplication splits them, and it pays when both
+  # arms are short". Both halves stand alone, so both should.
+  #
+  # The fix is the full stop, never the comma. Dropping the comma leaves
+  # "clause and clause", which reads worse than what it replaced, so the
+  # message asks for the sentence break and the comma goes with it.
+  #
+  # A serial list is not this and the tokens leave it alone: "assign it to
+  # a slot, pass it to another binding, and return it" names three verbs
+  # under one subject, and no token below reaches a bare verb.
+  #
+  # A pronoun after ", and" opens a clause of its own.
+  - ',\s+and\s+(?:it|they|that|this|there|we|you|he|she)\s+\w+'
+  # A determiner, a noun and a finite verb: the same clause, spelled out.
+  - ',\s+and\s+(?:the|a|an|its|their)\s+\w+\s+(?:is|are|was|were|has|have|does|do|did|will|would|can|could|holds|names|reads|writes|returns|refuses|costs|carries|stays|runs|lands|pays)\b'
+  # A coordinating conjunction against a subordinating one, or against a
+  # second connective: the join is already made once.
+  - ',\s+and\s+(?:because|although|while|since|if|when|so|then|thus|therefore|also|yet|still)\b'
