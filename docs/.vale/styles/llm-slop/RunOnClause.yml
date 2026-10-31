@@ -24,4 +24,9 @@ tokens:
   - ',\s+and\s+(?:the|a|an|its|their)\s+\w+\s+(?:is|are|was|were|has|have|does|do|did|will|would|can|could|holds|names|reads|writes|returns|refuses|costs|carries|stays|runs|lands|pays)\b'
   # A coordinating conjunction against a subordinating one, or against a
   # second connective: the join is already made once.
-  - ',\s+and\s+(?:because|although|while|since|if|when|so|then|thus|therefore|also|yet|still)\b'
+  - ',\s+and\s+(?:because|although|while|since|if|when|so|thus|therefore|also|yet|still)\b'
+  # "and then" is the one connective a serial list uses honestly:
+  # "parses a statement once, compiles it once, and then executes it many
+  # times" is four verbs under one subject and wants no full stop. Only a
+  # new subject after it opens a clause.
+  - ',\s+and\s+then\s+(?:it|they|that|this|there|we|you|he|she)\s+\w+'
