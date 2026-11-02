@@ -31,6 +31,7 @@ const (
 	commandCoverage = "coverage"
 	commandDiff     = "diff"
 	commandSizes    = "sizes"
+	commandTest     = "test"
 )
 
 // config holds the request for one run.
@@ -333,6 +334,7 @@ func helpSpec(cfg *config) spec {
 			"splint docs [flags] [pattern] [Symbol[.Method]]",
 			"splint coverage [flags] [pattern]",
 			"splint diff --old FILE --new FILE [flags]",
+			"splint test [flags] [pattern] [-- go test flags]",
 		},
 		Commands: []command{
 			{commandLint, "report what the linters found. This is what a command line naming no verb does"},
@@ -341,6 +343,7 @@ func helpSpec(cfg *config) spec {
 			{commandCoverage, "report the coverage the document carries, per function and per package"},
 			{commandDiff, "compare the exported API and the go.mod of two documents"},
 			{commandSizes, "report every file with its byte size, the per directory totals and a histogram, as JSON"},
+			{commandTest, "run the Go tests a change reaches, comparing the working tree with HEAD"},
 		},
 		Description: `The pattern is "." for the package in the source path and "./..." for
 everything below it, which is how every other tool here spells it.
@@ -375,6 +378,10 @@ not compile, and is an order of magnitude quicker.`,
 			{"splint --json ./...", "the findings as data, for a program to read"},
 			{"splint --linters godoc,imports ./...", "run two of the thirteen"},
 			{"splint --offline ./...", "read what a module weighs from the cache, and ask nobody"},
+			{"splint test ./...", "run the tests the working tree changed"},
+			{"splint test --split ./pkg", "one go test invocation per changed test in a package"},
+			{"splint test --base origin/main ./...", "run the tests a branch changed, against main"},
+			{"splint test ./... -count=1 -timeout 2m", "forward flags to every go test invocation"},
 		},
 		Notes: `splint fix rewrites the import block of every file that does not hold the
 one the rules describe: the groups in order, one declaration per file, an
@@ -409,6 +416,16 @@ earlier one.
 --save writes ` + saveFile + ` beside the tree and --output names another file.
 Both are resolved against the directory the command was run in, whichever
 tree -i pointed the parse at.
+
+splint test compares the working tree with HEAD, or the revision --base names,
+and keeps the functions whose signature or body moved. A changed test runs
+itself, a changed benchmark runs under -benchtime 10s, and a changed function
+runs the tests that name it: Test<Func>, and for a method on type T every
+Test<T>*. A test that reaches the function through a helper of its own package
+runs too. Doc comments and type declarations are not changes: go build judges
+a type, and a comment changes no behaviour. A flag splint does not know is
+forwarded to every go test invocation, and --split runs every test in an
+invocation of its own. The run writes one PASS or FAIL line per test.
 
 Exits 1 when a linter found something, 2 when the run itself failed.`,
 	}

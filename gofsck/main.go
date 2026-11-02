@@ -8,10 +8,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
 	"golang.org/x/tools/go/packages"
-	"gopkg.in/yaml.v3"
 
 	"github.com/titpetric/tools/gofsck/model"
 	"github.com/titpetric/tools/gofsck/pkg/coverage"
@@ -85,7 +85,7 @@ func main() {
 		}
 		output = string(data)
 	case "yaml":
-		data, err := yaml.Marshal(report)
+		data, err := yaml.MarshalWithOptions(report, yaml.Indent(4), yaml.IndentSequence(true))
 		if err != nil {
 			log.Fatalf("failed to marshal report: %s", err)
 		}

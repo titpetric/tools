@@ -6,8 +6,8 @@ require (
 	charm.land/bubbletea/v2 v2.1.0
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/term v0.2.2
+	github.com/goccy/go-yaml v1.19.2
 	golang.org/x/mod v0.42.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
