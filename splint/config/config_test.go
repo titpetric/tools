@@ -10,6 +10,7 @@ import (
 	"github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/linters/importpolicy"
 	"github.com/titpetric/tools/splint/linters/imports"
 )
 
@@ -236,4 +237,37 @@ func TestLoadPollutionIgnore(t *testing.T) {
 		"a pollution section that does not name the list keeps the default")
 	assert.Empty(t, load("imports:\n  pollution:\n    ignore: []\n"))
 	assert.Equal(t, []string{"example.com/kit"}, load("imports:\n  pollution:\n    ignore: [example.com/kit]\n"))
+}
+
+// TestImportPolicyLists covers the two lists the linter takes: a tree with no
+// section gets the defaults and no allowance, allow is the tree's own, and a
+// deny entry the tree states is read before the defaults it did not restate.
+func TestImportPolicyLists(t *testing.T) {
+	t.Parallel()
+
+	defaults, err := config.Load(t.TempDir())
+	require.NoError(t, err)
+
+	allow, deny := defaults.ImportPolicyLists()
+	assert.Empty(t, allow, "a tree states its allowances or has none")
+	assert.Equal(t, importpolicy.DefaultDenyList, deny)
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(config.Path(dir), []byte(`importpolicy:
+  allow:
+    - gopkg.in/yaml.v3
+  deny:
+    - prefix: github.com/pkg/errors
+      replacement: errors
+`), 0o644))
+
+	cfg, err := config.Load(dir)
+	require.NoError(t, err)
+
+	allow, deny = cfg.ImportPolicyLists()
+	assert.Equal(t, []string{"gopkg.in/yaml.v3"}, allow)
+	require.Len(t, deny, len(importpolicy.DefaultDenyList)+1)
+	assert.Equal(t, importpolicy.Deny{Prefix: "github.com/pkg/errors", Replacement: "errors"}, deny[0],
+		"the tree's entries are read before the defaults")
+	assert.Equal(t, importpolicy.DefaultDenyList, deny[1:])
 }
