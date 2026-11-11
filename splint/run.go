@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -17,6 +18,7 @@ import (
 	"github.com/titpetric/tools/splint/coverprofile"
 	"github.com/titpetric/tools/splint/linters"
 	"github.com/titpetric/tools/splint/linters/modcheck"
+	"github.com/titpetric/tools/splint/mdfmt"
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/model/loader"
 	"github.com/titpetric/tools/splint/parsers/analyzer"
@@ -25,9 +27,10 @@ import (
 	"github.com/titpetric/tools/splint/render"
 	"github.com/titpetric/tools/splint/report"
 	"github.com/titpetric/tools/splint/schema"
+	"github.com/titpetric/tools/splint/yamlprose"
 )
 
-// Exit codes: nothing found, something found, and the run itself failing,
+// Exit codes: nothing found, something found. The run itself failing,
 // which main reports as 2.
 const (
 	exitClean = 0
@@ -38,7 +41,7 @@ const (
 //
 // The report goes to w and anything said along the way goes to progress. The
 // two are one stream for splint fix, whose whole output is what it rewrote,
-// and two for splint --fix, where w is carrying a report a program parses: a
+// and two for splint --fix, where w is holding a report a program parses: a
 // line of progress inside that report makes a line of invalid JSON.
 func run(ctx context.Context, args []string, w, progress io.Writer) (int, error) {
 	// splint test forwards the flags it does not know to go test, so it reads
@@ -56,7 +59,7 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 		return exitClean, writeHelp(w, helpSpec(cfg))
 	}
 
-	// A fix is a rewrite of the tree, and a report after a rewrite has to
+	// A fix is a rewrite of the tree. A report after a rewrite has to
 	// describe what the rewrite left. Both paths fix first and parse after.
 	if cfg.command == commandFix {
 		if _, err := runFix(ctx, cfg, w); err != nil {
@@ -120,7 +123,7 @@ func run(ctx context.Context, args []string, w, progress io.Writer) (int, error)
 	}
 
 	// docs and coverage render the document and skip the lint. The docs get
-	// the parse whole, because the examples they print live in the test
+	// the parse whole, because the examples they print are in the test
 	// packages; the coverage report gets what a written document would hold,
 	// so a run over a parse reports what a run over --input would.
 	if cfg.command == commandDocs {
@@ -217,7 +220,65 @@ func written(root *model.DocumentRoot, cfg *config) *model.DocumentRoot {
 
 // document is the tree as the options request it: read back from a file when
 // --input names one, and parsed otherwise.
+//
+// The markdown comes from this one place rather than from each parser. Both
+// parsers read Go and neither reads prose. A walk for "*.md" is the same
+// walk either way.
 func document(ctx context.Context, cfg *config) (*model.DocumentRoot, error) {
+	root, err := parsed(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// A document loaded from a file holds the prose it was saved with. A
+	// walk here would read the markdown as it stands now and attach it to a
+	// document describing the tree as it stood then.
+	if cfg.input != "" || !cfg.options.IncludeProse {
+		return root, nil
+	}
+
+	// Markdown and YAML, because a configuration file holds writing too: a
+	// comment explaining a decision. A desc or a help field somebody
+	// reads in a help page.
+	path, recursive := proseRoot(cfg.options)
+	for _, read := range []func(string, bool) ([]*model.ProseFile, error){
+		mdfmt.Prose,
+		yamlprose.Prose,
+	} {
+		prose, err := read(path, recursive)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range prose {
+			root.AddProse(file)
+		}
+	}
+
+	return root, nil
+}
+
+// proseRoot is where the markdown walk starts and whether it reads below that.
+//
+// The walk follows the pattern and not the source path: a run naming one
+// package measures the writing of that package, and a repository README is no
+// part of it. Reading both put the README's shapes in the count of every
+// package and reported them at a line in the Go.
+func proseRoot(options splint.Options) (string, bool) {
+	pattern := strings.TrimPrefix(options.Pattern, "./")
+
+	recursive := strings.HasSuffix(pattern, "...")
+	if recursive {
+		pattern = strings.TrimSuffix(strings.TrimSuffix(pattern, "..."), "/")
+	}
+
+	if pattern == "" || pattern == "." {
+		return options.SourcePath, recursive
+	}
+	return filepath.Join(options.SourcePath, pattern), recursive
+}
+
+// parsed is the Go half of the document.
+func parsed(ctx context.Context, cfg *config) (*model.DocumentRoot, error) {
 	if cfg.input != "" {
 		return loader.Load(cfg.input)
 	}
@@ -231,7 +292,7 @@ func document(ctx context.Context, cfg *config) (*model.DocumentRoot, error) {
 
 // parserFor returns the parser the options name.
 //
-// Both parsers build the same way and return the same document, so this is
+// Both parsers build the same way and return the same document. This is
 // the whole of what selecting one costs.
 func parserFor(cfg *config) (splint.Parser, error) {
 	switch cfg.parser {
@@ -244,7 +305,7 @@ func parserFor(cfg *config) (splint.Parser, error) {
 }
 
 // offline takes the linters off the network. modcheck is the one that reaches
-// it, and it queries the size of a module, which the cache holds from earlier
+// it. It queries the size of a module, which the cache holds from earlier
 // runs that made the query.
 func offline(selected []model.Linter) {
 	for _, linter := range selected {
@@ -285,8 +346,8 @@ func measured(reports []model.LintReport) []measurement {
 // writeData writes what a rendering would have drawn, for a reader that is a
 // program.
 //
-// One data model answers both: every field carries a json and a yaml tag
-// naming the same key, and a severity is a text marshaller, which both
+// One data model answers both: every field holds a json and a yaml tag
+// naming the same key. A severity is a text marshaller, which both
 // encoders read. The encoder indents the JSON, because a person who opens a
 // document reads it.
 func writeData(w io.Writer, cfg *config, value any) error {

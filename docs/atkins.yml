@@ -1,6 +1,6 @@
 #!/usr/bin/env atkins
-# The markdown lives under data/ and is written without soft wraps, which is
-# why the shared mdox skill (docs/, --soft-wraps) does not apply here.
+# The markdown is under data/ rather than docs/, which is why the shared mdox
+# skill does not apply here.
 
 vars:
   folder: data
@@ -22,17 +22,21 @@ tasks:
       - task: compose:down
 
   fmt:
-    desc: "Format the markdown with mdox"
+    desc: "Write the markdown in one format"
     cmds:
-      - mdox fmt -l --no-soft-wraps $(find ${{ folder }} -name '*.md')
+      # --markdown keeps the fixer off the Go, and -i points it at the folder
+      # the documents are in.
+      - splint fix --markdown -i ${{ folder }} ./...
 
   lint:
-    desc: "Check the formatting, then lint the language with vale"
+    desc: "Lint the language with vale"
     cmds:
-      - mdox fmt --check --no-soft-wraps $(find ${{ folder }} -name '*.md')
+      # There is no formatting check: the formatter settles every question it
+      # covers with no rule to configure, so a check would only report a file
+      # nobody had run the formatter over.
       - docker run --rm -v $(pwd):/docs -w /docs jdkato/vale .
 
   setup:
-    desc: "Install mdox"
+    desc: "Install splint, which formats the markdown"
     cmds:
-      - go install github.com/bwplotka/mdox@latest
+      - go install github.com/titpetric/tools/splint@latest

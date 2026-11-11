@@ -1,5 +1,5 @@
 // Package linters is the registry: it imports every linter and returns the
-// list, so a program that wants each one names this package alone.
+// list. A program that wants each one names this package alone.
 package linters
 
 import (
@@ -14,6 +14,7 @@ import (
 	"github.com/titpetric/tools/splint/linters/integration"
 	"github.com/titpetric/tools/splint/linters/modcheck"
 	"github.com/titpetric/tools/splint/linters/pairing"
+	"github.com/titpetric/tools/splint/linters/prose"
 	"github.com/titpetric/tools/splint/linters/selfcontained"
 	"github.com/titpetric/tools/splint/linters/visibility"
 	"github.com/titpetric/tools/splint/linters/wraphandler"
@@ -37,11 +38,12 @@ func All() []model.Linter {
 		modcheck.New(),
 		blacklist.New(),
 		integration.New(),
+		prose.New(),
 	}
 }
 
 // Named returns the linters the names select, and the names that matched
-// nothing. An empty selection is every linter, and the literal "none" is no
+// none. An empty selection is every linter. The literal "none" is no
 // linter at all: a run that extracts a document without judging the tree.
 func Named(names ...string) ([]model.Linter, []string) {
 	if len(names) == 0 {

@@ -2,18 +2,25 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os/exec"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/titpetric/tools/splint/commands/fix"
 	settings "github.com/titpetric/tools/splint/config"
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/coverage"
 	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/linters/godoc"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/linters/integration"
 	"github.com/titpetric/tools/splint/linters/pairing"
+	"github.com/titpetric/tools/splint/linters/prose"
+	"github.com/titpetric/tools/splint/mdfmt"
 	"github.com/titpetric/tools/splint/model"
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
 )
@@ -22,10 +29,14 @@ import (
 // the rules describe, and says what it did.
 //
 // It parses the tree itself and ignores the document the report reads. The
-// rewrite changes the tree, so a document read before the rewrite describes a
-// tree that has since changed, and a report built on one would name lines that
+// rewrite changes the tree. A document read before the rewrite describes a
+// tree that has since changed. A report built on one would name lines that
 // have moved.
 func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
+	if cfg.markdownOnly {
+		return fixMarkdownOnly(w, cfg)
+	}
+
 	root, err := document(ctx, forFixing(cfg))
 	if err != nil {
 		return 0, err
@@ -41,11 +52,20 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 		return 0, err
 	}
 
+	markdown, alone, err := fixMarkdown(cfg)
+	if err != nil {
+		return 0, err
+	}
+	formatted = append(formatted, markdown...)
+	for _, name := range alone {
+		fmt.Fprintf(w, "left alone: %s - %s\n", name, mdfmt.ErrCodeSpan)
+	}
+
 	// The count is bookkeeping and the rewrite is the work. A machine whose
 	// counter refuses the write has still had its tree formatted, and failing
 	// the run here would say it had not.
 	//
-	// It counts import rewrites alone, because the counter carries that name:
+	// It counts import rewrites alone, because the counter holds that name:
 	// a file this run only formatted had the block the rules describe
 	// before the run started.
 	if err := settings.AddFixed(len(rewritten)); err != nil {
@@ -55,14 +75,79 @@ func runFix(ctx context.Context, cfg *config, w io.Writer) (int, error) {
 	return len(rewritten) + len(formatted), writeFixed(w, plan, rewritten, formatted)
 }
 
+// fixMarkdownOnly writes the markdown and reads no Go at all.
+//
+// A task named for the documents of a tree calls this. Rewriting an import
+// block under that name would surprise whoever reads the diff.
+func fixMarkdownOnly(w io.Writer, cfg *config) (int, error) {
+	changed, alone, err := fixMarkdown(cfg)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, name := range changed {
+		if _, err := fmt.Fprintln(w, "formatted:", name); err != nil {
+			return 0, err
+		}
+	}
+	for _, name := range alone {
+		if _, err := fmt.Fprintf(w, "left alone: %s - %s\n", name, mdfmt.ErrCodeSpan); err != nil {
+			return 0, err
+		}
+	}
+
+	_, err = fmt.Fprintf(w, "%s formatted, %d left alone.\n", count(len(changed), "file"), len(alone))
+	return len(changed), err
+}
+
+// fixMarkdown writes every markdown file under the source path in the one
+// format, and answers the ones it changed.
+//
+// There is no check for this. A heading level, a list marker and the width
+// of a table are decisions nobody should spend a review on. The fixer
+// settles them and says which files moved. What a formatter cannot settle is
+// what the prose linter reports.
+//
+// One question takes a setting: markdown.soft-wraps in .splint.yml, which
+// keeps the line breaks an author put inside a paragraph. A tree that wrapped
+// its documents by hand reviews them line by line and would read a reflow as
+// a rewrite of every file it has.
+func fixMarkdown(cfg *config) (changed, alone []string, err error) {
+	rules, err := settings.Load(cfg.options.SourcePath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	files, err := mdfmt.Files(cfg.options.SourcePath, cfg.options.Recursive())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	opts := mdfmt.Options{SoftWraps: rules.Markdown.SoftWraps}
+
+	for _, path := range files {
+		moved, err := mdfmt.FormatFile(opts, path)
+		switch {
+		case errors.Is(err, mdfmt.ErrCodeSpan):
+			alone = append(alone, path)
+		case err != nil:
+			return nil, nil, err
+		case moved:
+			changed = append(changed, path)
+		}
+	}
+
+	return changed, alone, nil
+}
+
 // forFixing is the run as the fixer reads the tree, which is with the quick
 // parser unless the command line named one.
 //
-// The ast parser resolves a tree through the toolchain, and a file that is
+// The ast parser resolves a tree through the toolchain. A file that is
 // missing an import it needs does not compile: the tree the fixer points at
 // is the tree least likely to type check. The quick parser reads the text,
 // so it reports what the file holds. The quick parser also runs ten times
-// faster over the same tree, and an editor runs a formatter on every save.
+// faster over the same tree. An editor runs a formatter on every save.
 func forFixing(cfg *config) *config {
 	if cfg.parserNamed {
 		return cfg
@@ -149,6 +234,8 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 				Tests:      rules.Imports.Pollution.CountTests(),
 				Ignore:     rules.Imports.Pollution.Ignore,
 			}
+		case *godoc.Linter:
+			rule.Brevity = rules.Godoc.Brevity
 		case *filecheck.Linter:
 			rule.MaxLines = rules.Filecheck.MaxLines
 			rule.Allow = rules.FilecheckAllowances()
@@ -170,8 +257,33 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 			if rules.Integration.Depth > 0 {
 				rule.Depth = rules.Integration.Depth
 			}
+		case *prose.Linter:
+			// The standard library is where the baseline comes from, and
+			// finding it means asking the toolchain. That is a process, and
+			// a linter that starts one is a linter no test can run without
+			// the toolchain beside it. The run resolves the path and the
+			// rule only reads prose.
+			//
+			// A machine with no go on its path leaves the baseline empty and
+			// the rule reports nothing.
+			rule.Configure(prose.Options{Baseline: goroot()})
 		}
 	}
 
 	return nil
+}
+
+// goroot is the source of the standard library, or empty where the toolchain
+// does not answer.
+func goroot() string {
+	out, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		return ""
+	}
+
+	root := strings.TrimSpace(string(out))
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, "src")
 }

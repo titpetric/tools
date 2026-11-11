@@ -13,17 +13,18 @@ import (
 	"github.com/titpetric/tools/splint/commands/diff"
 	"github.com/titpetric/tools/splint/commands/docs"
 	"github.com/titpetric/tools/splint/linters"
+	"github.com/titpetric/tools/splint/linters/prose"
 	"github.com/titpetric/tools/splint/parsers/analyzer"
 	"github.com/titpetric/tools/splint/parsers/simpleparser"
 	"github.com/titpetric/tools/splint/pkg/splint"
 )
 
-// saveFile is the document --save writes. It sits with the tree it describes,
-// so a run reading another tree writes the file of that tree.
+// saveFile is the document --save writes. It goes beside the tree it
+// describes. A run reading another tree writes the file of that tree.
 const saveFile = "splint.json"
 
-// The commands the tool takes. A command line naming none lints, which is
-// what splint has always done and what every pipeline calling it expects.
+// The commands the tool takes. A command line naming none lints, as splint
+// has always done and as every pipeline calling it expects.
 const (
 	commandLint     = "lint"
 	commandFix      = "fix"
@@ -40,15 +41,19 @@ type config struct {
 	// or fix, which rewrites.
 	command string
 
-	// fix rewrites the tree before linting it, so a report is of the tree as
-	// the fixer left it and never of the one it found.
+	// fix rewrites the tree before linting it. A report then describes the tree
+	// as the fixer left it and never the one it found.
 	fix bool
+
+	// markdownOnly keeps splint fix to the markdown. A task named for the
+	// documents of a tree has no business rewriting its imports.
+	markdownOnly bool
 
 	// options are what the run passes to the parser.
 	options splint.Options
 
 	// parser names which parser reads the tree. The ast parser is the default
-	// and stays the default: it reads the tree exactly, and a caller names the
+	// and stays the default: it reads the tree exactly. A caller names the
 	// quick one explicitly.
 	//
 	// parserNamed reports that the command line set the flag. The fixer picks
@@ -63,10 +68,10 @@ type config struct {
 	output string
 
 	// coverageProfile names a Go coverage profile to fold into the parse. It
-	// belongs to parsing a tree, so a run refuses it together with input.
+	// belongs to parsing a tree. A run refuses it together with input.
 	coverageProfile string
 
-	// includeTests is the flag from the command line, and it decides whether the
+	// includeTests is the flag from the command line. It decides whether the
 	// written document keeps the test packages. The parse reads them either
 	// way, because the linters have nothing to check without them.
 	includeTests bool
@@ -100,8 +105,8 @@ type config struct {
 	// through, with .Functions and .Packages as markdown tables.
 	template string
 
-	// oldFile and newFile are the two documents splint diff compares, and
-	// the diffOptions are what the comparison includes.
+	// oldFile and newFile are the two documents splint diff compares. The
+	// diffOptions name what the comparison includes.
 	oldFile     string
 	newFile     string
 	diffOptions diff.Options
@@ -131,7 +136,7 @@ type config struct {
 
 // parseOptions reads the command line.
 //
-// The trailing argument is the pattern, so "splint ./..." reads the whole tree
+// The trailing argument is the pattern: "splint ./..." reads the whole tree
 // and "splint ." reads one package, the same spelling every other tool here
 // uses.
 func parseOptions(args []string) (*config, error) {
@@ -146,6 +151,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.StringVar(&cfg.input, "input", "", "read the document at `FILE` and skip the parse")
 	fs.StringVar(&cfg.output, "output", "", "write the parsed document to `FILE`")
 	fs.BoolVar(&cfg.fix, "fix", false, "rewrite the import block of every file that needs one and format every file, then lint what is left")
+	fs.BoolVar(&cfg.markdownOnly, "markdown", false, "fix: write the markdown in one format and leave the Go alone")
 	fs.BoolVar(&cfg.save, "save", false, "write the parsed document to "+saveFile+" beside the tree, and run no linter")
 	fs.StringVar(&cfg.coverageProfile, "append-coverage", "", "fold the Go coverage profile at `FILE` into the parsed document")
 	fs.BoolVar(&cfg.schema, "schema", false, "write the document as a JSON Schema and skip the linters")
@@ -173,7 +179,7 @@ func parseOptions(args []string) (*config, error) {
 	fs.BoolVarP(&cfg.options.Verbose, "verbose", "v", false, "say what is being read")
 	fs.BoolVarP(&cfg.help, "help", "h", false, "print this help")
 
-	// pflag reads flags and operands in either order, so "splint ./... --json"
+	// pflag reads flags and operands in either order, which lets "splint ./... --json"
 	// is the run "splint --json ./..." is.
 	if err := fs.Parse(args); err != nil {
 		if err == pflag.ErrHelp {
@@ -203,12 +209,12 @@ func parseOptions(args []string) (*config, error) {
 
 	// The fixer writes the files that make up a tree. A document named by
 	// -input describes a tree the run never looked at, and rewriting from one
-	// would edit the tree the process happens to be standing in.
+	// would edit whichever tree the process happens to run from.
 	if (cfg.fix || cfg.command == commandFix) && cfg.input != "" {
 		return nil, fmt.Errorf("a fix rewrites the tree and --input reads a saved document: ask for one")
 	}
 
-	// A diff is between two documents already written, so there is nothing
+	// A diff is between two documents already written. No tree
 	// to compare until the command line names both.
 	if cfg.command == commandDiff && (cfg.oldFile == "" || cfg.newFile == "") {
 		return nil, fmt.Errorf("splint diff compares two documents: both --old and --new are required")
@@ -239,20 +245,20 @@ func parseOptions(args []string) (*config, error) {
 	// the parse leaves the process there.
 	//
 	// The run reads a document only when --input names one. A splint.json beside
-	// the tree does not replace the parse, so a run always reports the tree in
+	// the tree does not replace the parse. A run always reports the tree in
 	// front of it.
 	if cfg.save && cfg.output == "" {
 		cfg.output = filepath.Join(cfg.options.SourcePath, saveFile)
 	}
 
-	// --save is the extract: the run is there for the document it writes, so
+	// --save is the extract: the run exists for the document it writes, and
 	// no linter runs and the exit code says nothing about the tree.
 	if cfg.save {
 		cfg.linters = []string{"none"}
 	}
 
-	// The schema comes from the types of a tree, and a type's declaration
-	// describes it, so the sources come along whether the command line names
+	// The schema comes from the types of a tree. A type's declaration
+	// describes it. The sources come along whether the command line names
 	// them or not. The docs print the declarations and the examples, which are
 	// source too.
 	if cfg.schema || cfg.command == commandDocs {
@@ -260,17 +266,17 @@ func parseOptions(args []string) (*config, error) {
 	}
 
 	// A check that pairs a file with its test, or looks for the test of a
-	// symbol, has nothing to read unless the parse reads the tests too, so every
+	// symbol, has no test to read unless the parse reads the tests too. Every
 	// parse reads them. Whether they survive into the document a run writes is
 	// what --include-tests decides: a consumer rendering a report off one
 	// listed a _test package as a package, which is not a package anyone
 	// wrote.
 	cfg.options.IncludeTests = true
 
-	// The import rules read the declarations as a file writes them, and the
-	// fixer writes them back. Every run of the command requests them: they are
-	// a walk of lines the parse already makes, and a run without them would
-	// report every file as holding no imports at all.
+	// The import rules read the declarations as a file writes them. The fixer
+	// writes them back. Every run of the command requests them: they are a
+	// walk of lines the parse already makes. A run without them reports
+	// every file as holding no imports at all.
 	cfg.options.IncludeImports = true
 
 	// The integration rule reads what a test needs to run: the literals it
@@ -278,7 +284,24 @@ func parseOptions(args []string) (*config, error) {
 	// the test files alone, which a parse reads anyway.
 	cfg.options.IncludeTestFacts = true
 
+	// The prose rule reads markdown beside the doc comments. This one walk is
+	// not free. No other rule reads what it finds. Only a run holding that
+	// rule requests it.
+	cfg.options.IncludeProse = holdsProse(cfg)
+
 	return cfg, nil
+}
+
+// holdsProse reports whether the run selected the prose rule, which is the
+// only reader of the markdown a parse walks for.
+func holdsProse(cfg *config) bool {
+	selected, _ := linters.Named(cfg.linters...)
+	for _, one := range selected {
+		if one.Name() == prose.Name {
+			return true
+		}
+	}
+	return false
 }
 
 // symbolQuery reports an argument naming a symbol and not a tree: no path
@@ -295,7 +318,7 @@ func symbolQuery(arg string) bool {
 
 // verb peels a leading command off the command line.
 //
-// A command line that opens with anything else is a lint, so "splint ./..."
+// A command line that opens with anything else is a lint: "splint ./..."
 // and every pipeline written before splint had commands keep their meaning.
 func verb(args []string) (string, []string) {
 	if len(args) == 0 {

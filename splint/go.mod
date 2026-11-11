@@ -3,12 +3,14 @@ module github.com/titpetric/tools/splint
 go 1.27.0
 
 require (
+	github.com/Kunde21/markdownfmt/v3 v3.1.0
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	github.com/uudashr/gocognit v1.3.0
+	github.com/yuin/goldmark v1.4.13
 	golang.org/x/mod v0.42.0
 	golang.org/x/tools v0.52.0
 )

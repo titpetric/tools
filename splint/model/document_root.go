@@ -8,14 +8,14 @@ const SchemaVersion = 1
 // modules they belong to.
 //
 // A parser fills it and a linter reads it. Nothing here is Go specific: a
-// parser for another language fills the same document, so the linters port to
+// parser for another language fills the same document. The linters port to
 // it. A view such as WithoutTests or WithTagged is a copy shallow past the
 // lists it changes, sharing the declarations and leaving the document intact.
 type DocumentRoot struct {
 	// SchemaVersion is the version of the schema the document follows.
 	SchemaVersion int `json:"SchemaVersion" yaml:"SchemaVersion"`
 
-	// Root is the directory the parse started at, so a reader can resolve a
+	// Root is the directory the parse started at. A reader can resolve a
 	// file path in the document back to disk.
 	Root string `json:"Root" yaml:"Root"`
 
@@ -35,6 +35,12 @@ type DocumentRoot struct {
 	// count tests read them through WithTagged; no other reads them. The
 	// parse fills them when its options include the test facts.
 	Tagged DefinitionList `json:"Tagged,omitempty" yaml:"Tagged,omitempty"`
+
+	// Prose are the markdown files under Root, each as its paragraphs. The
+	// rules about writing read them beside the doc comments, since a sentence
+	// in a README and a sentence over a function answer to the same rule.
+	// The parse fills them when its options include the prose.
+	Prose []*ProseFile `json:"Prose,omitempty" yaml:"Prose,omitempty"`
 }
 
 // NewDocumentRoot returns a document ready for a parser to fill.

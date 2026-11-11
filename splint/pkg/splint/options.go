@@ -18,16 +18,21 @@ type Options struct {
 	IncludeSources bool
 
 	// IncludeImports keeps the import declarations of every file as the file
-	// writes them, and the names each file writes before a dot. The import
-	// rules and the fixer read them; nothing else needs them, and a parse
+	// writes them, plus the names each file writes before a dot. The import
+	// rules and the fixer read them; no other rule needs them. A parse
 	// without this setting does not pay for them.
 	IncludeImports bool
 
 	// IncludeTestFacts keeps what the integration rule reads of the test
-	// files: the string literals every test declaration writes, and the test
-	// files a build constraint keeps out of this build. It reads nothing
+	// files: the string literals every test declaration writes, plus the test
+	// files a build constraint keeps out of this build. It reads none of them
 	// unless IncludeTests holds too.
 	IncludeTestFacts bool
+
+	// IncludeProse keeps the paragraphs of every markdown file under the
+	// source path. The rules about writing read them; nothing else does, and
+	// a parse without this setting does not walk for them.
+	IncludeProse bool
 
 	// Verbose makes the parser report its progress.
 	Verbose bool
