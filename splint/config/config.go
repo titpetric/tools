@@ -72,9 +72,7 @@ type Markdown struct {
 }
 
 // ImportPolicy is the house rule for which module hosts the tree takes. Allow
-// carves a path out of the defaults and deny adds to them. A tree that keeps
-// one dependency of a refused host writes that path under allow and leaves
-// the rest of the list alone.
+// carves a path out of the defaults and deny adds to them.
 type ImportPolicy struct {
 	// Allow are the import paths the deny list does not reach. An entry
 	// covers the path it names and everything below it.
