@@ -46,9 +46,9 @@ func (s *selection) run(ctx context.Context, src *source, opts Options, w, progr
 		profile.Close()
 		defer os.Remove(profilePath)
 
-		args = append(args, "-coverprofile="+profilePath)
+		args = withFlags(args, "-coverprofile="+profilePath)
 		if pkgs := s.coverPackages(src, module); pkgs != "" {
-			args = append(args, "-coverpkg="+pkgs)
+			args = withFlags(args, "-coverpkg="+pkgs)
 		}
 
 		cmdArgs := append([]string{"test"}, args...)
