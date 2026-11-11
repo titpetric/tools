@@ -11,6 +11,7 @@ import (
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/coverage"
 	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/linters/importpolicy"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/linters/integration"
 	"github.com/titpetric/tools/splint/linters/pairing"
@@ -152,6 +153,8 @@ func configure(selected []model.Linter, cfg *config, root *model.DocumentRoot) e
 		case *filecheck.Linter:
 			rule.MaxLines = rules.Filecheck.MaxLines
 			rule.Allow = rules.FilecheckAllowances()
+		case *importpolicy.Linter:
+			rule.AllowList, rule.DenyList = rules.ImportPolicyLists()
 		case *pairing.Linter:
 			if rules.Integration.Tag != "" {
 				rule.Tag = rules.Integration.Tag

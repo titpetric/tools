@@ -500,7 +500,7 @@ Fourteen of them, every one a set of rules over the parsed document.
 | `selfcontained` | no issues                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | what a file needs from the rest of its package: symbols, types and funcs reaching nothing outside the file they are in, and the share that do, **per file** |
 | `modcheck`      | five module rules, listed below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | every dependency: size, reach, files, packages, symbols used, kind; and every version go.sum records                                                        |
 | `integration`   | four rules, listed below: a test crossing a process boundary outside the build tag, and a tagged file, or one named for the tag, that breaks the naming. Off until a tree opts in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | test functions, the ones crossing, and the files behind the tag, per package                                                                                |
-| `blacklist`     | an import from a module host the tree discourages, with the replacement to use instead. `gopkg.in` is blocked by default: `yaml.v2` and `yaml.v3` name `github.com/goccy/go-yaml`, and `check.v1` names `github.com/stretchr/testify`                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | imports blocked, per file                                                                                                                                   |
+| `importpolicy`  | an import the tree's deny list refuses, with the replacement to use instead. `gopkg.in` is denied by default: `yaml.v2` and `yaml.v3` name `github.com/goccy/go-yaml`, and `check.v1` names `github.com/stretchr/testify`. An allow list in `.splint.yml` carves a path out of it                                                                                                                                                                                                                                                                                                                                                                                                                            | imports denied, per file                                                                                                                                    |
 
 `func-args` considers a function taking exactly two arguments. The order of one pair is unambiguous; for three or more the expected order is a heuristic sort.
 
@@ -564,19 +564,30 @@ A `pollution` section that does not name `ignore` keeps the default list.
 
 `modcheck` counts files, packages and symbols per dependency as well. The two measure different things: modcheck measures what a dependency costs to carry, and `pollution` measures how far one import path has spread.
 
-## blacklist
+## importpolicy
 
-`blacklist` reports an import from a module host the tree discourages, and names the path to use instead. `gopkg.in` is the host it starts with: it serves a module the Go versioning rule cannot name, it writes the major version onto the name's own segment (`gopkg.in/yaml.v3` is imported as `yaml`), and the packages it serves live in repositories the module graph reads without a special case. A tree importing from it keeps a name the tooling has to special-case, which splint carries in `model` and `importfmt` and would rather not.
+`importpolicy` reports an import the tree's deny list refuses, and names the path to use instead. `gopkg.in` is the host the list starts with: it serves a module the Go versioning rule cannot name, it writes the major version onto the name's own segment (`gopkg.in/yaml.v3` is imported as `yaml`), and the packages it serves live in repositories the module graph reads without a special case. A tree importing from it keeps a name the tooling has to special-case, which splint carries in `model` and `importfmt` and would rather not.
 
-The finding names the replacement when there is one: `gopkg.in/yaml.v2` and `gopkg.in/yaml.v3` read as `github.com/goccy/go-yaml`, and `gopkg.in/check.v1` as `github.com/stretchr/testify`. Any other path below the host still reports, with no substitute. A block covers the path it names and everything below it, so `gopkg.in/yaml.v3` does not cover `gopkg.in/yaml.v30`; the host entry behind it still does.
+The finding names the replacement when there is one: `gopkg.in/yaml.v2` and `gopkg.in/yaml.v3` read as `github.com/goccy/go-yaml`, and `gopkg.in/check.v1` as `github.com/stretchr/testify`. Any other path below the host still reports, with no substitute. An entry covers the path it names and everything below it, so `gopkg.in/yaml.v3` does not cover `gopkg.in/yaml.v30`; the host entry behind it still does.
+
+A tree states both lists in `.splint.yml`. `allow` carves a path out of the deny list and is read first, which is how a tree keeps the one dependency it cannot drop while refusing the host around it. `deny` adds to the defaults rather than replacing them.
+
+```yaml
+importpolicy:
+  allow:
+    - gopkg.in/yaml.v3
+  deny:
+    - prefix: github.com/pkg/errors
+      replacement: errors
+```
 
 The rule is a WARN: it discourages the import, and `splint fix` writes nothing for it.
 
 ```shell
-splint --linters blacklist ./...
+splint --linters importpolicy ./...
 ```
 
-:::warning file=config/config.go,title=blacklist/blocked::gopkg.in/yaml.v3 - gopkg.in/yaml.v3 is from a blocked module host: import github.com/goccy/go-yaml instead
+:::warning file=config/config.go,title=importpolicy/denied::gopkg.in/yaml.v3 - gopkg.in/yaml.v3 is on the deny list: import github.com/goccy/go-yaml instead
 
 ## Diff
 

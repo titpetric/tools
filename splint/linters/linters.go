@@ -3,13 +3,13 @@
 package linters
 
 import (
-	"github.com/titpetric/tools/splint/linters/blacklist"
 	"github.com/titpetric/tools/splint/linters/coverage"
 	"github.com/titpetric/tools/splint/linters/filecheck"
 	"github.com/titpetric/tools/splint/linters/funcargs"
 	"github.com/titpetric/tools/splint/linters/funcreturns"
 	"github.com/titpetric/tools/splint/linters/godoc"
 	"github.com/titpetric/tools/splint/linters/grouping"
+	"github.com/titpetric/tools/splint/linters/importpolicy"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/linters/integration"
 	"github.com/titpetric/tools/splint/linters/modcheck"
@@ -35,7 +35,7 @@ func All() []model.Linter {
 		visibility.New(),
 		selfcontained.New(),
 		modcheck.New(),
-		blacklist.New(),
+		importpolicy.New(),
 		integration.New(),
 	}
 }

@@ -18,6 +18,7 @@ import (
 
 	"github.com/titpetric/tools/splint/importfmt"
 	"github.com/titpetric/tools/splint/linters/filecheck"
+	"github.com/titpetric/tools/splint/linters/importpolicy"
 	"github.com/titpetric/tools/splint/linters/imports"
 	"github.com/titpetric/tools/splint/pathmatch"
 )
@@ -38,6 +39,32 @@ type Config struct {
 
 	// Integration is the house rule for tests crossing a process boundary.
 	Integration Integration `yaml:"integration"`
+
+	// ImportPolicy is the house rule for which module hosts the tree takes.
+	ImportPolicy ImportPolicy `yaml:"importpolicy"`
+}
+
+// ImportPolicy is the house rule for which module hosts the tree takes. Allow
+// carves a path out of the defaults and deny adds to them. A tree that keeps
+// one dependency of a refused host writes that path under allow and leaves
+// the rest of the list alone.
+type ImportPolicy struct {
+	// Allow are the import paths the deny list does not reach. An entry
+	// covers the path it names and everything below it.
+	Allow []string `yaml:"allow,omitempty"`
+
+	// Deny are the path families the tree refuses, on top of the defaults.
+	Deny []DenyEntry `yaml:"deny,omitempty"`
+}
+
+// DenyEntry is one refused import path family and what to import instead.
+type DenyEntry struct {
+	// Prefix is the import path or path prefix the entry covers.
+	Prefix string `yaml:"prefix"`
+
+	// Replacement is the path to import in its place, and may be empty: the
+	// finding then names no substitute.
+	Replacement string `yaml:"replacement,omitempty"`
 }
 
 // Integration is the house rule for tests crossing a process boundary: they
@@ -219,6 +246,18 @@ func (f Filecheck) validate() error {
 	}
 
 	return nil
+}
+
+// ImportPolicyLists are the allow list and the deny list as the linter takes
+// them, the tree's deny entries under the defaults it did not restate.
+func (c *Config) ImportPolicyLists() ([]string, []importpolicy.Deny) {
+	allow := slices.Clone(c.ImportPolicy.Allow)
+
+	deny := make([]importpolicy.Deny, 0, len(c.ImportPolicy.Deny)+len(importpolicy.DefaultDenyList))
+	for _, entry := range c.ImportPolicy.Deny {
+		deny = append(deny, importpolicy.Deny{Prefix: entry.Prefix, Replacement: entry.Replacement})
+	}
+	return allow, append(deny, importpolicy.DefaultDenyList...)
 }
 
 // FilecheckAllowances is the file length rule as the linter takes it.
