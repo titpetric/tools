@@ -21,7 +21,7 @@ tokens:
   # A pronoun after ", and" opens a clause of its own.
   - ',\s+and\s+(?:it|they|that|this|there|we|you|he|she)\s+\w+'
   # A determiner, a noun and a finite verb: the same clause, spelled out.
-  - ',\s+and\s+(?:the|a|an|its|their)\s+\w+\s+(?:is|are|was|were|has|have|does|do|did|will|would|can|could|holds|names|reads|writes|returns|refuses|costs|carries|stays|runs|lands|pays)\b'
+  - ',\s+and\s+(?:the|a|an|its|their)\s+\w+\s+(?:is|are|was|were|has|have|does|do|did|will|would|can|could|holds|names|reads|writes|returns|refuses|costs|stays|runs|lands|pays|copies|recycles|resolves|controls|flows|executes|asserts|fills|arrives|aliases|travels|clears|measures|uses|sees|builds|rejects|depends|allocates|exists|spreads|declines|keeps|reaches|checks|takes|sends|gets|sets|makes|needs|points|leaves|stops|starts|counts|marks|walks|skips|drops|adds|moves|splits|joins|wraps|binds|compiles|parses|emits|loads|stores|answers|reports|owns)\b'
   # A coordinating conjunction against a subordinating one, or against a
   # second connective: the join is already made once.
   - ',\s+and\s+(?:because|although|while|since|if|when|so|thus|therefore|also|yet|still)\b'

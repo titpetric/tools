@@ -40,7 +40,7 @@ swap:
   outlier: name the difference
   'state-of-the-art': current
   'best-in-class': name the comparison
-  'deep dive': detail
-  'under the hood': in the implementation
-  'at its core': name the component
-  'the beauty of': cut this
+  'deep\s+dive': detail
+  'under\s+the\s+hood': in the implementation
+  'at\s+its\s+core': name the component
+  'the\s+beauty\s+of': cut this
