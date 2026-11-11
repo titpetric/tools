@@ -23,17 +23,20 @@ type inventory struct {
 	Dirs map[string]*dirIndex
 }
 
-// inventory reads the test files under the source path, and the production
+// inventory reads the test files the pattern selects, and the production
 // files of a directory a change touched.
-func (s *source) inventory(ctx context.Context, recursive bool, changed map[string]bool) (*inventory, error) {
+func (s *source) inventory(ctx context.Context, pattern string, changed map[string]bool) (*inventory, error) {
 	inv := &inventory{Dirs: map[string]*dirIndex{}}
 
-	err := filepath.WalkDir(s.root, func(path string, entry fs.DirEntry, err error) error {
+	scope, recursive := patternScope(pattern)
+	root := filepath.Join(s.root, scope)
+
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if entry.IsDir() {
-			if path == s.root {
+			if path == root {
 				return nil
 			}
 			name := entry.Name()
@@ -109,6 +112,20 @@ func (s *source) addFile(inv *inventory, path, rel, dir string, test bool) error
 		index.Tests[one.Name] = tf
 	}
 	return nil
+}
+
+// patternScope returns the directory a pattern names and whether to descend.
+func patternScope(pattern string) (string, bool) {
+	scope := filepath.ToSlash(strings.TrimSpace(pattern))
+	recursive := false
+	if rest, ok := strings.CutSuffix(scope, "..."); ok {
+		recursive = true
+		scope = strings.TrimSuffix(rest, "/")
+	}
+	if scope == "" {
+		return ".", recursive
+	}
+	return filepath.Clean(scope), recursive
 }
 
 // importPath names the package a directory holds.

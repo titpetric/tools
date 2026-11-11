@@ -7,8 +7,8 @@
 //
 // A doc comment and a type declaration are not changes here: go build already
 // judges a type, and a comment changes no behaviour. The command is quiet by
-// default and writes one "PASS TestName" or "FAIL TestName" line per test, so
-// a pipeline reads it without parsing anything else.
+// default and writes one "PASS TestName" or "FAIL TestName" line per test,
+// then the coverage scan of the symbols the change touched.
 package test
 
 import (
@@ -160,8 +160,9 @@ func Run(ctx context.Context, opts Options, stdout, stderr io.Writer) (int, erro
 	if err != nil {
 		return 0, err
 	}
+	changed = underPattern(changed, opts.Pattern)
 
-	inv, err := src.inventory(ctx, opts.Pattern == "./...", changedDirs(changes, changed))
+	inv, err := src.inventory(ctx, opts.Pattern, changedDirs(changes, changed))
 	if err != nil {
 		return 0, err
 	}
