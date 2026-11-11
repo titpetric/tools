@@ -45,7 +45,7 @@ func document() *model.DocumentRoot {
 }
 
 // profiles are the blocks of the same file: one of two statements that ran and
-// one that did not inside Half, and two that did not run inside None. Nothing
+// one that did not inside Half. Two that did not run inside None. Nothing
 // falls in the lines Empty occupies.
 func profiles() []*cover.Profile {
 	return []*cover.Profile{
@@ -105,7 +105,7 @@ func TestOverlayWeightsByStatement(t *testing.T) {
 }
 
 // TestOverlaySumsComplexity covers the rest of the package complexity: nothing
-// else fills it, and a report printing coverage beside complexity reads both
+// else fills it. A report printing coverage beside complexity reads both
 // off the same struct.
 func TestOverlaySumsComplexity(t *testing.T) {
 	root := document()
@@ -124,7 +124,7 @@ func TestOverlaySumsComplexity(t *testing.T) {
 }
 
 // TestOverlayOfAnotherPackage covers a profile naming a file of a package the
-// document does not hold: the index keys blocks by import path, so they reach
+// document does not hold: the index keys blocks by import path. They reach
 // nothing here.
 func TestOverlayOfAnotherPackage(t *testing.T) {
 	root := document()
@@ -165,7 +165,7 @@ func TestApply(t *testing.T) {
 }
 
 // TestApplyMissingFile covers the profile that is not there: the error names
-// it, so a pipeline says which step did not write it.
+// it. A pipeline says which step did not write it.
 func TestApplyMissingFile(t *testing.T) {
 	err := coverprofile.Apply(document(), filepath.Join(t.TempDir(), "nowhere.cov"))
 	if err == nil {

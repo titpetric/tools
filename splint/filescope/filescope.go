@@ -1,15 +1,15 @@
 // Package filescope answers what a file needs from the rest of its package.
 //
 // A declaration that reaches only its own imports and what the file declares
-// beside it counts as extractable: everything it builds from sits in one
+// beside it counts as extractable: everything it builds from is in one
 // place, and `go build one_file.go` needs exactly that. One that reaches a
-// name declared in another file of the package is not, and the file holding
+// name declared in another file of the package is not. The file holding
 // it cannot move without that other file.
 //
 // The measure is a fuzzy one and says so. It reads the globals the parse
 // recorded, which are the names a declaration reached that its own file does
 // not declare, and counts the ones the package declares elsewhere. A name
-// neither parser could resolve is a name the package does not declare, and it
+// neither parser could resolve is a name the package does not declare. It
 // is not counted.
 //
 // Two linters ask. selfcontained counts the coupled declarations of every

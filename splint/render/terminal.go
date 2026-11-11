@@ -43,7 +43,7 @@ func TerminalStats(w io.Writer, reports []model.LintReport) error {
 	return nil
 }
 
-// severityColor is the colour of a level, and a reader scans for that colour.
+// severityColor is the colour of a level. A reader scans for that colour.
 func severityColor(severity model.Severity) string {
 	switch {
 	case severity >= model.SeverityError:
@@ -56,8 +56,8 @@ func severityColor(severity model.Severity) string {
 	return colorGrey
 }
 
-// statisticsOf is what one linter reported, and nothing for a linter that
-// measures nothing.
+// statisticsOf is what one linter reported, and an empty table for a linter
+// that measures nothing.
 func statisticsOf(one model.LintReport) []model.Statistics {
 	if one == nil {
 		return nil

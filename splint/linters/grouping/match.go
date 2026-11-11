@@ -7,8 +7,8 @@ import (
 
 // allowlist are the filenames that hold anything.
 //
-// A package often collects its data types in one place, and that file
-// carries a name of its own.
+// A package often collects its data types in one place. That file
+// holds any name.
 var allowlist = []string{
 	"model*.go",
 	"types*.go",
@@ -16,8 +16,8 @@ var allowlist = []string{
 
 // checkPatterns reports whether any of the acceptable filenames covers the one
 // the symbol is in. A pattern is a glob because a name ending in a star stands
-// for the file and everything that starts like it, and the check compares the stem as
-// well so a pattern carrying no star still matches an exact name.
+// for the file and everything that starts like it. The check compares the stem as
+// well so a pattern holding no star still matches an exact name.
 func checkPatterns(patterns []string, base, baseStem string) bool {
 	for _, pattern := range patterns {
 		if matched, err := path.Match(pattern, base); err == nil && matched {
@@ -36,10 +36,10 @@ func checkPatterns(patterns []string, base, baseStem string) bool {
 // The list opens on the fullest name, receiver and name together, and walks
 // back one word at a time, so Service.DiscoveryGet reaches
 // service_discovery_get.go, service_discovery.go and service.go. Each of those
-// also stands for its singular and for the noun under a doer suffix, which is
+// also matches its singular and the noun under a doer suffix, which is
 // how Assets reaches asset.go and Checker reaches check.go. Once the walk is
-// down to two words the shorter names carry a star, because a file named for
-// half a symbol is a file the rest of the symbol lives in too.
+// down to two words the shorter names hold a star, because a file named for
+// half a symbol is a file the rest of the symbol is in too.
 func matchFilenames(name, receiver, defaultFile string) []string {
 	var result, partials []string
 

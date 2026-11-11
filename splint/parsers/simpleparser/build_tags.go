@@ -8,7 +8,7 @@ import (
 )
 
 // Included reports whether this build reads a file: its name suffix matches
-// the platform, and its build constraint holds with no tags beyond the
+// the platform. Its build constraint holds with no tags beyond the
 // platform's set.
 func Included(name string, source []byte) bool {
 	if !platformMatches(name) {
@@ -22,7 +22,7 @@ func Included(name string, source []byte) bool {
 	return expr.Eval(satisfied)
 }
 
-// constraintOf returns the build constraint a file carries, and nil for a file
+// constraintOf returns the build constraint a file holds, and nil for a file
 // with none. The lines before the package clause are the only ones that can
 // hold it.
 func constraintOf(source []byte) constraint.Expr {
@@ -46,7 +46,7 @@ func constraintOf(source []byte) constraint.Expr {
 			continue
 		}
 
-		// A file carrying both lines builds by its //go:build line,
+		// A file holding both lines builds by its //go:build line,
 		// as the toolchain reads it.
 		if expr, err := constraint.Parse(trimmed); err == nil {
 			if constraint.IsGoBuild(trimmed) {
@@ -108,7 +108,7 @@ func satisfied(tag string) bool {
 
 	if strings.HasPrefix(tag, "go1.") {
 		// The language version of this build is at least the one the
-		// module declares, so a version tag holds.
+		// module declares. A version tag holds.
 		return true
 	}
 

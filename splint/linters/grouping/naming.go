@@ -38,7 +38,7 @@ func toSnake(input string) string {
 		prev, curr = curr, next
 	}
 
-	// The loop reads one rune behind, so the last one is still in hand.
+	// The loop reads one rune behind. The last one is still in hand.
 	if len(input) > 0 {
 		if isUpper(curr) && isLower(prev) && prev != 0 {
 			buffer = append(buffer, '_')
@@ -50,7 +50,7 @@ func toSnake(input string) string {
 }
 
 // getSingular returns the singular of a word, which lets a symbol
-// named for many of a thing sit in the file named for one of them: Assets.Get
+// named for many of a thing go in the file named for one of them: Assets.Get
 // belongs in asset.go as much as in assets.go.
 //
 // It covers the plurals Go identifiers actually use and gets the
@@ -108,7 +108,7 @@ func getBaseNoun(word string) string {
 
 	base := word[:len(word)-2]
 
-	// A suffix doubles the consonant before it, and the double comes back off
+	// A suffix doubles the consonant before it. The double comes back off
 	// with the suffix: runner comes from run.
 	if len(base) > 1 && base[len(base)-1] == base[len(base)-2] {
 		base = base[:len(base)-1]
@@ -118,7 +118,7 @@ func getBaseNoun(word string) string {
 }
 
 // splitCamelCase splits an identifier on its capitals, so ServiceDiscovery
-// comes back as Service and Discovery. A compound name may sit in the file
+// comes back as Service and Discovery. A compound name may go in the file
 // named for either half of it.
 func splitCamelCase(word string) []string {
 	if word == "" {
@@ -163,8 +163,8 @@ func toLower(r rune) rune {
 
 // isExported reports a name a reader outside the package can reach, which in
 // Go is a name opening on an upper case letter. The model keeps this to itself
-// and a linter that reads names one at a time out of a block needs it, so this
-// file spells it out again and does not reach for it.
+// and a linter that reads names one at a time out of a block needs it. This
+// file spells it out again and does not need it.
 func isExported(name string) bool {
 	for _, r := range name {
 		return unicode.IsUpper(r)

@@ -116,7 +116,7 @@ func TestLinter_Lint_Generated(t *testing.T) {
 }
 
 // TestLinter_Lint_GeneratedPair covers a test written for a generated file.
-// The linter does not judge the file, yet the file exists, so the test beside it pairs.
+// The linter does not judge the file, yet the file exists. The test beside it pairs.
 func TestLinter_Lint_GeneratedPair(t *testing.T) {
 	root := document(definition(
 		model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"},
@@ -190,7 +190,7 @@ func TestLinter_Lint_TestPackage(t *testing.T) {
 }
 
 // TestLinter_Lint_ExternalTestPackage covers the name the exception must not
-// read. Every package has an external test scope called "<name>_test", and the
+// read. Every package has an external test scope called "<name>_test". The
 // suffix says where a file compiles and not what the directory is for, so
 // a directory arriving as that half alone is still reported.
 func TestLinter_Lint_ExternalTestPackage(t *testing.T) {
@@ -213,7 +213,7 @@ func TestLinter_Lint_ExternalTestPackage(t *testing.T) {
 
 // TestLinter_Lint_TestsDirectory covers the directory the exception reads. A
 // tree that keeps its black box suites under tests/ has nothing there for a
-// test to take its name from, so those files are not orphans; a package whose name
+// test to take its name from. Those files are not orphans; a package whose name
 // merely contains the word is not the same thing and is still reported.
 func TestLinter_Lint_TestsDirectory(t *testing.T) {
 	for name, test := range map[string]struct {
@@ -250,7 +250,7 @@ func TestLinter_Lint_TestsDirectory(t *testing.T) {
 }
 
 // TestLinter_Lint_Empty covers a document holding nothing, which is a linter
-// with nothing to say, and no failure.
+// with no finding to report and no failure.
 func TestLinter_Lint_Empty(t *testing.T) {
 	issues, report := lint(t, document())
 	if len(issues) != 0 {
@@ -329,7 +329,7 @@ func TestLinter_Name(t *testing.T) {
 	}
 }
 
-// elsewhere builds a directory of one file and one exported symbol, and a
+// elsewhere builds a directory of one file and one exported symbol. A
 // test in another package that may or may not reference it.
 func elsewhere(referenced string) *model.DocumentRoot {
 	subject := definition(
@@ -360,7 +360,7 @@ func elsewhere(referenced string) *model.DocumentRoot {
 
 // TestLinter_Lint_TestedElsewhere covers the excuse: a standalone file whose
 // exported surface a test in another package references counts
-// and stays out of the report, and one whose surface no test reaches stays a finding.
+// and stays out of the report. One whose surface no test reaches stays a finding.
 func TestLinter_Lint_TestedElsewhere(t *testing.T) {
 	issues, report := lint(t, elsewhere("Load"))
 	for _, issue := range issues {
@@ -395,7 +395,7 @@ func contains(report model.LintReport, want string) bool {
 }
 
 // TestLinter_Lint_Tagged covers a test file behind the integration tag: it
-// pairs the file it names, and one behind another constraint does not.
+// pairs the file it names. One behind another constraint does not.
 func TestLinter_Lint_Tagged(t *testing.T) {
 	pkg := model.Package{Package: "store", ImportPath: "example.com/store", Path: "./store"}
 	root := document(definition(pkg, model.File{Name: "store.go"}, model.File{Name: "linux.go"}))
@@ -439,7 +439,7 @@ func TestLinter_Lint_IntegrationName(t *testing.T) {
 }
 
 // TestLinter_Lint_PackageDoc covers docs.go holding the package prose: it
-// declares nothing, so nothing pairs it, while a docs.go declaring code does.
+// declares nothing. Nothing pairs it, while a docs.go declaring code does.
 func TestLinter_Lint_PackageDoc(t *testing.T) {
 	pkg := model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"}
 

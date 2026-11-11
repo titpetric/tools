@@ -6,7 +6,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// A go.mod entry moves the same three ways a field of a type does, and the
+// A go.mod entry moves the same three ways a field of a type does. The
 // report uses the same names for it.
 const (
 	requireAdded   = fieldAdded
@@ -49,7 +49,7 @@ type RequireChange struct {
 	Change string `json:"change"`
 
 	// Old and New are the require line before and after. An added line has
-	// no Old, and a dropped one has no New.
+	// no Old. A dropped one has no New.
 	Old *Require `json:"old,omitempty"`
 	New *Require `json:"new,omitempty"`
 }
@@ -104,8 +104,8 @@ type ModuleChange struct {
 // modules returns the go.mod of every module behind the definitions, by
 // module path.
 //
-// Extraction records the module on every package it produced, so the first
-// package of a module carries what the rest repeat. A model extracted before
+// Extraction records the module on every package it produced. The first
+// package of a module holds what the rest repeat. A model extracted before
 // it included go.mod, or from a tree holding none, reports no modules at all
 // and compares as though nothing changed.
 func modules(defs []*model.Definition) map[string]*model.Module {
@@ -123,8 +123,8 @@ func modules(defs []*model.Definition) map[string]*model.Module {
 
 // compareModules reports how the go.mod of each module moved between two
 // revisions, over the union of the module paths the two sides hold. A module
-// only one side has meets an empty one in the comparison, so a module a
-// release split out reports every require line it carries as added.
+// only one side has meets an empty one in the comparison. A module a
+// release split out reports every require line it holds as added.
 func compareModules(old, cur map[string]*model.Module, includeIndirect bool) []ModuleChange {
 	paths := make(map[string]struct{}, len(old)+len(cur))
 	for path := range old {
@@ -177,7 +177,7 @@ func compareModule(path string, was, is *model.Module, includeIndirect bool) (Mo
 // before, or drops one.
 //
 // compareRequires skips indirect lines unless includeIndirect holds true. go
-// mod tidy writes them with no human decision behind them, and a routine tidy
+// mod tidy writes them with no human decision behind them. A routine tidy
 // rewrites dozens of them, which buries the handful of direct ones that make
 // the actual release note. A line direct on either side counts as direct, so
 // the report lists one that changed from indirect to direct either way.
@@ -279,7 +279,7 @@ func requireIndex(requires []model.Require) map[string]Require {
 }
 
 // replaceIndex keys a replace list by the module and version it replaces. A
-// go.mod may replace more than one version of the same module, so the path alone
+// go.mod may replace more than one version of the same module. The path alone
 // does not identify a directive.
 func replaceIndex(replaces []model.Replace) map[string]Replace {
 	index := make(map[string]Replace, len(replaces))
@@ -295,7 +295,7 @@ func replaceIndex(replaces []model.Replace) map[string]Replace {
 	return index
 }
 
-// versionChange reports a directive that moved, and nothing for one that held.
+// versionChange reports a directive that moved. Nothing for one that held.
 func versionChange(was, is string) *VersionChange {
 	if was == is {
 		return nil
@@ -314,7 +314,7 @@ func replacePtr(replace Replace) *Replace {
 }
 
 // requireSummary renders a require line change as one line. A line that
-// moved shows the version on either side of it, and one whose indirect mark
+// moved shows the version on either side of it. One whose indirect mark
 // flipped says so, since that can be the whole of the change.
 func requireSummary(change RequireChange) string {
 	switch change.Change {
@@ -370,7 +370,7 @@ func replaceLine(replace Replace) string {
 }
 
 // replaceTarget renders what a directive replaces a module with. A directory
-// on disk carries no version.
+// on disk holds no version.
 func replaceTarget(replace Replace) string {
 	if replace.NewVersion == "" {
 		return replace.NewPath

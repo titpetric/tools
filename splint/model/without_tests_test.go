@@ -38,7 +38,7 @@ func withTests() *model.DocumentRoot {
 }
 
 // TestDocumentRoot_WithoutTests covers what a written document keeps: the
-// packages somebody declared, and the files the toolchain compiles into them.
+// packages somebody declared. The files the toolchain compiles into them.
 func TestDocumentRoot_WithoutTests(t *testing.T) {
 	out := withTests().WithoutTests()
 
@@ -62,7 +62,7 @@ func TestDocumentRoot_WithoutTests(t *testing.T) {
 }
 
 // TestDocumentRoot_WithoutTestsLeavesTheOriginal covers the copy: the linters
-// read the document the parse produced, and they read it after the write.
+// read the document the parse produced. They read it after the write.
 func TestDocumentRoot_WithoutTestsLeavesTheOriginal(t *testing.T) {
 	in := withTests()
 	in.WithoutTests()

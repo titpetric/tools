@@ -12,11 +12,11 @@ import (
 type moduleTree struct {
 	root string
 
-	// found is the module of each directory already asked about, so a tree of
+	// found is the module of each directory already asked about. A tree of
 	// fifty packages under one go.mod reads it once.
 	found map[string]*model.Module
 
-	// dirs is where the parser found the go.mod of each directory, and that
+	// dirs is where the parser found the go.mod of each directory. That
 	// tells a package of a nested module from one of the root module.
 	dirs map[string]string
 }

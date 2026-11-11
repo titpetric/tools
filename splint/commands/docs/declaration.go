@@ -8,7 +8,7 @@ import (
 
 // declaration returns the printed form of a type, const or var.
 //
-// That form is the source when the document carries it. A document written
+// That form is the source when the document holds it. A document written
 // without sources holds the kind, the name and the doc comment but no source,
 // and declaration writes those out: printing the source alone leaves an empty
 // code block where the symbol belongs.
@@ -53,7 +53,7 @@ func declarationSummary(decl *model.Declaration) string {
 	return decl.Kind.String() + " " + strings.Join(names, ", ")
 }
 
-// declarationNames returns the names a declaration carries. A const or var
+// declarationNames returns the names a declaration holds. A const or var
 // block declares more than one.
 func declarationNames(decl *model.Declaration) []string {
 	if len(decl.Names) > 0 {

@@ -15,7 +15,7 @@ func TestLinter_StatisticsRepeated(t *testing.T) {
 		// Two majors of one module, both downloaded.
 		{Path: "example.com/deep", Version: "v1.0.0", Zip: true},
 		{Path: "example.com/deep/v2", Version: "v2.1.0", Zip: true},
-		// Three versions offered of one, and the selected one downloaded.
+		// Three versions offered of one. The selected one downloaded.
 		{Path: "example.com/thin", Version: "v0.1.0"},
 		{Path: "example.com/thin", Version: "v0.2.0", Zip: true},
 		{Path: "example.com/thin", Version: "v0.3.0"},

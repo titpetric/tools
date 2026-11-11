@@ -5,10 +5,10 @@
 // because a document is not a syntax tree.
 //
 // The linter reports nothing here as an issue. There is no
-// share of internal code a package ought to carry: a parser keeps most of itself private
-// and a data model exports most of itself, and both are fine. A threshold
+// share of internal code a package ought to hold: a parser keeps most of itself private
+// and a data model exports most of itself. Both are fine. A threshold
 // over this number would push every package to look like the same kind of
-// package, so the linter reports the counts and leaves the reading to the
+// package. The linter reports the counts and leaves the reading to the
 // people who own the package.
 package visibility
 
@@ -23,15 +23,15 @@ import (
 const Name = "visibility"
 
 // Linter measures what a package exports against what it keeps. A symbol's
-// own name decides, so a method counts as a func, apart from its type.
+// own name decides. A method counts as a func, apart from its type.
 type Linter struct{}
 
-// New returns the linter.
+// New returns the linter, which reads no settings.
 func New() *Linter {
 	return &Linter{}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -56,7 +56,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 // skip reports a package the count would distort.
 //
 // A command exports nothing anyone imports, a test package is not a surface
-// anyone reads, and an internal tree stays closed to importers outside the module
+// anyone reads. An internal tree stays closed to importers outside the module
 // with all it exports, so Go has already answered the question this asks. A
 // package left with no file anybody wrote has nothing to measure.
 func skip(def *model.Definition) bool {
@@ -81,7 +81,7 @@ func internalPath(path string) bool {
 
 // count adds the declarations and the code of one package to its metric.
 //
-// The linter measures the package by what it ships, so the tests and the generated
+// The linter measures the package by what it ships. The tests and the generated
 // files stay out of both halves of the ratio: counting a generated file
 // would say a package is private because a tool wrote a lot of it.
 func count(metric *Metric, def *model.Definition) {

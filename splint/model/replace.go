@@ -3,7 +3,7 @@ package model
 // Replace is one replace directive of a go.mod.
 //
 // A replace changes what the build resolves a required module to without
-// changing what the require directive says, so the model records it on its
+// changing what the require directive says. The model records it on its
 // own: a release that starts or stops replacing a module changes what a
 // consumer builds against while every version in the require block stays put.
 type Replace struct {
@@ -15,7 +15,7 @@ type Replace struct {
 
 	// NewPath is what the module resolves to, which is either another module
 	// path or a directory on disk. NewVersion is empty for a directory, which
-	// carries no version.
+	// holds no version.
 	NewPath    string `json:"NewPath" yaml:"NewPath"`
 	NewVersion string `json:"NewVersion,omitempty" yaml:"NewVersion,omitempty"`
 }

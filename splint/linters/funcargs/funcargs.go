@@ -32,17 +32,17 @@ type Linter struct {
 
 	results Results
 
-	// metric is the package under read, and the linter counts each finding
+	// metric is the package under read. The linter counts each finding
 	// against it.
 	metric *Metric
 }
 
-// New returns the linter.
+// New returns the linter, which reads no settings.
 func New() *Linter {
 	return &Linter{}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }

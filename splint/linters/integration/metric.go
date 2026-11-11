@@ -7,6 +7,6 @@ type Metric struct {
 	Tests    int `json:"Tests" yaml:"Tests"`
 	Crossing int `json:"Crossing" yaml:"Crossing"`
 
-	// Integration is how many test files sit behind the tag.
+	// Integration is how many test files are behind the tag.
 	Integration int `json:"Integration" yaml:"Integration"`
 }

@@ -3,13 +3,13 @@
 //
 // A file reaching model.User with no import of model needs a resolver to name
 // the model package. goimports queries a global index and takes the one it
-// indexed first, and it formats wrong a tree where /service1 and /service2
+// indexed first. It formats wrong a tree where /service1 and /service2
 // each hold a model package. Resolution here is source relative: from
 // service2/storage, model is ../model and never service1/model.
 //
-// Nothing here reads a file. The document already carries every package of the
-// tree with its directory and its import path, and the go.mod of every module
-// it belongs to.
+// Nothing here reads a file. The document already holds every package of the
+// tree with its directory and its import path, plus the go.mod of every
+// module it belongs to.
 package resolve
 
 import (
@@ -20,7 +20,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// How a name resolved: a message states it when it explains itself, and a
+// How a name resolved: a message states it when it explains itself. A
 // test asserts on it.
 const (
 	// SourceAlias is a name the configuration named outright.
@@ -72,7 +72,7 @@ type Index struct {
 	aliases map[string]string
 
 	// byParent are the packages of the tree, keyed on the directory holding
-	// them, so a walk up from a directory asks one map per level.
+	// them. A walk up from a directory asks one map per level.
 	byParent map[string][]*model.Definition
 
 	// byName are the import paths the tree already reaches under each name.
@@ -84,7 +84,7 @@ type Index struct {
 
 	// names are the package names of the tree's own packages, keyed on import
 	// path. Code reaches a path by the name of the package at the end of it
-	// and not by the last segment of the path, and the two differ often enough
+	// and not by the last segment of the path. The two differ often enough
 	// to matter: code reaches github.com/goccy/go-yaml as yaml.
 	names map[string]string
 }
@@ -118,7 +118,7 @@ func New(root *model.DocumentRoot, aliases map[string]string) *Index {
 	for _, def := range root.Packages {
 		if def.TestPackage {
 			// A test package compiles into a test binary and nothing
-			// imports it, so no name can resolve to it.
+			// imports it. No name can resolve to it.
 			continue
 		}
 		if def.Package.ImportPath == "" {
@@ -216,7 +216,7 @@ func (i *Index) Lookup(def *model.Definition, name string) Result {
 // from the directory that writes the name.
 //
 // The walk stops at the module the writing package belongs to. Code reaches a
-// package of another module by importing that module, and a name that meant
+// package of another module by importing that module. A name that meant
 // one of those would resolve differently depending on what else happened to
 // sit checked out beside it.
 func (i *Index) local(def *model.Definition, name string) string {
@@ -259,7 +259,7 @@ func clean(dir string) string {
 	return path.Clean(dir)
 }
 
-// sorted is a copy of the paths in order, so a message naming candidates names
+// sorted is a copy of the paths in order. A message naming candidates names
 // them the same way every run.
 func sorted(paths []string) []string {
 	out := make([]string, len(paths))

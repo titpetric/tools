@@ -28,7 +28,7 @@ func renderMarkdown(w io.Writer, defs model.DefinitionList) error {
 
 // packageMarkdown renders one package: the heading, the import, the package
 // godoc, the declarations each behind a details fold, the function list with
-// a section per function, and the examples.
+// a section per function, then the examples.
 func packageMarkdown(def *model.Definition, examples model.DeclarationList) string {
 	var buf strings.Builder
 
@@ -105,7 +105,7 @@ func packageMarkdown(def *model.Definition, examples model.DeclarationList) stri
 }
 
 // citePackage writes the name in a "Package name ..." godoc opening as code,
-// the way the page cites every other symbol, so a prose linter reads the
+// the way the page cites every other symbol. A prose linter reads the
 // identifier as an identifier.
 func citePackage(doc, name string) string {
 	if !strings.HasPrefix(doc, "Package ") {

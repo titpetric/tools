@@ -12,8 +12,8 @@ import (
 // rules: a name, the type it belongs to, and the file that holds it.
 //
 // A method belongs to its receiver and a constructor belongs to what it
-// returns, so both arrive here with a receiver set and go through the same
-// check. A type belongs to nothing and carries the name alone.
+// returns. Both arrive here with a receiver set and go through the same
+// check. A type belongs to nothing and holds the name alone.
 type symbol struct {
 	// kind is "type" or "func", and is what the message calls the symbol.
 	kind string
@@ -45,7 +45,7 @@ func (s symbol) String() string {
 // many filenames the rules accept in total, and whether the file holding it
 // is one of them.
 //
-// A type enters the walk as a receiver with no name, so the walk
+// A type enters the walk as a receiver with no name. The walk
 // below reads the same for both. The first pass tries the whole name; the
 // ones after it break the receiver and then the name into words and try again,
 // because a file named for one word of a compound symbol is a file the symbol
@@ -98,10 +98,10 @@ func (s symbol) match() (expected []string, total int, matched bool) {
 }
 
 // canonical are the filenames worth naming in a message: the receiver and the
-// name together, each of them alone, and nothing else.
+// name together, and each of them alone.
 //
-// The full list of names a symbol may sit in runs to a dozen, and reading it
-// would say less than reading three. The message carries the count alongside so it
+// The full list of names a symbol may take runs to a dozen, and reading it
+// would say less than reading three. The message holds the count alongside so it
 // does not pretend these are the whole list.
 func (s symbol) canonical() []string {
 	name, receiver := s.name, s.receiver
@@ -123,7 +123,7 @@ func (s symbol) canonical() []string {
 }
 
 // collect reads the exported symbols of one package that the rule has anything
-// to say about, and how many it left alone for sitting in a file that compiles
+// to say about, and how many it left alone for being in a file that compiles
 // on its own.
 //
 // The rule reads types for the structs among them: an interface, an alias and a
@@ -233,10 +233,10 @@ func receiverName(receiver string) string {
 // it returns.
 //
 // Only a plain type counts. A slice, a map, a channel or an instantiated
-// generic is a shape built out of a type and no type itself, and a
+// generic is a shape built out of a type and no type itself. A
 // function returning one is not the constructor of anything. Neither is a
-// generic function returning one of its own type parameters: the T that
-// Exec[T] returns is the type the caller picks, and no type to name a
+// generic function returning one of the type parameters it declares: the T that
+// Exec[T] returns is the type the caller picks, leaving no type to name a
 // file after.
 func returnName(decl *model.Declaration) string {
 	if len(decl.Returns) == 0 {

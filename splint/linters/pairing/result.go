@@ -115,7 +115,7 @@ func (r Results) Statistics() []model.Statistics {
 	)}
 }
 
-// plural counts a thing in a sentence, so the one line of summary reads as a
+// plural counts a thing in a sentence. The one line of summary reads as a
 // sentence when the count happens to be one.
 func plural(count int, word string) string {
 	if count == 1 {
@@ -126,8 +126,8 @@ func plural(count int, word string) string {
 
 // count records what one package held, and returns what to record against.
 //
-// The key is the import path of the half a consumer imports, so the metrics of
-// a package and of its test package land on the one entry, and a reader has no
+// The key is the import path of the half a consumer imports. The metrics of
+// a package and of its test package land on the one entry. A reader has no
 // "x" and "x_test" pair to add up.
 func (r *Results) count(pkg model.Package, files, tests int) *Metric {
 	if r.packages == nil {
@@ -157,7 +157,7 @@ func (r *Results) add(metric *Metric, result Result) {
 }
 
 // addTest records one test standing alone. StandaloneTests already counts it:
-// the count is of every test naming no file, excused package or not, and the
+// the count is of every test naming no file, excused package or not. The
 // finding covers only the ones a reader can act on.
 func (r *Results) addTest(result Result) {
 	r.findings = append(r.findings, result)

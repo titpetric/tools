@@ -10,8 +10,8 @@ import (
 )
 
 // lengthBuckets are the upper bounds of the length histogram, doubling the way
-// the gofsck size histogram does, so a file moving up a bucket is a file that
-// grew by its own size again. The threshold sits on a boundary, which
+// the gofsck size histogram does. A file moving up a bucket is a file that
+// grew by its own size again. The threshold falls on a boundary, which
 // makes the reported files exactly the two rightmost buckets.
 var lengthBuckets = []int{50, 100, 200, 400, 800}
 
@@ -52,9 +52,9 @@ type Results struct {
 	order    []string
 
 	// max is the ceiling for files that no allowance covers,
-	// and tuned says the tree stated allowances, so the footer names the rule
-	// the count stands on, and no number that held for some of
-	// the files.
+	// and tuned says the tree stated allowances. The footer names the rule
+	// the count rests on, with no number that held for some of the files
+	// alone.
 	max   int
 	tuned bool
 }
@@ -134,7 +134,7 @@ func (r Results) histogram() model.Statistics {
 
 // ceiling is how the footer names the rule behind the count. One number
 // says it for a tree reading every file under the same rule; a tree that gave
-// some of its paths room of their own has no single number to print, and
+// some of its paths more room has no single number to print, and
 // printing the default beside a count that ignores it would be
 // the one line of the table that is wrong.
 func (r Results) ceiling() string {
@@ -145,7 +145,7 @@ func (r Results) ceiling() string {
 }
 
 // longest names the files at the top of the distribution, reported
-// or not: a tree under the threshold still has a longest file, and that
+// or not: a tree under the threshold still has a longest file. That
 // is the one that grows into a finding next.
 func (r Results) longest() model.Statistics {
 	paths := make([]string, len(r.order))
@@ -182,7 +182,7 @@ func (r Results) longest() model.Statistics {
 
 // count records one file, and returns the metric a finding on the file
 // lands in. It returns nil for a file already measured: a directory holding an
-// external test package is two definitions of the same path, and a file
+// external test package is two definitions of the same path. A file
 // counted twice would be two rows of one histogram bucket.
 func (r *Results) count(path string, file model.File) *Metric {
 	if r.files == nil {

@@ -23,7 +23,7 @@ type Package struct {
 	Complexity *Complexity `json:"Complexity,omitempty" yaml:"Complexity,omitempty"`
 }
 
-// Name is the package name.
+// Name is the package clause, not the directory and not the import path.
 func (p Package) Name() string {
 	return p.Package
 }

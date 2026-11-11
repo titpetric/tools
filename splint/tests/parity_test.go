@@ -37,9 +37,9 @@ var projects = []string{
 const budget = 0.001
 
 // allowed are the paths the two parsers are not expected to agree on, and why.
-// A path not named here has to match, and the summary says so.
+// A path not named here has to match. The summary says so.
 //
-// An entry matches the end of a path, so one covers the field wherever
+// An entry matches the end of a path. One covers the field wherever
 // in the document it turns up: "Complexity.Cognitive" covers the complexity of
 // a func, of a type and of a package alike.
 var allowed = map[string]string{
@@ -62,8 +62,8 @@ func explained(path string) (string, bool) {
 // value, over every project.
 //
 // The comparison is a deep walk of the encoded documents and no hand-picked
-// list of fields: the walk visits every key either side carries, a key only
-// one of them has is a difference, and the walk covers a key added to the
+// list of fields: the walk visits every key either side holds, a key only
+// one of them has is a difference. The walk covers a key added to the
 // model tomorrow without anyone adding it here.
 func TestParity(t *testing.T) {
 	totals := map[string]int{}
@@ -125,7 +125,7 @@ type result struct {
 	differing int
 }
 
-// note keeps the first example of each difference, and that turns a count
+// note keeps the first example of each difference. That turns a count
 // into something a reader can chase.
 func (r result) note(path, example string) {
 	if _, seen := r.examples[path]; !seen {
@@ -194,7 +194,7 @@ func compare(t *testing.T, root string) result {
 	return out
 }
 
-// index keys every package of a document, so two documents of the same tree
+// index keys every package of a document. Two documents of the same tree
 // compare one package at a time in any listing order.
 func index(doc *model.DocumentRoot) map[string]*model.Definition {
 	out := map[string]*model.Definition{}
@@ -216,7 +216,7 @@ func normalise(path string, a, b any) (any, any) {
 	if strings.HasSuffix(path, "Source") {
 		// The ast parser renders a declaration through go/printer, which
 		// writes the padding that lines up a run of struct fields as tabs. The
-		// file on disk carries what gofmt wrote there, which is spaces. The
+		// file on disk holds what gofmt wrote there, which is spaces. The
 		// two say the same thing, so normalise collapses the padding inside a
 		// line; the indentation opening a line is code structure and stays.
 		return alignment(a), alignment(b)
@@ -224,17 +224,17 @@ func normalise(path string, a, b any) (any, any) {
 
 	if strings.HasSuffix(path, ".References") {
 		// The references part company the way the globals do: the ast parser
-		// resolves a selector against the type-checked scope, and the line
-		// scanner reads the identifiers off the text, so one sees through a
+		// resolves a selector against the type-checked scope. The line
+		// scanner reads the identifiers off the text. One sees through a
 		// method value what the other cannot. A reader of the field resolves
-		// the names against what the package declares, and that keeps the
+		// the names against what the package declares. That keeps the
 		// difference from mattering.
 		return nil, nil
 	}
 
 	if strings.HasSuffix(path, ".Type") {
 		// One side renders an inline struct type through go/printer
-		// and read off the file on the other, so the layout differs while the
+		// and read off the file on the other. The layout differs while the
 		// type does not. Every run of whitespace collapses before comparing.
 		return flatten(a), flatten(b)
 	}
@@ -247,9 +247,9 @@ func normalise(path string, a, b any) (any, any) {
 		// misses a composite literal key, at a few percent of the names.
 		//
 		// A reader of the field resolves the names against what the package
-		// declares, and that keeps the difference from mattering, so the
+		// declares. That keeps the difference from mattering. The
 		// harness does not count it here. Both sides collect the references
-		// beside it the same way, and the harness compares those.
+		// beside it the same way. The harness compares those.
 		return nil, nil
 	}
 
@@ -302,12 +302,12 @@ func collapse(text string) string {
 
 // values counts the scalars a package encodes to, the base of a difference
 // rate: a rate over declarations says nothing about a field only
-// some declarations carry.
+// some declarations hold.
 func values(def *model.Definition) int {
 	return tests.Scalars(tests.Canonical(def))
 }
 
-// union returns every key either side carries, in order.
+// union returns every key either side holds, in order.
 func union(left, right map[string]*model.Definition) []string {
 	seen := map[string]bool{}
 	var keys []string

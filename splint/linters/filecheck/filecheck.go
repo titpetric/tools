@@ -1,13 +1,13 @@
 // Package filecheck reports a file long enough to be doing more than one
 // thing, and measures the spread of lengths across a tree.
 //
-// The package carries the gofsck check of the same name, reading the splint model
+// The package holds the gofsck check of the same name, reading the splint model
 // where gofsck reads the disk. gofsck walks the filesystem and buckets every
-// file it finds by extension, so it scores markdown and everything else
+// file it finds by extension. It scores markdown and everything else
 // alongside the code. A document describes Go packages and nothing else, so
 // there is only ever one extension here and the bucketing has nowhere to go.
-// What remains is the part that carried the idea: a tree of small files reads
-// well, and one holding a few enormous files does not.
+// What remains is the part that held the idea: a tree of small files reads
+// well. One holding a few enormous files does not.
 package filecheck
 
 import (
@@ -33,13 +33,13 @@ const RuleLong = "long"
 // hundred lines counted with the blanks and the comments still in.
 //
 // A tree with no filecheck section in its .splint.yml runs under this number,
-// so the configuration names it and carries no second four hundred.
+// so the configuration names it and holds no second four hundred.
 const DefaultMaxLines = 400
 
 // Linter checks the length of every file against the ceiling it runs under, so
 // a file the tree gave room to counts into the histogram and stays out of the
 // findings. It measures no generated file, whose length speaks for the
-// generator, and a protobuf stub would drown the histogram on its own.
+// generator. A protobuf stub would drown the histogram on its own.
 type Linter struct {
 	// MaxLines is the ceiling for a file no Allow entry covers. Zero turns
 	// the rule off for those files.
@@ -54,7 +54,7 @@ func New() *Linter {
 	return &Linter{MaxLines: DefaultMaxLines}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -99,7 +99,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 // filePath names a file the way a Position names one, the package directory
 // and the filename. Declaration.Position names a symbol; this names a whole
-// file and carries no line: the finding is about the whole file.
+// file and holds no line: the finding is about the whole file.
 func filePath(pkg model.Package, file model.File) string {
 	dir := strings.TrimPrefix(strings.TrimPrefix(pkg.Path, "."), "/")
 	if dir == "" {

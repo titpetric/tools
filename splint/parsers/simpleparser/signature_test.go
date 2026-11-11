@@ -82,9 +82,9 @@ func TestSignature(t *testing.T) {
 		{name: "Open", params: "name string", results: "error", want: "Open (name string) error"},
 		{name: "Open", params: "a, b int", results: "", want: "Open (a,b int)"},
 		{name: "Trace", params: "id string", results: "(Trace, bool)", want: "Trace (id string) (Trace, bool)"},
-		// A named result reads as its type, and a group sharing one type
+		// A named result reads as its type. A group sharing one type
 		// is one result: "(name, host string)" is a single field to the
-		// collector, so it prints one type and not two.
+		// collector. It prints one type and not two.
 		{name: "groupKey", params: "trace Trace", results: "(name, host string)", want: "groupKey (trace Trace) string"},
 		{name: "Read", params: "", results: "(n int, err error)", want: "Read () (int, error)"},
 		{name: "Close", params: "", results: "", want: "Close ()"},
@@ -99,7 +99,7 @@ func TestSignature(t *testing.T) {
 }
 
 func TestGroupTypes(t *testing.T) {
-	// The collector reads one type per field and drops a repeat, so a function
+	// The collector reads one type per field and drops a repeat. A function
 	// taking two strings reports one.
 	got := groupTypes(paramGroups("a string, b string, n int"))
 	want := []string{"string", "int"}
@@ -110,7 +110,7 @@ func TestGroupTypes(t *testing.T) {
 
 // TestGroupArity covers the number groupTypes cannot answer: how many
 // parameters a caller passes. A group names one per name, a group with no name
-// is still one, and the two numbers part company as soon as a type repeats.
+// is still one. The two numbers part company as soon as a type repeats.
 func TestGroupArity(t *testing.T) {
 	tests := map[string]int{
 		"":                                       0,

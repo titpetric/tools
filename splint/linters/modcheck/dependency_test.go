@@ -37,7 +37,7 @@ func reached(add func(*model.Definition)) *model.DocumentRoot {
 // TestLinter_LintTypePositionIsASymbol covers the dependency reached as a type
 // and not as a call.
 //
-// The document collects a reference from a body, so a module named in a field, a
+// The document collects a reference from a body. A module named in a field, a
 // parameter or a result counts as reached and sits nowhere a reference
 // lives. Counting the body alone reads a struct built around a *db.Conn
 // and driving everything through it as a module reached once by name, which is
@@ -125,11 +125,11 @@ func TestLinter_LintTypePositionUnderAnAlias(t *testing.T) {
 
 // TestLinter_LintThinStaysThin covers the finding the type positions must not
 // take away. One file, one symbol and nothing of the module named anywhere
-// else is the dependency a caller is better off inlining, and a rule that
+// else is the dependency a caller is better off inlining. A rule that
 // stopped saying so would be worth nothing.
 func TestLinter_LintThinStaysThin(t *testing.T) {
 	report := lint(t, reached(func(def *model.Definition) {
-		// Types naming no dependency: one built in, and one of a package the
+		// Types naming no dependency: one built in. One of a package the
 		// file does not import, which resolves to nothing.
 		def.Types = model.DeclarationList{{
 			Kind: model.StructKind, Name: "Store", File: "a.go",

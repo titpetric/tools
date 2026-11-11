@@ -23,7 +23,7 @@ const ParserName = "astparser"
 // The parser runs slower than simpleparser and stops on source that does not
 // build. A parse moves the process into the tree, where the toolchain
 // resolves a pattern and the loader reads files, and moves it back when it
-// ends, so a relative path the caller holds resolves where the command ran.
+// ends. A relative path the caller holds resolves where the command ran.
 type Parser struct {
 	options splint.Options
 
@@ -119,7 +119,7 @@ func (p *Parser) walkModules(ctx context.Context, doc *model.DocumentRoot, root 
 			return nil, err
 		}
 
-		// ListModules already located the go.mod, so there is nothing
+		// ListModules already located the go.mod. There is nothing
 		// left to search for; the parser reports a module whose go.mod will not parse
 		// without one, the same as a tree that has none.
 		if module, err := ReadModule(m.Filename); err == nil {
@@ -164,8 +164,8 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 			return nil, err
 		}
 
-		// The toolchain compiles a white box test into the package it tests, so the
-		// listing names it the same. The scope differs, and the parser names it as
+		// The toolchain compiles a white box test into the package it tests. The
+		// listing names it the same. The scope differs. The parser names it as
 		// one here.
 		if pkg.TestPackage && !strings.HasSuffix(pkg.Package, "_test") {
 			pkg.Package += "_test"
@@ -190,11 +190,11 @@ func (p *Parser) walkPackage(ctx context.Context, sourcePath string) ([]*model.D
 	return defs, nil
 }
 
-// trim drops what the options leave out: the sources, and the half of the
+// trim drops what the options leave out: the sources, plus the half of the
 // files that belongs to the other package.
 func (p *Parser) trim(defs []*model.Definition) {
 	for _, def := range defs {
-		// The literals come off the sources, so they go first.
+		// The literals come off the sources. They go first.
 		if p.options.IncludeTestFacts && p.options.IncludeTests {
 			testfacts.Fill(def)
 		}

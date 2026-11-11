@@ -54,7 +54,7 @@ func lint(t *testing.T, root *model.DocumentRoot) model.LintReport {
 }
 
 // TestLinter counts one package and checks that the halves fall where the case
-// of a name puts them, and that the linter reports nothing: it measures and
+// of a name puts them. That the linter reports nothing: it measures and
 // does not judge.
 func TestLinter(t *testing.T) {
 	root := &model.DocumentRoot{Packages: model.DefinitionList{{

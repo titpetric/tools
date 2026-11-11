@@ -15,13 +15,13 @@ import (
 // so a project moving off it keeps the words it already writes in its
 // pipeline.
 const (
-	// GroupStd is the standard library: a path whose first segment carries no
+	// GroupStd is the standard library: a path whose first segment holds no
 	// dot, which is the rule the toolchain itself applies.
 	GroupStd = "std"
 
 	// GroupBlanked is an import written for its side effect, and GroupDotted
 	// one that puts the package's names in the file's scope. No name reaches
-	// either, so their spelling decides their group and their origin does
+	// either. Their spelling decides their group and their origin does
 	// not.
 	GroupBlanked = "blanked"
 	GroupDotted  = "dotted"
@@ -45,14 +45,14 @@ var DefaultOrder = []string{GroupStd, GroupBlanked, GroupGeneral, GroupCompany, 
 // majorVersion matches the major version suffix of a module path, which is not
 // part of the name code reaches the package by.
 //
-// It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
+// It starts at v2. A v0 or v1 module holds no suffix. A path ending in
 // /v1 is a directory of that name.
 var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // Options is the house rule as a value.
 type Options struct {
 	// Order is the groups, in the order Canonical writes them. A group left out
-	// follows the ones named, in DefaultOrder sequence, so an order that
+	// follows the ones named, in DefaultOrder sequence. An order that
 	// forgets a group still writes every import.
 	Order []string
 
@@ -119,14 +119,14 @@ func Group(spec model.ImportSpec, opts Options) string {
 }
 
 // standard reports a path of the standard library, which is one whose first
-// segment carries no dot. A domain has a dot in it and a standard library
-// package does not, and that is the whole of the rule the toolchain applies.
+// segment holds no dot. A domain has a dot in it and a standard library
+// package does not. That is the whole of the rule the toolchain applies.
 func standard(importPath string) bool {
 	first, _, _ := strings.Cut(importPath, "/")
 	return !strings.Contains(first, ".")
 }
 
-// under reports a path equal to a prefix or below it. The prefix may carry a
+// under reports a path equal to a prefix or below it. The prefix may hold a
 // trailing slash or not.
 func under(importPath, prefix string) bool {
 	prefix = strings.TrimSuffix(prefix, "/")
@@ -151,7 +151,7 @@ func Normalize(spec model.ImportSpec, opts Options) model.ImportSpec {
 		}
 	}
 
-	// Code reaches a versioned path by a name it does not spell, so it gets one,
+	// Code reaches a versioned path by a name it does not spell. It gets one,
 	// but only where the path implies a name at all: what remains of
 	// "example.com/v2" once the version comes off is "example.com", and
 	// writing that as an alias produces a file that does not parse.
@@ -179,7 +179,7 @@ func Canonical(specs []model.ImportSpec, opts Options) []model.ImportSpec {
 		key := spec.Name + " " + spec.Path
 		if index, seen := at[key]; seen {
 			// The same import written twice keeps the comments either
-			// writing carried.
+			// writing held.
 			if out[index].Doc == "" {
 				out[index].Doc = spec.Doc
 			}
@@ -256,7 +256,7 @@ func Render(specs []model.ImportSpec, tail string) string {
 }
 
 // docLines is a doc comment as the lines of an import block hold it: tab
-// indented, one marker per line, and no trailing space on a line with nothing
+// indented, one marker per line. No trailing space on a line with nothing
 // after the marker.
 func docLines(doc string) []string {
 	if doc == "" {

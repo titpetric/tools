@@ -46,7 +46,7 @@ func ListModules(root string, pattern string) ([]Module, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		// testdata is a module the toolchain ignores, and a fixture module
+		// testdata is a module the toolchain ignores. A fixture module
 		// below testdata is not the code under report. The walk always reads
 		// the root: a caller reaches a fixture by pointing at it.
 		if d.IsDir() && filename != absRoot && skipDir(d.Name()) {

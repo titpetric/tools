@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// metric stands in for a linter's measurements, which the framework carries
+// metric stands in for a linter's measurements, which the framework holds
 // and does not read.
 type metric struct {
 	Files  int `json:"Files"`
@@ -43,7 +43,7 @@ func TestLintMetricsKeysAreOrdered(t *testing.T) {
 		metrics.AddFile(name, metric{})
 	}
 
-	// The keys come back in order, so a rendering of the metrics reads the
+	// The keys come back in order. A rendering of the metrics reads the
 	// same every time.
 	if got := strings.Join(metrics.PackageKeys(), ","); got != "a,b,c" {
 		t.Errorf("PackageKeys() = %q", got)
@@ -54,7 +54,7 @@ func TestLintMetricsKeysAreOrdered(t *testing.T) {
 }
 
 // TestLintMetricsEncode covers what the metrics are for: a linter's own type
-// carried out to a document without the framework reading its type.
+// held out to a document without the framework reading its type.
 func TestLintMetricsEncode(t *testing.T) {
 	metrics := LintMetrics{}
 	metrics.AddPackage("example.com/x", metric{Files: 3, Passed: 2})

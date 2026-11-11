@@ -49,7 +49,7 @@ func TestFormatOf(t *testing.T) {
 }
 
 // TestWriteRoundTrip covers both encodings, which have to describe the same
-// document: the model carries a yaml tag per json name for exactly this.
+// document: the model holds a yaml tag per json name for exactly this.
 func TestWriteRoundTrip(t *testing.T) {
 	for _, format := range []loader.Format{loader.FormatJSON, loader.FormatYAML} {
 		var buf bytes.Buffer

@@ -9,7 +9,7 @@ import (
 // backtick that is inside a string or a comment never reads as code.
 //
 // The assertion is on the shape and not on a column count. Every byte that
-// is not code becomes a space and the length never changes, so a position
+// is not code becomes a space and the length never changes. A position
 // in the stripped line works against the raw line.
 func TestStrip(t *testing.T) {
 	tests := []struct {
@@ -35,7 +35,7 @@ func TestStrip(t *testing.T) {
 		if fields := strings.Join(strings.Fields(got), " "); fields != test.code {
 			t.Errorf("strip(%q) left %q, want the code %q", test.line, fields, test.code)
 		}
-		// Nothing but code survives, so no quote, tick or slash remains.
+		// Nothing but code survives. No quote, tick or slash remains.
 		if strings.ContainsAny(got, "`\"'") || strings.Contains(got, "//") {
 			t.Errorf("strip(%q) = %q, which still holds a literal or a comment", test.line, got)
 		}
@@ -94,7 +94,7 @@ func TestStripRawStringAcrossLines(t *testing.T) {
 func TestSourceInsideARawString(t *testing.T) {
 	src := newSource("x.go", []byte("var t = `\nfunc notAFunc() {\n}\n`\n\nfunc Real() {\n}\n"))
 
-	// The line inside the raw string holds no code, so nothing on it opens or
+	// The line inside the raw string holds no code. Nothing on it opens or
 	// closes a declaration.
 	if got := strings.TrimSpace(src.codeLine(1)); got != "" {
 		t.Errorf("codeLine(1) = %q, want the raw string blanked", got)
@@ -108,7 +108,7 @@ func TestSourceInsideARawString(t *testing.T) {
 }
 
 func TestSourceSplit(t *testing.T) {
-	// A backtick inside a comment is not a struct tag, and that is the whole
+	// A backtick inside a comment is not a struct tag. That is the whole
 	// reason the source records the comment position.
 	src := newSource("x.go", []byte("\tParent string // `extends Name`, for printing\n"))
 

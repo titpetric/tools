@@ -26,17 +26,17 @@ const (
 )
 
 // Linter reports an exported handler with no unexported wrapper. A handler
-// returns nothing, so a test stands up a server to read what it decided; a
+// returns nothing. A test stands up a server to read what it decided; a
 // thin handler over an unexported function of the same name returning an
 // error lets the test call that function.
 type Linter struct{}
 
-// New returns the linter.
+// New returns the linter, which reads no settings.
 func New() *Linter {
 	return &Linter{}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -93,7 +93,7 @@ func handlers(def *model.Definition) model.DeclarationList {
 }
 
 // generated reports a declaration in a file nobody wrote. A generator emits
-// the shape its author chose, and the person who ran it can act
+// the shape its author chose. The person who ran it can act
 // on none of its conventions.
 func generated(def *model.Definition, decl *model.Declaration) bool {
 	file, known := def.Files.Find(decl.File)
@@ -101,8 +101,8 @@ func generated(def *model.Definition, decl *model.Declaration) bool {
 }
 
 // isHandler reports the http.HandlerFunc signature: a response writer and a
-// request, and nothing coming back. A function taking the two and returning an
-// error is already the testable half of the pair, so this
+// request, with no return value. A function taking the two and returning an
+// error is already the testable half of the pair. This
 // check has nothing to say about it.
 func isHandler(decl *model.Declaration) bool {
 	if decl.Kind != model.FuncKind || len(decl.Returns) > 0 {
@@ -116,7 +116,7 @@ func isHandler(decl *model.Declaration) bool {
 
 // hasWrapper reports the unexported counterpart of a handler: the same name
 // with a lower first letter, on the same receiver, returning an error. The
-// error is what makes it worth calling from a test, so a counterpart that
+// error is what makes it worth calling from a test. A counterpart that
 // returns nothing is another handler and holds none of the work.
 func hasWrapper(def *model.Definition, handler *model.Declaration) bool {
 	name := wrapperName(handler.Name)
@@ -147,7 +147,7 @@ func wrapperName(name string) string {
 	return string(runes)
 }
 
-// wrapperSymbol names the counterpart the way a reader refers to it, so a
+// wrapperSymbol names the counterpart the way a reader refers to it. A
 // finding about a method says which type the missing method belongs to.
 func wrapperSymbol(decl *model.Declaration) string {
 	name := wrapperName(decl.Name)

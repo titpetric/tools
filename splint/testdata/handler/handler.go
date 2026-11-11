@@ -4,7 +4,7 @@ package handler
 
 import "net/http"
 
-// Serve is an exported handler that wraps nothing, so there is no way to test
+// Serve is an exported handler that wraps nothing. There is no way to test
 // what it does without a server.
 func Serve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)

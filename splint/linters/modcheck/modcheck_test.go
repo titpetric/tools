@@ -14,7 +14,7 @@ import (
 	"github.com/titpetric/tools/splint/modproxy"
 )
 
-// lint runs the linter with no proxy, so it measures the coupling and sends
+// lint runs the linter with no proxy. It measures the coupling and sends
 // nothing to the network.
 func lint(t *testing.T, root *model.DocumentRoot) model.LintReport {
 	t.Helper()
@@ -102,7 +102,7 @@ func TestLinter_Lint(t *testing.T) {
 func TestLinter_LintRules(t *testing.T) {
 	got := rules(lint(t, document()))
 
-	// One import nothing reaches, and one reached from one file through one
+	// One import nothing reaches. One reached from one file through one
 	// symbol. The indirect require line is nobody's choice and the linter skips it.
 	if got[modcheck.RuleUnused] != 1 {
 		t.Errorf("unused = %d, want 1: %v", got[modcheck.RuleUnused], got)
@@ -133,7 +133,7 @@ func TestLinter_LintReplace(t *testing.T) {
 		if issue.Severity != model.SeverityError {
 			t.Errorf("a replace reports at %v, want error: a run has to fail on it", issue.Severity)
 		}
-		// A module is not in a file, so the finding names the go.mod, which is
+		// A module is not in a file. The finding names the go.mod, which is
 		// where a reader goes to act on it.
 		if issue.Position.Ref() != "go.mod" {
 			t.Errorf("position = %q", issue.Position.Ref())
@@ -183,7 +183,7 @@ func TestLinter_LintTestOnly(t *testing.T) {
 }
 
 // TestLinter_LintDriverImport covers the import that reaches no symbol: a
-// file imports a driver for what it registers, and there is nothing to inline.
+// file imports a driver for what it registers. There is nothing to inline.
 func TestLinter_LintDriverImport(t *testing.T) {
 	root := &model.DocumentRoot{
 		Modules: []*model.Module{{
@@ -267,7 +267,7 @@ func blanked() *model.DocumentRoot {
 }
 
 // TestLinter_LintBlank covers where a blank import may sit: a package
-// imported for its init alone decides what a binary links, and a program and a
+// imported for its init alone decides what a binary links. A program and a
 // test binary are where that decision belongs. A library deciding it decides it for
 // every consumer.
 func TestLinter_LintBlank(t *testing.T) {
@@ -284,7 +284,7 @@ func TestLinter_LintBlank(t *testing.T) {
 		if issue.Severity != model.SeverityWarn {
 			t.Errorf("a blank import reports at %v, want warn", issue.Severity)
 		}
-		// The finding sits in the file that writes the import. The rest of
+		// The finding names the file that writes the import. The rest of
 		// this linter reports against the go.mod.
 		if issue.Position.Ref() != "a/a.go" {
 			t.Errorf("position = %q, want a/a.go", issue.Position.Ref())
@@ -296,7 +296,7 @@ func TestLinter_LintBlank(t *testing.T) {
 }
 
 // fakeProxy answers the four questions a lookup asks. Every module weighs a
-// thousand bytes, and the one named deep requires thin, so the reach of a
+// thousand bytes. The one named deep requires thin. The reach of a
 // dependency is something a test can count.
 //
 // The client it returns caches nowhere: a test does not write to the cache the

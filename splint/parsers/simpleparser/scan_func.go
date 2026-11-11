@@ -9,7 +9,7 @@ import (
 // scanFunc reads a func declaration and returns the line it ended on.
 //
 // A func opens at column zero and closes on a brace at column zero, which gofmt
-// guarantees, and that makes the extent findable without balancing a
+// guarantees. That makes the extent findable without balancing a
 // single brace inside the body. A declaration with no body, the shape of a
 // forward declaration to assembly, is one line.
 func (f *file) scanFunc(src *source, line int) int {
@@ -45,7 +45,7 @@ func (f *file) scanFunc(src *source, line int) int {
 	}
 	// The globals cover the signature as well as the body: a parameter type
 	// declared in another file is as much of a reach as a call to one. The
-	// declared name sits there too, and a method declares one the
+	// declared name sits there too. A method declares one the
 	// file does not record at package scope.
 	decl.Globals = f.globals(src, line, body, append(shadowed, decl.Name))
 	decl.Complexity = complexity(src, line, end+1, body)
@@ -60,9 +60,9 @@ func (f *file) scanFunc(src *source, line int) int {
 //
 // A signature ends where its parens balance and the body brace follows the
 // result type. Reading it as one string lets the split happen once and not per
-// line. A struct or interface written as the result type carries a body of its
+// line. A struct or interface written as the result type holds a body of its
 // own, which is kept as the source spells it: the ast collector prints the
-// result with its line breaks and indentation, and the signature has to match.
+// result with its line breaks and indentation. The signature has to match.
 func funcHeader(src *source, line int) (string, int, int) {
 	// A signature that opens and closes on one line is that line. Most of them
 	// are, and building a new string for each is most of what reading a func
@@ -144,7 +144,7 @@ func parseFuncHeader(header string) *model.Declaration {
 		return nil
 	}
 
-	// A generic function carries its type parameters between the name and the
+	// A generic function holds its type parameters between the name and the
 	// parameter list. They are not what the function takes, but the names they
 	// bind still count: a result typed as one is not a type the package has.
 	name := strings.TrimSpace(rest[:open])
@@ -184,7 +184,7 @@ func parseFuncHeader(header string) *model.Declaration {
 }
 
 // typeParamNames are the names a type parameter list binds, read the way a
-// parameter list is: the constraint is the group's type, and every name
+// parameter list is: the constraint is the group's type. Every name
 // in front of the constraint is one parameter.
 func typeParamNames(list string) []string {
 	var names []string
@@ -197,7 +197,7 @@ func typeParamNames(list string) []string {
 // trimBody cuts the body off a result list, which is everything from the brace
 // that opens it.
 //
-// A result may hold braces of its own, "func() struct{ A int }", so the body
+// A result may hold nested braces, "func() struct{ A int }". The body
 // brace is the first one at depth zero that does not belong to a composite
 // type. A signature with no body, which is a forward declaration to assembly,
 // has nothing to cut.

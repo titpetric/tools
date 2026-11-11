@@ -2,10 +2,9 @@
 // one the house rule says it should, and formats every file it reads.
 //
 // No other package here writes a file. The block is the rule this package
-// holds: it lives in importfmt and the imports linter reports it, so what this
-// package writes into a block matches what the linter reports and nothing
-// else. The rest of the file is gofmt's, applied through go/format, because
-// nothing else in the workspace runs gofmt and nothing else opens a file whose
+// holds: importfmt states it and the imports linter reports it. What this
+// package writes into a block matches what the linter reports, to the byte. The rest of the file is gofmt's, applied through go/format, because
+// no other command in the workspace runs gofmt or opens a file whose
 // block already matches.
 //
 // fix leaves a generated file alone, down to the bytes. Its shape is the
@@ -51,7 +50,7 @@ type FileFix struct {
 	Removed []string
 }
 
-// Skip is one file that needs a rewrite and cannot have one, and the names
+// Skip is one file that needs a rewrite and cannot have one, with the names
 // that stop it.
 type Skip struct {
 	// Name is the file as a report names it, relative to the root of the
@@ -59,7 +58,7 @@ type Skip struct {
 	Name string
 
 	// Unresolved are the names nothing could place, each with the symbols the
-	// file reaches through it, so the report says which lines to look at.
+	// file reaches through it. The report says which lines to look at.
 	Unresolved []importfmt.Unresolved
 }
 
@@ -107,16 +106,16 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 
 			// A file whose block already matches stays in the plan, with no
 			// edits, because Apply formats every file the plan names: the
-			// rest of the file is gofmt's business and nothing else in the
+			// rest of the file is gofmt's business. No other command in the
 			// workspace runs gofmt. The plan reports a file with a name
-			// nothing can place whether its block would otherwise change or
-			// not: the import it needs stays missing either way, and a silent
+			// no name resolves, whether its block would otherwise change or
+			// not: the import it needs stays missing either way. A silent
 			// run would read as a run that found nothing wrong.
 			settled := decision.Sound() && !decision.Changed(file.ImportDecls)
 
 			path := filepath.Join(root.Root, filepath.FromSlash(def.Package.Path), file.Name)
 			if seen[path] {
-				// A file is in the definition of its own scope and nowhere
+				// A file is in the definition of the scope declaring it and nowhere
 				// else, but a document merged from two parses can hold it
 				// twice, and rewriting it twice would apply the second set of
 				// line numbers to the first rewrite's output.
@@ -167,7 +166,7 @@ func edits(decls model.ImportDeclList, text string) []Edit {
 
 	for _, decl := range decls[1:] {
 		// The doc comment goes with the declaration it describes. The block
-		// that replaces the first declaration carries it, and leaving it
+		// that replaces the first declaration holds it, and leaving it
 		// here would attach it to the declaration that follows.
 		from := decl.Line
 		if decl.DocLine > 0 && decl.DocLine < from {
@@ -226,11 +225,11 @@ func Apply(plan *Plan) (rewritten, formatted []string, err error) {
 
 // applyFile rewrites one file, and reports whether anything changed.
 //
-// applyFile splices the import block first and formats the whole file after,
-// so a run leaves the file gofmt would have written: the block is the rule
-// this package holds and the rest of the file is gofmt's, which nothing else
-// in the workspace runs. applyFile reads and formats a file with no edits too,
-// so a file whose block already matches comes out formatted anyway.
+// applyFile splices the import block first and formats the whole file after.
+// A run leaves the file gofmt would have written: the block is the rule
+// this package holds and the rest of the file is gofmt's, which no other
+// command in the workspace runs. applyFile reads and formats a file with no
+// edits too. A file whose block already matches comes out formatted anyway.
 func applyFile(file FileFix) (bool, error) {
 	data, err := os.ReadFile(file.Path)
 	if err != nil {
@@ -273,7 +272,7 @@ func applyFile(file FileFix) (bool, error) {
 	return true, write(file.Path, []byte(out), info.Mode().Perm())
 }
 
-// formatted is the text as gofmt would write it, and the text itself when
+// formatted is the text as gofmt would write it, or the text itself when
 // go/format cannot parse it.
 //
 // A file that does not parse is not this command's finding: the compiler and
@@ -287,8 +286,8 @@ func formatted(text string) string {
 	return string(out)
 }
 
-// Splice applies the edits bottom up, so each lands on the lines the parse recorded.
-// It reports false when an edit misses an import declaration, and the caller writes nothing:
+// Splice applies the edits bottom up: each lands on the lines the parse recorded.
+// It reports false when an edit misses an import declaration. The caller leaves the file alone:
 // checking the lines first keeps a misread range from overwriting the file.
 func Splice(text string, edits []Edit) (string, bool) {
 	lines := strings.Split(text, "\n")
@@ -313,7 +312,7 @@ func Splice(text string, edits []Edit) (string, bool) {
 		if edit.Text != "" {
 			replacement = strings.Split(edit.Text, "\n")
 		} else if to < len(lines) && strings.TrimSpace(lines[to]) == "" {
-			// The declaration goes, and so does the blank line that
+			// The declaration goes, together with the blank line that
 			// separates it from what follows. Without that a merge leaves
 			// two blank lines where one declaration stood.
 			to++
@@ -325,9 +324,9 @@ func Splice(text string, edits []Edit) (string, bool) {
 	return strings.Join(lines, "\n"), true
 }
 
-// importRange reports a run of lines that is an import declaration and nothing
-// else: it opens on the import keyword, and a parenthesised one closes on the
-// paren that matches.
+// importRange reports a run of lines holding an import declaration alone: it
+// opens on the import keyword. A parenthesised one closes on the paren
+// that matches.
 func importRange(lines []string) bool {
 	if len(lines) == 0 {
 		return false
@@ -356,7 +355,7 @@ func importRange(lines []string) bool {
 	return strings.HasPrefix(strings.TrimSpace(lines[len(lines)-1]), ")")
 }
 
-// insert puts an import declaration into a file that has none, which is after
+// insert puts an import declaration into a file holding no block, which is after
 // the package clause and the blank line under it.
 func insert(lines []string, text string) []string {
 	for i, line := range lines {
@@ -372,7 +371,7 @@ func insert(lines []string, text string) []string {
 	return lines
 }
 
-// write replaces a file through a temporary beside it, so a run interrupted
+// write replaces a file through a temporary beside it. A run interrupted
 // halfway leaves the file it found and never half of one.
 func write(path string, data []byte, mode os.FileMode) error {
 	temp := path + ".splint-tmp"

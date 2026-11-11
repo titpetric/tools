@@ -14,7 +14,7 @@ import (
 
 // Report is every issue of one run, gathered from the linters that ran.
 //
-// The fields carry a json and a yaml tag naming the same key, so a run that
+// The fields hold a json and a yaml tag naming the same key. A run that
 // writes its findings as data writes the same thing in either encoding. A
 // severity writes itself as its own name in both, because a level is a text
 // marshaller and both encoders read one.
@@ -75,7 +75,7 @@ type Breakdown struct {
 	Linter string `json:"Linter" yaml:"Linter"`
 	Total  int    `json:"Total" yaml:"Total"`
 
-	// Errors, Warnings and Notices are the findings by level, and a reader
+	// Errors, Warnings and Notices are the findings by level. A reader
 	// scans them before reading any finding.
 	Errors   int `json:"Errors" yaml:"Errors"`
 	Warnings int `json:"Warnings" yaml:"Warnings"`
@@ -168,7 +168,7 @@ func counted(rules map[string]int) []RuleCount {
 	return out
 }
 
-// sort orders the issues by file, then line, then linter, so a report reads
+// sort orders the issues by file, then line, then linter. A report reads
 // down a tree and never jumps between linters.
 func (r *Report) sort() {
 	sort.SliceStable(r.Issues, func(i, j int) bool {

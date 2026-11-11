@@ -7,10 +7,10 @@ import (
 // uses are the identifiers a file writes before a dot, sorted and
 // deduplicated.
 //
-// The set comes off the stripped view, so a dot inside a string or a comment is
+// The set comes off the stripped view. A dot inside a string or a comment is
 // not a selector. The set filters nothing else: a local variable, a parameter and
 // a receiver all land in here alongside the package names, because the set
-// exists to answer whether removing an import would break the file, and the
+// exists to answer whether removing an import would break the file. The
 // only safe error is to keep one too many.
 func uses(src *source) []string {
 	seen := map[string]bool{}

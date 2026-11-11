@@ -15,11 +15,11 @@ import (
 	"github.com/titpetric/tools/splint/model/loader"
 )
 
-// fixture is the module of code built to fail checks, so these tests have
+// fixture is the module of code built to fail checks. These tests have
 // something to find.
 //
-// The test binary resolves it once, as an absolute path, so a test that moves the process to read
-// a tree of its own still points at the same fixture.
+// The test binary resolves it once, as an absolute path. A test that moves
+// the process to read a separate tree still points at the same fixture.
 var fixture = absolute("testdata")
 
 // absolute resolves a path at startup, before anything has moved.
@@ -44,7 +44,7 @@ func runArgs(t *testing.T, args ...string) (string, int) {
 }
 
 // TestRunReportsTheFixture covers the whole of a plain run: the parser reads
-// the tree, every linter reads the document, and the run writes what they found.
+// the tree, every linter reads the document, then the run writes what they found.
 func TestRunReportsTheFixture(t *testing.T) {
 	got, code := runArgs(t, "-i", fixture, "./...")
 
@@ -88,7 +88,7 @@ func TestRunJSON(t *testing.T) {
 }
 
 // TestRunFlagsAfterThePattern covers the command line written the way a person
-// writes it: the flag package stops at the first operand, so the parser has to
+// writes it: the flag package stops at the first operand. The parser has to
 // keep reading flags after the pattern; otherwise a flag there turns into a
 // second pattern and the run silently differs from the command line.
 func TestRunFlagsAfterThePattern(t *testing.T) {
@@ -126,14 +126,14 @@ func TestRunYAML(t *testing.T) {
 		t.Fatalf("-yaml wrote no issues:\n%s", got)
 	}
 
-	// A severity is a level, and it reads as the word in both encodings.
+	// A severity is a level. It reads as the word in both encodings.
 	if !strings.Contains(got, "Severity: WARN") {
 		t.Errorf("-yaml wrote a severity as something other than the word:\n%s", got)
 	}
 }
 
 // TestRunOneEncoding covers a command line naming both: they are two encodings
-// of one result, and a run cannot write both to one stream.
+// of one result. A run cannot write both to one stream.
 func TestRunOneEncoding(t *testing.T) {
 	var out bytes.Buffer
 	_, err := run(context.Background(), []string{"--json", "--yaml", "-i", fixture, "./..."}, &out, &out)
@@ -182,7 +182,7 @@ func TestRunStatsJSON(t *testing.T) {
 func TestRunStats(t *testing.T) {
 	got, code := runArgs(t, "--stats", "-i", fixture, "./...")
 
-	// Statistics are not findings, so a run that prints them exits clean.
+	// Statistics are not findings. A run that prints them exits clean.
 	if code != exitClean {
 		t.Errorf("run() exited %d, want %d", code, exitClean)
 	}
@@ -202,7 +202,7 @@ func TestRunParsers(t *testing.T) {
 	ast, _ := runArgs(t, "-i", fixture, "--parser=astparser", "./...")
 	simple, _ := runArgs(t, "-i", fixture, "--parser=simpleparser", "./...")
 
-	// The two parsers produce the same document, so the linters reading it
+	// The two parsers produce the same document. The linters reading it
 	// have to reach the same conclusions.
 	if ast != simple {
 		t.Errorf("the parsers disagree about the fixture:\n--- ast ---\n%s\n--- simple ---\n%s", ast, simple)
@@ -224,16 +224,17 @@ func TestRunUnknownLinter(t *testing.T) {
 	if err == nil {
 		t.Fatal("run() accepted a linter that does not exist")
 	}
-	// A typo in a flag is a linter silently not running, so the run reports it.
+	// A typo in a flag is a linter silently not running. The run reports it.
 	if !strings.Contains(err.Error(), "nope") || !strings.Contains(err.Error(), "godoc") {
 		t.Errorf("run() error = %v", err)
 	}
 }
 
 // TestRunOutputAndInput covers the two halves of reading a document back: a
-// run writes one, and another run lints it without parsing anything.
-// The written document carries the test packages only under --include-tests, and the linters read them either way, so the two runs report
-// the same findings only when the document holds what the parse read.
+// run writes one; another run lints it without parsing anything.
+// The written document holds the test packages only under --include-tests.
+// The linters read them either way. The two runs report the same findings
+// only when the document holds what the parse read.
 func TestRunOutputAndInput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "model.json")
 
@@ -265,7 +266,7 @@ func TestRunSchema(t *testing.T) {
 	if !strings.Contains(schema.Schema, "json-schema.org") {
 		t.Errorf("$schema = %q", schema.Schema)
 	}
-	// The fixture declares a User and a Thing, so the schema describes them.
+	// The fixture declares a User and a Thing. The schema describes them.
 	for _, want := range []string{"User", "Thing"} {
 		if _, ok := schema.Definitions[want]; !ok {
 			t.Errorf("definitions have no %q: %v", want, keys(schema.Definitions))
@@ -294,7 +295,7 @@ func keys[V any](m map[string]V) []string {
 	return out
 }
 
-// tinyProfile covers the body of Do and nothing else. The line and column
+// tinyProfile covers the body of Do and no other function. The line and column
 // range is the block the toolchain records for the body of the function
 // declared on line 5 of the module's one source file.
 const tinyProfile = `mode: set
@@ -302,7 +303,7 @@ example.com/tiny/tiny.go:5.16,7.2 1 1
 `
 
 // TestAppendCoverage covers the overlay end to end: the parse reads the
-// profile, and the document carries what it said.
+// profile. The document holds what it said.
 func TestAppendCoverage(t *testing.T) {
 	root := t.TempDir()
 	tree := writeTree(t, root, "tree")
@@ -362,8 +363,8 @@ func TestAppendCoverageMissingProfile(t *testing.T) {
 	}
 }
 
-// tinySourceV2 removes Do and adds Redo, so a diff of the tinyModule tree
-// against the tinySourceV2 tree carries
+// tinySourceV2 removes Do and adds Redo. A diff of the tinyModule tree
+// against the tinySourceV2 tree holds
 // one removed and one added symbol and reads as breaking.
 const tinySourceV2 = `// Package tiny is one package with one function in it.
 package tiny
@@ -375,7 +376,7 @@ func Redo() int {
 `
 
 // TestDiffCommand covers the verb end to end: two trees extracted with the
-// linters off, diffed as JSON, and the breaking verdict read back.
+// linters off, diffed as JSON. The breaking verdict read back.
 func TestDiffCommand(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, "old")
@@ -426,7 +427,7 @@ func TestDiffRequiresBothFiles(t *testing.T) {
 }
 
 // TestDocsCommand covers the reference end to end: the parse includes sources
-// with any command line, and the markdown holds the declaration.
+// with any command line. The markdown holds the declaration.
 func TestDocsCommand(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, "tree")
@@ -440,7 +441,7 @@ func TestDocsCommand(t *testing.T) {
 	}
 }
 
-// TestDocsSplit covers split mode: one file per package under --out, and a
+// TestDocsSplit covers split mode: one file per package under --out, plus a
 // README listing them.
 func TestDocsSplit(t *testing.T) {
 	root := t.TempDir()
@@ -500,7 +501,7 @@ func TestCoverageTemplate(t *testing.T) {
 
 // TestWrittenDocumentHasNoTestPackages covers --include-tests. The parse always
 // reads the test files, because the pairing and coverage linters have nothing
-// to check without them; the document a run writes carries them only when the
+// to check without them; the document a run writes holds them only when the
 // flag is on.
 func TestWrittenDocumentHasNoTestPackages(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "model.json")
@@ -556,8 +557,8 @@ func TestWrittenDocumentKeepsTestPackages(t *testing.T) {
 	}
 }
 
-// TestNoImplicitInput covers a splint.json sitting beside a tree: the run
-// parses the tree and ignores the file, so a job that extracts twice reports
+// TestNoImplicitInput covers a splint.json beside a tree: the run parses
+// the tree and ignores the file. A job that extracts twice reports
 // the tree in front of it on the second run too.
 func TestNoImplicitInput(t *testing.T) {
 	root := t.TempDir()
@@ -628,7 +629,7 @@ func runIn(t *testing.T, dir string, args ...string) string {
 }
 
 // TestSaveWithASourcePath covers -save and -i together. The parse moves the
-// process into the tree it reads, and the output path must not join onto the
+// process into the tree it reads. The output path must not join onto the
 // source path a second time on the way back out: that bug made "-i tree -save ."
 // write tree/tree/splint.json, a directory that does not exist.
 func TestSaveWithASourcePath(t *testing.T) {
@@ -646,7 +647,7 @@ func TestSaveWithASourcePath(t *testing.T) {
 }
 
 // TestSaveRunsNoLinter covers --save as the extract: the run is there for the
-// document it writes, so no linter runs and a tree the linters would report
+// document it writes. No linter runs. A tree the linters would report
 // exits clean.
 func TestSaveRunsNoLinter(t *testing.T) {
 	root := t.TempDir()
@@ -693,7 +694,7 @@ func TestOutputWithASourcePath(t *testing.T) {
 	runIn(t, root, "--input", "doc.json")
 }
 
-// countedModule is tinyModule with a type, a method and a test, so the
+// countedModule is tinyModule with a type, a method and a test. The
 // symbol rendering has something reached and something not.
 var countedModule = map[string]string{
 	"go.mod": `module example.com/tiny

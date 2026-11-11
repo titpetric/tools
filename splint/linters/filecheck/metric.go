@@ -12,7 +12,7 @@ type Metric struct {
 	Size  int `json:"Size" yaml:"Size"`
 
 	// Test reports a file the toolchain compiles into the test binary. A long
-	// test file reads differently from a long one beside it, so the linter counts
+	// test file reads differently from a long one beside it. The linter counts
 	// the two together and tells them apart.
 	Test bool `json:"Test,omitempty" yaml:"Test,omitempty"`
 

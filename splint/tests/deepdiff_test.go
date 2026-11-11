@@ -7,7 +7,7 @@ import (
 )
 
 // TestDiffFindsWhatIsNotEnumerated is the point of the comparison: Diff still
-// compares a key nobody wrote a check for, and a key only one side carries is
+// compares a key nobody wrote a check for. A key only one side holds is
 // a difference and never a silence.
 func TestDiffFindsWhatIsNotEnumerated(t *testing.T) {
 	left := map[string]any{

@@ -1,5 +1,5 @@
 // Package refindex answers which declarations reach a symbol, read off the
-// references a document already carries.
+// references a document already holds.
 //
 // Build reads a document once and the index answers many queries: the
 // coverage linter checks whether any test reaches a symbol, the pairing
@@ -7,7 +7,7 @@
 // what the index holds for one symbol.
 //
 // The reading is the References and Globals of every function: a Reference
-// resolves through the imports of the file that wrote it, and a Global
+// resolves through the imports of the file that wrote it. A Global
 // resolves against the package beside it, which for a test definition is the
 // product half of the same directory. A method recorded as Type.Method also
 // marks its type, because reaching a method of a type reaches the type.
@@ -54,7 +54,7 @@ func Build(root *model.DocumentRoot) *Index {
 	}
 
 	// The product half of a directory is what a test's globals resolve
-	// against: a test arrives as a definition of its own, and the bare names
+	// against: a test arrives as a separate definition. The bare names
 	// it reaches belong to the definition beside it.
 	product := map[string]string{}
 	for _, def := range root.Packages {
@@ -72,7 +72,7 @@ func Build(root *model.DocumentRoot) *Index {
 		// The package wide map is the reading Clean splits References by, so
 		// a key one file reaches through another file's import still
 		// resolves. The file's own map comes first: it holds the scope the
-		// reference sits in, and the one an alias collision cannot cross.
+		// reference resolves in, the one an alias collision cannot cross.
 		all, _ := def.Imports.Map(def.Imports.All())
 
 		for _, decl := range def.Funcs {
@@ -160,7 +160,7 @@ func (ix *Index) TestedTransitive(key Key) bool {
 	return ix.transitive(key, map[Key]bool{})
 }
 
-// transitive walks the callers of a symbol, each key at most once, so a cycle
+// transitive walks the callers of a symbol, each key at most once. A cycle
 // of product declarations terminates.
 func (ix *Index) transitive(key Key, walking map[Key]bool) bool {
 	if walking[key] {

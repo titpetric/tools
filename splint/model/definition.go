@@ -27,12 +27,12 @@ type Definition struct {
 	// Excluded are the test files of the directory a build constraint keeps
 	// out of this build, keyed by filename, each with the constraint as the
 	// file writes it: "integration" for a file opening on
-	// "//go:build integration". The package scope carries them, and the test
-	// scope does when the directory has no package of its own. The parse
+	// "//go:build integration". The package scope holds them. The test
+	// scope does when the directory has no package separate. The parse
 	// fills them when its options include the test facts.
 	//
 	// Nothing else of such a file is in the document. The toolchain does not
-	// compile it, so its declarations are not part of the package a reader
+	// compile it. Its declarations are not part of the package a reader
 	// sees; the name and the constraint say the file exists and why the build leaves it out.
 	Excluded StringSet `json:"Excluded,omitempty" yaml:"Excluded,omitempty"`
 
@@ -122,7 +122,7 @@ func (d *Definition) Fill() {
 func (d *Definition) Merge(in *Definition) {
 	d.TestPackage = d.TestPackage || in.TestPackage
 
-	// Both sides are the same package, so they are the same module. Only the
+	// Both sides are the same package. They are the same module. Only the
 	// side that has one can contribute it.
 	if d.Module == nil {
 		d.Module = in.Module

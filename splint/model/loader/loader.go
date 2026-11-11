@@ -3,8 +3,8 @@
 // A document without a root is a bare list of packages, the shape "go-fsck
 // extract" writes, and Decode reads it as a document holding those packages.
 //
-// A document a parser writes is the input a linter runs against, so a slow
-// parse runs once and the linters run over its output many times, and the
+// A document a parser writes is the input a linter runs against. A slow
+// parse runs once and the linters run over its output many times. The
 // linters here run over a document produced elsewhere.
 package loader
 
@@ -86,7 +86,7 @@ func Save(filename string, doc *model.DocumentRoot) error {
 	return Write(file, doc, FormatOf(filename))
 }
 
-// Write encodes a document. Write indents JSON, so a line diff of two
+// Write encodes a document. Write indents JSON. A line diff of two
 // documents of the same tree reads cleanly.
 func Write(w io.Writer, doc *model.DocumentRoot, format Format) error {
 	if format == FormatYAML {
@@ -100,8 +100,8 @@ func Write(w io.Writer, doc *model.DocumentRoot, format Format) error {
 	return encoder.Encode(doc)
 }
 
-// fill recomputes what the document does not carry, which is the per
-// declaration import list: the package import set determines it, so the
+// fill recomputes what the document does not hold, which is the per
+// declaration import list: the package import set determines it. The
 // encoding leaves it out and fill rebuilds it on the way back in.
 func fill(doc *model.DocumentRoot) *model.DocumentRoot {
 	for _, def := range doc.Packages {

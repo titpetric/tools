@@ -3,11 +3,11 @@ package visibility
 // Metric is what the linter counted in one package.
 type Metric struct {
 	// ExportedTypes and InternalTypes count declared types by the case of the
-	// name each one carries.
+	// name each one holds.
 	ExportedTypes int `json:"ExportedTypes" yaml:"ExportedTypes"`
 	InternalTypes int `json:"InternalTypes" yaml:"InternalTypes"`
 
-	// ExportedFuncs and InternalFuncs count funcs and methods alike, so a
+	// ExportedFuncs and InternalFuncs count funcs and methods alike. A
 	// method named serveHTTP is internal the way a free function of that name
 	// is.
 	ExportedFuncs int `json:"ExportedFuncs" yaml:"ExportedFuncs"`
@@ -16,10 +16,10 @@ type Metric struct {
 	// InternalLines is the code behind the internal funcs and Lines the code
 	// behind every func, both measured as the block a func occupies.
 	//
-	// Both sides share one unit, and that makes the one a share of the
+	// Both sides share one unit. That makes the one a share of the
 	// other. Measuring the internal funcs by their block and the package by
 	// its code lines counts blank lines and comments on one side of the
-	// division and not the other, and a package that explains itself inside
+	// division and not the other. A package that explains itself inside
 	// its funcs then reads past a hundred percent.
 	InternalLines int `json:"InternalLines" yaml:"InternalLines"`
 	Lines         int `json:"Lines" yaml:"Lines"`

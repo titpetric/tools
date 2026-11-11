@@ -85,7 +85,7 @@ func (d Decision) Sound() bool {
 // Changed reports a file's import block that differs from the canonical one.
 func (d Decision) Changed(all model.ImportDeclList) bool {
 	// The preamble above the import of "C" pins it. A rewrite never writes
-	// it, so it plays no part in deciding whether the file needs one.
+	// it. It plays no part in deciding whether the file needs one.
 	current := all.Free()
 
 	if len(current) > 1 && len(d.Specs) > 0 {
@@ -96,7 +96,7 @@ func (d Decision) Changed(all model.ImportDeclList) bool {
 	if len(current) == 1 {
 		// The canonical block has parentheses and holds one import per line.
 		// import "fmt" and import ( "fmt" ) are the same imports written on
-		// one line, and neither is the block.
+		// one line. Neither is the block.
 		if len(d.Specs) > 0 && current[0].Line == current[0].EndLine {
 			return true
 		}
@@ -148,7 +148,7 @@ func Decide(root *model.DocumentRoot, def *model.Definition, idx Resolver, opts 
 // forbidden is the import path a file may not take on: the package the file
 // claims as its own.
 //
-// A directory holds one package and up to two test scopes, and the model
+// A directory holds one package and up to two test scopes. The model
 // records both scopes under one definition. Only the file's own package clause
 // says which it belongs to. A file writing "package whitebox" compiles into
 // whitebox and reaches Bar by name; adding an import of whitebox is an import
@@ -194,7 +194,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 	}
 
 	// guessing reports the file holding an import whose name the document does
-	// not say. The name is then taken from the path, and the path does not
+	// not say. The name is then taken from the path. The path does not
 	// have to spell it: code reaches github.com/goccy/go-yaml as yaml. A file
 	// holding one of those cannot have its names accounted for, because any
 	// name left over might be the one that import answers to.
@@ -204,7 +204,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 		havePath[spec.Path] = true
 
 		if spec.Blank() || spec.Dot() {
-			// No name reaches a blank or a dot import, so no name can
+			// No name reaches a blank or a dot import. No name can
 			// stop reaching it. It stays until somebody deletes it by hand.
 			kept = append(kept, spec)
 			continue
@@ -234,14 +234,13 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 		// A module of the go.mod is placed by the last segment of its path,
 		// which is a guess: code reaches github.com/goccy/go-yaml as yaml, and a
 		// module required beside it, gopkg.in/yaml.v3, ends in the same name.
-		// A file holding an import whose name nothing states already builds,
-		// and adding the second import for a name the first may answer to
-		// would stop it.
+		// A file holding an import whose name nothing states already builds.
+		// Adding a second import for a name the first may answer to stops it.
 		if guessing && found.Source == resolve.SourceModule {
 			continue
 		}
 
-		// The name resolves to a path the file already imports, so the import
+		// The name resolves to a path the file already imports. The import
 		// is there and the file reaches it by a name the path does not spell.
 		// Nothing is missing and Decide adds nothing: a second import of one path under
 		// two names compiles and says the file needs both.
@@ -276,7 +275,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 		spec := model.ImportSpec{Path: found.Path}
 		if reached, _ := reachedBy(spec, idx); reached != name {
 			// The package at the end of the path is not called what the file
-			// writes, so the import has to say so.
+			// writes. The import has to say so.
 			spec.Name = name
 		}
 
@@ -293,7 +292,7 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 // reachedBy is the name a file reaches an import by, and whether the name is
 // certain and no guess.
 //
-// The file writes an alias, so an alias is certain outright. Without one the
+// The file writes an alias. An alias is certain outright. Without one the
 // name is the package's own, which the document says for a package of the tree
 // and the resolver guesses from the path for anything else.
 func reachedBy(spec model.ImportSpec, idx Resolver) (string, bool) {
@@ -341,7 +340,7 @@ func sibling(root *model.DocumentRoot, def *model.Definition) *model.Definition 
 // file of it.
 //
 // A name a file reaches with no import is either a package of the tree or
-// something declared beside the file, and this set tells the two apart.
+// something declared beside the file. This set tells the two apart.
 func declaredNames(def *model.Definition) map[string]bool {
 	names := map[string]bool{}
 	if def == nil {
@@ -360,17 +359,17 @@ func declaredNames(def *model.Definition) map[string]bool {
 // reachedNames are the names each file reaches through a selector, keyed by
 // filename and then by name.
 //
-// reachedNames reads both sets a declaration carries. References are the names
+// reachedNames reads both sets a declaration holds. References are the names
 // a parser matched to an import of the package, and Globals the ones it could
 // not. The parser splits them against the package's imports and ignores the
-// file's, so a
+// file's. A
 // name one file imports and another reaches without importing is in
 // References for both, and reading only Globals would miss the second file.
 //
 // The caller settles whether the name is really missing, against the
 // imports of the one file and the names the package declares.
 //
-// A key with no symbols is a bare identifier and no selector, and no
+// A key with no symbols is a bare identifier and no selector. No
 // import can be missing for one.
 func reachedNames(def *model.Definition) map[string]map[string][]string {
 	out := map[string]map[string][]string{}
@@ -404,7 +403,7 @@ func reachedNames(def *model.Definition) map[string]map[string][]string {
 	return out
 }
 
-// sortedKeys are the keys of a map in order, so a run reports the same names
+// sortedKeys are the keys of a map in order. A run reports the same names
 // in the same order every time.
 func sortedKeys(in map[string][]string) []string {
 	keys := make([]string, 0, len(in))

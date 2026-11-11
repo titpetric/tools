@@ -22,7 +22,7 @@ func house() importfmt.Options {
 // TestFormatLiterals takes the imports a file holds and states the block it
 // should hold instead.
 //
-// The input is the literal form Definition.Imports records, so a case reads
+// The input is the literal form Definition.Imports records. A case reads
 // the way a file writes an import.
 func TestFormatLiterals(t *testing.T) {
 	tests := []struct {
@@ -153,7 +153,7 @@ func TestFormatLiterals(t *testing.T) {
 	}
 }
 
-// TestFormatKeepsComments covers the two comments an import can carry, which
+// TestFormatKeepsComments covers the two comments an import can hold, which
 // are the two a rewrite can lose.
 func TestFormatKeepsComments(t *testing.T) {
 	specs := []model.ImportSpec{
@@ -242,7 +242,7 @@ func TestParse(t *testing.T) {
 	}
 }
 
-// TestRefNamesTheImport covers the name a file reaches an import by, and that
+// TestRefNamesTheImport covers the name a file reaches an import by. That
 // name decides whether the file uses the import and what a missing one
 // resolves to.
 func TestRefNamesTheImport(t *testing.T) {
@@ -268,7 +268,7 @@ func TestRefNamesTheImport(t *testing.T) {
 // TestNormalizeAliasesOnlyAVersionedPath covers which paths get an alias
 // written for them.
 //
-// A major version suffix starts at v2: v0 and v1 modules carry none, so a
+// A major version suffix starts at v2: v0 and v1 modules hold none. A
 // path ending there is a directory of that name. Reading /v1 as a version
 // renamed prometheus api/prometheus/v1 to prometheus and moved it in the
 // sort, which is a file the fixer changed and should not have.
@@ -299,7 +299,7 @@ func TestNormalizeAliasesOnlyAVersionedPath(t *testing.T) {
 
 // TestNormalizeKeepsAVersionAlias covers an alias spelling the version of a
 // versioned path: aws-sdk-go-v2 writes v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-// and reaches it as v4, so the alias stays where Normalize would otherwise
+// and reaches it as v4. The alias stays where Normalize would otherwise
 // take it off and write signer in its place.
 func TestNormalizeKeepsAVersionAlias(t *testing.T) {
 	opts := importfmt.NewOptions()

@@ -59,7 +59,7 @@ func groupDefinitionsByPackage(defs model.DefinitionList) map[string]model.Defin
 	return groups
 }
 
-// renderSplit writes one markdown file per package under OutDir, and a
+// renderSplit writes one markdown file per package under OutDir. A
 // README.md listing them.
 func renderSplit(defs model.DefinitionList, opts Options) error {
 	if err := os.MkdirAll(opts.OutDir, 0o755); err != nil {

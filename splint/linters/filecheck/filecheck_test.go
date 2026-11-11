@@ -102,12 +102,12 @@ func TestLinter_New_IsTheDefaultCeiling(t *testing.T) {
 
 // TestLinter_Lint_Allowance covers the three answers an allow list returns: a
 // raised ceiling leaves a long file alone and still reports one past it, a
-// zero turns the rule off at any length, and the default covers a
+// zero turns the rule off at any length. The default covers a
 // file no entry names.
 //
 // The test files come first because the first matching entry applies and
 // parser*.go covers parser_test.go too. That is the ordering an author
-// writes, and the entry order exists to express it.
+// writes. The entry order exists to express it.
 func TestLinter_Lint_Allowance(t *testing.T) {
 	linter := filecheck.New()
 	linter.Allow = filecheck.Allowances{
@@ -217,7 +217,7 @@ func TestLinter_Lint_SkipsGeneratedFiles(t *testing.T) {
 
 // TestLinter_Lint_CountsAFileOnce guards the case that made count return nil:
 // a directory holding an external test package is two definitions naming the
-// same path, and a file counted twice is two rows of one histogram bucket.
+// same path. A file counted twice is two rows of one histogram bucket.
 func TestLinter_Lint_CountsAFileOnce(t *testing.T) {
 	pkg := model.Package{Package: "view", Path: "./frontend/view"}
 	root := &model.DocumentRoot{Packages: model.DefinitionList{
@@ -281,7 +281,7 @@ func TestLinter_Lint_Metrics(t *testing.T) {
 }
 
 // TestLinter_Lint_Statistics reads the two tables: the histogram has to place
-// every file in exactly one bucket, and the longest table has to lead with the
+// every file in exactly one bucket. The longest table has to lead with the
 // longest file.
 func TestLinter_Lint_Statistics(t *testing.T) {
 	report := lint(t, document(

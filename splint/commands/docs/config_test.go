@@ -10,7 +10,7 @@ import (
 )
 
 // configDefs is a small configuration tree: a root reaching a nested type
-// through a pointer and a slice, an unreferenced type, and a typedef over a
+// through a pointer and a slice, an unreferenced type. A typedef over a
 // declared one.
 func configDefs() model.DefinitionList {
 	return model.DefinitionList{{
@@ -60,7 +60,7 @@ func configDefs() model.DefinitionList {
 }
 
 // TestRenderConfig covers the reference: the root first under the title, the
-// reached types after it in reach order, links on declared types, and the
+// reached types after it in reach order, links on declared types. The
 // unreachable type at the end.
 func TestRenderConfig(t *testing.T) {
 	var out strings.Builder
@@ -84,7 +84,7 @@ func TestRenderConfig(t *testing.T) {
 	require.True(t, serverAt < asideAt, "an unreached type comes last")
 }
 
-// TestRenderConfigTypedef covers a type with no fields of its own; its
+// TestRenderConfigTypedef covers a type with no fields at all; its
 // definition describes it.
 func TestRenderConfigTypedef(t *testing.T) {
 	var out strings.Builder

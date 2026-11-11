@@ -39,7 +39,7 @@ func TestPlantUMLSkipsAnonymousTypes(t *testing.T) {
 }
 
 // TestPlantUMLSkipsNamelessRelationships covers a type in a grouped block,
-// whose name sits in Names: a foreign key arrow from a nameless source is a
+// whose name is in Names: a foreign key arrow from a nameless source is a
 // line plantuml stops on.
 func TestPlantUMLSkipsNamelessRelationships(t *testing.T) {
 	defs := model.DefinitionList{{

@@ -51,7 +51,7 @@ func byRule(issues []model.Issue) map[string][]string {
 // TestLint parses the fixture under testdata with both parsers: the two
 // have to agree on every finding.
 //
-// The ast parser moves the process into the tree it reads, so this test runs
+// The ast parser moves the process into the tree it reads. This test runs
 // alone.
 func TestLint(t *testing.T) {
 	for _, name := range []string{simpleparser.ParserName, analyzer.ParserName} {
@@ -125,7 +125,7 @@ func TestLintDisabled(t *testing.T) {
 
 // TestLintImportsAndStorage reads a document written by hand: a file that
 // imports a driver and calls nothing, which crosses nothing, a storage path
-// the tree names, a negated tag, and a tag the tree renames.
+// the tree names, a negated tag. A tag the tree renames.
 func TestLintImportsAndStorage(t *testing.T) {
 	t.Parallel()
 
@@ -177,7 +177,7 @@ func TestLintImportsAndStorage(t *testing.T) {
 
 // TestLint_TestMain covers the testmain rule: a TestMain reaching a database,
 // in a file of the build or behind the tag, makes its package an integration
-// package; one that only runs a process does not, and the rule lets a
+// package; one that only runs a process does not. The rule lets a
 // package named for its tests be.
 func TestLint_TestMain(t *testing.T) {
 	t.Parallel()

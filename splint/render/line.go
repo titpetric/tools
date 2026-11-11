@@ -13,7 +13,7 @@ func Line(issue model.Issue) string {
 
 // compose writes one issue, painted when the output goes to a terminal.
 //
-// The parts carry the colour and the punctuation between them does not, so a
+// The parts hold the colour and the punctuation between them does not. A
 // line reads the same with the escapes stripped out of it as without: what a
 // pipe gets and what a terminal gets are one string with one shape.
 func compose(issue model.Issue, colour bool) string {

@@ -13,22 +13,22 @@ import (
 // part of the name a file reaches the package by: a file imports "example.com/thing/v2"
 // as "thing".
 //
-// It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
+// It starts at v2. A v0 or v1 module holds no suffix. A path ending in
 // /v1 is a directory of that name: prometheus api/prometheus/v1 is package
 // v1.
 var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // resolveMethods records the methods a body reaches, which the reference scan
-// cannot see: a selector on a local or on a field names no package, so a
+// cannot see: a selector on a local or on a field names no package. A
 // method reached through one leaves no record without the type checker.
 //
 // A method on a type from the declaration's own package goes onto Globals in
 // the shape Globals already documents: the package level name reached is the
-// type, and the method is the name after the dot. A method on a type from an
+// type. The method is the name after the dot. A method on a type from an
 // imported package goes onto References under the name the file imports the
 // package by, as Type.Method. A file that does not import the declaring
 // package records nothing, because References are what a declaration reaches
-// through an import of its own file.
+// through an import the file itself writes.
 //
 // A call through an interface records the interface's method: the
 // implementation that runs is decided at run time.
@@ -84,7 +84,7 @@ func (v *collector) resolveMethods(file *ast.File, filename string, fn *ast.Func
 }
 
 // namedReceiver is the named type a method hangs off, with the pointer taken
-// away. A receiver that is not a named type has no name a document carries,
+// away. A receiver that is not a named type has no name a document holds,
 // and reads as nil.
 func namedReceiver(t types.Type) *types.Named {
 	if ptr, ok := t.(*types.Pointer); ok {
@@ -97,7 +97,7 @@ func namedReceiver(t types.Type) *types.Named {
 }
 
 // shortImportName is the name a file reaches an import by: the alias when it
-// wrote one, and the base of the path with the major version taken off when
+// wrote one. The base of the path with the major version taken off when
 // it did not. A file that does not import the path, or imports it blank or
 // dotted, reaches it by no name at all.
 func shortImportName(file *ast.File, importPath string) string {

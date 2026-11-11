@@ -7,8 +7,8 @@ import (
 // LintMetrics is what a linter measured, keyed by what it measured it on.
 //
 // A linter fills one of the two, or neither. The values are the linter's own
-// metric type: what a measurement means is the linter's business, and the
-// framework only carries it as far as the encoder.
+// metric type: what a measurement means is the linter's business. The
+// framework only holds it as far as the encoder.
 type LintMetrics struct {
 	// Files uses the path a Position names as its key, "frontend/view/page.go".
 	Files map[string]any `json:"Files,omitempty" yaml:"Files,omitempty"`

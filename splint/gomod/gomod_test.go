@@ -11,7 +11,7 @@ import (
 )
 
 // writeModule writes a go.mod into a temporary directory and returns the
-// directory, and the search walks up from it.
+// directory. The search walks up from it.
 func writeModule(t *testing.T, contents string) string {
 	t.Helper()
 

@@ -17,8 +17,8 @@ import (
 
 // Load reads one package into its definitions.
 //
-// Load skips a file carrying a build tag: the loaded syntax is what the
-// default build constraints selected, and a tagged file that came through with
+// Load skips a file holding a build tag: the loaded syntax is what the
+// default build constraints selected. A tagged file that came through with
 // it would read under constraints its author never meant.
 func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 	if in == nil || in.Syntax == nil {
@@ -57,7 +57,7 @@ func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 		facts = append(facts, fileFacts(fset, file, src, options.IncludeImports))
 	}
 
-	// The loader requests types, so the collector resolves an identifier
+	// The loader requests types. The collector resolves an identifier
 	// against the package scope and never guesses at it.
 	sink := collector.NewCollector(fset, pkg.TypesInfo, pkg.Types)
 
@@ -87,9 +87,9 @@ func Load(in *Target, options splint.Options) ([]*model.Definition, error) {
 }
 
 // excludedTests reads the test files the toolchain left out of a package and
-// the constraint each carries. The loader lists a file left out for its name
-// as well, handler_windows_test.go on linux, and that one writes no
-// constraint, so it stays out of the set.
+// the constraint each holds. The loader lists a file left out for its name
+// as well, handler_windows_test.go on linux. That one writes no
+// constraint. It stays out of the set.
 func excludedTests(ignored []string) (model.StringSet, error) {
 	var excluded model.StringSet
 	for _, filename := range ignored {

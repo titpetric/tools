@@ -40,7 +40,7 @@ func TestParseRestoresTheWorkingDirectory(t *testing.T) {
 }
 
 // TestParseOfANonExistentTree covers the parse that never moves anywhere: the
-// directory stays the same, so a caller reporting the failure still resolves its
+// directory stays the same. A caller reporting the failure still resolves its
 // own paths.
 func TestParseOfANonExistentTree(t *testing.T) {
 	before, err := os.Getwd()
@@ -65,7 +65,7 @@ func TestParseOfANonExistentTree(t *testing.T) {
 }
 
 // methodTree is a module built to exercise every reach the reference scan
-// cannot see: a method on a local, a method on a struct field, and a method
+// cannot see: a method on a local, a method on a struct field. A method
 // reached across packages.
 var methodTree = map[string]string{
 	"go.mod": "module example.com/tree\n\ngo 1.27.0\n",

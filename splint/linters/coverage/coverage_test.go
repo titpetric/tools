@@ -13,8 +13,8 @@ import (
 var source = model.Package{Package: "x", ImportPath: "example.com/x", Path: "./x"}
 
 // document builds the two definitions a package arrives as: the package
-// itself, and the test package beside it. The parsers report a test package
-// separately, under its own name and its own import path, so a linter that
+// itself, plus the test package beside it. The parsers report a test package
+// separately, under its own name and its own import path. A linter that
 // expected the tests to be in the definition the symbols are in would find
 // none.
 func document(def *model.Definition, tests ...string) *model.DocumentRoot {
@@ -80,7 +80,7 @@ func TestLinter_Name(t *testing.T) {
 	}
 }
 
-// TestLinter_Lint covers the names a test may carry and still count as the test
+// TestLinter_Lint covers the names a test may hold and still count as the test
 // of a symbol, and the symbols that are nobody's to test.
 func TestLinter_Lint(t *testing.T) {
 	open := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 3}
@@ -136,7 +136,7 @@ func TestLinter_Lint(t *testing.T) {
 
 // TestLinter_Lint_skips covers the symbols a test is not expected for. A
 // command exports nothing anyone reaches, a test package is not a surface
-// anyone tests, an unexported symbol is the package's own business, and a
+// anyone tests, an unexported symbol is the package's own business. A
 // generated file is nobody's to write a test for.
 func TestLinter_Lint_skips(t *testing.T) {
 	untested := model.DeclarationList{{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 3}}
@@ -227,7 +227,7 @@ func TestLinter_Lint_References(t *testing.T) {
 	def := definition(source, model.DeclarationList{client}, model.DeclarationList{closeMethod, open})
 
 	// A blackbox test reaching Client.Close through a local: the reference
-	// carries the method, dotted, under the import's short name.
+	// holds the method, dotted, under the import's short name.
 	test := &model.Declaration{
 		Kind:       model.FuncKind,
 		Name:       "TestShutdown",
@@ -299,7 +299,7 @@ func TestLinter_Lint_Globals(t *testing.T) {
 }
 
 // TestLinter_Lint_Tagged covers a test behind the integration tag: a plain
-// build leaves it out, and it still names the symbol it tests.
+// build leaves it out. It still names the symbol it tests.
 func TestLinter_Lint_Tagged(t *testing.T) {
 	open := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 3}
 	root := document(definition(source, nil, model.DeclarationList{open}))

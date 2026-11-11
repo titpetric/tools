@@ -57,7 +57,7 @@ func lint(t *testing.T, root *model.DocumentRoot) model.LintReport {
 }
 
 // TestLinter_LintReportsNothing covers the shape of the linter: it measures
-// and does not judge, so there is a table and no finding.
+// and does not judge. There is a table and no finding.
 func TestLinter_LintReportsNothing(t *testing.T) {
 	report := lint(t, document())
 
@@ -73,7 +73,7 @@ func TestLinter_LintReportsNothing(t *testing.T) {
 }
 
 // TestLinter_StatisticsByPackage covers the package table: what a package
-// declares, how much of it stands on its own, and the share that does not.
+// declares, how much of it stands on its own. The share that does not.
 func TestLinter_StatisticsByPackage(t *testing.T) {
 	table := lint(t, document()).Statistics()[0]
 
@@ -95,7 +95,7 @@ func TestLinter_StatisticsByPackage(t *testing.T) {
 }
 
 // TestLinter_StatisticsTestsApart covers the test files, which the linter counts in
-// a column of their own: a test reaches what it tests, and counting it with
+// a column separate: a test reaches what it tests, and counting it with
 // the code would report the coupling of every package as higher than the truth.
 func TestLinter_StatisticsTestsApart(t *testing.T) {
 	root := document()
@@ -107,7 +107,7 @@ func TestLinter_StatisticsTestsApart(t *testing.T) {
 
 	table := lint(t, root).Statistics()[0]
 
-	// The code coupling stays the same, and the tests read beside it.
+	// The code coupling stays the same. The tests read beside it.
 	if got := table.Rows[0][6]; got != "50.0%" {
 		t.Errorf("coupling = %q, want the code alone", got)
 	}
@@ -127,7 +127,7 @@ func TestLinter_StatisticsMostCoupled(t *testing.T) {
 	if len(table.Rows) != 2 {
 		t.Fatalf("Rows = %v", table.Rows)
 	}
-	// The count comes before the share, so the file with the most coupled
+	// The count comes before the share. The file with the most coupled
 	// symbols heads the table.
 	if table.Rows[0][0] != "scope/handler.go" || table.Rows[0][2] != "3" {
 		t.Errorf("first row = %v, want handler.go and its three", table.Rows[0])
@@ -138,7 +138,7 @@ func TestLinter_StatisticsMostCoupled(t *testing.T) {
 }
 
 // TestCoupling covers what the measure counts: a global the package declares
-// in another file, and a receiver declared in another file.
+// in another file. A receiver declared in another file.
 func TestCoupling(t *testing.T) {
 	files := lint(t, document()).Metrics().Files
 
@@ -164,7 +164,7 @@ func TestCoupling(t *testing.T) {
 
 // TestCouplingIgnoresUnknownNames covers the fuzz the measure lives with: a
 // global no file of the package declares is a local the parse did not see
-// bound, and it couples nothing.
+// bound. It couples nothing.
 func TestCouplingIgnoresUnknownNames(t *testing.T) {
 	root := document()
 	root.Packages[0].Funcs[1].Globals = model.StringSet{"err": nil, "buf": nil}
@@ -196,7 +196,7 @@ func TestSingleFilePackage(t *testing.T) {
 func TestGeneratedFilesAreNotMeasured(t *testing.T) {
 	root := document()
 	root.Packages[0].Files[1].Generated = true
-	// A third file, so the package still has two the measure reads.
+	// A third file. The package still has two the measure reads.
 	root.Packages[0].Files = append(root.Packages[0].Files, model.File{Name: "extra.go"})
 
 	files := lint(t, root).Metrics().Files

@@ -11,7 +11,7 @@ import (
 // duplicate is one module the build graph offered at more than one version.
 //
 // The two majors of a module are one entry: they are different module paths
-// and the same library, and a build requiring both links both.
+// and the same library. A build requiring both links both.
 type duplicate struct {
 	// Base is the module path with its major version suffix removed, the key
 	// the versions of one library count under.
@@ -69,8 +69,8 @@ func duplicates(sums []model.Sum, sizes map[string]int64) []duplicate {
 			continue
 		}
 
-		// The largest copy is the one a build carrying the module once would
-		// carry. Everything after that copy is the same library again.
+		// The largest copy is the one a build holding the module once would
+		// hold. Everything after that copy is the same library again.
 		sort.Slice(entry.sizes, func(i, j int) bool { return entry.sizes[i] > entry.sizes[j] })
 		for i, size := range entry.sizes {
 			entry.Size += size
@@ -88,7 +88,7 @@ func duplicates(sums []model.Sum, sizes map[string]int64) []duplicate {
 }
 
 // linked names one downloaded version under the module that counts it. The
-// path is the base for every version but a major, which is a path of its own:
+// path is the base for every version but a major, which is a path separate:
 // "v1.4.0" and "v2 v2.0.1" are two copies of one library.
 func linked(base string, sum model.Sum) string {
 	if suffix := strings.TrimPrefix(sum.Path, base+"/"); suffix != sum.Path {

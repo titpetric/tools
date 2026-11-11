@@ -10,13 +10,13 @@ import (
 // ImportSpec is one import as the file writes it.
 //
 // A formatter has to be able to put this import back. Definition.Imports
-// carries the same imports in a form a linter reads them by name, sorted and
+// holds the same imports in a form a linter reads them by name, sorted and
 // with a redundant alias dropped; nothing in that form says where the import
 // sits or what sits beside it.
 type ImportSpec struct {
 	// Name is the alias in front of the path: empty for an import reached by
 	// the base name of its path, "_" for a blank import, "." for a dot
-	// import, and a name for anything else.
+	// import. A name for anything else.
 	Name string `json:"Name,omitempty" yaml:"Name,omitempty"`
 
 	// Path is the import path, without the quotes.
@@ -96,7 +96,7 @@ func BaseName(path string) string {
 }
 
 // ImportDecl is one import declaration of a file, as the file spells it. A
-// declaration importing "C" carries the cgo preamble and stays in place.
+// declaration importing "C" holds the cgo preamble and stays in place.
 type ImportDecl struct {
 	// Line is the 1 indexed line the import keyword is on, and EndLine the
 	// line the declaration ends on: the closing paren for a block, and Line
@@ -120,7 +120,7 @@ type ImportDecl struct {
 	Specs []ImportSpec `json:"Specs,omitempty" yaml:"Specs,omitempty"`
 
 	// Tail is the comment lines inside the declaration that belong to no
-	// import, markers trimmed: the ones after the last one, and any separated
+	// import, markers trimmed: the ones after the last one, plus any separated
 	// from the import below them by a blank line.
 	//
 	// The parse records them because a rewrite without them would delete

@@ -11,7 +11,7 @@ import (
 
 // loadTagged reads the test files a build constraint keeps out of the
 // packages just read, typed the same as the rest: the directories holding
-// one load a second time with the tags their constraints name, and the
+// one load a second time with the tags their constraints name. The
 // declarations of the excluded files go into one test definition per
 // directory, the shape DocumentRoot.Tagged holds.
 //

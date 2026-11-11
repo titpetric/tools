@@ -9,11 +9,11 @@ import (
 )
 
 // references reads the package symbols a body reaches, which is every
-// "pkg.Symbol" where pkg is a name the file imports and Symbol carries a capital.
+// "pkg.Symbol" where pkg is a name the file imports and Symbol holds a capital.
 //
 // A selector reaches a package when the name is free in scope: the
 // parameters, the locals of the body and the top level declarations of the
-// file all leave it unbound. That is the rule go/parser applies, and the rule is file scoped,
+// file all leave it unbound. That is the rule go/parser applies. The rule is file scoped,
 // so a package level var shared between two files is a reference in
 // the file that does not declare it.
 //
@@ -23,7 +23,7 @@ import (
 //
 // The shadowed names are the parameters and the receiver, which are locals
 // in the body: "func Run(store store.Store)" reaches its argument in the
-// body, and the package that shares its name stays unreached.
+// body. The package that shares its name stays unreached.
 func (f *file) references(src *source, from, column, to int, shadowed []string) model.StringSet {
 	var refs model.StringSet
 
@@ -43,7 +43,7 @@ func (f *file) references(src *source, from, column, to int, shadowed []string) 
 				return
 			}
 			// A name this file declares, or one the signature binds, is
-			// something written here, and no package reached from here.
+			// something written here. No package reached from here.
 			if f.names[pkg] || locals[pkg] || slices.Contains(shadowed, pkg) {
 				return
 			}
@@ -68,7 +68,7 @@ type selector struct {
 // eachSelector calls fn for every "left.Right" on a line.
 //
 // It calls fn and returns no list: the caller consumes each one and
-// keeps none, so a slice per line of every body is a slice per line thrown
+// keeps none. A slice per line of every body is a slice per line thrown
 // away.
 func eachSelector(line string, fn func(pkg, symbol string)) {
 	for i := 0; i < len(line); i++ {
@@ -78,7 +78,7 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 
 		// "..." is one token and the scan steps over it whole. Read as three dots it
 		// swallows the type written behind it: the last dot takes the package
-		// name as the symbol of a selector with nothing on its left, and the
+		// name as the symbol of a selector with nothing on its left. The
 		// scan resumes past that name, never reaching the dot that does reach
 		// a package.
 		if strings.HasPrefix(line[i:], "...") {
@@ -94,7 +94,7 @@ func eachSelector(line string, fn func(pkg, symbol string)) {
 		}
 
 		// A selector reached through another selector is not a package. So is
-		// a number: "1.5" has an identifier on neither side, and a call
+		// a number: "1.5" has an identifier on neither side. A call
 		// result, "f().X", has no identifier on the left.
 		//
 		// The dot closing a "..." is none of those. What follows that dot is the
@@ -123,7 +123,7 @@ func afterEllipsis(line string, start int) bool {
 // identifiers, in source order.
 //
 // A line reaching one package twice reports both: "http.Error(w, msg,
-// http.StatusNotFound)" names two symbols of one package, and a set keyed on
+// http.StatusNotFound)" names two symbols of one package. A set keyed on
 // the package would keep one of them.
 //
 // A chained selector reports only its first pair: "a.B.C" reaches package a
@@ -204,7 +204,7 @@ func trimTypeParams(name string) string {
 // bodyLocals are the names a function body binds, which shadow the same
 // names outside the body.
 //
-// It reads the two forms a body declares with, "x :=" and "var x", and the
+// It reads the two forms a body declares with, "x :=" and "var x". The
 // range clause, which is enough for the names that turn up on the left of a
 // selector. A name it misses becomes a reference and then a global, which is
 // where an unresolved name belongs.
@@ -221,7 +221,7 @@ func bodyLocals(src *source, from, to int) map[string]bool {
 
 // bindLocals records what one line binds.
 //
-// The block flag carries a var or const block open across the lines it covers,
+// The block flag holds a var or const block open across the lines it covers,
 // which is the one binding form that is not written on the line it applies to.
 func bindLocals(locals map[string]bool, src *source, i int, block *bool) {
 	code := src.codeLine(i)
@@ -274,7 +274,7 @@ func bindLocals(locals map[string]bool, src *source, i int, block *bool) {
 		if eq := indexTop(spec, '='); eq >= 0 {
 			spec = spec[:eq]
 		}
-		// A declaration writes the type after the names, so the first
+		// A declaration writes the type after the names. The first
 		// word of each part is the name and the rest is its type.
 		for _, part := range splitTop(spec, ',') {
 			if fields := strings.Fields(part); len(fields) > 0 && isIdentifier(fields[0]) {

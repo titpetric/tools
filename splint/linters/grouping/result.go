@@ -71,7 +71,7 @@ func (r Results) Metrics() model.LintMetrics {
 	return metrics
 }
 
-// Statistics is one row per package: its exported symbols, and how many sit in a file named for them.
+// Statistics is one row per package: its exported symbols, and how many are in a file named for them.
 func (r Results) Statistics() []model.Statistics {
 	rows := make([][]string, 0, len(r.order))
 	var symbols, passing, contained int

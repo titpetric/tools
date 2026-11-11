@@ -1,11 +1,11 @@
 // Package sizes renders the files of a document as a size report: every file
-// with its byte size, the per directory totals, and a histogram over the
+// with its byte size, the per directory totals. A histogram over the
 // files.
 //
-// The JSON is the contract go-ddd-stats wrote, so a consumer storing these
-// payloads reads old and new rows the same way: Files carry Name, Path,
-// Package and Size, Packages carry the per directory Name, Path, Size, Count
-// and Average, and the Histogram buckets run from "< 1 KB" to "> 256 KB".
+// The JSON is the contract go-ddd-stats wrote. A consumer storing these
+// payloads reads old and new rows the same way: Files hold Name, Path,
+// Package and Size, Packages hold the per directory Name, Path, Size, Count
+// and Average. The Histogram buckets run from "< 1 KB" to "> 256 KB".
 package sizes
 
 import (
@@ -59,7 +59,7 @@ func Write(w io.Writer, defs model.DefinitionList) error {
 	return err
 }
 
-// Data measures every file the document carries, test files included.
+// Data measures every file the document holds, test files included.
 func Data(defs model.DefinitionList) *Stats {
 	seen := map[string]bool{}
 	stats := &Stats{Files: []*File{}, Packages: []*Package{}, Histogram: histogram(nil)}

@@ -13,7 +13,7 @@ import (
 // part of the name that reaches the package: a file imports
 // "example.com/thing/v2" as "thing".
 //
-// It starts at v2. A v0 or v1 module carries no suffix, so a path ending in
+// It starts at v2. A v0 or v1 module holds no suffix. A path ending in
 // /v1 is a directory of that name: prometheus api/prometheus/v1 is package
 // v1.
 //
@@ -22,12 +22,12 @@ import (
 var majorVersion = regexp.MustCompile(`/v([2-9]|[1-9][0-9]+)$`)
 
 // dottedVersion matches the major version gopkg.in writes onto the last
-// segment, with no segment of its own: a file imports "gopkg.in/yaml.v3" as
+// segment, with no segment separate: a file imports "gopkg.in/yaml.v3" as
 // yaml.
 var dottedVersion = regexp.MustCompile(`\.v[0-9]+$`)
 
 // StringSet is a key based unique string slice. It keeps its values in source
-// order, so a document read back is the document written; Get and All read
+// order. A document read back is the document written; Get and All read
 // them in a stable order, since Go walks a map at random and a reader of the
 // set decides things from it, such as which of two colliding imports comes first.
 type StringSet map[string][]string
@@ -130,9 +130,9 @@ func (i StringSet) Map(imports []string) (map[string]string, []error) {
 			continue
 		}
 
-		// No name reaches a blank import, so there is no name to map and no
+		// No name reaches a blank import. There is no name to map and no
 		// collision it can be part of. Map records it as an import all the
-		// same, and a rule about side effects reads that record.
+		// same. A rule about side effects reads that record.
 		if short == "_" {
 			continue
 		}

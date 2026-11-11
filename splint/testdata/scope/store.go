@@ -1,5 +1,5 @@
 // The self contained check: this file declares what the file beside it
-// reaches, and neither of them can be built without the other.
+// reaches. Neither of them can be built without the other.
 package scope
 
 // Store is what the handler beside this file is built on.

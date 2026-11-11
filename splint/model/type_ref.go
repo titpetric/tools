@@ -17,7 +17,7 @@ func TypeRef(name string) string {
 		name = strings.SplitN(name, "]", 2)[1]
 	}
 
-	// A generic instantiation names a type and its type arguments, and the
+	// A generic instantiation names a type and its type arguments. The
 	// reference is the type alone: a method on *Stack[T] belongs to Stack,
 	// and TestStack_Push tests it.
 	if open := strings.IndexByte(name, '['); open >= 0 && strings.HasSuffix(name, "]") {

@@ -30,11 +30,11 @@ type collector struct {
 	fset *token.FileSet
 
 	// info and scope are what resolve an identifier. A name is a package level
-	// one when the object it uses sits in the package scope, which
+	// one when the object it uses is in the package scope, which
 	// tells it from a local, a field, a label and a builtin without
 	// tracking a single scope by hand.
 	//
-	// Both are nil for a package the loader could not type check, and the
+	// Both are nil for a package the loader could not type check. The
 	// globals of that package are then not collected.
 	info  *types.Info
 	scope *types.Scope
@@ -63,9 +63,9 @@ func NewCollector(fset *token.FileSet, info *types.Info, pkg *types.Package) *co
 // globals are the package level names a declaration reaches that its own file
 // does not declare.
 //
-// The walk is every identifier of the node, and the resolution decides what is
+// The walk is every identifier of the node. The resolution decides what is
 // worth recording: a local, a parameter, a struct field and a builtin all
-// resolve to something that is not the package scope, and the name after a
+// resolve to something that is not the package scope. The name after a
 // selector resolves to a field or a method and never to the package. What
 // remains is the coupling of one file to the rest of its package.
 func (v *collector) globals(filename string, node ast.Node) model.StringSet {
@@ -265,7 +265,7 @@ func (v *collector) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 		// If there's a function declaration in the stack, the
 		// var/const/struct is internal to a function. A func literal is a
 		// function too: the body of one initializing a package level var
-		// declares locals of its own, and none of them is a package var.
+		// declares its own locals, and none of them is a package var.
 		for _, k := range stack {
 			switch k.(type) {
 			case *ast.FuncDecl, *ast.FuncLit:
@@ -410,7 +410,7 @@ func (v *collector) collectFuncDeclaration(file *ast.File, decl *ast.FuncDecl, f
 
 // typeParamNames are the names a generic func binds, read off the field list
 // between the name and the parameters. The list leaves the constraints out: the two
-// parsers render an exotic constraint differently, and a name is all a
+// parsers render an exotic constraint differently. A name is all a
 // consumer reads from the list.
 func typeParamNames(params *ast.FieldList) []string {
 	if params == nil {
@@ -465,8 +465,8 @@ func (p *collector) symbolType(file *ast.File, expr ast.Expr) string {
 }
 
 // argumentCount is how many parameters a caller passes: one per name in a
-// field, and one for a field that names none. functionBindings answers the
-// distinct types instead, so neither number follows from the other.
+// field, or one for a field that names none. functionBindings answers the
+// distinct types instead. Neither number follows from the other.
 func argumentCount(params *ast.FieldList) int {
 	if params == nil {
 		return 0

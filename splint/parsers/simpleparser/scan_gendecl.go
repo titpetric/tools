@@ -109,7 +109,7 @@ func entryEnd(src *source, line int) int {
 	// A value written as a raw string runs to wherever the string closes,
 	// which the code on the line says nothing about: every brace and keyword
 	// inside the string is text. The line reads as an opening brace or paren
-	// once the string is blanked out, so this test comes first.
+	// once the string is blanked out. This test comes first.
 	if src.rawOpen(line) {
 		end := line
 		for src.rawOpen(end) && end < src.len()-1 {
@@ -122,7 +122,7 @@ func entryEnd(src *source, line int) int {
 	switch {
 	case strings.HasSuffix(code, "{"):
 		// A composite literal closes more than once: "var x = []T{" ends on
-		// the brace after the elements, and a line holding "}{" in between
+		// the brace after the elements. A line holding "}{" in between
 		// closes the element type and opens the value. Counting depth finds
 		// the last of them; a brace at column zero finds the first.
 		return bodyEnd(src, line)
@@ -136,7 +136,7 @@ func entryEnd(src *source, line int) int {
 // readType reads one type spec into the declaration and returns the name it
 // declares.
 //
-// A block declaring two or more types folds into one declaration, so the fields
+// A block declaring two or more types folds into one declaration. The fields
 // accumulate and the last spec's type is the one recorded. That is what
 // the ast collector does with the same input.
 func (f *file) readType(decl *model.Declaration, src *source, in entry) []string {
@@ -172,7 +172,7 @@ func (f *file) readType(decl *model.Declaration, src *source, in entry) []string
 
 // flattenFieldPaths drops the type prefix from the fields of a block
 // declaring more than one type. The ast collector records such a block as one
-// declaration with no single name, so its fields are known by the field name
+// declaration with no single name. Its fields are known by the field name
 // alone.
 func flattenFieldPaths(decl *model.Declaration) {
 	for _, field := range decl.Fields {
@@ -186,7 +186,7 @@ func flattenFieldPaths(decl *model.Declaration) {
 
 // readValue reads one const or var spec and returns the names it declares.
 //
-// A spec names one symbol or more, and the last of them carries the type
+// A spec names one symbol or more. The last of them holds the type
 // when the spec has one: "a, b int = 1, 2" declares two names of type int.
 func readValue(code string) []string {
 	head := code
@@ -221,7 +221,7 @@ func readValue(code string) []string {
 // cutTypeName splits a type spec into the name it declares and the type
 // behind that name.
 //
-// A generic type carries its parameters between the two, "List[T any] []T",
+// A generic type holds its parameters between the two, "List[T any] []T",
 // and the space inside them is not the space that separates the halves.
 func cutTypeName(spec string) (name, rest string, found bool) {
 	spec = strings.TrimSpace(spec)

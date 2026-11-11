@@ -23,10 +23,10 @@ const (
 	boxCross       = "┼"
 )
 
-// table draws a table: a top border, the headings, a rule, the rows, and a
+// table draws a table: a top border, the headings, a rule, the rows. A
 // bottom border.
 //
-// table measures a cell by its width on screen and ignores its length, so a
+// table measures a cell by its width on screen and ignores its length. A
 // coloured cell lines up with a plain one: the escape codes are not width.
 func table(w io.Writer, labels []string, rows [][]string, colors []string) {
 	widths := columnWidths(labels, rows)
@@ -80,7 +80,7 @@ func headings(w io.Writer, labels []string, widths []int) {
 	fmt.Fprintln(w, join(cells))
 }
 
-// row draws one row, with each cell in the colour its column carries.
+// row draws one row, with each cell in the colour its column holds.
 func row(w io.Writer, cells []string, widths []int, colors []string) {
 	written := make([]string, 0, len(widths))
 

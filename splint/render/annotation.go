@@ -67,7 +67,7 @@ func annotationKind(severity model.Severity) string {
 }
 
 // escapeData is the escaped form of a message: the runner reads a command up to
-// the first line ending, and a percent opens an escape.
+// the first line ending. A percent opens an escape.
 func escapeData(value string) string {
 	return strings.NewReplacer(
 		"%", "%25",
@@ -76,7 +76,7 @@ func escapeData(value string) string {
 	).Replace(value)
 }
 
-// escapeProperty is the escaped form of a property value: the same, and the
+// escapeProperty is the escaped form of a property value: the same. The
 // two characters that separate the properties from each other and from the
 // message.
 func escapeProperty(value string) string {

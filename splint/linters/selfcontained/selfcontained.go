@@ -4,7 +4,7 @@
 // A declaration that reaches only its own imports and what sits beside
 // it in the file is extractable: everything it builds on is in one place,
 // which is all `go build one_file.go` needs. One that reaches a name
-// declared in another file of the package is not, and the file holding it cannot
+// declared in another file of the package is not. The file holding it cannot
 // move without that other file. filescope answers that question,
 // and the grouping linter asks it too.
 //
@@ -24,16 +24,16 @@ import (
 const Name = "selfcontained"
 
 // Linter measures the file scope of every package and reports nothing:
-// coupling has no share a package ought to have, and one unit written in
+// coupling has no share a package ought to have. One unit written in
 // three files is as legitimate as three.
 type Linter struct{}
 
-// New returns the linter.
+// New returns the linter, which reads no settings.
 func New() *Linter {
 	return &Linter{}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -67,7 +67,7 @@ type directory struct {
 // from, in the order the document lists them.
 //
 // A directory holding an external test package is two definitions of one
-// package, and the files of both are files of that directory.
+// package. The files of both are files of that directory.
 func directories(root *model.DocumentRoot) []*directory {
 	var out []*directory
 	at := map[string]*directory{}
@@ -101,7 +101,7 @@ func measure(results *Results, dir *directory) {
 	scope := filescope.New(dir.defs)
 	pkg := results.pkg(dir.importPath)
 
-	// The linter records every file before it counts anything, so a file declaring
+	// The linter records every file before it counts anything. A file declaring
 	// nothing is still a file of the package.
 	for _, def := range dir.defs {
 		for _, file := range def.Files {
@@ -143,7 +143,7 @@ func measure(results *Results, dir *directory) {
 }
 
 // at is where a file of a package sits, without a line: the measurement is of
-// the file, and every declaration inside counts against the same entry.
+// the file. Every declaration inside counts against the same entry.
 func at(pkg model.Package, name string) model.Position {
 	position := (&model.Declaration{File: name}).Position(pkg)
 	position.Line = 0

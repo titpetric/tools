@@ -1,8 +1,8 @@
-// Package coverreport renders the coverage a document carries as tables.
+// Package coverreport renders the coverage a document holds as tables.
 //
 // coverprofile folds the coverage itself in when it parses the document. This
 // package renders the report over it: one row per function with the coverage
-// and the cognitive complexity beside it, and one row per package with the
+// and the cognitive complexity beside it, plus one row per package with the
 // lines added up. A template turns the two tables into a page; without one the
 // report prints the function table alone.
 package coverage
@@ -86,7 +86,7 @@ func Data(root *model.DocumentRoot, verbose bool) []Row {
 }
 
 // Write renders the report to w: the template with both tables when Options
-// names one, and the function table alone otherwise.
+// names one, the function table alone otherwise.
 func Write(w io.Writer, root *model.DocumentRoot, opts Options) error {
 	module := modulePath(root.Packages)
 
@@ -121,7 +121,7 @@ func Write(w io.Writer, root *model.DocumentRoot, opts Options) error {
 }
 
 // functionTable is the per function table: a pass mark, the package, the
-// function, and the coverage and cognitive complexity behind the mark.
+// function, then the coverage and cognitive complexity behind the mark.
 func functionTable(rows []Row, module string) string {
 	cells := make([][]string, 0, len(rows))
 	for _, r := range rows {
@@ -219,8 +219,8 @@ func relativePackage(module, importPath string) string {
 	return importPath
 }
 
-// collapseColumn blanks a cell that repeats the row above it, so a column
-// reads as the groups it holds. The rows arrive sorted by that column, so a
+// collapseColumn blanks a cell that repeats the row above it. A column
+// reads as the groups it holds. The rows arrive sorted by that column. A
 // value reappearing after a different one starts a different group and
 // collapseColumn writes it again.
 func collapseColumn(rows [][]string, column int) {

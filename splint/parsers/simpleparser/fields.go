@@ -10,11 +10,11 @@ import (
 // structFields reads the fields of a struct body, which runs from the line the
 // type opens on to the brace that closes it.
 //
-// A field declaring three names is three fields, and an embedded field
-// declares none: the parser records it under the empty name, so a renderer
+// A field declaring three names is three fields. An embedded field
+// declares none: the parser records it under the empty name, which lets a renderer
 // tells it from a named one.
 func structFields(src *source, open, close int) model.FieldList {
-	// A struct written on the line the type opens on carries its fields
+	// A struct written on the line the type opens on holds its fields
 	// between the braces: "type source struct{ array *model.Array }".
 	if open == close {
 		return inlineStructFields(src, open)
@@ -33,15 +33,15 @@ func structFields(src *source, open, close int) model.FieldList {
 
 		// A name group may run over more than one line, as in "Alloc,",
 		// "TotalAlloc," up to "PauseTotalNs uint64": the names accumulate until
-		// the line carrying the type arrives, and share it.
+		// the line holding the type arrives, and share it.
 		if names, ok := nameGroupLine(code); ok {
 			pending = append(pending, names...)
 			continue
 		}
 
-		// A field with a body of its own, an anonymous struct or interface,
+		// A field with a nested body, an anonymous struct or interface,
 		// reads as the whole of what it declares: the type is every line of it,
-		// and the tag sits on the line that closes it.
+		// and the tag goes on the line that closes it.
 		skip, nested := i, false
 		if strings.HasSuffix(code, "{") {
 			skip = bodyEnd(src, i)
@@ -146,11 +146,11 @@ func splitInline(list string) []string {
 
 // interfaceMethods reads the methods of an interface body. The parser
 // records a method under its name, with its signature as the type, the way the
-// model carries a method set.
+// model holds a method set.
 func interfaceMethods(src *source, from, to int) model.FieldList {
 	var fields model.FieldList
 
-	// A body written on the line the type opens on carries its methods between
+	// A body written on the line the type opens on holds its methods between
 	// the braces, separated by semicolons: "interface{ GetCode() int }".
 	if from == to {
 		code := strings.TrimSpace(src.codeLine(from))
@@ -186,7 +186,7 @@ func interfaceMethod(code string) *model.Field {
 	open := strings.Index(code, "(")
 	if open <= 0 {
 		// An embedded interface, which the collector records as the one
-		// unnamed field it stands for.
+		// unnamed field it names.
 		return &model.Field{Type: "interface"}
 	}
 
@@ -224,9 +224,9 @@ func splitField(code, written string) (name, typ, tag string) {
 
 	// A name group is one identifier or more, separated by commas and the
 	// spaces around them: "file, dir any" declares two fields of one type. The
-	// group ends at the first identifier no comma follows, so a type holding a
-	// space, "chan int", stays whole. Anything else is a type with no name of
-	// its own, "*T" and "pkg.T" included.
+	// group ends at the first identifier no comma follows: a type holding a
+	// space, "chan int", stays whole. Anything else is a type with no name at
+	// all, "*T" and "pkg.T" included.
 	head, rest, ok := nameGroup(code)
 	if !ok || rest == "" {
 		return "", code, tag
@@ -305,13 +305,13 @@ func fieldTag(line string) string {
 }
 
 // commentOn returns the trailing comment of a line, which is the comment a
-// field carries beside it, as opposed to above it.
+// field holds beside it, as opposed to above it.
 func commentOn(comment string) string {
 	text := strings.TrimSpace(comment)
 	switch {
 	case strings.HasPrefix(text, "//"):
-		// A line comment is text up to the end of the line, so a "*/" inside
-		// it belongs to what was written.
+		// A line comment is text up to the end of the line. A "*/" inside it
+		// is part of the text.
 		return strings.TrimSpace(strings.TrimPrefix(text, "//"))
 	case strings.HasPrefix(text, "/*"):
 		text = strings.TrimPrefix(text, "/*")
@@ -339,7 +339,7 @@ func fieldPath(src *source, open int, name string) string {
 
 // jsonName is the name a field encodes to, which is the json tag when it has
 // one and the field name when it has not. A field tagged "-" encodes to
-// nothing and the parser records it as such.
+// no type. The parser records it as such.
 func jsonName(tag, name string) string {
 	value := reflect.StructTag(tag).Get("json")
 	if value == "" {
@@ -359,7 +359,7 @@ func jsonName(tag, name string) string {
 // the name it declares and every line of its type.
 //
 // The collector prints the type through go/printer, which writes it back the
-// way the author wrote it, so the model records the declaration itself and no
+// way the author wrote it. The model records the declaration itself and no
 // summary of it.
 func nestedField(src *source, open, close int) (name, typ string) {
 	written, _ := src.split(open)
@@ -380,7 +380,7 @@ func nestedField(src *source, open, close int) (name, typ string) {
 		lines = append(lines, strings.TrimRight(line, " \t"))
 	}
 
-	// The closing line carries the tag, which is not part of the type.
+	// The closing line holds the tag, which is not part of the type.
 	last := lines[len(lines)-1]
 	if tick := strings.Index(last, "`"); tick >= 0 {
 		lines[len(lines)-1] = strings.TrimRight(last[:tick], " \t")

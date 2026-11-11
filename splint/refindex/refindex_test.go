@@ -47,7 +47,7 @@ func key(symbol string) refindex.Key {
 }
 
 // TestBuild_References covers the blackbox reach: a reference resolves
-// through the imports of the file that wrote it, and a method marks its type
+// through the imports of the file that wrote it. A method marks its type
 // as well as itself.
 func TestBuild_References(t *testing.T) {
 	test := testFunc("TestClose")
@@ -109,7 +109,7 @@ func TestBuild_Globals(t *testing.T) {
 }
 
 // TestBuild_Transitive covers the looser reading: a symbol reached only by a
-// tested caller is transitively tested and not directly, and a cycle of
+// tested caller is transitively tested and not directly. A cycle of
 // product declarations terminates.
 func TestBuild_Transitive(t *testing.T) {
 	a := &model.Declaration{Kind: model.FuncKind, Name: "A", File: "x.go", Globals: model.StringSet{"B": nil}}

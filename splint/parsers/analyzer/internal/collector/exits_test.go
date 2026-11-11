@@ -67,7 +67,7 @@ func Multiline() *os.File {
 `
 
 // TestExits counts the ways each function leaves: a return, a call that ends
-// the program, and a body running off its end. A literal's return is its own.
+// the program. A body running off its end. A literal's return is its own.
 func TestExits(t *testing.T) {
 	t.Parallel()
 

@@ -17,7 +17,7 @@ import (
 // comes back typed, under DocumentRoot.Tagged, with the method it calls on a
 // value resolved.
 //
-// The parse moves the process into the tree it reads, so this test runs
+// The parse moves the process into the tree it reads. This test runs
 // alone.
 func TestParseTagged(t *testing.T) {
 	dir := t.TempDir()

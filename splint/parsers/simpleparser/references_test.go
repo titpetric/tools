@@ -17,7 +17,7 @@ func TestSelectors(t *testing.T) {
 		// A chained selector reaches one package through one symbol; what
 		// follows belongs to the value that returned.
 		{line: "a.B.C()", want: []selector{{pkg: "a", symbol: "B"}}},
-		// A number is not a selector, and neither is a call result.
+		// A number is not a selector. Neither is a call result.
 		{line: "x := 1.5", want: nil},
 		{line: "f().X", want: nil},
 		{line: "no selector here", want: nil},
@@ -45,7 +45,7 @@ func TestSelectors(t *testing.T) {
 }
 
 // TestFileReferences covers the two things that decide a reference: the name
-// has to be one the file imports, and the symbol has to carry a capital.
+// has to be one the file imports. The symbol has to hold a capital.
 func TestFileReferences(t *testing.T) {
 	src := newSource("x.go", []byte(`package p
 
@@ -112,7 +112,7 @@ func TestTrimTypeParams(t *testing.T) {
 // the brace closing the block above it.
 //
 // "} else if pkg, decl := f(); decl != nil {" binds pkg and decl. The scanner
-// reads one line at a time, so that leading brace has no opener on the line;
+// reads one line at a time. That leading brace has no opener on the line;
 // counting it would put the := that follows inside a block that is not there,
 // and both names would read as packages the file reaches without importing.
 func TestBodyLocalsAfterAClosingBrace(t *testing.T) {

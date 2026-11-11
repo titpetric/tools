@@ -1,16 +1,16 @@
-// Package pairing reports a file with no test beside it, and a test with no
+// Package pairing reports a file with no test beside it. A test with no
 // file beside it.
 //
 // The linter excuses a file without one when a test somewhere in the document
 // references every exported symbol it declares: the tests of such a file
-// exist, they just sit in another package, which is a layout and no
+// exist; another package holds them, which is a layout and no
 // gap.
 //
-// A test excuses nothing: foo_test.go names foo.go, and a directory holding
+// A test excuses no file: foo_test.go names foo.go. A directory holding
 // only the first is a file somebody deleted or renamed, leaving its test
 // behind. The exception is a directory that holds test code and no code: a
-// package whose name says so, such as fstest, and a package under tests/, which
-// is where a tree keeps the black box suites that name no file.
+// package whose name says so, such as fstest. A package under tests/,
+// the place a tree keeps the black box suites that name no file.
 //
 // The package ports the gofsck analyzer of the same name onto
 // the splint model: the check is the same idea and the reading is different,
@@ -41,10 +41,10 @@ const (
 )
 
 // Linter reports a file with no test beside it. A package and its test package
-// arrive as two definitions of one directory, so it gathers the files by
+// arrive as two definitions of one directory. It gathers the files by
 // directory before it pairs any.
 type Linter struct {
-	// Tag is the build tag integration tests sit behind. A test behind it
+	// Tag is the build tag guarding the integration tests. A test behind it
 	// counts like any other: the file it tests has its test.
 	Tag string
 }
@@ -54,7 +54,7 @@ func New() *Linter {
 	return &Linter{Tag: "integration"}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -90,7 +90,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 	index := refindex.Build(root)
 
-	// The linter reports the groups in the order the document named them, so a run
+	// The linter reports the groups in the order the document named them. A run
 	// over the same tree reports the same issues in the same order.
 	for _, key := range order {
 		groups[key].report(index, &results)
@@ -103,7 +103,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 // in, split into the half a test binary compiles and the half it does not.
 type group struct {
 	// tag names the integration tests: foo_integration_test.go pairs foo.go
-	// the way foo_test.go does, so a file has a unit test, an integration
+	// the way foo_test.go does: a file has a unit test, an integration
 	// test, or both.
 	tag string
 
@@ -113,12 +113,12 @@ type group struct {
 	tested map[string]model.File
 
 	// bases names every file of the directory a test can take its name from,
-	// generated files included: the linter does not judge a generated file, and a test
+	// generated files included: the linter does not judge a generated file. A test
 	// written beside one still names a file that is there.
 	bases map[string]bool
 
 	// symbols are the exported declarations of each file, keyed the way the
-	// files are, so the report can check a standalone file for tests elsewhere.
+	// files are, which lets the report check a standalone file for tests elsewhere.
 	symbols map[string][]refindex.Key
 }
 
@@ -137,8 +137,8 @@ func newGroup(tag string) *group {
 // read takes the files of one definition into the group.
 //
 // The definition that is not the test package names the directory the way an
-// importer would, so the group takes its name from that one: the test half of
-// "x" sits under "x_test", which is an import path nothing outside the
+// importer would. The group takes its name from that one: the test half
+// of "x" is "x_test", an import path nothing outside the
 // test binary has.
 func (g *group) read(def *model.Definition) {
 	if !g.named || (g.pkg.TestPackage && !def.Package.TestPackage) {
@@ -161,7 +161,7 @@ func (g *group) read(def *model.Definition) {
 	}
 
 	// The exported declarations of every non-test file, recorded against the
-	// same key as the file, so report can check whether a test somewhere else
+	// same key as the file, which lets report check whether a test somewhere else
 	// covers the file's whole surface.
 	for _, decl := range def.Order() {
 		if decl.IsTestScope() || !decl.IsExported() {
@@ -178,7 +178,7 @@ func (g *group) read(def *model.Definition) {
 	}
 }
 
-// packageDoc reports a doc.go or docs.go declaring nothing, which holds the
+// packageDoc reports a doc.go declaring nothing, which holds the
 // package's prose and no code to test.
 func packageDoc(def *model.Definition, file model.File) bool {
 	if file.Test || (file.Name != "doc.go" && file.Name != "docs.go") {
@@ -211,8 +211,8 @@ func (g *group) testBase(file model.File) string {
 //
 // The linter counts, and does not report, a standalone file whose exported symbols
 // tests reference in full: its tests exist, in the package their authors
-// chose. A file exporting nothing has no surface to excuse it, and
-// the linter reports it as before.
+// chose. A file exporting no symbol has no surface to excuse it. The linter
+// reports it as before.
 func (g *group) report(index *refindex.Index, results *Results) {
 	metric := results.count(g.pkg, len(g.files), len(g.tested))
 
@@ -233,7 +233,7 @@ func (g *group) report(index *refindex.Index, results *Results) {
 		}
 	}
 
-	// Map iteration has no order, so the linter sorts the findings back into the order
+	// Map iteration has no order. The linter sorts the findings back into the order
 	// a reader would list the directory in.
 	sort.Strings(standalone)
 	sort.Strings(orphans)
@@ -268,19 +268,18 @@ func (g *group) report(index *refindex.Index, results *Results) {
 	}
 }
 
-// excused reports a directory holding test code and no code, which is
-// where a test named after nothing belongs: fstest, httptest, testing and a
+// excused reports a directory holding test code and no code, the place a test named after nothing belongs: fstest, httptest, testing and a
 // repository's own tests each declare a package saying so.
 //
-// The external test scope of any package carries the name "<name>_test", and the
+// The external test scope of any package takes the name "<name>_test". The
 // suffix comes off before the check reads the name: it says where a file compiles,
 // not what the directory is for.
 //
 // A directory says it too. A tree that keeps its black box suites under tests/
 // has nothing there for a test to take its name from, by construction: the package
-// holds tests and no code, so every file there is an orphan and the rule has
-// nothing to report. The check reads the path as segments, never as a prefix, so
-// tests/ at the root and internal/tests/ are both covered, and a package merely
+// holds tests and no code: every file there is an orphan and the rule has no
+// finding. The check reads the path as segments, never as a prefix, which means
+// tests/ at the root and internal/tests/ are both covered. A package merely
 // called "attestation" is not.
 func excused(pkg model.Package) bool {
 	if strings.Contains(strings.TrimSuffix(pkg.Package, "_test"), "test") {
@@ -316,7 +315,7 @@ func (g *group) testedElsewhere(index *refindex.Index, base string) bool {
 }
 
 // position is where a file is, relative to the root of the parse. The file
-// records its base name and the package records the directory, so neither says
+// records its base name and the package records the directory. Neither says
 // on its own where a reader should look.
 func position(pkg model.Package, file model.File) model.Position {
 	dir := strings.TrimPrefix(strings.TrimPrefix(pkg.Path, "."), "/")

@@ -18,12 +18,12 @@ const RuleOrder = "order"
 // Linter checks the return order of every function.
 type Linter struct{}
 
-// New returns the linter.
+// New returns the linter, which reads no settings.
 func New() *Linter {
 	return &Linter{}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }

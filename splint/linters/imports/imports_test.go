@@ -95,7 +95,7 @@ func TestLinterOnTheRootPackage(t *testing.T) {
 }
 
 // The fixture: source written the way a file nobody ever formatted
-// writes it, and the same source as the formatter should leave it.
+// writes it. The same source as the formatter should leave it.
 //
 // testdata/output is what `atkins fix` writes, for reading a change by eye.
 // This test writes its own copy into a temporary directory so a run of it
@@ -127,7 +127,7 @@ func TestFixGolden(t *testing.T) {
 
 			// The ast parser receives a cgo file only when the toolchain
 			// compiles one. Under CGO_ENABLED=0 a file importing "C" is not
-			// part of the package at all, so the parser never sees it and the
+			// part of the package at all. The parser never sees it and the
 			// fixer has nothing to write. The quick parser reads the text and
 			// always sees it.
 			wanted := []string{
@@ -218,7 +218,7 @@ func planFor(t *testing.T, parser, dir string) *fix.Plan {
 }
 
 // compareTree reports every file of the tree that is not what the golden tree
-// says, and every file that is in one tree and not the other.
+// says. Every file that is in one tree and not the other.
 //
 // A parse that never saw the cgo file leaves it as the input wrote it, which
 // is the right answer for a parser the toolchain kept that file from.
@@ -269,7 +269,7 @@ func names(t *testing.T, dir string) []string {
 	return out
 }
 
-// copyTree writes a copy of a tree, so a test has a tree it may
+// copyTree writes a copy of a tree. A test has a tree it may
 // rewrite.
 func copyTree(t *testing.T, from, to string) {
 	t.Helper()
@@ -395,7 +395,7 @@ func TestRulesOverTheUnformattedFixture(t *testing.T) {
 // reading the last segment of an import path as the package name.
 //
 // goyaml.go imports github.com/goccy/go-yaml and writes yaml. The last segment
-// of that path is go-yaml, which is not a Go identifier, so the name the import
+// of that path is go-yaml, which is not a Go identifier. The name the import
 // goes by is a guess. Reporting the import as unused would take out an
 // import the file needs, and reporting yaml as unresolved would be an error
 // against a file that builds. The linter reports neither and leaves the file alone.
@@ -437,7 +437,7 @@ func TestAnIndirectRequirementIsNotASecondImport(t *testing.T) {
 	}
 }
 
-// TestFixableIssuesSayWhatClearsThem covers the attribute a report carries so
+// TestFixableIssuesSayWhatClearsThem covers the attribute a report holds so
 // a reader knows a finding is one command away.
 func TestFixableIssuesSayWhatClearsThem(t *testing.T) {
 	byRule := fixture(t, inputDir, nil)
@@ -464,7 +464,7 @@ func TestTheFormattedFixturePasses(t *testing.T) {
 	assert.Empty(t, files(byRule[imports.RuleFormat]))
 	assert.Empty(t, files(byRule[imports.RuleUnused]))
 
-	// broken.go sits in the golden tree unchanged, because the fixer had nothing to
+	// broken.go is in the golden tree unchanged, because the fixer had nothing to
 	// write into it. The linter still reports it.
 	assert.Equal(t, []string{"broken/broken.go"}, files(byRule[imports.RuleUnresolved]))
 }
@@ -474,14 +474,14 @@ func TestTheFormattedFixturePasses(t *testing.T) {
 // and the linter reports only a dependency the tree took on.
 func TestPollutionLeavesLocalPackagesAlone(t *testing.T) {
 	byRule := fixture(t, goldenDir, func(l *imports.Linter) {
-		// One file of one package is enough to trip it, so the linter reports
+		// One file of one package is enough to trip it. The linter reports
 		// every import it can.
 		l.Pollution = imports.Pollution{PerPackage: 1, FileShare: 0.01, Tests: true}
 	})
 
 	// The symbol is the dependency reported. Every package of this tree is
 	// under example.com/imports and more than one file reaches
-	// each of them, so any of them showing up here would be the rule judging
+	// each of them. Any of them showing up here would be the rule judging
 	// a package structure.
 	for _, issue := range byRule[imports.RulePollution] {
 		assert.NotContains(t, issue.Symbol, "example.com/imports",
@@ -503,7 +503,7 @@ func TestPollutionLeavesLocalPackagesAlone(t *testing.T) {
 // test file.
 //
 // A package and its test half are two definitions of one directory in the
-// model, and the count is per directory. Counting them apart would let a
+// model. The count is per directory. Counting them apart would let a
 // dependency reach every test of a package without the rule saying so.
 func TestPollutionCountsAPackageAndItsTestsTogether(t *testing.T) {
 	byRule := fixture(t, goldenDir, nil)

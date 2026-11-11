@@ -8,7 +8,7 @@ import (
 // read as code: the inside of a string, a rune or a comment.
 //
 // The source strips once, up front, and keeps the two views side by side.
-// The parser matches every anchor against the stripped line, so a
+// The parser matches every anchor against the stripped line. A
 // brace in a string literal never closes a function and the word "func" in a
 // comment never opens one. Everything the parser reports comes from the
 // raw line.
@@ -29,12 +29,12 @@ type source struct {
 
 // lineInfo is what stripping one line established about it.
 type lineInfo struct {
-	// code is the line with the strings and comments blanked out, so a scan
+	// code is the line with the strings and comments blanked out. A scan
 	// for a brace or a keyword reads only code.
 	code string
 
 	// commentAt is where the comment on the line begins, and is -1 for a line
-	// carrying none. A backtick inside a comment is not a struct tag, and the
+	// holding none. A backtick inside a comment is not a struct tag. The
 	// stripped view cannot say so: it blanks the comment and the tag alike.
 	commentAt int32
 
@@ -91,7 +91,7 @@ func (s *source) len() int {
 	return len(s.lines)
 }
 
-// line returns one raw line, and an empty string past the end.
+// line returns one raw line, or an empty string past the end.
 func (s *source) line(i int) string {
 	if i < 0 || i >= len(s.lines) {
 		return ""
@@ -150,7 +150,7 @@ func (s *source) text(from, to int) string {
 // declText is text with the spacing before a comment trailing the last line
 // rewritten the way go/printer writes it, which is a declaration's source as
 // the ast collector records it. The printer separates the comment from the
-// code with a tab where the source may hold a single space, so the raw line
+// code with a tab where the source may hold a single space. The raw line
 // differs in whitespace alone.
 func (s *source) declText(from, to int) string {
 	if from < 0 {
@@ -171,7 +171,7 @@ func (s *source) declText(from, to int) string {
 			last = strings.TrimRight(last[:at], " \t") + "\t" + comment
 			if strings.HasPrefix(comment, "//") {
 				// The printer ends a line comment with a newline, which the
-				// node it was attached to then carries at its end.
+				// node it was attached to then holds at its end.
 				last += "\n"
 			}
 		}
@@ -186,14 +186,14 @@ func (s *source) declText(from, to int) string {
 }
 
 // strip blanks out everything on a line that is not code: the inside of a
-// string, a raw string, a rune, and a comment. The blanks are spaces, so every
+// string, a raw string, a rune, a comment. The blanks are spaces, so every
 // column of the stripped line lines up with the column it came from.
 //
 // It returns the line, where the comment on it begins, and what is still open
-// at the end of it, the state the scan carries into the next line.
+// at the end of it, the state the scan holds into the next line.
 func strip(line string, open openState) (string, int, openState) {
 	// Most lines hold no string or comment to blank, and strip returns
-	// such a line as it is: the check costs one scan, and the line goes
+	// such a line as it is: the check costs one scan. The line goes
 	// on sharing the memory of the file it came from.
 	if open == (openState{}) && !strings.ContainsAny(line, "\"`'/") {
 		return line, -1, open
@@ -279,7 +279,7 @@ func strip(line string, open openState) (string, int, openState) {
 	}
 
 	// A string or a rune does not survive a line break in Go; a raw string and
-	// a block comment do, so the scan carries both to the next line.
+	// a block comment do. The scan holds both to the next line.
 	return string(out), comment, openState{comment: inBlockComment, raw: inRaw}
 }
 
@@ -289,17 +289,17 @@ type openState struct {
 	comment bool
 
 	// raw is a raw string the line opened and did not close. A brace or a
-	// keyword inside one is text, and a scan that read it as code would close
+	// keyword inside one is text. A scan that read it as code would close
 	// a declaration in the middle of a template.
 	raw bool
 }
 
-// codeLines is how many lines of the file carry code, blanks and comments left
+// codeLines is how many lines of the file hold code, blanks and comments left
 // out, the unit a measurement of a package counts.
 //
 // The count reads the raw line, and skips the stripped one: stripping
-// blanks the inside of every string, so an import line reads as empty when the
-// literal is the only thing on it, and a table of literals would count as
+// blanks the inside of every string. An import line reads as empty when the
+// literal is the only thing on it. A table of literals would count as
 // nothing at all.
 func (s *source) codeLines() int {
 	count := 0

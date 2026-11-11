@@ -11,7 +11,7 @@ import (
 )
 
 // Read parses the go.mod at filename into the module facts the model
-// carries: the go and toolchain directives and every pinned require.
+// holds: the go and toolchain directives and every pinned require.
 func Read(filename string) (*model.Module, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -26,7 +26,7 @@ func Read(filename string) (*model.Module, error) {
 	module := moduleFrom(parsed)
 
 	// Read also reads the go.sum beside it when there is one. A module that
-	// nobody has built yet has none, and a module is worth reporting on either
+	// nobody has built yet has none. A module is worth reporting on either
 	// way.
 	module.Sums, _ = ReadSum(filepath.Join(filepath.Dir(filename), "go.sum"))
 
@@ -57,10 +57,10 @@ func Find(dir string) (*model.Module, error) {
 
 // moduleFrom copies a parsed go.mod into the model.
 //
-// The require block sits in the order go mod tidy last left it, and a
+// The require block keeps the order go mod tidy last left it. A
 // module is free to hold more than one, so moduleFrom sorts the lists by module
 // path. Two revisions that require the same things then produce the same
-// model, and a diff of the two reports nothing.
+// model. A diff of the two reports nothing.
 func moduleFrom(parsed *modfile.File) *model.Module {
 	result := &model.Module{}
 

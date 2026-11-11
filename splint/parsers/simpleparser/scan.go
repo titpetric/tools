@@ -30,7 +30,7 @@ type file struct {
 
 	// names are every name the file declares at the top level, types and
 	// values and funcs alike. A selector reaching one of them reaches
-	// something written here, and no package.
+	// something written here, never a package.
 	names map[string]bool
 
 	// Types, Consts, Vars and Funcs are what the file declares.
@@ -123,7 +123,7 @@ func docAbove(src *source, line int) string {
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
-// docStart is the first line of the doc comment above a line, and the line
+// docStart is the first line of the doc comment above a line, or the line
 // itself when there is no comment above it.
 func docStart(src *source, line int) int {
 	start := line
@@ -137,7 +137,7 @@ func docStart(src *source, line int) int {
 // says.
 //
 // The parser drops exactly one space after the marker and no more, matching
-// go/ast, and that keeps an indented code block in a doc comment indented:
+// go/ast. That keeps an indented code block in a doc comment indented:
 // "//\tctx := ..." is an example for a reader to see as one.
 func trimMarker(line string) string {
 	text := strings.TrimLeft(line, " \t")
@@ -163,7 +163,7 @@ func trimMarker(line string) string {
 // isDirective reports whether a comment is an instruction to a tool rather
 // than something written for a reader: "//go:embed", "//line", "//export".
 //
-// go/ast leaves them out of a doc comment, so a document that carried them
+// go/ast leaves them out of a doc comment. A document that held them
 // would say a doc comment covers a symbol with something nobody wrote for a reader.
 // The rule is go/ast's: a lower case name, a colon, and something after it,
 // with no space anywhere before the colon.
@@ -197,7 +197,7 @@ func isDirective(line string) bool {
 
 // declaredNames collects every name a file declares at the top level.
 //
-// go/parser resolves an identifier against its own file, so a
+// go/parser resolves an identifier against its own file. A
 // name declared here is a local to the collector and a name declared in
 // another file of the same package is not. That is the line this draws, and
 // that is why a package level var used across two files turns up in Globals.
@@ -291,14 +291,14 @@ func specNames(spec, keyword string) []string {
 // blockEnd anchors on column zero, where gofmt puts the brace closing
 // a top level declaration and nowhere else. A body nested inside one, an
 // anonymous struct declared as a field's type, closes at the
-// indentation it opened at, so the scan has to count its extent.
+// indentation it opened at. The scan has to count its extent.
 func bodyEnd(src *source, from int) int {
 	return bodyEndFrom(src, from, 0)
 }
 
 // bodyEndFrom counts from a column of the line the body opens on, which is
 // what a signature ending in "} {" needs: the brace that opens the body is not
-// the first one on its line, and the one before it belongs to the result type.
+// the first one on its line. The one before it belongs to the result type.
 func bodyEndFrom(src *source, from, column int) int {
 	depth := 0
 

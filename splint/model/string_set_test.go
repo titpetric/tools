@@ -52,7 +52,7 @@ func TestStringSetKeysDoesNotReorderTheSet(t *testing.T) {
 }
 
 // TestStringSetAllIsOrdered covers what a reader of All decides with it. The
-// import collision message names which of two paths came first, and a map
+// import collision message names which of two paths came first. A map
 // walked at random answers that differently every run.
 func TestStringSetAllIsOrdered(t *testing.T) {
 	set := NewStringSet()

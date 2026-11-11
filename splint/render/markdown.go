@@ -97,7 +97,7 @@ func severityName(severity model.Severity) string {
 // MarkdownStats writes the statistics of every linter as padded markdown
 // tables, one per linter, a blank line apart.
 //
-// The header prints above the table and the footer below it, and a linter
+// The header prints above the table and the footer below it. A linter
 // writes the one line a reader takes away in the footer.
 func MarkdownStats(w io.Writer, reports []model.LintReport) error {
 	first := true

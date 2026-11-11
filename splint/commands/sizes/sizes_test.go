@@ -9,7 +9,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// TestData pins the report to the go-ddd-stats contract: the file names carry
+// TestData pins the report to the go-ddd-stats contract: the file names hold
 // the directory, the root package reads ".", the directories group the files,
 // and the histogram buckets run from "< 1 KB" to "> 256 KB".
 func TestData(t *testing.T) {

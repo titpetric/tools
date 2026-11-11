@@ -12,7 +12,7 @@ func TestDeclarationSymbol(t *testing.T) {
 		{decl: Declaration{Name: "Open"}, want: "Open"},
 		{decl: Declaration{Name: "Close", Receiver: "*Client"}, want: "Client.Close"},
 		{decl: Declaration{Name: "Close", Receiver: "Client"}, want: "Client.Close"},
-		// A const block declares its names as a list and carries no single one.
+		// A const block declares its names as a list and holds no single one.
 		{decl: Declaration{Names: []string{"KindA", "KindB"}}, want: "KindA"},
 		{decl: Declaration{}, want: ""},
 	}

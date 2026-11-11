@@ -129,7 +129,7 @@ func TestLint_Method(t *testing.T) {
 
 // TestLint_Signature covers the declarations the linter reads past. Only a
 // function of the http.HandlerFunc shape is untestable, and only an exported
-// one is a surface a consumer mounts, so the linter counts none of these either.
+// one is a surface a consumer mounts. The linter counts none of these either.
 func TestLint_Signature(t *testing.T) {
 	pkg := model.Package{Package: "api", ImportPath: "example.com/api"}
 
@@ -170,7 +170,7 @@ func TestLint_Signature(t *testing.T) {
 }
 
 // TestLint_Skipped covers the scopes the convention is not a promise in: a
-// file a generator wrote, a test file, and a test package.
+// file a generator wrote, a test file. A test package.
 func TestLint_Skipped(t *testing.T) {
 	pkg := model.Package{Package: "api", ImportPath: "example.com/api"}
 

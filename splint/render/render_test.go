@@ -68,8 +68,8 @@ func TestLine(t *testing.T) {
 		t.Errorf("Line() = %q, want %q", got, want)
 	}
 
-	// A linter with one rule names itself and nothing more, and a finding
-	// about a whole file carries the message after the rule.
+	// A linter with one rule names itself and nothing more. A finding
+	// about a whole file holds the message after the rule.
 	issue.Rule, issue.Symbol = "", ""
 	want = "WARN: model/trace.go:7: godoc: exported symbol lacks a godoc comment"
 	if got := render.Line(issue); got != want {
@@ -113,15 +113,15 @@ func TestAnnotation(t *testing.T) {
 	}
 
 	// A level below a warning is a notice, the path never opens on a
-	// separator, and a block carries the line it ends on.
+	// separator. A block holds the line it ends on.
 	want := "::notice file=frontend/handler.go,line=12,endLine=640,title=filecheck/long::handler.go runs to 612 lines"
 	if got := render.Annotation(issue); got != want {
 		t.Errorf("Annotation() = %q, want %q", got, want)
 	}
 
-	// The runner reads a message to the end of the line, so a line ending in
+	// The runner reads a message to the end of the line. A line ending in
 	// one becomes an escape, and so does the percent that opens one. The
-	// runner reads a property to the next comma or colon, so those become
+	// runner reads a property to the next comma or colon. Those become
 	// escapes too.
 	issue.Rule = "long,ish:er"
 	issue.Position = model.Position{File: "handler.go"}
@@ -181,7 +181,7 @@ func TestIsTerminal(t *testing.T) {
 	}
 }
 
-// strip removes the escape codes, so a test can read what a reader reads.
+// strip removes the escape codes. A test can read what a reader reads.
 func strip(text string) string {
 	var out strings.Builder
 
@@ -214,8 +214,8 @@ func tables() []model.LintReport {
 			model.HeaderText("What the second linter measured."),
 			model.FooterText("One package measured."),
 		)}},
-		// A linter that measures nothing contributes no table, and no empty
-		// one with a heading over it either.
+		// A linter that measures nothing contributes no table, not even an
+		// empty one with a heading over it.
 		results{name: "third"},
 	}
 }
@@ -243,7 +243,7 @@ func TestMarkdownStats(t *testing.T) {
 	}
 
 	// One blank line between the footer of one table and the header of the
-	// next, and no more.
+	// next, and no more than one.
 	if !strings.Contains(got, "17 files in 2 packages.\n\nWhat the second linter measured.") {
 		t.Errorf("MarkdownStats() did not put one blank line between the tables:\n%q", got)
 	}
@@ -264,7 +264,7 @@ func TestMarkdownStatsIsPadded(t *testing.T) {
 	}
 
 	// Every row of one table is the same width, and mdox leaves that alone.
-	// The two tables have different columns, so the test checks them apart.
+	// The two tables have different columns. The test checks them apart.
 	widths := map[string][]int{}
 	table := ""
 	for _, line := range strings.Split(out.String(), "\n") {

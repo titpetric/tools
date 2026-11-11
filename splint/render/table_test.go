@@ -29,14 +29,14 @@ func TestTable(t *testing.T) {
 		}
 	}
 
-	// The widest cell decides the column, and the heading does not.
+	// The widest cell decides the column. The heading does not.
 	if !strings.Contains(lines[0], "─────") || !strings.Contains(ansi.Strip(lines[4]), "./simpleparser") {
 		t.Errorf("table() = \n%s", out.String())
 	}
 }
 
 // TestTableMeasuresWhatIsSeen covers a cell that is already painted: the
-// escape codes are not width, and a table that counted them would run ragged.
+// escape codes are not width. A table that counted them would run ragged.
 func TestTableMeasuresWhatIsSeen(t *testing.T) {
 	var out bytes.Buffer
 	table(&out, []string{"Severity"}, [][]string{

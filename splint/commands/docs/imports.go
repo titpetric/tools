@@ -10,7 +10,7 @@ import (
 
 // renderImports writes a plantuml diagram of which packages of the tree
 // import which: one arrow per import that resolves to a package the document
-// holds, so a dependency outside the tree draws nothing.
+// holds. A dependency outside the tree draws nothing.
 func renderImports(w io.Writer, defs model.DefinitionList) error {
 	pkgs := make(map[string]model.Package)
 	for _, def := range defs {

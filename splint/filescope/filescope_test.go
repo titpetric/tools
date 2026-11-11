@@ -36,7 +36,7 @@ func defs() []*model.Definition {
 }
 
 // TestCoupled covers the two reaches: a global the package declares in another
-// file, and a receiver declared in another file.
+// file. A receiver declared in another file.
 func TestCoupled(t *testing.T) {
 	index := filescope.New(defs())
 
@@ -82,7 +82,7 @@ func TestCoupled(t *testing.T) {
 
 // TestSelfContained covers the file question the grouping linter puts:
 // store.go reaches nothing outside itself, handler.go reaches both of
-// store.go's names, and a file the package does not hold reaches nothing.
+// store.go's names. A file the package does not hold reaches nothing.
 func TestSelfContained(t *testing.T) {
 	index := filescope.New(defs())
 
@@ -102,7 +102,7 @@ func TestSelfContained(t *testing.T) {
 }
 
 // TestSelfContainedReadsEveryDefinition covers the external test package: it
-// forms a second definition of the same directory, and a test file reaching the
+// forms a second definition of the same directory. A test file reaching the
 // package it tests does not make the file it tests coupled.
 func TestSelfContainedReadsEveryDefinition(t *testing.T) {
 	list := defs()

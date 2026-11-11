@@ -11,7 +11,7 @@ import (
 // Issues writes what the linters found, the way the reader of it reads.
 //
 // A terminal is a person: they get what each linter found, and then the
-// findings themselves. Anything else is a program, and a program that is
+// findings themselves. Anything else is a program. A program that is
 // GitHub Actions turns a workflow command into an annotation on a review.
 func Issues(w io.Writer, found *report.Report) error {
 	if !IsTerminal(w) {

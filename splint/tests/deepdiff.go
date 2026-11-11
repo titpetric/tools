@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// KeyedList is a list rendered as a map from identity to element, so a
+// KeyedList is a list rendered as a map from identity to element. A
 // comparison lines two documents up by what a thing is, and never by where it
 // sits.
 //
@@ -28,7 +28,7 @@ func Diff(left, right any, normalise func(path string, a, b any) (any, any)) []D
 // what makes the walk indifferent to the types behind it.
 //
 // encode passes a tree that is already generic through: encoding it again
-// would turn a KeyedList back into its underlying map, and the walk would no
+// would turn a KeyedList back into its underlying map. The walk would no
 // longer line two documents up by identity.
 func encode(value any) any {
 	switch value.(type) {
@@ -50,7 +50,7 @@ func encode(value any) any {
 
 // Scalars is how many leaves a tree has, the base of a difference rate: a
 // rate over declarations says nothing about a field only
-// some declarations carry.
+// some declarations hold.
 func Scalars(value any) int {
 	switch v := value.(type) {
 	case KeyedList:
@@ -170,7 +170,7 @@ func render(value any) string {
 	return string(data)
 }
 
-// unionKeys returns every key either map carries, in order, so the walk
+// unionKeys returns every key either map holds, in order. The walk
 // visits a key only one side has and never skips it.
 func unionKeys[M ~map[string]any](left, right M) []string {
 	seen := make(map[string]bool, len(left)+len(right))

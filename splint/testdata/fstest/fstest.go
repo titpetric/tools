@@ -2,7 +2,7 @@
 // test code, which excuses the test files that are nobody's counterpart.
 package fstest
 
-// Fake returns what a test would stand in with.
+// Fake returns what a test would replace it with.
 func Fake() string {
 	return "fake"
 }

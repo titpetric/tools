@@ -1,13 +1,13 @@
 // Package docs renders a parsed document as an API reference.
 //
 // The reference is the package godoc, the types, consts and vars a package
-// declares, and the signature of every exported function. Function bodies are
+// declares, plus the signature of every exported function. Function bodies are
 // not printed; godoc examples are the exception, printed whole from the test
-// package they live in.
+// package declaring them.
 //
 // Markdown is the default rendering. The others are a spec of the declared
-// symbols, two plantuml diagrams of what the packages reach, and the document
-// itself as JSON. Split mode writes one markdown file per package to a
+// symbols, two plantuml diagrams of what the packages reach, plus the
+// document itself as JSON. Split mode writes one markdown file per package to a
 // directory.
 package docs
 
@@ -46,7 +46,7 @@ type Options struct {
 	// comes off instead.
 	StripPrefix []string
 
-	// Model leaves functions and interfaces out of the puml diagram, so the
+	// Model leaves functions and interfaces out of the puml diagram. The
 	// diagram draws the data model alone.
 	Model bool
 

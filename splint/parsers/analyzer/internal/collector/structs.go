@@ -95,8 +95,8 @@ func (p *collector) parseStruct(structInfo *model.Declaration, file *ast.File, s
 		fieldType := p.symbolType(file, field.Type)
 
 		// One declaration may name two or more fields, as in "Major, Minor uint64",
-		// and each of them is a field of its own. An embedded field names none,
-		// and the collector records it with an empty name, so the renderers tell it
+		// and each of them is a separate field. An embedded field names none,
+		// and the collector records it with an empty name. The renderers tell it
 		// from a named one.
 		for _, goName := range fieldNames(field) {
 			jsonName := JSONTagName(tagValue)
@@ -136,7 +136,7 @@ func (p *collector) parseStruct(structInfo *model.Declaration, file *ast.File, s
 }
 
 // fieldNames returns the names one field declaration declares. An embedded
-// field declares none, and the function returns the single empty name the
+// field declares none. The function returns the single empty name the
 // collector records it under.
 func fieldNames(field *ast.Field) []string {
 	if len(field.Names) == 0 {

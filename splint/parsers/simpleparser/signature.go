@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// splitTop splits a list on a separator at nesting depth zero, so a comma
+// splitTop splits a list on a separator at nesting depth zero. A comma
 // inside a parameter type does not separate two parameters: "func(a, b int)
 // error" is one argument and not two.
 //
@@ -84,7 +84,7 @@ func matchParen(line string, open int) int {
 //
 // The group is what the model counts, because the ast collector counts the
 // fields of the parameter list and a field is a group. Each entry is the names
-// it declares, joined by a comma, and the type they share.
+// it declares, joined by a comma, then the type they share.
 func paramGroups(list string) []paramGroup {
 	list = strings.TrimSpace(list)
 	if list == "" {
@@ -102,7 +102,7 @@ func paramGroups(list string) []paramGroup {
 		return nil
 	}
 
-	// Go requires the whole list named or none of it, so the last item decides
+	// Go requires the whole list named or none of it. The last item decides
 	// for every item: "a, b int" is one group of two names, and "Trace, bool"
 	// is two types with no names at all.
 	if !namedList(items) {
@@ -170,7 +170,7 @@ func (g paramGroup) String() string {
 }
 
 // splitParam separates one parameter into its name and its type. A parameter
-// with no name of its own reports an empty type, and that tells a bare
+// with no name at all reports an empty type. That tells a bare
 // name in a group from a type standing alone.
 func splitParam(param string) (name, typ string) {
 	param = strings.TrimSpace(param)
@@ -178,7 +178,7 @@ func splitParam(param string) (name, typ string) {
 		return "", ""
 	}
 
-	// A name is one identifier, and the type is the text that follows it. A
+	// A name is one identifier. The type is the text that follows it. A
 	// parameter without a plain identifier and a space is a type on its own.
 	space := indexTop(param, ' ')
 	if space < 0 {
@@ -204,7 +204,7 @@ func indexTop(list string, sep byte) int {
 			depth++
 		case ')', ']', '}':
 			// The same as splitTop: "} else if a, b := f(); b != nil {" opens
-			// on the brace that closed the block above it, and the := after it
+			// on the brace that closed the block above it. The := after it
 			// is at the top level of the line.
 			if depth > 0 {
 				depth--
@@ -282,7 +282,7 @@ func groupTypes(groups []paramGroup) []string {
 }
 
 // groupArity counts the parameters the groups declare, the count a caller
-// passes: a group names one parameter per name, and a group with no name at
+// passes: a group names one parameter per name. A group with no name at
 // all is still one parameter.
 func groupArity(groups []paramGroup) int {
 	count := 0
@@ -297,7 +297,7 @@ func groupArity(groups []paramGroup) int {
 }
 
 // signature renders the declaration the way the model records it: the name,
-// the parameter groups in parens, and the results after them, bracketed when
+// the parameter groups in parens. The results after them, bracketed when
 // there is more than one.
 func signature(name string, params, results []paramGroup) string {
 	written := make([]string, 0, len(params))
@@ -329,7 +329,7 @@ func signature(name string, params, results []paramGroup) string {
 // symbolType renders a type the way the ast collector does.
 //
 // The collector walks a type expression and writes each layer back: a pointer,
-// a slice, an ellipsis and a map are rebuilt from what they hold, and an
+// a slice, an ellipsis and a map are rebuilt from what they hold. An
 // interface comes out as "any" with any method set. Anything it has no case
 // for, a func type or a struct written out in place, it prints as the source
 // spells it, so "func(interface{}) error" keeps its interface and

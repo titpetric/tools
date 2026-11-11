@@ -50,7 +50,7 @@ func TestMatch(t *testing.T) {
 }
 
 // TestMatchBadPattern proves Match reports a malformed pattern for any
-// name: the name here matches the readable half of the pattern, so an
+// name: the name here matches the readable half of the pattern. An
 // implementation that stopped matching before it reached the rest would return
 // a verdict and drop the error.
 func TestMatchBadPattern(t *testing.T) {
@@ -63,7 +63,7 @@ func TestMatchBadPattern(t *testing.T) {
 	}
 }
 
-// TestValid is the check a loader runs, and it reads the whole pattern rather
+// TestValid is the check a loader runs. It reads the whole pattern rather
 // than the part a name happened to reach.
 func TestValid(t *testing.T) {
 	require.NoError(t, pathmatch.Valid("**/*_test.go"))

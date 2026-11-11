@@ -14,9 +14,9 @@ import (
 // fileFacts reads what the model records about one file: the code in it, the
 // bytes it takes, and whether anyone wrote it.
 //
-// The line count leaves out blanks and comments, so it measures
+// The line count leaves out blanks and comments. It measures
 // the code and not the file. The simple parser counts the
-// same lines the same way, and the parity harness compares the two.
+// same lines the same way. The parity harness compares the two.
 func fileFacts(fset *token.FileSet, file *ast.File, source []byte, imports bool) model.File {
 	name := shortName(fset.Position(file.Pos()).Filename)
 	lines := strings.Split(string(source), "\n")
@@ -43,20 +43,20 @@ func fileFacts(fset *token.FileSet, file *ast.File, source []byte, imports bool)
 //
 // The loader never sees a cgo file as its author wrote it. The toolchain preprocesses it
 // before the loader sees it: import "C" disappears, an import of "unsafe" stands
-// in its place, and the positions belong to a file that only exists inside the
+// in its place. The positions belong to a file that only exists inside the
 // build. Writing an edit from those line numbers would replace the import of
 // "C" with an import of "unsafe".
 //
 // Parsing the bytes again costs one ImportsOnly pass per file, which stops at
 // the first declaration that is not an import. A file the loader did not
-// rewrite parses to the same thing either way, so this is the reading for
-// every file, and no special case for one kind.
+// rewrite parses to the same thing either way. This is the reading for
+// every file, with no special case for one kind.
 func importFacts(name string, source []byte, lines []string, loaded *ast.File) (model.ImportDeclList, []string, bool) {
 	fset := token.NewFileSet()
 
 	parsed, err := parser.ParseFile(fset, name, source, parser.ImportsOnly|parser.ParseComments)
 	if err != nil {
-		// The loader compiled it, so it parses; anything else is a file that
+		// The loader compiled it. It parses; anything else is a file that
 		// differs on disk from the bytes the compiler read. Reporting
 		// no imports leaves the file alone, the right move for a reader that cannot
 		// see it.
@@ -65,10 +65,10 @@ func importFacts(name string, source []byte, lines []string, loaded *ast.File) (
 
 	decls := importDecls(fset, parsed, lines)
 
-	// Whether a generator wrote the file is a fact about the file, and the
-	// loaded syntax of a cgo file is what cmd/cgo wrote: it carries the
+	// Whether a generator wrote the file is a fact about the file. The
+	// loaded syntax of a cgo file is what cmd/cgo wrote: it holds the
 	// generated marker, and reading it there marks every cgo file as one
-	// nobody wrote. The marker sits above the package clause, so the imports
+	// nobody wrote. The marker goes above the package clause. The imports
 	// only parse of the real bytes is enough to see it.
 	generated := ast.IsGenerated(parsed)
 
@@ -90,9 +90,9 @@ func importFacts(name string, source []byte, lines []string, loaded *ast.File) (
 
 // importDecls reads the import declarations of a file as the author wrote them.
 //
-// The specs of a declaration carry their own doc and line comments, and the
+// The specs of a declaration hold their own doc and line comments. The
 // blank lines between them come off the source: the syntax tree records
-// where every spec begins, and the gap between one spec and the next is what
+// where every spec begins. The gap between one spec and the next is what
 // says the file put them in different groups.
 func importDecls(fset *token.FileSet, file *ast.File, lines []string) model.ImportDeclList {
 	var decls model.ImportDeclList
@@ -153,7 +153,7 @@ func importDecls(fset *token.FileSet, file *ast.File, lines []string) model.Impo
 // orphanComments are the comment lines inside an import declaration that no
 // spec took as its doc or its line comment.
 //
-// A comment separated from the import below it by a blank line, and one after
+// A comment separated from the import below it by a blank line. One after
 // the last import, belong to the declaration and to no import in it. A rewrite
 // that dropped them would be deleting what somebody wrote.
 func orphanComments(fset *token.FileSet, file *ast.File, decl *ast.GenDecl) string {
@@ -216,7 +216,7 @@ func blankBetween(lines []string, from, to int) bool {
 // fileUses are the identifiers a file writes before a dot, sorted and
 // deduplicated.
 //
-// Everything the tree calls a selector counts, so a field access on a local
+// Everything the tree calls a selector counts. A field access on a local
 // variable is in here alongside a package reference. The set answers whether
 // removing an import would break the file, and keeping one too many is the
 // only error that cannot.
@@ -255,11 +255,11 @@ func shortName(filename string) string {
 	return filename
 }
 
-// codeLines counts the lines of a file that carry code, so blank lines and the
+// codeLines counts the lines of a file that hold code, so blank lines and the
 // lines a comment owns stay out of the count.
 //
 // A comment owns a line when nothing but whitespace precedes it and nothing
-// follows what it closes. A line carrying code with a comment beside
+// follows what it closes. A line holding code with a comment beside
 // counts as code: dropping it would count "x := 1 // why" as documentation.
 func codeLines(fset *token.FileSet, file *ast.File, lines []string) int {
 	owned := make(map[int]bool)
@@ -316,7 +316,7 @@ func blank(lines []string, line int) bool {
 	return strings.TrimSpace(lineAt(lines, line)) == ""
 }
 
-// lineAt returns one line of a file, and nothing past its end.
+// lineAt returns one line of a file, and an empty string past its end.
 func lineAt(lines []string, line int) string {
 	if line < 1 || line > len(lines) {
 		return ""

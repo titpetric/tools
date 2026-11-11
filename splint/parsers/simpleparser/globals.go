@@ -12,13 +12,13 @@ import (
 //
 // The scan is every bare identifier of the lines the declaration covers, less
 // what this file writes: a name the file declares, a name the signature binds,
-// a name the body binds, and the predeclared identifiers. What remains is
+// a name the body binds, and a predeclared identifier. What remains is
 // either a package level name from another file or a local the scan did not
-// see bound, and a reader of the field resolves it against the names the
+// see bound. A reader of the field resolves it against the names the
 // package declares.
 //
 // The scan leaves out a name next to a dot. That name is a package qualifier or the field
-// after one, and the reference split records the qualifier of a package level
+// after one. The reference split records the qualifier of a package level
 // variable instead, the place for a name that is not an import.
 func (f *file) globals(src *source, from, to int, shadowed []string) model.StringSet {
 	var found model.StringSet
@@ -38,14 +38,14 @@ func (f *file) globals(src *source, from, to int, shadowed []string) model.Strin
 	for i := from; i <= to && i < src.len(); i++ {
 		code := src.codeLine(i)
 
-		// The scan binds what the line binds before it reads the line, so a name
+		// The scan binds what the line binds before it reads the line. A name
 		// is a local from its declaration on: a body reaching a package level
 		// name and then declaring a local of that name reaches both, and only
 		// the first of them is a reference.
 		bindLocals(locals, src, i, &block)
 
 		// A struct or an interface written inside a body declares its fields
-		// one per line, and the name it declares resolves against nothing.
+		// one per line. The name it declares resolves against nothing.
 		if typ := fieldLine(code, src.line(i)); typ != "" {
 			f.recordSignature(typ, record)
 			continue
@@ -80,7 +80,7 @@ func fieldLine(code, written string) string {
 // recordSignature reads a type expression and records the names it resolves
 // against, dropping the names it binds.
 //
-// A parameter list writes each parameter type alongside its name, and a method
+// A parameter list writes each parameter type alongside its name. A method
 // line writes the name it declares in front of it: "Handle(pattern string, h
 // Handler)" names Handler and nothing else. The scan reads a type with no parameter list
 // whole.
@@ -100,7 +100,7 @@ func (f *file) recordSignature(text string, record func(string)) {
 	}
 
 	// What precedes the parens is the declared name and the keyword in
-	// front of it, and the name resolves against nothing.
+	// front of it. The name resolves against nothing.
 	record(afterFirstWord(text[:open]))
 
 	for _, group := range paramGroups(text[open+1 : close]) {
@@ -124,11 +124,11 @@ func afterFirstWord(head string) string {
 }
 
 // declGlobals are the package level names a type, const or var declaration
-// reaches: the spec, and the body it opens where it has one.
+// reaches: the spec, plus the body it opens where it has one.
 //
 // A struct field and an interface method write the name they declare first and
 // its type after it, and only the second half names anything the package
-// resolves. A line the field split does not read that way is a value, and the
+// resolves. A line the field split does not read that way is a value. The
 // scan reads a value whole.
 func (f *file) declGlobals(src *source, kind model.DeclarationKind, entries []entry) model.StringSet {
 	var found model.StringSet
@@ -143,7 +143,7 @@ func (f *file) declGlobals(src *source, kind model.DeclarationKind, entries []en
 	}
 
 	// A type reads as types and the names it declares; a const and a var
-	// read as values, and the scan reads a value whole.
+	// read as values. The scan reads a value whole.
 	read := record
 	if kind == model.TypeKind {
 		read = func(text string) { f.recordSignature(text, record) }
@@ -169,7 +169,7 @@ func (f *file) declGlobals(src *source, kind model.DeclarationKind, entries []en
 }
 
 // reaches reports a name worth recording: one the file does not declare, the
-// language does not declare, and the signature does not bind.
+// language does not declare. The signature does not bind.
 func (f *file) reaches(name string, shadowed []string) bool {
 	return !f.names[name] && !predeclared[name] && !slices.Contains(shadowed, name)
 }
@@ -236,16 +236,16 @@ func ellipsis(line string, at int) bool {
 }
 
 // compositeKey reports the name on the left of a colon in a composite literal,
-// the field it fills, and no name resolved against anything.
+// the field it fills. No name resolved against anything.
 //
 // The position is what tells it from the other uses of a colon: a key opens an
 // element, so what precedes the key is the brace or the comma before it, or nothing
 // at all on a literal that spans many lines. A label and a switch case
-// have a keyword or a statement in front of them, and an assignment has an
+// have a keyword or a statement in front of them. An assignment has an
 // equals sign after the colon.
 //
 // The key of a map literal sits in the same position and reads the same
-// way, so a package level constant used as one is not recorded.
+// way. A package level constant used as one is not recorded.
 func compositeKey(line string, start, end int) bool {
 	at := end
 	for at < len(line) && line[at] == ' ' {

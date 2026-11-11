@@ -1,8 +1,8 @@
 // Package testfacts reads what the integration rule needs from the test
 // declarations of a package, the same way for both parsers.
 //
-// The facts come off the source every declaration carries before the parse
-// trims it, so the two parsers pass the same text to the same scanner and
+// The facts come off the source every declaration holds before the parse
+// trims it. The two parsers pass the same text to the same scanner and
 // cannot disagree about what a literal holds.
 package testfacts
 
@@ -26,7 +26,7 @@ func Fill(def *model.Definition) {
 }
 
 // literals returns the string literals the source writes, unquoted, sorted and
-// deduplicated. A raw string and an interpreted one read the same, and an
+// deduplicated. A raw string and an interpreted one read the same. An
 // import path is no literal of a declaration, because the source of a
 // declaration holds no import.
 func literals(source string) []string {
@@ -34,8 +34,8 @@ func literals(source string) []string {
 	file := fset.AddFile("", fset.Base(), len(source))
 
 	var s scanner.Scanner
-	// The source is a declaration out of context, so an error means a
-	// fragment the scanner did not expect, and the scan goes on past it.
+	// The source is a declaration out of context. An error means a
+	// fragment the scanner did not expect. The scan goes on past it.
 	s.Init(file, []byte(source), nil, 0)
 
 	seen := map[string]bool{}

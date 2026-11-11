@@ -33,7 +33,7 @@ func TestSymbolsFiltersUnexportedNamesIndividually(t *testing.T) {
 	defs := []*model.Definition{
 		def("example.com/x", "x", false, nil, model.DeclarationList{
 			// A grouped declaration reports itself as exported when any one
-			// of its names is, so the filter has to check each name on its own.
+			// of its names is. The filter has to check each name on its own.
 			{Kind: "const", Names: []string{"Public", "private"}},
 			{Kind: "type", Name: "Client"},
 			{Kind: "type", Name: "hidden"},
@@ -245,7 +245,7 @@ func TestSymbolsReadsTheShapeOfAType(t *testing.T) {
 	if config.Underlying != underlyingStruct {
 		t.Errorf("Config.Underlying = %q, want %q", config.Underlying, underlyingStruct)
 	}
-	// The unexported field is not a promise to anyone, and a selector reaches
+	// The unexported field is not a promise to anyone. A selector reaches
 	// the embedded one by the last identifier of the type it embeds.
 	want := []Field{
 		{Name: "Addr", Type: "string", Tag: `yaml:"addr"`},

@@ -10,7 +10,7 @@ import (
 // fills, and the loaded syntax it fills it from.
 //
 // The pair lives here and not on model.Package, which is schema and
-// reaches no parser: a document is a thing to encode, and a *packages.Package
+// reaches no parser: a document is a thing to encode. A *packages.Package
 // is not.
 type Target struct {
 	// Package is what the parse writes into.

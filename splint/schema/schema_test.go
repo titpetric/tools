@@ -73,13 +73,13 @@ func TestConvert(t *testing.T) {
 		t.Errorf("verbose is %q, want boolean", got)
 	}
 
-	// A name two packages both declare carries the package as a qualifier: a schema
+	// A name two packages both declare holds the package as a qualifier: a schema
 	// has one namespace and two Config types are not the same thing.
 	if _, ok := got.Definitions["server.Config"]; !ok {
 		t.Errorf("definitions = %v, want the second Config qualified", keys(got.Definitions))
 	}
 
-	// An interface describes no shape, and a test package is not a shape
+	// An interface describes no shape. A test package is not a shape
 	// anyone encodes.
 	if _, ok := got.Definitions["Store"]; ok {
 		t.Error("definitions hold an interface")

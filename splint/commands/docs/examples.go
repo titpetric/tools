@@ -11,7 +11,7 @@ import (
 // collectExamples returns the example functions of each package, keyed by the
 // import path of the package they document.
 //
-// Examples live in a test package, which the reference otherwise leaves out,
+// Examples go in a test package, which the reference otherwise leaves out,
 // and they are the one symbol worth printing whole: an example is its body.
 // They appear only in a document parsed with sources and tests.
 func collectExamples(defs model.DefinitionList) map[string]model.DeclarationList {
@@ -62,11 +62,11 @@ func isExample(fn *model.Declaration) bool {
 }
 
 // renderExamples returns the examples of one package, each wrapped in a
-// <section> named after the function, so a reader arrives at the example
+// <section> named after the function. A reader arrives at the example
 // itself and skips the heading above it.
 //
 // renderExamples leaves out an example with no source behind it: such a
-// document carries no sources, and the signature of an example says nothing.
+// document holds no sources. The signature of an example says nothing.
 func renderExamples(items model.DeclarationList) string {
 	var out strings.Builder
 
@@ -95,7 +95,7 @@ func renderExamples(items model.DeclarationList) string {
 }
 
 // exampleSource returns the example without the doc comment above it, which
-// the section prints as prose of its own.
+// the section prints as prose in its own right.
 func exampleSource(fn *model.Declaration) string {
 	source := strings.TrimSpace(fn.Source)
 

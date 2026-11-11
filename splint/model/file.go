@@ -8,7 +8,7 @@ import (
 //
 // Without this, a file that declares nothing stays invisible to the model: a
 // declaration records the file holding it and the import set uses the
-// filename as its key, and neither says anything about a file holding
+// filename as its key. Neither says anything about a file holding
 // neither. A check that counts files, or pairs one with its test, has to be
 // able to see them all.
 type File struct {
@@ -27,28 +27,28 @@ type File struct {
 	// Test reports a file the toolchain compiles into the test binary.
 	Test bool `json:"Test,omitempty" yaml:"Test,omitempty"`
 
-	// Directives reports a file carrying //line directives, which rebase the
+	// Directives reports a file holding //line directives, which rebase the
 	// line numbers the compiler reports from that point on.
 	//
-	// The physical lines of such a file carry positions: moving a directive,
+	// The physical lines of such a file hold positions: moving a directive,
 	// or deleting the declaration one sits above, changes every position
 	// reported for the rest of the file. Nothing here rewrites one. They are
-	// machine output, from goyacc and its like, and no reader wrote them.
+	// machine output, from goyacc and its like. No reader wrote them.
 	Directives bool `json:"Directives,omitempty" yaml:"Directives,omitempty"`
 
 	// Package is the name in the file's own package clause.
 	//
 	// It can differ from the name of the package the parse records the file
 	// under. A directory holds at most one package and up to two test
-	// scopes, and the external one declares "<name>_test": the two are one
+	// scopes. The external one declares "<name>_test": the two are one
 	// definition in the model and only the clause tells a file of one from a
 	// file of the other.
-	// A file may not import the package its clause names, and the external
-	// test file must.
+	// A file may not import the package its clause names. The external test
+	// file has to.
 	Package string `json:"Package,omitempty" yaml:"Package,omitempty"`
 
 	// ImportDecls are the import declarations of the file, in source order.
-	// The parse fills them when its options include them, and a document
+	// The parse fills them when its options include them. A document
 	// written without them describes the same package.
 	ImportDecls ImportDeclList `json:"ImportDecls,omitempty" yaml:"ImportDecls,omitempty"`
 
@@ -57,7 +57,7 @@ type File struct {
 	//
 	// It over-collects. A local variable, a parameter and a receiver are all
 	// in it, so "t" from t.Run is a use. That is the direction that cannot
-	// break a build: a name in here keeps an import that is not needed, and a
+	// break a build: a name in here keeps an import that is not needed. A
 	// name missing from here removes one that is.
 	Uses []string `json:"Uses,omitempty" yaml:"Uses,omitempty"`
 }

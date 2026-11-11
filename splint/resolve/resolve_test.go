@@ -10,7 +10,7 @@ import (
 )
 
 // tree is two services that each hold a model package, a storage package under
-// one of them, and one file that spells out an import the rest of the tree
+// one of them. One file that spells out an import the rest of the tree
 // only reaches by name.
 func tree() *model.DocumentRoot {
 	module := &model.Module{
@@ -151,7 +151,7 @@ func TestLookupReportsAmbiguity(t *testing.T) {
 }
 
 // TestLookupFindsNothing covers the name that has to be an error: no
-// configuration names it, no package of the tree carries it, no file writes
+// configuration names it, no package of the tree holds it, no file writes
 // it and no required module ends in it.
 func TestLookupFindsNothing(t *testing.T) {
 	root := tree()
@@ -163,7 +163,7 @@ func TestLookupFindsNothing(t *testing.T) {
 }
 
 // TestLookupStopsAtTheModule covers a package of another module: code reaches
-// it by importing that module, so the walk up does not find it.
+// it by importing that module. The walk up does not find it.
 func TestLookupStopsAtTheModule(t *testing.T) {
 	root := tree()
 	nested := &model.Module{Path: "example.com/app/service2/tool"}

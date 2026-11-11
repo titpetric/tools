@@ -8,7 +8,7 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// ReadSum parses the go.sum at filename into the versions the model carries,
+// ReadSum parses the go.sum at filename into the versions the model holds,
 // one per version, without the hashes.
 func ReadSum(filename string) ([]model.Sum, error) {
 	data, err := os.ReadFile(filename)

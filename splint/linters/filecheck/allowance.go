@@ -28,7 +28,7 @@ type Allowance struct {
 
 // Allowances are the ceilings a tree stated, in the order it stated them. The
 // first entry covering a file sets its ceiling: an author lists a narrow entry
-// above the broad one it carves a hole in, and the order states which glob
+// above the broad one it carves a hole in. The order states which glob
 // applies, as with parser/*.go and **/*_test.go.
 type Allowances []Allowance
 

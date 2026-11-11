@@ -10,7 +10,7 @@ import (
 // details renders a type, const or var as a section a reader opens.
 //
 // A reader of a reference of any size looks for one symbol, and github
-// collapses <details> to its <summary>, so the page is the list of what a
+// collapses <details> to its <summary>. The page is the list of what a
 // package declares with each declaration one click away. The blank lines
 // around the block are what makes github render the markdown inside it.
 func details(decl *model.Declaration, source string) string {

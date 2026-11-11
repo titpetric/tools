@@ -12,7 +12,7 @@ import (
 )
 
 // broken is a package that does not compile: the type it names is not declared
-// anywhere, the import is not used, and the last func calls something that does
+// anywhere, the import is not used. The last func calls something that does
 // not exist. Every declaration in the package is still readable.
 const broken = `package broken
 
@@ -37,9 +37,9 @@ func (c *Client) Close() error {
 // TestSimpleParserReadsSourceThatDoesNotCompile is the claim the parser exists
 // for, stated as a test.
 //
-// The ast parser resolves the tree through the toolchain, so a package that
+// The ast parser resolves the tree through the toolchain. A package that
 // does not build is a package it cannot describe. The simple parser reads the
-// text, so it reports what the file says, whether the compiler
+// text. It reports what the file says, whether the compiler
 // would take it.
 func TestSimpleParserReadsSourceThatDoesNotCompile(t *testing.T) {
 	dir := t.TempDir()
@@ -76,7 +76,7 @@ func TestSimpleParserReadsSourceThatDoesNotCompile(t *testing.T) {
 		t.Errorf("Close receiver = %q, want *Client", got)
 	}
 
-	// The test exists for the contrast, so it runs the other parser over the
+	// The test exists for the contrast. It runs the other parser over the
 	// same tree: that parser either fails or returns nothing to say.
 	other, err := analyzer.New(options).Parse(context.Background())
 	if err == nil && len(other.Packages) > 0 {

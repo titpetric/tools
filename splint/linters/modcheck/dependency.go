@@ -13,13 +13,13 @@ type Dependency struct {
 	// The three answer different questions. Files is the blast radius of
 	// removing it, Packages is how far it has spread, and Symbols is how much
 	// of the module the tree actually uses: a dependency reached from forty files through
-	// two symbols is a candidate for a wrapper, and one reached from two files
+	// two symbols is a candidate for a wrapper. One reached from two files
 	// through forty is a dependency in earnest.
 	//
 	// The linter counts Files from the import list and Symbols from the names the
 	// declarations of a package write, in a body and in a type position alike.
 	// The two agree on what reaching means: a file naming nothing of a module
-	// but one field's type imports it, so it counts, and the name it
+	// but one field's type imports it. It counts. The name it
 	// writes there counts as a symbol.
 	Files    int `json:"Files" yaml:"Files"`
 	Packages int `json:"Packages" yaml:"Packages"`
@@ -30,7 +30,7 @@ type Dependency struct {
 	//
 	// A size on its own understates what a dependency costs: a consumer takes on
 	// the module and everything it drags in behind it. The linter counts the two
-	// over the modules this build carries, so a dependency of a dependency
+	// over the modules this build holds. A dependency of a dependency
 	// counts for each dependency that reaches it: the question each answers
 	// is what this one costs.
 	Reach  int   `json:"Reach,omitempty" yaml:"Reach,omitempty"`
@@ -56,7 +56,7 @@ type Dependency struct {
 
 	// requires are the module paths this version's own go.mod requires, the
 	// graph the reach walks over. The list is empty when the proxy stays
-	// answer, and the reach then reads as unknown, never as zero.
+	// answer. The reach then reads as unknown, never as zero.
 	requires []string
 
 	// testOnly reports a module no file outside the tests imports, which is a
@@ -64,13 +64,13 @@ type Dependency struct {
 	testOnly bool
 
 	// blank reports a module some file imports for its side effect. A
-	// registration is not a symbol and no caller can inline it, so a dependency
-	// carrying one counts as used, however little of it the tree reaches by name.
+	// registration is not a symbol and no caller can inline it. A dependency
+	// holding one counts as used, however little of it the tree reaches by name.
 	//
 	// It answers whether a file writes an import for a side effect and not
-	// whether that is worth reporting, so the exemptions the blank rule makes
+	// whether that is worth reporting. The exemptions the blank rule makes
 	// are not made here: a file of a program may blank import a driver without
-	// a reprimand for it, and the dependency is still one nothing can
+	// a reprimand for it. The dependency is still one nothing can
 	// inline.
 	blank bool
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // modDefs builds the definitions a model extracted from one module produces,
-// which is a package carrying the go.mod it belongs to.
+// which is a package holding the go.mod it belongs to.
 func modDefs(module *model.Module) []*model.Definition {
 	d := def("example.com/x", "x", false, nil, nil)
 	d.Module = module

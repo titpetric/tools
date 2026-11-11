@@ -7,7 +7,7 @@ import (
 )
 
 // TestHelpMarkdown covers the page a document holds and a program reads: every
-// flag the parser defines is in it, so the page is complete by construction
+// flag the parser defines is in it. The page is complete by construction
 // and nobody has to remember to add one.
 func TestHelpMarkdown(t *testing.T) {
 	cfg, err := parseOptions(nil)
@@ -33,7 +33,7 @@ func TestHelpMarkdown(t *testing.T) {
 		}
 	}
 
-	// A buffer is not a terminal, so the page carries no escape codes.
+	// A buffer is not a terminal. The page holds no escape codes.
 	if strings.Contains(page, "\033") {
 		t.Error("the markdown page carries escape codes")
 	}

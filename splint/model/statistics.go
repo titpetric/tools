@@ -3,7 +3,7 @@ package model
 // Statistics is one table a linter reports.
 //
 // Statistics is a rendering and holds no measurement: the numbers themselves
-// sit in LintMetrics, and this is how they read. A linter decides its own
+// sit in LintMetrics. This is how they read. A linter decides its own
 // columns, because what is worth a column is what the linter measured.
 type Statistics struct {
 	// Labels are the column headings.

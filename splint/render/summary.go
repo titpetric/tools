@@ -41,7 +41,7 @@ func Summary(w io.Writer, found *report.Report) error {
 }
 
 // count reads a column of levels: a level with no findings shows a blank and
-// no zero, so a reader sees only what is there.
+// no zero. A reader sees only what is there.
 func count(n int) string {
 	if n == 0 {
 		return ""

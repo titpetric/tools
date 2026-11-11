@@ -13,7 +13,7 @@ import (
 )
 
 // Result is one finding about the dependencies of a module. A finding about a
-// module names the go.mod it came from, where a reader acts on it, and one
+// module names the go.mod it came from, where a reader acts on it. One
 // about an import names the file that writes it.
 type Result struct {
 	// Rule is which of the module rules the finding is under, and Severity is
@@ -115,7 +115,7 @@ func (r *Results) ask(ctx context.Context, proxy *modproxy.Client, deps map[stri
 // unasked is every version go.sum records the source of that the requirements
 // did not already cover, keyed by path.
 //
-// A module linked at two majors is two downloads under two paths, and neither
+// A module linked at two majors is two downloads under two paths. Neither
 // need be a required module of the module under read: the second major can arrive
 // through a dependency. Asking about them is what puts a size on the copies.
 func (r *Results) unasked() map[string]string {
@@ -140,12 +140,12 @@ func (r *Results) unasked() map[string]string {
 // reach walks the module graph and records what each dependency drags in
 // behind it.
 //
-// The walk stops at the modules this build carries. A dependency requires
+// The walk stops at the modules this build holds. A dependency requires
 // things this build resolved away, and counting those would report a cost
 // nobody pays; the useful number is how much of the build list is here
 // because of one require line.
 func reach(deps map[string]*Dependency) {
-	// A run that queried nobody knows nothing about the graph, and a reach of
+	// A run that queried nobody knows nothing about the graph. A reach of
 	// nothing would read as a measurement where none exists. The column stays blank.
 	answered := false
 	for _, dep := range deps {
@@ -301,8 +301,8 @@ func (r Results) repeated() (model.Statistics, bool) {
 	), true
 }
 
-// repeatedFooter counts the modules recorded more than once, and the bytes of
-// the copies past the first where there are any.
+// repeatedFooter counts the modules recorded more than once, with the bytes
+// of the copies past the first where there are any.
 func repeatedFooter(modules, linked int, overhead int64) string {
 	out := fmt.Sprintf("%d modules recorded at more than one version, %d linked more than once", modules, linked)
 	if overhead > 0 {
@@ -313,7 +313,7 @@ func repeatedFooter(modules, linked int, overhead int64) string {
 
 // reached renders how many modules a dependency brings with it, and reads as
 // nothing where the linter never read the graph: a run that queried nobody reports no
-// reach, and no reach of nothing.
+// reach, which is not a reach of zero.
 func reached(count int, weight int64) string {
 	if weight == 0 {
 		return "-"

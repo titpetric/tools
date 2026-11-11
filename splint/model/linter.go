@@ -8,7 +8,7 @@ import (
 // Linter reads a parsed document and reports what it found.
 //
 // A linter never touches disk and never parses anything: everything it needs
-// is in the document, so the same rule runs over a tree the ast parser read
+// is in the document. The same rule runs over a tree the ast parser read
 // and one the simple parser read, and over a document loaded back from a file.
 type Linter interface {
 	// Name selects the linter and labels its issues.

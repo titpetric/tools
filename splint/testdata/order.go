@@ -1,5 +1,5 @@
 // The argument and return order checks, which want a context first, a duration
-// last, and an error after the value it qualifies.
+// last. An error after the value it qualifies.
 package fixture
 
 import (

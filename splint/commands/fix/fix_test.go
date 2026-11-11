@@ -128,7 +128,7 @@ func TestApplyFormatsAFileWithNoEdits(t *testing.T) {
 }
 
 // TestApplyLeavesAFileThatDoesNotParse covers the file gofmt cannot read: a
-// syntax error is the compiler's finding and not this command's, and the import
+// syntax error is the compiler's finding and not this command's. The import
 // block is still written.
 func TestApplyLeavesAFileThatDoesNotParse(t *testing.T) {
 	dir := t.TempDir()

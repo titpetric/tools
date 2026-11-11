@@ -11,7 +11,7 @@ import (
 
 // Results is what the linter counted. It holds no findings.
 //
-// The report interface carries findings and numbers together, and a check is
+// The report interface holds findings and numbers together. A check is
 // free to bring only the numbers. This one does: Len is zero and All returns
 // nothing, and everything the linter has to say is in the table.
 type Results struct {

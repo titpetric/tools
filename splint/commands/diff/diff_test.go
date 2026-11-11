@@ -380,7 +380,7 @@ func TestCompareWithIncludesUnexported(t *testing.T) {
 		{Names: []string{"parse"}, Signature: "parse() error"},
 	}, nil)}
 
-	// The default comparison is the API, so the unexported func is not in it.
+	// The default comparison is the API. The unexported func is not in it.
 	api := CompareWith(Options{}, nil, defs)
 	if got := keys(api.Added); len(got) != 1 || got[0] != "example.com/x.Open" {
 		t.Fatalf("Compare().Added = %v, want the exported func alone", got)

@@ -6,11 +6,11 @@
 // else is a unit test: code in the process, fakes behind interfaces,
 // httptest.NewRecorder and a handler's ServeHTTP, files under t.TempDir. The
 // house rule puts the first kind in "<name>_integration_test.go" files opening
-// on "//go:build integration", so the default run is the unit tests alone and
+// on "//go:build integration". The default run is the unit tests alone and
 // the expensive ones run under -tags integration, on demand.
 //
 // The linter reads the model and guesses from what a test reaches: the
-// packages it calls into, the literals it writes, and every function of the
+// packages it calls into, the literals it writes. Every function of the
 // module it calls, its own helpers and the code it tests alike, followed down
 // to the call that crosses. A guess that is wrong one way is a fake that
 // looks like a real thing, or a branch the test never takes; the other way is
@@ -44,7 +44,7 @@ const (
 	RuleTestMain = "testmain"
 )
 
-// DefaultTag is the build tag integration tests sit behind.
+// DefaultTag is the build tag guarding the integration tests.
 const DefaultTag = "integration"
 
 // suffix is how the file of an integration test ends its name.
@@ -57,7 +57,7 @@ type Linter struct {
 	// otherwise read every test it has as a finding.
 	Enabled bool
 
-	// Tag is the build tag the integration tests sit behind.
+	// Tag is the build tag guarding the integration tests.
 	Tag string
 
 	// Storage are the import paths of the packages whose constructors open
@@ -66,7 +66,7 @@ type Linter struct {
 	Storage []string
 
 	// Depth is how many calls into the module a test's chain may run before
-	// the call that crosses, and still read as crossing.
+	// the call that crosses. A longer chain still reads as crossing.
 	Depth int
 }
 
@@ -80,7 +80,7 @@ func New() *Linter {
 	return &Linter{Tag: DefaultTag, Depth: DefaultDepth}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -99,7 +99,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	}
 
 	// The scope reads the files behind the tag too: a TestMain there runs
-	// for the integration tests of its package, and the testmain rule asks
+	// for the integration tests of its package. The testmain rule asks
 	// about it as well.
 	tagged := root.WithTagged(tag)
 	scope := newScope(tagged, l.storage)
@@ -119,7 +119,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 }
 
 // lintTestMain reports a TestMain that reaches a database: it runs before
-// every test of the package, so each of them needs one, and the package is
+// every test of the package. Each of them needs one. The package is
 // an integration package under any file names.
 //
 // The rule lets a package be whose name says it holds such tests: e2e, or a name
@@ -238,7 +238,7 @@ func (l *Linter) storage(path string) bool {
 }
 
 // directories groups the definitions by the directory holding them: a
-// package and its two test scopes share one, and a helper of one test file
+// package and its two test scopes share one. A helper of one test file
 // is reachable from every other.
 func directories(defs model.DefinitionList) [][]*model.Definition {
 	byPath := map[string][]*model.Definition{}

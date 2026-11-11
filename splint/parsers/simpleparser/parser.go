@@ -21,11 +21,11 @@ const ParserName = "simpleparser"
 //
 // It reads lines and matches the constructs by where they start and where they
 // end, which gofmt puts at column zero. That buys two things the ast parser
-// cannot: it does not need the tree to resolve, so it reads source that
-// does not compile, and it does not build one, so it runs fast.
+// cannot: it does not need the tree to resolve. It reads source that
+// does not compile. It does not build one. It runs fast.
 //
 // Its constructor matches the ast parser and it returns the same
-// document, so a program swaps one for the other by changing an import.
+// document. A program swaps one for the other by changing an import.
 type Parser struct {
 	options splint.Options
 }
@@ -75,7 +75,7 @@ func (p *Parser) Parse(ctx context.Context) (*model.DocumentRoot, error) {
 	}
 
 	// A tree holding modules is read the way the go tool reads it: a directory
-	// outside every module is no package the pattern names, so the ast parser
+	// outside every module is no package the pattern names. The ast parser
 	// has none of them and neither does this one. A tree holding no module at
 	// all is read whole, which is what a fixture under testdata is.
 	if len(doc.Modules) > 0 {
@@ -133,7 +133,7 @@ func (p *Parser) directories(root string) ([]string, error) {
 	return dirs, nil
 }
 
-// hasGoFiles reports whether a directory holds a Go file of its own.
+// hasGoFiles reports whether a directory holds its own Go file.
 func hasGoFiles(dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -150,7 +150,7 @@ func hasGoFiles(dir string) bool {
 // trim drops what the options leave out.
 func (p *Parser) trim(defs model.DefinitionList) {
 	for _, def := range defs {
-		// The literals come off the sources, so they go first.
+		// The literals come off the sources. They go first.
 		if p.options.IncludeTestFacts && p.options.IncludeTests {
 			testfacts.Fill(def)
 		}

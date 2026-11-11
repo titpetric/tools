@@ -22,7 +22,7 @@ func f(w io.Writer) {
 // TestUsesReadsAVariadicParameterType covers the name that keeps an import
 // when a "...pkg.Type" parameter is the only thing reaching it.
 //
-// The set answers whether removing an import breaks the file, and the fixer
+// The set answers whether removing an import breaks the file. The fixer
 // takes a name missing from it as an import nothing reaches. A signature is
 // the one place that can reach a package without the body naming it, so
 // a miss here is an import deleted out of a file that compiles.
@@ -42,7 +42,7 @@ func New(baseFS fs.FS, opts ...vuego.LoadOption) *Service {
 
 // TestUsesIgnoresASpreadArgument covers the same token in the other position,
 // where it follows a value, introduces no type, and reaches nothing
-// of its own.
+// separate.
 func TestUsesIgnoresASpreadArgument(t *testing.T) {
 	src := newSource("x.go", []byte(`package p
 

@@ -1,12 +1,12 @@
 // Package pathmatch matches a file path against a glob from a configuration
 // file.
 //
-// path.Match is the syntax, and a star in it stops at a separator: parser/*.go
+// path.Match is the syntax. A star in it stops at a separator: parser/*.go
 // is the files of one directory and says nothing about the directories under
-// it. A configuration file names a kind of file, and the kind a tree names
-// lives at every depth in the common case, so a pattern here reads ** as any
+// it. A configuration file names a kind of file. The kind a tree names
+// lives at every depth in the common case. A pattern here reads ** as any
 // number of segments, none included: **/*_test.go reaches the root too. .gitignore, the shells and every CI configuration spell
-// the same idea that way, so an author writes it with no prompting.
+// the same idea that way. An author writes it with no prompting.
 package pathmatch
 
 import (
@@ -26,7 +26,7 @@ func Match(pattern, name string) (bool, error) {
 	return match(strings.Split(pattern, "/"), strings.Split(name, "/")), nil
 }
 
-// Valid returns the error Match would return for pattern, so a loader refuses a
+// Valid returns the error Match would return for pattern. A loader refuses a
 // typo at its source.
 func Valid(pattern string) error {
 	for _, segment := range strings.Split(pattern, "/") {
@@ -45,7 +45,7 @@ func Valid(pattern string) error {
 func match(pattern, name []string) bool {
 	for len(pattern) > 0 {
 		if pattern[0] == doubleStar {
-			// ** stands for any number of segments, so every tail of the name
+			// ** stands for any number of segments. Every tail of the name
 			// goes to the rest of the pattern. The shortest tail goes first,
 			// and in that one ** stands for nothing.
 			rest := pattern[1:]

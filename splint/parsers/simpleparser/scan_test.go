@@ -69,7 +69,7 @@ func TestBlockEnd(t *testing.T) {
 		t.Errorf("blockEnd() = %d, want 3", got)
 	}
 
-	// A block that never closes ends where the file does, and that
+	// A block that never closes ends where the file does. That
 	// makes the parser tolerant of source that does not compile.
 	open := newSource("x.go", []byte("var (\n\ta = 1\n"))
 	if got := blockEnd(open, 0, ')'); got != open.len()-1 {

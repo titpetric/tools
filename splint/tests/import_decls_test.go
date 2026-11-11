@@ -43,7 +43,7 @@ func Encode(v any) string {
 //
 // A formatter that read one thing from the ast parser and another from the
 // quick one would rewrite a file differently depending on a flag nobody
-// passed, so this test compares the two with each other and holds neither to
+// passed. This test compares the two with each other and holds neither to
 // a hand-written expectation.
 func TestImportDeclsAcrossParsers(t *testing.T) {
 	dir := t.TempDir()
@@ -84,7 +84,7 @@ func TestImportDeclsAcrossParsers(t *testing.T) {
 
 	assert.Equal(t, "strings", specs[3].Path)
 
-	// The comment that belongs to no import is the declaration's, and both
+	// The comment that belongs to no import is the declaration's. Both
 	// parsers have to agree on it: a rewrite that dropped it on one parser and
 	// kept it on the other would write two different files.
 	assert.Equal(t, "A note belonging to no import at all.", astFile.ImportDecls[0].Tail)
@@ -94,7 +94,7 @@ func TestImportDeclsAcrossParsers(t *testing.T) {
 	// and that decides whether a file may import the package beside it.
 	assert.Equal(t, "scattered", astFile.Package)
 
-	// Uses over-collects, so the three package names are in it and
+	// Uses over-collects. The three package names are in it and
 	// nothing that is not a selector is.
 	assert.Equal(t, []string{"fmt", "json", "strings"}, astFile.Uses)
 }

@@ -11,7 +11,7 @@ import (
 // returns the line it ended on.
 //
 // One walk records two things. The literal is what the model has
-// always carried: the path in quotes, and an alias in front of it separated by
+// always held: the path in quotes. An alias in front of it separated by
 // a space, but only when the alias says something the path does not. The
 // declaration is the same imports as the file writes them, with their lines, their
 // comments and the blank lines between them, the shape a formatter has to
@@ -110,7 +110,7 @@ func orphanComments(src *source, line, end int, consumed map[int]bool) string {
 //
 // blockEnd looks for a closer at column zero, where gofmt puts it.
 // This does not: a formatter runs on the tree nobody has
-// formatted, and a block with an indented closing paren ends where the paren
+// formatted. A block with an indented closing paren ends where the paren
 // sits and not at the end of the file. Reading it as the end of the file is
 // how a rewrite comes to replace the whole file with an import block.
 func importBlockEnd(src *source, line, open int) int {
@@ -136,7 +136,7 @@ func importBlockEnd(src *source, line, open int) int {
 	}
 
 	// Nothing closed it, which is a file that does not compile. The
-	// parser reports the declaration as the one line it opened on, so nothing
+	// parser reports the declaration as the one line it opened on. Nothing
 	// downstream replaces a range that reaches the end of the file.
 	return line
 }
@@ -146,7 +146,7 @@ func importBlockEnd(src *source, line, open int) int {
 //
 // The scan finds the parens on the stripped view, where a paren inside a string is
 // not one, and cuts the entries out of the raw line. Stripping
-// blanks in place, so the two views share their columns.
+// blanks in place. The two views share their columns.
 func between(src *source, line, open int) []string {
 	code := src.codeLine(line)
 
@@ -186,9 +186,9 @@ func (f *file) addImport(src *source, line int, entry string) (model.ImportSpec,
 	case "", name:
 		// No alias, or one that repeats what the path already says.
 	case "_":
-		// A blank import goes by no name at all, and the underscore is
+		// A blank import goes by no name at all. The underscore is
 		// what says so: without it the literal reads as an import like any
-		// other, and a rule about side effects has nothing to read.
+		// other. A rule about side effects has nothing to read.
 		literal = "_ " + quoted
 	case ".":
 		// A dot import puts the package's names in this file's scope, which

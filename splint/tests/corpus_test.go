@@ -43,7 +43,7 @@ const (
 //
 // The test writes nothing. It applies the plan in memory and compares the
 // result against the source it came from on the two things a formatter must never
-// touch: the file still parses, and every declaration that is not an import
+// touch: the file still parses. Every declaration that is not an import
 // prints exactly as it did before. A rewrite that deleted a function, moved a
 // brace or truncated a file fails on the second.
 //
@@ -151,8 +151,8 @@ func firstDifference(before, after string) string {
 }
 
 // shape is what a file holds: every declaration that is not an import, printed
-// so a comparison of two files can use them, and the imports as "name path"
-// pairs.
+// so a comparison of two files can use them, plus the imports as "name
+// path" pairs.
 //
 // The name is the one the file reaches the import by: the alias when there is
 // one and the last segment of the path when there is not. That pair decides
@@ -279,7 +279,7 @@ func planCorpus(dir, module string) (*fix.Plan, error) {
 	}
 
 	// The sorting keys come from the module itself: its own path is the
-	// project group, and the test reads every module of the cache under its own.
+	// project group. The test reads every module of the cache under its own.
 	settings := config.Default()
 	settings.Imports.Project = module
 
@@ -335,7 +335,7 @@ func corpusLimit(t *testing.T) int {
 // corpus are the module directories of the cache, in path order, up to limit.
 //
 // A module is a directory holding a go.mod. The cache nests them under the
-// host and the path, and the download cache under it holds zips and no
+// host and the path. The download cache under it holds zips and no
 // source, so corpus skips that one.
 func corpus(t *testing.T, cache string, limit int) []string {
 	t.Helper()

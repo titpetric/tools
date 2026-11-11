@@ -40,7 +40,7 @@ func (v *collector) calls(fn *ast.FuncDecl) model.StringSet {
 }
 
 // callee resolves the function a call expression names, as the package path
-// declaring it and the symbol, and an empty symbol for one it cannot name.
+// declaring it and the symbol, or an empty symbol for one it cannot name.
 func (v *collector) callee(fun ast.Expr) (string, string) {
 	fun = ast.Unparen(fun)
 	switch expr := fun.(type) {

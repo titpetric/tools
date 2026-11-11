@@ -240,7 +240,7 @@ func TestFuncArgsLinter_SingleArgumentPasses(t *testing.T) {
 }
 
 // TestFuncArgsLinterOnlyConsidersTwoArguments covers the bound the linter
-// draws: the order of one pair is unambiguous, and the expected order of three
+// draws: the order of one pair is unambiguous. The expected order of three
 // or more is a heuristic that reports too much to read.
 func TestFuncArgsLinterOnlyConsidersTwoArguments(t *testing.T) {
 	linter := New()
@@ -308,7 +308,7 @@ func TestFuncArgsLinter_MoreThanTwoArgumentsSkipped(t *testing.T) {
 }
 
 // TestFuncArgsLinterReadsTheParameterCount covers the difference between the
-// two numbers a declaration carries. Arguments holds the distinct types and no
+// two numbers a declaration holds. Arguments holds the distinct types and no
 // duplicate, so time.Date(year int, month time.Month, day, hour, min, sec,
 // nsec int) records two of them for seven parameters. Reading that list's
 // length as the arity made the linter report the pair reversed, which would

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// proxy stands in for the real one, answering the three questions a lookup
+// proxy replaces the real one, answering the three questions a lookup
 // puts and counting the requests it gets.
 func proxy(t *testing.T, calls *int) *httptest.Server {
 	t.Helper()
@@ -26,7 +26,7 @@ func proxy(t *testing.T, calls *int) *httptest.Server {
 
 		switch {
 		case r.Method == http.MethodHead:
-			// The size is a header on the zip, so the zip is never fetched.
+			// The size is a header on the zip. The zip is never fetched.
 			w.Header().Set("Content-Length", strconv.Itoa(111305))
 			w.WriteHeader(http.StatusOK)
 
@@ -63,7 +63,7 @@ func TestClient_Lookup(t *testing.T) {
 		t.Errorf("Published = %v", got.Published)
 	}
 	// The requirements come from the version's own go.mod, in path order, and
-	// an indirect one is a module the build carries the same as any other.
+	// an indirect one is a module the build holds the same as any other.
 	if want := []string{"example.com/a", "example.com/b"}; !reflect.DeepEqual(got.Requires, want) {
 		t.Errorf("Requires = %v, want %v", got.Requires, want)
 	}
@@ -71,7 +71,7 @@ func TestClient_Lookup(t *testing.T) {
 		t.Error("Age() of a published version is not positive")
 	}
 
-	// A module version is immutable, so the client puts the same question once.
+	// A module version is immutable. The client puts the same question once.
 	asked := calls
 	client.Lookup(context.Background(), "example.com/x", "v1.2.0")
 	if calls != asked {
@@ -80,7 +80,7 @@ func TestClient_Lookup(t *testing.T) {
 }
 
 // TestClient_LookupUnreachable covers the machine with no network. A report is
-// worth having without the proxy, so the client records a failure and does not return it.
+// worth having without the proxy. The client records a failure and does not return it.
 func TestClient_LookupUnreachable(t *testing.T) {
 	client := &Client{
 		Proxy: "http://127.0.0.1:1",
@@ -147,7 +147,7 @@ func TestClient_LookupAll(t *testing.T) {
 }
 
 // TestEscapePath covers the spelling the protocol uses: proxies serve it
-// off case insensitive filesystems, so two modules differing only in case
+// off case insensitive filesystems. Two modules differing only in case
 // would otherwise be one file.
 func TestEscapePath(t *testing.T) {
 	tests := map[string]string{

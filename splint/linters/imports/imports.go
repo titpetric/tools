@@ -1,10 +1,10 @@
 // Package imports reports what a file's import block says and what it should
 // say: two packages reached under one name, a block that is not written to the
-// house rule, an import nothing reaches, a name nothing can place, and a
+// house rule, an import nothing reaches, a name nothing can place. A
 // dependency that has spread across the tree.
 //
 // Everything it reports under a fixable rule is what splint fix writes. The
-// rule and the rewrite are the same function of the same document, so a run
+// rule and the rewrite are the same function of the same document. A run
 // that reports a file and a run that fixes it never disagree about what the
 // block should hold.
 package imports
@@ -43,7 +43,7 @@ const (
 	RulePollution = "pollution"
 )
 
-// FixAttr is the attribute a fixable issue carries, and its value is the
+// FixAttr is the attribute a fixable issue holds. Its value is the
 // command that clears it.
 const FixAttr = "fix"
 
@@ -72,8 +72,8 @@ type Pollution struct {
 
 // DefaultIgnore are the dependencies the pollution rule leaves alone unless a
 // tree says otherwise: the golang.org/x modules, which the Go project keeps
-// beside the standard library, and the flag package the go tool's own flag
-// syntax lives in.
+// beside the standard library. The flag package the go tool's own flag
+// syntax belongs to.
 var DefaultIgnore = []string{
 	"golang.org/x",
 	"github.com/spf13/pflag",
@@ -95,7 +95,7 @@ func (p Pollution) Ignores(path string) bool {
 
 // Linter checks the imports of every package.
 type Linter struct {
-	// Options is the house rule the format rule checks against, and the
+	// Options is the house rule the format rule checks against, which is the
 	// one the fixer writes to.
 	Options importfmt.Options
 
@@ -115,7 +115,7 @@ func New() *Linter {
 	}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }

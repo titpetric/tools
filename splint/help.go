@@ -22,7 +22,7 @@ const (
 // spec is a help page: what the tool is, how a user calls it, what it takes,
 // and what a run of it looks like.
 //
-// The page drops a section with nothing in it, so a tool with no subcommands
+// The page drops a section with nothing in it. A tool with no subcommands
 // has no Commands heading at all.
 type spec struct {
 	// Name is the command as a user types it, and Tagline is the one line that
@@ -198,7 +198,7 @@ func (f flagDoc) spelled() string {
 // flagDocs reads the flags off the parser, in the order it walks them, which
 // is the order a reader looks them up in.
 //
-// A default that is the zero of its type says nothing, so the page omits it: a
+// A default that is the zero of its type says nothing. The page omits it: a
 // bool that is off and a string that is empty are what a flag not given
 // already means.
 func flagDocs(fs *pflag.FlagSet) []flagDoc {
@@ -238,7 +238,7 @@ func code(value string) string {
 }
 
 // isTerminal reports whether a writer is a terminal; that decides whether the
-// page carries colour. A dumb terminal does not count: a pager or an editor
+// page holds colour. A dumb terminal does not count: a pager or an editor
 // sets TERM=dumb to get plain text.
 func isTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)

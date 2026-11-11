@@ -77,7 +77,7 @@ func (l *Linter) spread(root *model.DocumentRoot, results *Results) {
 
 				// The count is per directory. A
 				// package and its test half are two definitions of one
-				// directory, and a reader asking how many files of a package
+				// directory. A reader asking how many files of a package
 				// reach a dependency counts the tests among them.
 				where := packageDir(def)
 				if entry.packages[where] == nil {
@@ -127,7 +127,7 @@ func (l *Linter) spread(root *model.DocumentRoot, results *Results) {
 	}
 }
 
-// packageDir is the directory a package sits in, as a reader opens it.
+// packageDir is the directory holding a package, as a reader opens it.
 func packageDir(def *model.Definition) string {
 	dir := strings.TrimPrefix(strings.TrimPrefix(def.Package.Path, "."), "/")
 	if dir == "" {
@@ -159,7 +159,7 @@ func (l *Linter) polluted(entry *Spread, files int) string {
 }
 
 // sortSpread orders the paths so a table reads the same every run: the widest
-// reach first, and the path as the tie break.
+// reach first, with the path as the tie break.
 func sortSpread(byPath map[string]*Spread) []*Spread {
 	out := make([]*Spread, 0, len(byPath))
 	for _, entry := range byPath {

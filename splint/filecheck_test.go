@@ -76,8 +76,8 @@ func TestFilecheckCeilingIsTheDefaultWithNoConfig(t *testing.T) {
 }
 
 // TestFilecheckCeilingFromTheConfig covers the wiring the consumer requested:
-// a path named in .splint.yml runs under its own ceiling, and the message says
-// which ceiling applied, and that ceiling differs from the default.
+// a path named in .splint.yml runs under its own ceiling. The message says
+// which ceiling applied. That ceiling differs from the default.
 func TestFilecheckCeilingFromTheConfig(t *testing.T) {
 	root := longTree(t, "parser", "parser.go", `filecheck:
   allow:
@@ -134,7 +134,7 @@ func TestFilecheckCeilingLeavesTheRestOfTheTree(t *testing.T) {
 
 // TestFilecheckConfigRefusedAtTheRoot covers a malformed pattern stopping the
 // run at the file holding it. A pattern nothing can read would otherwise cover
-// no file for the life of the file, and a tree would appear to state a rule.
+// no file for the life of the file. A tree would appear to state a rule.
 func TestFilecheckConfigRefusedAtTheRoot(t *testing.T) {
 	root := longTree(t, "parser", "parser.go", `filecheck:
   allow:

@@ -13,7 +13,7 @@ import (
 )
 
 // ignoreTree writes a module whose one package reaches four dependencies from
-// two files each, so the default thresholds report every one of them that the
+// two files each. The default thresholds report every one of them that the
 // ignore list does not cover.
 func ignoreTree(t *testing.T) string {
 	t.Helper()
@@ -78,7 +78,7 @@ func TestPollutionIgnoreCleared(t *testing.T) {
 }
 
 // TestPollutionIgnoreReplaced covers a list of the tree's own, which takes
-// the place of the default, so the rule reports golang.org/x/term again.
+// the place of the default. The rule reports golang.org/x/term again.
 func TestPollutionIgnoreReplaced(t *testing.T) {
 	t.Parallel()
 

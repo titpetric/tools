@@ -2,9 +2,9 @@
 // syntax tree.
 //
 // A file is one the build reads when its name does not end in a platform the
-// build is not for, "handler_windows.go" on linux, and its build constraint
+// build is not for, "handler_windows.go" on linux. Its build constraint
 // evaluates true. Both are what the toolchain applies before a compiler sees
-// the file, so a parser reading the file anyway would describe a package
+// the file. A parser reading the file anyway would describe a package
 // nobody builds. go/build/constraint evaluates the constraint without
 // building anything: a tag other than the platform reads as unset, the same
 // as a plain "go build" does with it.

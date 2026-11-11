@@ -16,10 +16,10 @@ const CacheName = "splint/sizes.yml"
 
 // Cache is what module versions weigh, kept on disk between runs.
 //
-// A module carries the size of every version asked about and one size for the
+// A module holds the size of every version asked about and one size for the
 // module itself, which answers for a version the file does not hold. A cache
 // is an optimisation and never a failure: a file that does not read answers
-// nothing, and the next save writes over it.
+// nothing. The next save writes over it.
 type Cache struct {
 	// Path is the file read and written. A cache with no path answers from
 	// memory and writes nothing.
@@ -131,7 +131,7 @@ func (c *Cache) Add(path, version string, size int64) {
 
 // Save writes the cache, and writes nothing when the run learned nothing.
 //
-// Save writes the file beside itself and renames it over the old one, so a
+// Save writes the file beside itself and renames it over the old one. A
 // reader sees one file or the other and never half of a write. Save reads the
 // new file back before the rename and removes a file that does not parse,
 // leaving the old cache in place.
@@ -193,7 +193,7 @@ func validate(path string, modules int) error {
 	return nil
 }
 
-// mean is the average size of the versions of one module, and the cache
+// mean is the average size of the versions of one module. The cache
 // reports it for a version nobody asked about.
 func mean(versions map[string]int64) int64 {
 	var total, count int64

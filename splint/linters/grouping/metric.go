@@ -6,13 +6,13 @@ type Metric struct {
 	// other two split that number.
 	Symbols int `json:"Symbols" yaml:"Symbols"`
 
-	// Passing is how many of them sit in a file named for them, and Violations
+	// Passing is how many of them are in a file named for them, and Violations
 	// how many do not.
 	Passing    int `json:"Passing" yaml:"Passing"`
 	Violations int `json:"Violations" yaml:"Violations"`
 
-	// SelfContained is how many the rule left alone for sitting in a file that
-	// compiles on its own. They are not read, so they are in none of the three
+	// SelfContained is how many the rule left alone for being in a file that
+	// compiles on its own. They are not read. They are in none of the three
 	// counts above.
 	SelfContained int `json:"SelfContained,omitempty" yaml:"SelfContained,omitempty"`
 }

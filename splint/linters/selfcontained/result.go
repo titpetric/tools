@@ -10,7 +10,7 @@ import (
 )
 
 // coupledFiles is how many of the most coupled files the second table names.
-// The list is one to act on, and no inventory.
+// The list is one to act on, never an inventory.
 const coupledFiles = 10
 
 // Results is what the linter measured. It finds nothing, which the framework
@@ -22,7 +22,7 @@ type Results struct {
 	order []string
 
 	// packages are the directories measured, in document order, each holding
-	// the paths of its own files.
+	// the paths separate files.
 	packages []*packageMetric
 	byPath   map[string]*packageMetric
 }
@@ -104,7 +104,7 @@ func (r Results) Statistics() []model.Statistics {
 }
 
 // byPackage is one row per package directory: what it declares, how much of it
-// stands on its own, and the share that does not.
+// stands alone, and the share that does not.
 func (r Results) byPackage() model.Statistics {
 	rows := make([][]string, 0, len(r.packages))
 	var all, tests Metric
@@ -152,7 +152,7 @@ func (r Results) byPackage() model.Statistics {
 }
 
 // mostCoupled names the files reaching furthest outside themselves, which are
-// the ones to read first. The count comes before the share, so a file of two
+// the ones to read first. The count comes before the share. A file of two
 // symbols does not head the table for having both of them coupled.
 func (r Results) mostCoupled() model.Statistics {
 	paths := make([]string, len(r.order))

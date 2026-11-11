@@ -11,7 +11,7 @@ import (
 )
 
 // sums is the go.sum the tests read: one version hashed twice, one recorded by
-// its go.mod alone, and a second module.
+// its go.mod alone. A second module.
 const sums = `example.com/a v1.0.0 h1:one=
 example.com/a v1.0.0/go.mod h1:two=
 example.com/a v1.1.0/go.mod h1:three=
@@ -66,7 +66,7 @@ func TestReadCarriesSums(t *testing.T) {
 }
 
 // TestReadWithoutSums covers a module that nobody has built yet. It has no
-// go.sum, and that is not an error.
+// go.sum. That is not an error.
 func TestReadWithoutSums(t *testing.T) {
 	dir := writeModule(t, "module example.com/x\n\ngo 1.24.0\n")
 

@@ -43,7 +43,7 @@ func Convert(root *model.DocumentRoot, options Options) (*JSONSchema, error) {
 
 // convertPackage adds the types of one package to the definitions.
 //
-// A name two packages both declare carries the package as a qualifier, since a
+// A name two packages both declare holds the package as a qualifier, since a
 // schema has one namespace and two Config types are not the same thing.
 func convertPackage(definitions map[string]*JSONSchema, def *model.Definition, config *RequiredFieldsConfig, options Options) error {
 	for _, decl := range def.Types {
@@ -85,7 +85,7 @@ func generateTypeSchema(decl *model.Declaration, config *RequiredFieldsConfig, p
 
 	case strings.Contains(decl.Type, "."):
 		// A type defined as one from another package belongs to the schema of
-		// that package, and this one skips it.
+		// that package. This one skips it.
 		return nil
 
 	case decl.Name != decl.Type && len(decl.Fields) == 0:

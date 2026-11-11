@@ -9,7 +9,7 @@ import (
 // Position names where an issue is.
 //
 // File is relative to the root the parse started at and never begins with a
-// separator, so a rendered line resolves against a checkout:
+// separator. A rendered line resolves against a checkout:
 // "model/declaration.go:42" is a path GitHub can open, "/model/..." is not.
 type Position struct {
 	// Package is the package the issue is in, named the way the document names
@@ -24,8 +24,8 @@ type Position struct {
 	Line int `json:"Line,omitempty" yaml:"Line,omitempty"`
 
 	// EndLine is the last line of the run the issue covers, and is zero for an
-	// issue about one line. A rule that reports a block sets it, and an
-	// annotation carries it so a review marks the whole block and not only
+	// issue about one line. A rule that reports a block sets it. An
+	// annotation holds it so a review marks the whole block and not only
 	// the line it opens on.
 	EndLine int `json:"EndLine,omitempty" yaml:"EndLine,omitempty"`
 }
@@ -45,7 +45,7 @@ func (p Position) Block() int {
 }
 
 // String reads "package: file.go:line", which names the package once and then
-// the file within it, so the path appears in one half only.
+// the file within it. The path appears in one half only.
 func (p Position) String() string {
 	where := path.Base(p.File)
 	if p.Line > 0 {

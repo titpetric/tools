@@ -12,14 +12,14 @@ import (
 )
 
 // benchProject is the tree the benchmarks read. This tree is the largest one
-// to hand, so the parse dominates a profile taken over it and the process
+// to hand. The parse dominates a profile taken over it and the process
 // start-up does not.
 //
 // SPLINT_BENCH names another.
 var benchProject = envOr("SPLINT_BENCH", "phpscript")
 
-// Each parser has a benchmark of its own and no shared benchmark with two
-// cases exists, so a profile can cover one of them: a run covering both mixes
+// Each parser has a separate benchmark and no shared benchmark with two
+// cases exists. A profile can cover one of them: a run covering both mixes
 // the two into a profile that describes neither.
 
 func BenchmarkSimpleParser(b *testing.B) {

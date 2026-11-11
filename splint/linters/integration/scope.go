@@ -45,14 +45,14 @@ type node struct {
 	def  *model.Definition
 }
 
-// step is how a function crosses the boundary: by a reason of its own, or
+// step is how a function crosses the boundary: for a reason it states itself, or
 // through the function it calls next.
 type step struct {
 	reason string
 	next   *model.Declaration
 
-	// depth is how many calls down the chain the reason sits, 0 for a
-	// function with a reason of its own.
+	// depth is how many calls down the chain the reason is, 0 for a function
+	// that crosses the boundary itself.
 	depth int
 }
 
@@ -124,7 +124,7 @@ func newScope(root *model.DocumentRoot, storage func(string) bool) *scope {
 }
 
 // solve finds every function that crosses: the ones with a reason of their
-// own first, then their callers, a ring at a time, so the chain a finding
+// own first, then their callers, a ring at a time. The chain a finding
 // names is the shortest there is.
 //
 // The pass follows a function whose calls the parse recorded, as the ast
@@ -160,8 +160,8 @@ func (s *scope) solve() {
 	s.spread(order, callers, s.database, true)
 }
 
-// spread fills one map of steps: the functions with a reason of their own,
-// then their callers, breadth first.
+// spread fills one map of steps: the functions that cross the boundary
+// themselves, then their callers, breadth first.
 func (s *scope) spread(order []*model.Declaration, callers map[*model.Declaration][]*model.Declaration, steps map[*model.Declaration]step, database bool) {
 	var queue []*model.Declaration
 	for _, decl := range order {
@@ -226,7 +226,7 @@ func (s *scope) edges(n node) []*model.Declaration {
 }
 
 // lookup finds a function by the import path of its package and its symbol.
-// A path ending in _test is a test package, whose functions sit in the test
+// A path ending in _test is a test package, whose functions are in the test
 // files; the other path looks up the functions outside them first.
 func (s *scope) lookup(target, symbol string) (node, bool) {
 	base := strings.TrimSuffix(target, "_test")
@@ -245,7 +245,7 @@ func (s *scope) lookup(target, symbol string) (node, bool) {
 // reason says how a test crosses the boundary, and is empty for one that does
 // not: its own reason, or the chain of calls down to the one that does. A
 // chain longer than depth reads as clean: the deeper the crossing call, the
-// likelier it sits behind a branch the test never takes.
+// likelier a branch the test never takes hides it.
 func (s *scope) reason(decl *model.Declaration, depth int) string {
 	return chain(s, s.crosses, decl, depth)
 }
@@ -361,7 +361,7 @@ func label(n node) string {
 }
 
 // basePath is the import path a call names the functions of a definition by: a
-// test definition carries the _test suffix, and a call into a white box test
+// test definition holds the _test suffix. A call into a white box test
 // names the package it compiles into.
 func basePath(def *model.Definition) string {
 	return strings.TrimSuffix(def.Package.ImportPath, "_test")

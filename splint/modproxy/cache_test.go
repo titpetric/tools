@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// cacheFile is a cache in a directory of its own; a save writes into it and a
+// cacheFile is a cache in a separate directory; a save writes into it and a
 // reopen reads it back.
 func cacheFile(t *testing.T) string {
 	t.Helper()
@@ -47,7 +47,7 @@ func TestCacheRoundTrip(t *testing.T) {
 }
 
 // TestCacheSaveIsAtomic covers how Save writes the file: beside itself and
-// renamed, so a reader sees one file or the other.
+// renamed. A reader sees one file or the other.
 func TestCacheSaveIsAtomic(t *testing.T) {
 	path := cacheFile(t)
 
@@ -65,7 +65,7 @@ func TestCacheSaveIsAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading the cache: %v", err)
 	}
-	// The shape is the module, its size, and the size of each version.
+	// The shape is the module, its size, then the size of each version.
 	for _, want := range []string{"example.com/x:", "size: 1000", "versions:", "v1.0.0: 1000"} {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("the file does not hold %q:\n%s", want, data)
@@ -89,7 +89,7 @@ func TestCacheSaveWritesNothingNew(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The same size again, and a size of nothing, as the proxy reports when
+	// The same size again. A size of nothing, as the proxy reports when
 	// the network fails.
 	read := OpenCache(path)
 	read.Add("example.com/x", "v1.0.0", 1000)
@@ -111,7 +111,7 @@ func TestCacheSaveWritesNothingNew(t *testing.T) {
 }
 
 // TestOpenCacheOnRubbish covers the file nobody can read. A cache is an
-// optimisation, so it answers nothing and the next save writes over it.
+// optimisation. It answers nothing and the next save writes over it.
 func TestOpenCacheOnRubbish(t *testing.T) {
 	path := cacheFile(t)
 	if err := os.WriteFile(path, []byte("\tnot: [yaml"), 0o644); err != nil {
@@ -147,7 +147,7 @@ func TestCacheWithoutPath(t *testing.T) {
 }
 
 // TestClientOffline covers the run that asks nobody: the size comes out of the
-// cache, and the questions only the proxy can answer stay blank.
+// cache. The questions only the proxy can answer stay blank.
 func TestClientOffline(t *testing.T) {
 	calls := 0
 	server := proxy(t, &calls)

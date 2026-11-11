@@ -46,7 +46,7 @@ func TestCatalogue_Owner(t *testing.T) {
 		"example.com/x/sub":          "example.com/x",
 		"example.com/x/inner":        "example.com/x/inner",
 		"example.com/x/inner/deeper": "example.com/x/inner",
-		// The match stops at a path boundary: xylophone is a module of its own.
+		// The match stops at a path boundary: xylophone is a separate module.
 		"example.com/xylophone": "",
 		"example.com/nothing":   "",
 	}
@@ -63,7 +63,7 @@ func TestCatalogue_Owner(t *testing.T) {
 }
 
 // TestCatalogue_Requires covers the merge: a module required by two of the
-// modules read is one dependency, and the catalogue keeps the direct require.
+// modules read is one dependency. The catalogue keeps the direct require.
 func TestCatalogue_Requires(t *testing.T) {
 	c := gomod.NewCatalogue(document())
 
@@ -108,7 +108,7 @@ func TestCatalogue_Owns(t *testing.T) {
 }
 
 // TestCatalogue_Sums covers a version two modules of the tree both record.
-// They resolve against one module cache, so they share one version, and the hash of
+// They resolve against one module cache. They share one version. The hash of
 // the source on either side says the build downloads it.
 func TestCatalogue_Sums(t *testing.T) {
 	doc := document()
@@ -143,7 +143,7 @@ func TestCatalogueOnNothing(t *testing.T) {
 }
 
 // TestBase covers the suffix that makes two majors of one module read as two
-// modules, and that tells them apart from two unrelated ones.
+// modules. That tells them apart from two unrelated ones.
 func TestBase(t *testing.T) {
 	tests := map[string]string{
 		"example.com/x":     "example.com/x",

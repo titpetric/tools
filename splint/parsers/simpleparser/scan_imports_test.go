@@ -33,7 +33,7 @@ import (
 		`rand "math/rand/v2"`,
 		// One that repeats the base name says nothing and the parser drops it.
 		`"strings"`,
-		// A blank import goes by no name, and the underscore is what
+		// A blank import goes by no name. The underscore is what
 		// records that: the import exists for its side effect alone.
 		`_ "embed"`,
 		// A dot import puts the package's names in this file's scope, which
@@ -45,7 +45,7 @@ import (
 		t.Errorf("Imports = %#v, want %#v", file.Imports, want)
 	}
 
-	// A blank or dot import goes by no name, so neither is a name a
+	// A blank or dot import goes by no name. Neither is a name a
 	// reference can match.
 	for _, name := range []string{"fmt", "rand", "strings", "alias"} {
 		if !file.aliases[name] {

@@ -2,8 +2,8 @@ package model
 
 // Sum is one module version go.sum records.
 //
-// go.sum is not the build list. It carries a hash for every version the module
-// graph offered, whether the build selected it or not, and it records a
+// go.sum is not the build list. It holds a hash for every version the module
+// graph offered, whether the build selected it or not. It records a
 // version whose source the build never needs by its go.mod alone. That makes
 // it worth reading beside the go.mod: the go.mod says what a build resolves
 // to, and go.sum says how much the resolution had to choose between.

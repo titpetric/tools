@@ -20,8 +20,8 @@ import (
 // before anything has moved the process.
 var unformatted = absolute("linters/imports/testdata/input")
 
-// tree writes a copy of the fixture into a directory of its own and returns
-// it, so a test that rewrites source rewrites its own copy.
+// tree writes a copy of the fixture into a separate directory and returns
+// it. A test that rewrites source rewrites its own copy.
 func tree(t *testing.T) string {
 	t.Helper()
 
@@ -86,14 +86,14 @@ func TestFixCommandRewritesTheTree(t *testing.T) {
 	if !strings.Contains(source, `"example.com/imports/service2/model"`) {
 		t.Errorf("model did not resolve to service2's:\n%s", source)
 	}
-	// The doc comment of the file names service1/model too, so the quoted
+	// The doc comment of the file names service1/model too. The quoted
 	// path is what says which one the import is.
 	if strings.Contains(source, `"example.com/imports/service1/model"`) {
 		t.Errorf("model resolved to the wrong service:\n%s", source)
 	}
 }
 
-// TestFixCountsWhatItRewrote covers the counter, which lives on the machine
+// TestFixCountsWhatItRewrote covers the counter, which the machine keeps
 // and stays out of the tree: a run that rewrote a file leaves the tree it
 // rewrote holding only source.
 func TestFixCountsWhatItRewrote(t *testing.T) {
@@ -114,7 +114,7 @@ func TestFixCountsWhatItRewrote(t *testing.T) {
 		t.Errorf("the fixer wrote %s into the tree", settings.Filename)
 	}
 
-	// A second run has nothing left to write, and the count does not move.
+	// A second run has nothing left to write. The count does not move.
 	got, _ := runArgs(t, "fix", "-i", dir, "./...")
 	if !strings.Contains(got, "0 files rewritten") {
 		t.Errorf("a second run rewrote a tree it had already written:\n%s", got)
@@ -130,7 +130,7 @@ func TestFixCountsWhatItRewrote(t *testing.T) {
 }
 
 // TestFixFlagFixesThenLints covers --fix: the report is of the tree the fixer
-// left, so nothing it cleared is in it.
+// left. Nothing it cleared is in it.
 func TestFixFlagFixesThenLints(t *testing.T) {
 	dir := tree(t)
 
@@ -163,9 +163,9 @@ func TestFixRefusesADocument(t *testing.T) {
 
 // TestFixReadsWithTheQuickParser covers the parser the fixer picks for itself.
 //
-// A file that is missing an import it needs does not compile, and that is the
+// A file that is missing an import it needs does not compile. That is the
 // file the fixer is there to repair. The ast parser resolves a tree through
-// the toolchain, so it reads the text instead.
+// the toolchain. It reads the text instead.
 func TestFixReadsWithTheQuickParser(t *testing.T) {
 	cfg, err := parseOptions([]string{"fix", "./..."})
 	if err != nil {
@@ -175,7 +175,7 @@ func TestFixReadsWithTheQuickParser(t *testing.T) {
 		t.Errorf("the fixer read the tree with %q, want %q", got, simpleparser.ParserName)
 	}
 
-	// A parser the command line named is the one it gets, and the lint half of
+	// A parser the command line named is the one it gets. The lint half of
 	// --fix behaves the same either way.
 	named, err := parseOptions([]string{"fix", "--parser", analyzer.ParserName, "./..."})
 	if err != nil {
@@ -204,7 +204,7 @@ func TestBareCommandLineStillLints(t *testing.T) {
 	}
 }
 
-// TestFixCommandTakesFlagsEitherWay covers the verb sitting in front of the
+// TestFixCommandTakesFlagsEitherWay covers the verb before the
 // flags, the usual place for a verb.
 func TestFixCommandTakesFlagsEitherWay(t *testing.T) {
 	cfg, err := parseOptions([]string{"fix", "./...", "-i", "somewhere"})
@@ -232,7 +232,7 @@ func read(t *testing.T, path string) string {
 
 // TestFixProgressStaysOutOfTheReport covers the two streams.
 //
-// --fix writes a report a program parses, and a line naming the rewritten files
+// --fix writes a report a program parses. A line naming the rewritten files
 // in the middle of that report makes a line of invalid JSON. The progress goes
 // to the second stream; splint fix, whose whole output is what it rewrote,
 // writes to the first.

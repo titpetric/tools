@@ -3,12 +3,12 @@ package model
 // Module holds the go.mod of the module the parse extracted a package from.
 //
 // A package is only half of what a consumer takes on. The other half is the
-// dependency set it drags in, and a release that moves a required module to
+// dependency set it drags in. A release that moves a required module to
 // another major version, or replaces one with a fork, changes what it costs to
 // depend on the package even though no symbol moved. Carrying the go.mod in
 // the model lets a reader compare two revisions on that.
 //
-// The parse sorts the lists, so a go.mod with only its blocks reordered
+// The parse sorts the lists. A go.mod with only its blocks reordered
 // produces the same model.
 type Module struct {
 	// Path is the module path, as the module directive declares it.

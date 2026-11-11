@@ -18,7 +18,7 @@ type Declaration struct {
 
 	// References are the packages the declaration reaches through an import of
 	// its own file, keyed by the name the import spells: json -> Encode. An
-	// import resolves within the scope of one file, so the parse records the
+	// import resolves within the scope of one file. The parse records the
 	// same symbol reached from two files on both.
 	References StringSet `json:"References,omitempty" yaml:"References,omitempty"`
 
@@ -47,13 +47,13 @@ type Declaration struct {
 	// the distinct types and no duplicate, for a reader of the dependency
 	// model; its length can differ from the length of the parameter list.
 	// date(year int, month time.Month, day, hour, min, sec int) has seven
-	// parameters and two entries in Arguments, and a rule about the order of
+	// parameters and two entries in Arguments. A rule about the order of
 	// two arguments has to be able to tell those apart.
 	ArgumentCount int `json:"ArgumentCount,omitempty" yaml:"ArgumentCount,omitempty"`
 
 	// TypeParams are the names a generic func binds between its name and its
 	// parameter list: Eval[T any] binds T. A name in here is a stand-in the
-	// caller fills, and no type the package declares; that lets a reader of
+	// caller fills. No type the package declares; that lets a reader of
 	// the model tell Exec[T]() (T, error) from a constructor.
 	TypeParams []string `json:"TypeParams,omitempty" yaml:"TypeParams,omitempty"`
 

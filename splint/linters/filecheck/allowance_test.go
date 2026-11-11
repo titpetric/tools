@@ -40,7 +40,7 @@ func TestAllowances_MaxLinesFor(t *testing.T) {
 
 // TestAllowances_MaxLinesFor_FirstMatchWins is the rule the field doc states.
 // Both entries cover the file and the one written first is the one that
-// applies, so an author orders the narrow entry above the broad one.
+// applies. An author orders the narrow entry above the broad one.
 func TestAllowances_MaxLinesFor_FirstMatchWins(t *testing.T) {
 	narrow := filecheck.Allowances{
 		{Path: "parser/*_test.go", MaxLines: 2000},

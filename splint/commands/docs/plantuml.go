@@ -25,11 +25,11 @@ type dbRelationship struct {
 // detectDBRelationships scans a type for database relationships.
 //
 // It looks for fields with an "ID" suffix and checks whether the target type
-// has an ID field of its own. A target with an ID is a 1:N relationship; one
+// has its own ID field. A target with an ID is a 1:N relationship; one
 // without makes the foreign key the only key, which is 1:1. A foreign key no
 // declared type answers to becomes a conceptual type.
 func detectDBRelationships(t *model.Declaration, allTypes map[string]*model.Declaration) []dbRelationship {
-	// A declaration in a grouped type block carries its names in Names, and
+	// A declaration in a grouped type block holds its names in Names, and
 	// an arrow from a nameless source is a line plantuml stops on.
 	if t.Name == "" {
 		return nil
@@ -55,7 +55,7 @@ func detectDBRelationships(t *model.Declaration, allTypes map[string]*model.Decl
 			continue
 		}
 
-		// The db tag names the column, and the column names the target more
+		// The db tag names the column. The column names the target more
 		// reliably than the field does.
 		var targetTypeName string
 		var exists bool
@@ -148,7 +148,7 @@ func hideSet(hide []string) map[string]bool {
 }
 
 // renderPlantUML writes a class diagram of the types: one class per struct,
-// its fields, the methods on it, and an arrow for every field, embed and
+// its fields, the methods on it. An arrow for every field, embed and
 // method that reaches a type the document declares.
 func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error {
 	var links []string
@@ -335,7 +335,7 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 		}
 	}
 
-	// The diagram draws conceptual types as interfaces, so a foreign key
+	// The diagram draws conceptual types as interfaces. A foreign key
 	// pointing outside the tree still lands somewhere.
 	if len(externalTypes) > 0 {
 		fmt.Fprintln(w)
@@ -358,7 +358,7 @@ func renderPlantUML(w io.Writer, opts Options, defs model.DefinitionList) error 
 
 // isTypeName reports a reference that names a declared type. An anonymous
 // struct or interface spells its shape out instead, whitespace and braces
-// included, and a diagram has nothing to point an arrow at.
+// included. A diagram has nothing to point an arrow at.
 func isTypeName(name string) bool {
 	return name != "" && !strings.ContainsAny(name, " \t\n{}")
 }

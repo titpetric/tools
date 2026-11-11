@@ -37,13 +37,13 @@ type Info struct {
 	Published time.Time `json:"Published,omitzero"`
 	Latest    string    `json:"Latest,omitempty"`
 
-	// LatestPublished is the tag time of that newest version, and it says
+	// LatestPublished is the tag time of that newest version. It says
 	// whether a dependency is behind or simply finished.
 	LatestPublished time.Time `json:"LatestPublished,omitzero"`
 
 	// Requires are the module paths this version's own go.mod requires, in
 	// order. A go.mod names what a build resolved to and not which module
-	// required it, so this is the only place that records the shape of the
+	// required it. This is the only place that records the shape of the
 	// graph.
 	Requires []string `json:"Requires,omitempty"`
 
@@ -67,7 +67,7 @@ func (i Info) Age(now time.Time) time.Duration {
 // Client queries a proxy about modules.
 //
 // A Client is safe for concurrent use and remembers every reply: a module
-// version is immutable, so the same question has the same answer for the life
+// version is immutable. The same question has the same answer for the life
 // of the process.
 type Client struct {
 	// Proxy is the base URL, and HTTP is what talks to it.
@@ -85,7 +85,7 @@ type Client struct {
 
 	// Offline keeps the client off the network. The client still reports what
 	// the cache holds, and for a version the cache lacks it reports the size of
-	// the module it belongs to, so a report draws on what earlier runs
+	// the module it belongs to. A report draws on what earlier runs
 	// learned and never starts from nothing.
 	Offline bool
 
@@ -123,7 +123,7 @@ func (c *Client) Lookup(ctx context.Context, path, version string) Info {
 	info := c.ask(ctx, path, version)
 
 	c.mu.Lock()
-	// This method fills the map and New does not, so a client written out as
+	// This method fills the map and New does not. A client written out as
 	// a literal is a client that works.
 	if c.known == nil {
 		c.known = map[string]Info{}
@@ -139,7 +139,7 @@ func (c *Client) LookupAll(ctx context.Context, modules map[string]string) map[s
 	return each(ctx, modules, c.Lookup)
 }
 
-// SizeAll is what a set of module versions weigh, and nothing else.
+// SizeAll is what a set of module versions weigh, and no more than that.
 func (c *Client) SizeAll(ctx context.Context, modules map[string]string) map[string]int64 {
 	return each(ctx, modules, c.SizeOf)
 }
@@ -170,7 +170,7 @@ func (c *Client) SizeOf(ctx context.Context, path, version string) int64 {
 
 // each asks one question of every module, a few at a time.
 //
-// each keys the results by the queried module, so a failed query still leaves
+// each keys the results by the queried module. A failed query still leaves
 // an entry: a caller reading the map gets the zero value and can tell the
 // query ran.
 func each[T any](ctx context.Context, modules map[string]string, ask func(context.Context, string, string) T) map[string]T {
@@ -217,7 +217,7 @@ func each[T any](ctx context.Context, modules map[string]string, ask func(contex
 func (c *Client) ask(ctx context.Context, path, version string) Info {
 	info := Info{Path: path, Version: version}
 
-	// A size the cache holds needs no query, and an offline run reports from
+	// A size the cache holds needs no query. An offline run reports from
 	// the cache.
 	if size, known := c.Sizes.Size(path, version); known {
 		info.Size = size
@@ -314,7 +314,7 @@ func (c *Client) published(ctx context.Context, escaped, version string) (time.T
 	return out.Time, err
 }
 
-// latest is the newest version the proxy knows of, and its tag time.
+// latest is the newest version the proxy knows of, with its tag time.
 func (c *Client) latest(ctx context.Context, escaped string) (string, time.Time, error) {
 	var out struct {
 		Version string
@@ -376,7 +376,7 @@ func (c *Client) private(path string) bool {
 
 // escapePath spells a module path the way the proxy protocol does, with every
 // upper case letter written as a bang and its lower case: proxies serve the
-// protocol off case insensitive filesystems, and two modules differing only in
+// protocol off case insensitive filesystems. Two modules differing only in
 // case would otherwise be one file.
 func escapePath(path string) (string, error) {
 	var out strings.Builder

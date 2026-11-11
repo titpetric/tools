@@ -7,13 +7,13 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// Catalogue is what a module depends on, and the packages each dependency
-// holds.
+// Catalogue is what a module depends on, down to the packages each
+// dependency holds.
 //
 // A document records the go.mod of every module it read and the import paths
-// every file reaches, and the two are not the same namespace: a require names
+// every file reaches. The two are not the same namespace: a require names
 // a module and an import names a package inside one. This is the map between
-// them, and it lets a reader see what a dependency actually costs on top of
+// them. It lets a reader see what a dependency actually costs on top of
 // the bare fact that a go.mod requires it.
 type Catalogue struct {
 	// modules are the modules the document came from, keyed by path.
@@ -25,7 +25,7 @@ type Catalogue struct {
 	// replaces are every replace directive, keyed by the path it replaces.
 	replaces map[string]model.Replace
 
-	// paths are the required module paths, longest first, so a lookup of an
+	// paths are the required module paths, longest first. A lookup of an
 	// import path finds the most specific module that could hold it.
 	paths []string
 }
@@ -50,7 +50,7 @@ func NewCatalogue(doc *model.DocumentRoot) *Catalogue {
 		for _, require := range module.Requires {
 			// A module required by two of the modules read is one dependency.
 			// The catalogue keeps the direct require: something imports it
-			// directly, and that is what a reader is deciding about.
+			// directly. That is what a reader is deciding about.
 			if known, seen := c.requires[require.Path]; !seen || (known.Indirect && !require.Indirect) {
 				c.requires[require.Path] = require
 			}
@@ -159,7 +159,7 @@ func (c *Catalogue) Owns(importPath string) bool {
 }
 
 // Base is a module path without its major version suffix: "example.com/x/v2"
-// is "example.com/x", so the majors of one module answer to one name.
+// is "example.com/x". The majors of one module answer to one name.
 func Base(path string) string {
 	at := strings.LastIndex(path, "/")
 	if at < 0 {

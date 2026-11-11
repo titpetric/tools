@@ -18,18 +18,18 @@
 // # Import declarations
 //
 // The comment above a declaration importing "C" is the C source cgo
-// compiles, and it stays the preamble only while it sits directly above the
+// compiles. It stays the preamble only while it sits directly above the
 // import. A formatter merges, groups and sorts the other declarations of a
-// cgo file, and the import of "C" stays where its preamble put it.
+// cgo file. The import of "C" stays where its preamble put it.
 //
 // When declarations merge into one, the first keeps its doc comment, because
 // the block lands where that one stands. The docs of the others go into the
-// tail with the comments that belong to no import, so no comment attaches
+// tail with the comments that belong to no import. No comment attaches
 // itself to the next thing in the file and a rewrite loses no line.
 //
 // # Build constraints
 //
 // Only the lines above the package clause can hold a //go:build line, so
 // BuildConstraint stops at the clause. The expression stays text: what it
-// means is a question for go/build/constraint, and the model parses nothing.
+// means is a question for go/build/constraint. The model parses nothing.
 package model

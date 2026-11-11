@@ -13,7 +13,7 @@ import (
 )
 
 // runs is how many times each parser reads each tree. The test reports the
-// fastest of them: a slow run measured the machine, and the quickest measured
+// fastest of them: a slow run measured the machine. The quickest measured
 // the parser.
 const runs = 3
 
@@ -22,10 +22,10 @@ const runs = 3
 //
 // A benchmark inside the process measures the parse and nothing else. What a
 // reader needs is what "splint --parser=simpleparser ./..." costs
-// against "splint --parser=astparser ./...", process start and all, so that is
+// against "splint --parser=astparser ./...", process start and all. That is
 // what this times.
 //
-// One linter runs, and the rest stay off. modcheck queries the module proxy
+// One linter runs. The rest stay off. modcheck queries the module proxy
 // about every dependency, which is a round trip per module and more time than
 // either parser takes: a run of it measures the network and reports it as a
 // parser.
@@ -77,7 +77,7 @@ func TestParserTiming(t *testing.T) {
 	}
 }
 
-// build compiles the command under test, and the timing covers the binary
+// build compiles the command under test. The timing covers the binary
 // built from this tree.
 func build(t *testing.T) string {
 	t.Helper()

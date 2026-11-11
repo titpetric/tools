@@ -2,7 +2,7 @@
 //
 // A test reaches a symbol two ways: it references the symbol, which the document
 // records on the References and Globals of the test's functions, or a test
-// carries its name, TestOpen for Open. Either clears the symbol; the report lists
+// holds its name, TestOpen for Open. Either clears the symbol; the report lists
 // the symbols with neither.
 //
 // The package ports the gofsck analyzer of the same name onto
@@ -26,10 +26,10 @@ const Name = "coverage"
 const RuleUncovered = "uncovered"
 
 // Linter reports an exported symbol no test reaches. It reads a command and a
-// test package for tests only: neither exports a surface anyone tests, and the
-// tests of a package commonly sit in a package of their own.
+// test package for tests only: neither exports a surface anyone tests. The
+// tests of a package commonly go in a separate package.
 type Linter struct {
-	// Tag is the build tag integration tests sit behind. A test behind it
+	// Tag is the build tag guarding the integration tests. A test behind it
 	// counts like any other: the file it tests has its test.
 	Tag string
 }
@@ -39,7 +39,7 @@ func New() *Linter {
 	return &Linter{Tag: "integration"}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -98,7 +98,7 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 // reachable reports a declaration somebody outside the package can name, which
 // is what a test exists for. A symbol declared in a test file belongs to
-// the test and not to what it tests, and one in a generated file is
+// the test and not to what it tests. One in a generated file is
 // nobody's to write a test for.
 func reachable(def *model.Definition, decl *model.Declaration) bool {
 	if !decl.IsExported() || decl.IsTestScope() {
@@ -136,7 +136,7 @@ func reached(index *refindex.Index, claimed map[string]bool, def *model.Definiti
 
 // covers reports whether the tests of a package name the symbol.
 //
-// The linter looks for a method under both the names its test can carry:
+// The linter looks for a method under both the names its test can hold:
 // Client.Close is what TestClient_Close claims, and ClientClose is what
 // TestClientClose claims, which is the same symbol with the dot taken out.
 func covers(claimed map[string]bool, symbol string) bool {
@@ -144,12 +144,12 @@ func covers(claimed map[string]bool, symbol string) bool {
 }
 
 // claims indexes what the tests of a document say they test, keyed by the
-// directory the package they are in sits in.
+// directory holding the package they are in.
 //
-// The directory is the key, and the import path is not, because a test package
-// arrives as a definition of its own: the tests of a package are not in the
-// definition its symbols are in, the two carry different package names and
-// different import paths, and where they sit on disk is what they share.
+// The directory is the key. The import path is not, because a test package
+// arrives as a separate definition: the tests of a package are not in the
+// definition its symbols are in, the two hold different package names and
+// different import paths. Their place on disk is what they share.
 func claims(root *model.DocumentRoot) map[string]map[string]bool {
 	claimed := map[string]map[string]bool{}
 
@@ -179,7 +179,7 @@ func claims(root *model.DocumentRoot) map[string]map[string]bool {
 
 // subjects are the symbols one test or benchmark function claims to cover.
 //
-// A test carries the name of what it tests and may say more after an underscore, so
+// A test holds the name of what it tests and may say more after an underscore, so
 // TestOpen and TestOpen_missingFile both test Open and TestClient_Close tests
 // the method. TestClient claims NewClient as well, because a test of a type
 // exercises the thing that builds it.
