@@ -9,14 +9,14 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// StatsFilename is the file the counters live in, under the directory the
+// StatsFilename is the file holding the counters, under the directory the
 // operating system keeps a user's configuration in.
 //
 // They are not kept beside the tree. A tree's own file states the rules its
 // source follows, a decision its authors made and commit;
 // a counter is what one person's runs have done and belongs to that person's
 // machine. Keeping it in the tree meant every run that rewrote a file left the
-// repository dirty and every branch carried a different number.
+// repository dirty and every branch held a different number.
 const StatsFilename = "splint.yml"
 
 // Stats is what runs of splint have counted.
@@ -108,7 +108,7 @@ func AddFixed(n int) error {
 
 // bump adds n to imports.fixed, keeping every other key as read. bump
 // replaces an imports that is not a mapping with one, since the counter can
-// only live under a mapping.
+// only appear under a mapping.
 func bump(document yaml.MapSlice, n int) yaml.MapSlice {
 	for i, item := range document {
 		if key, ok := item.Key.(string); !ok || key != "imports" {

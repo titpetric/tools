@@ -50,7 +50,7 @@ func TestLoadFilecheckUnstated(t *testing.T) {
 
 // TestLoadFilecheck reads the section the consumer requested, and checks it
 // resolves the way the field docs say: the stated default for a file no entry
-// covers, the entry's own ceiling for one it does, and a zero kept as a zero.
+// covers, the entry's own ceiling for one it does. A zero kept as a zero.
 func TestLoadFilecheck(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(config.Path(dir), []byte(`filecheck:
@@ -96,7 +96,7 @@ func TestLoadFilecheckOffForTheTree(t *testing.T) {
 
 // TestLoadFilecheckRefusesAMalformedEntry proves Load reports a typo at its
 // source. A pattern nothing can read would otherwise cover no file for the
-// life of the file, and the authors of the tree would think they had stated a
+// life of the file. The authors of the tree would think they had stated a
 // rule.
 func TestLoadFilecheckRefusesAMalformedEntry(t *testing.T) {
 	tests := []struct {
@@ -194,8 +194,29 @@ func TestIntegration(t *testing.T) {
 	}, cfg.Integration)
 }
 
+// TestMarkdown covers the one question the format takes a setting for. A tree
+// saying nothing joins the lines of a paragraph.
+func TestMarkdown(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg, err := config.Load(dir)
+	require.NoError(t, err)
+	assert.Equal(t, config.Markdown{}, cfg.Markdown)
+
+	require.NoError(t, os.WriteFile(config.Path(dir), []byte(`markdown:
+  soft-wraps: true
+`), 0o644))
+
+	cfg, err = config.Load(dir)
+	require.NoError(t, err)
+	assert.Equal(t, config.Markdown{SoftWraps: true}, cfg.Markdown)
+
+	// A file stating one section keeps the defaults of the rest.
+	assert.Equal(t, 400, cfg.Filecheck.MaxLines)
+}
+
 // TestLoadPollutionIgnore covers the ignore list: the default when the file
-// says nothing, an empty list clearing it, and a list replacing it.
+// says nothing, an empty list clearing it. A list replacing it.
 func TestLoadPollutionIgnore(t *testing.T) {
 	t.Parallel()
 

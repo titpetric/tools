@@ -2,6 +2,7 @@ package godoc_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/titpetric/tools/splint/linters/godoc"
@@ -78,10 +79,10 @@ func TestLinterReportsWhatIsWrongWithADoc(t *testing.T) {
 // TestLinterReadsAConstBlock covers the two shapes a set of related constants
 // arrives in.
 //
-// A parenthesised block is one declaration naming many symbols, and the
-// comment above it documents the block and no single name, so the name
+// A parenthesised block is one declaration naming many symbols. The
+// comment above it documents the block and no single name. The name
 // check does not apply to it. A run of separate declarations is a block by
-// proximity, and a comment on the first of them carries to the rest.
+// proximity. A comment on the first of them holds to the rest.
 func TestLinterReadsAConstBlock(t *testing.T) {
 	pkg := model.Package{Package: "x", Path: "."}
 
@@ -111,8 +112,8 @@ func TestLinterReadsAConstBlock(t *testing.T) {
 		t.Errorf("reported %d issues under an opening comment: %q", len(issues), issues[0].Message)
 	}
 
-	// A gap wide enough to be another block is another block, and that one
-	// carries no comment of its own.
+	// A gap wide enough to be another block is another block. That one
+	// holds no comment at all.
 	root = document(pkg, nil, model.DeclarationList{
 		{Kind: model.ConstKind, Name: "KindA", File: "x.go", Line: 3, Doc: "KindA is the first."},
 		{Kind: model.ConstKind, Name: "KindB", File: "x.go", Line: 40},
@@ -145,7 +146,7 @@ func TestLinterSkipsWhatNobodyReads(t *testing.T) {
 
 // TestLinterSkipsAGeneratedFile covers the one undocumented symbol nobody in the
 // tree can document: the comment on a generated declaration is the generator's
-// to write, so a finding on it names work nobody here can do.
+// to write. A finding on it names work nobody here can do.
 func TestLinterSkipsAGeneratedFile(t *testing.T) {
 	root := document(model.Package{Package: "x", Path: "./x"},
 		model.DeclarationList{
@@ -166,28 +167,29 @@ func TestLinterSkipsAGeneratedFile(t *testing.T) {
 	}
 }
 
-// TestLinterWeighsADocAgainstItsExits covers the function comment running to
-// more lines than the function has exits, which belongs on the type or in
+// TestLinterWeighsADocAgainstItsBlocks covers the function comment running to
+// more lines than the body opens blocks, which belongs on the type or in
 // docs.go.
-func TestLinterWeighsADocAgainstItsExits(t *testing.T) {
+func TestLinterWeighsADocAgainstItsBlocks(t *testing.T) {
 	pkg := model.Package{Package: "x", Path: "./x"}
 	tests := []struct {
-		title string
-		file  string
-		doc   string
-		exits int
-		body  bool
-		rule  string
+		title  string
+		file   string
+		doc    string
+		blocks int
+		body   bool
+		rule   string
 	}{
-		{title: "two lines over one exit", doc: "Open reads\na file.", exits: 1, body: true, rule: godoc.RuleOutweighs},
-		{title: "two lines over two exits", doc: "Open reads\na file.", exits: 2, body: true, rule: ""},
-		{title: "five lines over three exits", doc: "Open is\na long\nexplanation\nof very\nlittle.", exits: 3, body: true, rule: godoc.RuleOutweighs},
-		{title: "one line, no exit counted", doc: "Open reads a file.", exits: 0, body: true, rule: ""},
-		{title: "two lines, no exit counted, counts one", doc: "Open reads\na file.", exits: 0, body: true, rule: godoc.RuleOutweighs},
-		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\none\nand\nsays\nso\nbefore\nthis.", exits: 1, body: true, rule: godoc.RuleVerbose},
+		{title: "one line over no block", doc: "Open reads a file.", blocks: 0, body: true, rule: ""},
+		{title: "two lines over no block", doc: "Open reads\na file.", blocks: 0, body: true, rule: godoc.RuleOutweighs},
+		{title: "two lines over one block", doc: "Open reads\na file.", blocks: 1, body: true, rule: ""},
+		{title: "three lines over one block", doc: "Open reads\na file\nby name.", blocks: 1, body: true, rule: godoc.RuleOutweighs},
+		{title: "five lines over four blocks", doc: "Open is\na long\nexplanation\nof very\nlittle.", blocks: 4, body: true, rule: ""},
+		{title: "five lines over two blocks", doc: "Open is\na long\nexplanation\nof very\nlittle.", blocks: 2, body: true, rule: godoc.RuleOutweighs},
+		{title: "eleven lines is verbose first", doc: "Open\nis\neleven\nlines\nover\none\nand\nsays\nso\nbefore\nthis.", blocks: 1, body: true, rule: godoc.RuleVerbose},
 		{title: "a type measures nothing", doc: "Open is\na type,\nwith no body\nfor a comment\nto outweigh.", rule: ""},
-		{title: "docs.go measures nothing", file: "docs.go", doc: "Open reads\na file.", exits: 1, body: true, rule: ""},
-		{title: "an example weighs nothing", doc: "Open reads\na file:\n\n\tf := Open()\n\nThe caller closes it.", exits: 3, body: true, rule: ""},
+		{title: "docs.go measures nothing", file: "docs.go", doc: "Open reads\na file.", blocks: 0, body: true, rule: ""},
+		{title: "an example weighs nothing", doc: "Open reads\na file:\n\n\tf := Open()\n\nThe caller closes it.", blocks: 2, body: true, rule: ""},
 	}
 
 	for _, test := range tests {
@@ -197,7 +199,7 @@ func TestLinterWeighsADocAgainstItsExits(t *testing.T) {
 		}
 		decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: file, Line: 9, Doc: test.doc}
 		if test.body {
-			decl.Complexity = &model.Complexity{Lines: 5, Exits: test.exits}
+			decl.Complexity = &model.Complexity{Lines: 5, Blocks: test.blocks}
 		}
 
 		issues := lint(t, document(pkg, model.DeclarationList{decl}, nil))
@@ -211,11 +213,51 @@ func TestLinterWeighsADocAgainstItsExits(t *testing.T) {
 		}
 	}
 
-	decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 9, Doc: "Open reads\na file\nand more\nof it.", Complexity: &model.Complexity{Lines: 9, Exits: 2}}
+	decl := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 9, Doc: "Open reads\na file\nand more\nof it.", Complexity: &model.Complexity{Lines: 9, Blocks: 1}}
 	issues := lint(t, document(pkg, model.DeclarationList{decl}, nil))
-	want := "godoc runs to 4 lines over 2 exit points; keep the function's comment to its exits, put intent on the type or in docs.go"
+	want := "godoc runs to 4 prose lines against a budget of 2 lines, one for the function and one per block it opens; cut it, or put the intent on the type or in doc.go"
 	if len(issues) != 1 || issues[0].Message != want {
 		t.Errorf("reported %#v, want %q", issues, want)
+	}
+}
+
+func TestLinterBrevity(t *testing.T) {
+	pkg := model.Package{Package: "x", ImportPath: "x"}
+	two := "Open reads\na file."
+	decl := func() *model.Declaration {
+		return &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 9, Doc: two, Complexity: &model.Complexity{Lines: 9, Blocks: 3}}
+	}
+
+	// Four blocks earn four lines, so two lines pass the default budget.
+	if issues := lint(t, document(pkg, model.DeclarationList{decl()}, nil)); len(issues) != 0 {
+		t.Errorf("default budget reported %#v, want none", issues)
+	}
+
+	linter := godoc.New()
+	linter.Brevity = true
+	report, err := linter.Lint(context.Background(), document(pkg, model.DeclarationList{decl()}, nil))
+	if err != nil {
+		t.Fatalf("Lint() error = %v", err)
+	}
+	issues := model.Issues(report)
+	if len(issues) != 1 || issues[0].Rule != godoc.RuleOutweighs {
+		t.Fatalf("brevity reported %#v, want one outweighs", issues)
+	}
+	if !strings.Contains(issues[0].Message, "budget of one") || !strings.Contains(issues[0].Message, "docs/") {
+		t.Errorf("message = %q, want the budget and where the prose goes", issues[0].Message)
+	}
+
+	// One line is the whole budget, and it passes.
+	one := decl()
+	one.Doc = "Open reads a file."
+	linter2 := godoc.New()
+	linter2.Brevity = true
+	report2, err := linter2.Lint(context.Background(), document(pkg, model.DeclarationList{one}, nil))
+	if err != nil {
+		t.Fatalf("Lint() error = %v", err)
+	}
+	if got := model.Issues(report2); len(got) != 0 {
+		t.Errorf("one line reported %#v, want none", got)
 	}
 }
 

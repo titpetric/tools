@@ -83,7 +83,7 @@ func TestLoadStatsWithoutAFile(t *testing.T) {
 	assert.Equal(t, 0, stats.Imports.Fixed)
 }
 
-// userConfig points the counter at a directory of the test's own, so a run of
+// userConfig points the counter at a directory of the test's own. A run of
 // the suite neither reads nor writes the counter of whoever is running it.
 func userConfig(t *testing.T) string {
 	t.Helper()

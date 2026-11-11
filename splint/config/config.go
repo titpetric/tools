@@ -27,7 +27,7 @@ import (
 const Filename = ".splint.yml"
 
 // Config is the file. Its accessors convert to the types the linters take,
-// since a configuration type describes a document a person writes, and a
+// since a configuration type describes a document a person writes. A
 // linter takes data.
 type Config struct {
 	// Imports is the house rule for an import block.
@@ -36,19 +36,46 @@ type Config struct {
 	// Filecheck is the house rule for how long a file may run to.
 	Filecheck Filecheck `yaml:"filecheck"`
 
+	// Godoc is the house rule for how long a doc comment may run to.
+	Godoc Godoc `yaml:"godoc"`
+
 	// Integration is the house rule for tests crossing a process boundary.
 	Integration Integration `yaml:"integration"`
+
+	// Markdown is the house rule for how the fixer writes a document.
+	Markdown Markdown `yaml:"markdown"`
+}
+
+// Markdown is the house rule for how the fixer writes a document.
+//
+// There is one key. It answers the one question two trees here disagree
+// about. The format settles the rest. A heading level, a list marker, the
+// width of a table and a run of spaces take no setting. A review spent on any
+// of them is a review wasted.
+type Markdown struct {
+	// SoftWraps keeps the line breaks the author put inside a paragraph.
+	//
+	// Off, a paragraph comes back as one line. A break inside a paragraph
+	// means nothing in markdown. Joining them makes a reworded sentence diff
+	// as a sentence, where the breaks make it diff as every line after it.
+	//
+	// On, the breaks stay. A tree that wrapped its documents by hand and
+	// reviews one line at a time sets this.
+	//
+	// The setting belongs in the file and not on a command line. Two people
+	// running the formatter over one tree have to write the same bytes.
+	SoftWraps bool `yaml:"soft-wraps"`
 }
 
 // Integration is the house rule for tests crossing a process boundary: they
-// sit behind a build tag, in files named for it, so a plain go test runs the
+// go behind a build tag, in files named for it. A plain go test runs the
 // unit tests alone.
 type Integration struct {
 	// Enabled turns the linter on for the tree. A run naming the linter
 	// with --linters turns it on as well.
 	Enabled bool `yaml:"enabled"`
 
-	// Tag is the build tag the integration tests sit behind. It defaults to
+	// Tag is the build tag guarding the integration tests. It defaults to
 	// integration.
 	Tag string `yaml:"tag,omitempty"`
 
@@ -78,7 +105,7 @@ type Imports struct {
 	SetAlias *bool `yaml:"set-alias,omitempty"`
 
 	// Aliases name what the tree cannot: an import path for a name no package
-	// of the tree carries and no file writes yet.
+	// of the tree holds and no file writes yet.
 	Aliases map[string]string `yaml:"aliases,omitempty"`
 
 	// Pollution says when the linter reports a dependency reaching many files.
@@ -100,7 +127,7 @@ type Pollution struct {
 	// off.
 	FileShare float64 `yaml:"file-share"`
 
-	// IncludeTests counts the test files. It defaults to true, so a package
+	// IncludeTests counts the test files. It defaults to true. A package
 	// whose three test files all reach testify shows up in the report. Set it
 	// false when that reads as noise and not as a finding.
 	IncludeTests *bool `yaml:"include-tests"`
@@ -108,14 +135,14 @@ type Pollution struct {
 	// Ignore are the dependencies the rule never reports, as import path
 	// prefixes: an entry covers the path it names and every path below it.
 	// It defaults to the golang.org/x modules and github.com/spf13/pflag. A
-	// list in the file replaces the default, and an empty list clears it so
+	// list in the file replaces the default. An empty list clears it so
 	// the rule checks every dependency.
 	Ignore []string `yaml:"ignore"`
 }
 
 // Filecheck is the house rule for how long a file may run to.
 //
-// A tree stating nothing here gets the linter's own ceiling, so the
+// A tree stating nothing here gets the linter's own ceiling. The
 // section exists for the tree that has a file no number can name: a recursive
 // descent parser, an interpreter loop, a test file the pairing rule will not
 // let it split. The section names those by path and the linter still reports
@@ -126,16 +153,27 @@ type Filecheck struct {
 	// Zero turns the rule off for every file the allow list does not name.
 	MaxLines int `yaml:"max-lines"`
 
-	// Allow are the paths that run under a ceiling of their own. A file no
+	// Allow are the paths that run under a separate ceiling. A file no
 	// entry covers runs under MaxLines.
 	Allow []FileAllowance `yaml:"allow,omitempty"`
+}
+
+// Godoc is the house rule for how long a doc comment may run to.
+//
+// The linter's own budget grows a comment with the code under it: one prose
+// line for the declaration and one more per block its body opens. Brevity
+// takes that away. See docs/dev/comments.md for what the rule asks for and
+// where the prose it displaces goes.
+type Godoc struct {
+	// Brevity caps every doc comment at one prose line.
+	Brevity bool `yaml:"brevity"`
 }
 
 // FileAllowance is one ceiling and the paths it applies to.
 type FileAllowance struct {
 	// Path is the pattern, matched against the file as a report names it: the
 	// package directory and the filename, with no leading dot or slash. The
-	// syntax is path.Match per segment, so a star stops at a separator, plus
+	// syntax is path.Match per segment. A star stops at a separator, plus
 	// ** for any number of segments. parser/*.go is the files of one
 	// directory and **/*_test.go is every test file of the tree. A pattern
 	// path.Match cannot read fails the load of the file.
@@ -144,7 +182,7 @@ type FileAllowance struct {
 	// MaxLines is the ceiling for the files it covers. Zero means the rule
 	// does not apply to them, the way a zero turns off a pollution rule.
 	//
-	// The first entry covering a file applies, so the linter reads a list top
+	// The first entry covering a file applies. The linter reads a list top
 	// to bottom and an author writes a narrow entry above the broad entry it
 	// carves a hole in.
 	MaxLines int `yaml:"max-lines"`
@@ -163,13 +201,13 @@ func Default() *Config {
 	}
 }
 
-// Path is where the file sits for a tree rooted at dir.
+// Path is where the file goes for a tree rooted at dir.
 func Path(dir string) string {
 	return filepath.Join(dir, Filename)
 }
 
 // Load reads the file for a tree rooted at dir. A tree with no file gets the
-// defaults, and no error.
+// defaults and no error.
 func Load(dir string) (*Config, error) {
 	cfg := Default()
 
@@ -199,7 +237,7 @@ func Load(dir string) (*Config, error) {
 }
 
 // validate refuses a rule no reader can have meant. A ceiling is a count of
-// lines, a pattern is a pattern, and an entry naming no path would quietly
+// lines, a pattern is a pattern. An entry naming no path would quietly
 // cover nothing for the life of the file.
 func (f Filecheck) validate() error {
 	if f.MaxLines < 0 {

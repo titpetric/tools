@@ -14,21 +14,22 @@ import (
 // counts the same nodes.
 //
 // Cognitive complexity does not reduce to a count. gocognit weights a branch by
-// how deeply it nests and treats a chain of boolean operators as one, and
-// neither survives without a tree, so this count covers the branching
+// how deeply it nests and folds a chain of boolean operators into a single
+// decision, and neither survives without a tree. This count covers the branching
 // with the nesting weight and no more. That is the one field of the model the two
 // parsers may disagree on.
 //
 // The open line is where the declaration starts and from is where its body
-// does: the branching counts over the body, and the length over the whole
-// block.
+// does: the branching counts over the body, the length over the whole
+// block. Blocks counts the braces the body holds, since the brace that opens
+// it sits on the signature's last line, outside the range.
 func complexity(src *source, open, from, to int) *model.Complexity {
 	// Lines is the function block, from the func keyword to the brace that
 	// closes it. The doc comment above the function sits outside it.
 	lines := to - open + 1
 
 	cyclomatic, cognitive := 1, 0
-	depth := 0
+	depth, braces := 0, 0
 
 	for i := from; i <= to && i < src.len(); i++ {
 		code := src.codeLine(i)
@@ -38,7 +39,7 @@ func complexity(src *source, open, from, to int) *model.Complexity {
 		}
 
 		// The closing brace of a block applies before the count reads its
-		// contents, so a line that only closes lowers the nesting first.
+		// contents. A line that only closes lowers the nesting first.
 		closes := strings.Count(code, "}")
 		opens := strings.Count(code, "{")
 		if strings.HasPrefix(trimmed, "}") {
@@ -52,6 +53,7 @@ func complexity(src *source, open, from, to int) *model.Complexity {
 		branches := branchCount(code)
 		cyclomatic += branches
 		cognitive += branches * (1 + depth)
+		braces += opens
 
 		depth += opens - closes
 		if depth < 0 {
@@ -64,6 +66,7 @@ func complexity(src *source, open, from, to int) *model.Complexity {
 		Cyclomatic: cyclomatic,
 		Lines:      lines,
 		Exits:      exits(src, from, to),
+		Blocks:     braces,
 	}
 }
 
@@ -114,7 +117,7 @@ func branchCount(code string) int {
 		i--
 	}
 
-	// A range clause sits inside a for, and the two are one decision.
+	// A range clause is inside a for. The two are one decision.
 	if fors > 0 {
 		count -= min(fors, ranges)
 	}

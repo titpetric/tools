@@ -95,13 +95,15 @@ func (r Results) Statistics() []model.Statistics {
 			strconv.Itoa(metric.Format),
 			strconv.Itoa(metric.Verbose),
 			strconv.Itoa(metric.Outweighs),
+			strconv.Itoa(metric.Restates),
+			strconv.Itoa(metric.Internals),
 		})
 	}
 
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
 
 	return []model.Statistics{model.NewStatistics(
-		[]string{"Package", "Exported", "Documented", "Share", "Missing", "Format", "Verbose", "Outweighs"},
+		[]string{"Package", "Exported", "Documented", "Share", "Missing", "Format", "Verbose", "Outweighs", "Restates", "Internals"},
 		rows,
 		model.HeaderText("Documentation of every exported symbol, by package."),
 		model.FooterText(fmt.Sprintf("%d of %d exported symbols documented, %s, %s.",
@@ -143,6 +145,10 @@ func (r *Results) add(metric *Metric, result Result) {
 		metric.Verbose++
 	case RuleOutweighs:
 		metric.Outweighs++
+	case RuleRestates:
+		metric.Restates++
+	case RuleInternals:
+		metric.Internals++
 	}
 }
 

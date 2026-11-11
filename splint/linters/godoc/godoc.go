@@ -1,5 +1,6 @@
 // Package godoc reports exported symbols whose doc comment is missing, does
-// not open on the symbol it documents, or runs long enough to be a smell.
+// not open on the symbol it documents, runs long enough to be a smell, or
+// says only what the signature below it already says.
 package godoc
 
 import (
@@ -7,6 +8,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"unicode"
 
 	"github.com/titpetric/tools/splint/model"
 )
@@ -20,27 +22,29 @@ const (
 	RuleFormat    = "format"
 	RuleVerbose   = "verbose"
 	RuleOutweighs = "outweighs"
+	RuleRestates  = "restates"
+	RuleInternals = "internals"
 )
 
-// maxDocLines is how many lines a doc comment may run to before it reads as a
-// symbol doing too much, where a short comment reads as a symbol well explained.
 const maxDocLines = 10
 
-// blockGap is how many lines apart two declarations may sit and still read
-// as one const or var block, which one comment above it documents.
+// Two declarations further apart than this are two blocks, documented separately.
 const blockGap = 10
 
 // Linter checks the godoc of every exported symbol outside main and the test
-// packages: a command documents nothing to a consumer, and a test package is
+// packages: a command documents nothing to a consumer. A test package is
 // no surface anyone reads.
-type Linter struct{}
+type Linter struct {
+	// Brevity caps every doc comment at one prose line.
+	Brevity bool
+}
 
-// New returns the linter.
+// New returns the linter with the per-block budget, which Brevity narrows to one.
 func New() *Linter {
 	return &Linter{}
 }
 
-// Name is the linter name.
+// Name selects the linter on a --linters list and labels its issues.
 func (l *Linter) Name() string {
 	return Name
 }
@@ -59,16 +63,17 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 
 		generated := generatedFiles(def)
 
-		var found []Result
+		var found, hidden []Result
 		exported := 0
 		for _, decls := range []model.DeclarationList{def.Types, def.Funcs, def.Consts, def.Vars} {
 			exported += countExported(decls, generated)
-			found = append(found, check(def.Package, decls, generated)...)
+			found = append(found, check(def.Package, decls, generated, l.Brevity)...)
+			hidden = append(hidden, internals(def.Package, decls, generated)...)
 		}
 
 		metric := results.count(def.Package, exported)
 		metric.Documented = exported - documentedShort(found)
-		for _, result := range found {
+		for _, result := range append(found, hidden...) {
 			results.add(metric, result)
 		}
 	}
@@ -76,8 +81,6 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	return results, nil
 }
 
-// generatedFiles is the set of files in def written by a generator, whose
-// comments are the generator's to write.
 func generatedFiles(def *model.Definition) map[string]bool {
 	var generated map[string]bool
 	for _, file := range def.Files {
@@ -92,8 +95,6 @@ func generatedFiles(def *model.Definition) map[string]bool {
 	return generated
 }
 
-// countExported is how many symbols of a list a reader can reach, which is
-// what the linter measures the documentation against.
 func countExported(decls model.DeclarationList, generated map[string]bool) int {
 	count := 0
 	for _, decl := range decls {
@@ -104,8 +105,7 @@ func countExported(decls model.DeclarationList, generated map[string]bool) int {
 	return count
 }
 
-// documentedShort is how many symbols the findings are about, which is not the
-// same as how many findings there are: the linter reports one symbol once.
+// Counts a symbol once however many findings it drew.
 func documentedShort(found []Result) int {
 	seen := map[string]bool{}
 	for _, result := range found {
@@ -114,17 +114,13 @@ func documentedShort(found []Result) int {
 	return len(seen)
 }
 
-// check reports one kind of declaration in one package.
-//
-// The check reads declarations in blocks: a run of exported names in the same file,
-// none more than blockGap lines from the one above it, is one const or var
-// block, and a comment on the first of them documents each one.
-func check(pkg model.Package, decls model.DeclarationList, generated map[string]bool) []Result {
+// A comment on the first name of a const or var block documents every name in it.
+func check(pkg model.Package, decls model.DeclarationList, generated map[string]bool, brevity bool) []Result {
 	var results []Result
 
 	for _, block := range blocks(decls, generated) {
 		if len(block) == 1 {
-			results = append(results, validate(pkg, block[0])...)
+			results = append(results, validate(pkg, block[0], brevity)...)
 			continue
 		}
 
@@ -132,7 +128,7 @@ func check(pkg model.Package, decls model.DeclarationList, generated map[string]
 		for _, decl := range block {
 			switch {
 			case strings.TrimSpace(decl.Doc) != "":
-				results = append(results, validate(pkg, decl)...)
+				results = append(results, validate(pkg, decl, brevity)...)
 			case !documented:
 				results = append(results, result(pkg, decl, RuleMissing, "exported symbol lacks a godoc comment"))
 			}
@@ -142,11 +138,7 @@ func check(pkg model.Package, decls model.DeclarationList, generated map[string]
 	return results
 }
 
-// blocks groups the exported declarations that read as one block.
-//
-// The check leaves out a generated file. The generator writes its
-// comment, so any finding there is a finding nobody in this tree can act on: the
-// comment has to come from the generator or not at all.
+// A generated file is skipped: its comment comes from the generator or not at all.
 func blocks(decls model.DeclarationList, generated map[string]bool) []model.DeclarationList {
 	var (
 		groups  []model.DeclarationList
@@ -174,14 +166,12 @@ func blocks(decls model.DeclarationList, generated map[string]bool) []model.Decl
 }
 
 // validate reports one documented or undocumented declaration.
-func validate(pkg model.Package, decl *model.Declaration) []Result {
+func validate(pkg model.Package, decl *model.Declaration, brevity bool) []Result {
 	doc := strings.TrimSpace(decl.Doc)
 	if doc == "" {
 		return []Result{result(pkg, decl, RuleMissing, "exported symbol lacks a godoc comment")}
 	}
 
-	// A block declaring more than one name carries a block comment, so the
-	// comment names none of them and the check looks at the punctuation alone.
 	if len(decl.Names) > 1 {
 		if !endsInPunctuation(doc) {
 			return []Result{result(pkg, decl, RuleFormat, "godoc should end in punctuation")}
@@ -203,16 +193,41 @@ func validate(pkg model.Package, decl *model.Declaration) []Result {
 	if lines > maxDocLines {
 		return []Result{result(pkg, decl, RuleVerbose, fmt.Sprintf("godoc runs to %d lines, which usually says the symbol does too much", lines))}
 	}
-	if text, exits := len(prose(doc)), exitPoints(decl); exits > 0 && text > exits {
-		return []Result{result(pkg, decl, RuleOutweighs, fmt.Sprintf("godoc runs to %d lines over %s; keep the function's comment to its exits, put intent on the type or in docs.go", text, plural(exits, "exit point", "exit points")))}
+	if text, budget := len(prose(doc)), docBudget(decl, brevity); budget > 0 && text > budget {
+		return []Result{result(pkg, decl, RuleOutweighs, outweighsMessage(text, budget, brevity))}
+	}
+	if Restates(decl, doc) {
+		return []Result{result(pkg, decl, RuleRestates, restateMessage(decl))}
 	}
 
 	return nil
 }
 
-// prose is the lines of a comment that carry text. A paragraph break carries
-// none, and an indented block is an example, which the generated reference
-// prints and which weighs nothing against the exits.
+// outweighsMessage says where the prose over the budget goes.
+func outweighsMessage(text, budget int, brevity bool) string {
+	if brevity {
+		return fmt.Sprintf("godoc runs to %d prose lines against a budget of one; say what it returns and what it refuses, and move the rest to docs/", text)
+	}
+	return fmt.Sprintf("godoc runs to %d prose lines against a budget of %s, one for the function and one per block it opens; cut it, or put the intent on the type or in doc.go", text, plural(budget, "line", "lines"))
+}
+
+// RuleMissing requires a comment on an exported symbol, so only an internal one may be deleted.
+func restateMessage(decl *model.Declaration) string {
+	if exported(decl.Name) {
+		return "godoc says only what the signature says; a consumer reads this, so say what the signature cannot: what it refuses, what it costs, or why it exists"
+	}
+	return "godoc says only what the signature says; delete it"
+}
+
+// exported reports whether a name is one a consumer can reach.
+func exported(name string) bool {
+	if name == "" {
+		return false
+	}
+	return unicode.IsUpper(rune(name[0]))
+}
+
+// A blank line and an indented example weigh nothing: the reference prints the example as code.
 func prose(doc string) []string {
 	var lines []string
 	for _, line := range strings.Split(doc, "\n") {
@@ -224,10 +239,8 @@ func prose(doc string) []string {
 	return lines
 }
 
-// exitPoints is how many prose lines a function's comment may run to, one per
-// exit and at least one. Zero exempts a declaration with no body, and doc.go
-// and docs.go, where a package keeps its long prose.
-func exitPoints(decl *model.Declaration) int {
+// Zero exempts a declaration with no body, and doc.go, where long prose belongs.
+func docBudget(decl *model.Declaration, brevity bool) int {
 	if decl.Complexity == nil || decl.Complexity.Lines == 0 {
 		return 0
 	}
@@ -235,12 +248,13 @@ func exitPoints(decl *model.Declaration) int {
 	case "doc.go", "docs.go":
 		return 0
 	}
-	return max(decl.Complexity.Exits, 1)
+	if brevity {
+		return 1
+	}
+	return 1 + decl.Complexity.Blocks
 }
 
-// endsInPunctuation reports whether a doc comment ends the way a sentence
-// does. A closing backtick counts: a comment ending on a code span has said
-// what it had to say.
+// A closing backtick counts: a comment ending on a code span has said what it had to say.
 func endsInPunctuation(doc string) bool {
 	switch doc[len(doc)-1] {
 	case '.', '!', '?', '`':

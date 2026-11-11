@@ -1,6 +1,8 @@
 package simpleparser
 
-import "strings"
+import (
+	"strings"
+)
 
 // exits counts the returns and program-ending calls of a body outside its
 // function literals, plus the closing brace when the last statement is neither.
@@ -32,7 +34,7 @@ func exits(src *source, from, to int) int {
 			continue
 		}
 
-		// A statement of the body opens at depth zero, and a line that closes
+		// A statement of the body opens at depth zero. A line that closes
 		// a block or a call, or follows an operator, continues the one above.
 		if depth == 0 && len(closures) == 0 && !carried && !strings.HasPrefix(trimmed, "}") && !strings.HasPrefix(trimmed, ")") {
 			terminal = endsFunction(trimmed)
@@ -52,14 +54,14 @@ func exits(src *source, from, to int) int {
 }
 
 // closure is a function literal the scan is inside: the depth its func keyword
-// sits at, and whether its body has opened.
+// reads at, and whether its body has opened.
 type closure struct {
 	depth  int
 	opened bool
 }
 
 // scanExits counts the exits on one line outside any function literal, and
-// carries the nesting of braces and parens to the next line.
+// holds the nesting of braces and parens to the next line.
 func scanExits(code string, depth int, closures []closure) (int, int, []closure) {
 	count := 0
 
@@ -126,7 +128,7 @@ func exitWord(word, rest string) bool {
 	return false
 }
 
-// continues reports whether a line ends on an operator, which carries its
+// continues reports whether a line ends on an operator, which holds its
 // statement to the next line.
 func continues(line string) bool {
 	if line == "" || strings.HasSuffix(line, "++") || strings.HasSuffix(line, "--") {

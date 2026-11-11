@@ -11,12 +11,12 @@ import (
 	"github.com/titpetric/tools/splint/model"
 )
 
-// complexity measures one function: how much it branches, and its length.
+// complexity measures one function: how much it branches, and how long it is.
 //
 // Lines is the function block, from the func keyword to the brace that closes
 // it. The doc comment above the function sits outside it. An earlier count
-// took the recorded source, and the source
-// carries the doc, which made a three line function that someone documented
+// took the recorded source. The source
+// holds the doc, which made a three line function that someone documented
 // well read as longer than an undocumented one twice its size.
 func complexity(fset *token.FileSet, in *ast.FuncDecl) *model.Complexity {
 	from := fset.Position(in.Pos()).Line
@@ -27,7 +27,27 @@ func complexity(fset *token.FileSet, in *ast.FuncDecl) *model.Complexity {
 		Cyclomatic: gocyclo.Complexity(in),
 		Lines:      to - from + 1,
 		Exits:      exits(in.Body),
+		Blocks:     blocks(in.Body),
 	}
+}
+
+// blocks counts the braces a body opens inside itself: a statement block, a
+// function literal's body, a composite literal, a struct or an interface type.
+// The brace that opens the body itself does not count.
+func blocks(body *ast.BlockStmt) int {
+	if body == nil {
+		return 0
+	}
+
+	count := 0
+	ast.Inspect(body, func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.BlockStmt, *ast.CompositeLit, *ast.StructType, *ast.InterfaceType:
+			count++
+		}
+		return true
+	})
+	return count - 1
 }
 
 // exits counts the returns and program-ending calls of a body outside its
