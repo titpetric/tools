@@ -43,10 +43,9 @@ type Block struct {
 	Replacement string
 }
 
-// DefaultBlocks are the families the linter blocks unless a tree says
-// otherwise. The yaml entries name goccy/go-yaml, which reads the same
-// documents through the API splint already uses, so the replacement is the
-// codec the tree moved to and not a rewrite of every call.
+// DefaultBlocks are the families the linter blocks. A run names the linters it
+// wants with --linters, and .splint.yml holds no blacklist section: a tree that
+// depends on a blocked host leaves this linter out of that list.
 var DefaultBlocks = []Block{
 	{Prefix: "gopkg.in/yaml.v2", Replacement: "github.com/goccy/go-yaml"},
 	{Prefix: "gopkg.in/yaml.v3", Replacement: "github.com/goccy/go-yaml"},

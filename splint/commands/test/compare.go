@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // changedFunc is a function the change added or modified.
@@ -85,6 +86,23 @@ func (s *source) changedFuncs(ctx context.Context, changes []change) ([]changedF
 		return out[i].Key < out[j].Key
 	})
 	return out, nil
+}
+
+// underPattern keeps the changed functions the pattern selects.
+func underPattern(changed []changedFunc, pattern string) []changedFunc {
+	scope, recursive := patternScope(pattern)
+	if scope == "." && recursive {
+		return changed
+	}
+
+	out := make([]changedFunc, 0, len(changed))
+	for _, one := range changed {
+		dir := filepath.Clean(one.Dir)
+		if dir == scope || (recursive && strings.HasPrefix(dir, scope+string(filepath.Separator))) {
+			out = append(out, one)
+		}
+	}
+	return out
 }
 
 // changedDirs is every directory a change touched, which is where the

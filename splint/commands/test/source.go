@@ -15,9 +15,7 @@ type source struct {
 	// root is the source path as an absolute directory.
 	root string
 
-	// repo is the checkout the tree sits in, and base is the revision the
-	// working tree is compared with.
-	repo string
+	// base is the revision the working tree is compared with.
 	base string
 }
 
@@ -41,8 +39,7 @@ func newSource(ctx context.Context, opts Options) (*source, error) {
 		return nil, fmt.Errorf("%s is not a directory", opts.SourcePath)
 	}
 
-	repo, err := git(ctx, root, "rev-parse", "--show-toplevel")
-	if err != nil {
+	if _, err := git(ctx, root, "rev-parse", "--show-toplevel"); err != nil {
 		return nil, fmt.Errorf("%s is not in a git checkout: %w", opts.SourcePath, err)
 	}
 
@@ -54,7 +51,7 @@ func newSource(ctx context.Context, opts Options) (*source, error) {
 		return nil, fmt.Errorf("no revision %s: %w", base, err)
 	}
 
-	return &source{root: root, repo: strings.TrimSpace(repo), base: base}, nil
+	return &source{root: root, base: base}, nil
 }
 
 // module returns the module directory that holds dir's package, and the
