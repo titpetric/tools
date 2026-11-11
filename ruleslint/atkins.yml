@@ -1,0 +1,7 @@
+#!/usr/bin/env atkins
+tasks:
+  default:
+    desc: "Format and install ruleslint"
+    cmds:
+      - task: go:fmt
+      - go install .

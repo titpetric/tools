@@ -20,6 +20,14 @@ The linters cover file-test pairing, symbol-test coverage, symbol grouping by fi
 go install github.com/titpetric/tools/splint@main
 ```
 
+### [ruleslint](ruleslint/)
+
+Checks the directories of a site against a rule file: per directory, a path that has to exist, one that may, and one that must not.
+
+```
+go install github.com/titpetric/tools/ruleslint@main
+```
+
 ### [puzzle](puzzle/)
 
 A creative tool that visualizes a Go repository's package structure as a crossword puzzle rendered in the terminal. Supports default and matrix rendering styles.
