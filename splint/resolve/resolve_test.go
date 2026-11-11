@@ -162,6 +162,33 @@ func TestLookupFindsNothing(t *testing.T) {
 	assert.Empty(t, result.Source)
 }
 
+// TestIndex_Name covers the name a path goes by, and the one case where the
+// path says nothing: a path of the tree's own modules that no package of it
+// answers to. Reading the last segment as the name there drops the import of a
+// package called something else, which the file still reaches.
+func TestIndex_Name(t *testing.T) {
+	index := resolve.New(tree(), nil)
+
+	tests := []struct {
+		path  string
+		name  string
+		known bool
+	}{
+		{"example.com/app/service1/model", "model", true},
+		{"github.com/stretchr/testify/assert", "assert", true},
+		{"github.com/goccy/go-yaml", "yaml", true},
+		{"example.com/app/frontend", "frontend", false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			name, known := index.Name(test.path)
+			assert.Equal(t, test.name, name)
+			assert.Equal(t, test.known, known)
+		})
+	}
+}
+
 // TestIndex_Moved covers the import nobody rewrote after the package behind it
 // moved: the path names no package of the tree and one package of the tree
 // answers to the name from another directory.

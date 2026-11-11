@@ -86,13 +86,24 @@ func IsPackageName(name string) bool {
 	return true
 }
 
-// BaseName is the last segment of a path, its major version taken off.
+// BaseName is the last segment of a path, its major version and the go- of a
+// repository taken off: github.com/goccy/go-yaml is the yaml package.
 func BaseName(path string) string {
 	trimmed := majorVersion.ReplaceAllString(path, "")
 	if index := strings.LastIndexByte(trimmed, '/'); index >= 0 {
 		trimmed = trimmed[index+1:]
 	}
-	return dottedVersion.ReplaceAllString(trimmed, "")
+	return idiomatic(dottedVersion.ReplaceAllString(trimmed, ""))
+}
+
+// idiomatic is a repository name as the package it holds is called, which is the name without the go- a repository carries.
+func idiomatic(name string) string {
+	for _, trimmed := range []string{strings.TrimPrefix(name, "go-"), strings.TrimSuffix(name, "-go")} {
+		if trimmed != name && IsPackageName(trimmed) {
+			return trimmed
+		}
+	}
+	return name
 }
 
 // ImportDecl is one import declaration of a file, as the file spells it. A

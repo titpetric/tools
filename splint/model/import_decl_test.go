@@ -19,7 +19,10 @@ func TestBaseName(t *testing.T) {
 		{"charm.land/lipgloss/v2", "lipgloss"},
 		{"gopkg.in/yaml.v3", "yaml"},
 		{"gopkg.in/check.v1", "check"},
-		{"github.com/goccy/go-yaml", "go-yaml"},
+		{"github.com/goccy/go-yaml", "yaml"},
+		{"github.com/sashabaranov/go-openai", "openai"},
+		{"example.com/sqlite-go", "sqlite"},
+		{"example.com/go-", "go-"},
 		{"example.com/v2", "example.com"},
 
 		// A major version suffix starts at v2. A path ending in /v0 or

@@ -98,13 +98,17 @@ type Index struct {
 }
 
 // Name is the package name code reaches importPath by, as the tree names it.
-// Outside the tree the name is the last path segment, true for an identifier.
+// Outside the tree the name is the last path segment, true for an identifier,
+// and a stale path of the tree's own modules is a guess and never a name.
 func (i *Index) Name(importPath string) (string, bool) {
 	if name, ok := i.names[importPath]; ok {
 		return name, true
 	}
 
 	base := model.BaseName(importPath)
+	if i.module(importPath) != "" {
+		return base, false
+	}
 	return base, model.IsPackageName(base)
 }
 
