@@ -39,6 +39,10 @@ const (
 	// SourceModule is a required module of the go.mod whose last segment is
 	// the name.
 	SourceModule = "module"
+
+	// SourceMoved is a package of the tree the import path has lost touch
+	// with: the package sits at another path now.
+	SourceMoved = "moved"
 )
 
 // Result is what a name resolved to.
@@ -87,6 +91,10 @@ type Index struct {
 	// and not by the last segment of the path. The two differ often enough
 	// to matter: code reaches github.com/goccy/go-yaml as yaml.
 	names map[string]string
+
+	// modules are the module paths of the tree. An import path under one of
+	// them names a package the tree should hold.
+	modules []string
 }
 
 // Name is the package name code reaches importPath by, as the tree names it.
@@ -141,6 +149,9 @@ func New(root *model.DocumentRoot, aliases map[string]string) *Index {
 	}
 
 	for _, module := range root.Modules {
+		if module.Path != "" {
+			index.modules = append(index.modules, module.Path)
+		}
 		for _, require := range module.Requires {
 			index.addRequire(require.Path)
 		}
@@ -210,6 +221,122 @@ func (i *Index) Lookup(def *model.Definition, name string) Result {
 	}
 
 	return Result{}
+}
+
+// Moved resolves an import path of the tree's own modules that no package of
+// the tree answers to. The package sits at another path now.
+//
+// A move keeps the directory name. The longest run of trailing segments one
+// package of the tree shares with the path places it, and a rename that kept
+// the package clause is placed by that name alone. Two packages answering
+// place nothing, and the Result names both.
+func (i *Index) Moved(spec model.ImportSpec) Result {
+	if spec.Blank() || spec.Dot() {
+		return Result{}
+	}
+	if _, ok := i.names[spec.Path]; ok {
+		return Result{}
+	}
+	if unread(spec.Path) {
+		return Result{}
+	}
+
+	module := i.module(spec.Path)
+	if module == "" {
+		return Result{}
+	}
+
+	segments := strings.Split(strings.TrimPrefix(spec.Path, module+"/"), "/")
+	for at := 0; at < len(segments); at++ {
+		if result := answered(i.under(module, "/"+path.Join(segments[at:]...), spec)); result.Path != "" || result.Ambiguous() {
+			return result
+		}
+	}
+
+	// The directory was renamed and the package clause under it was not. One
+	// package of the module writes the name the path's last segment does.
+	return answered(i.called(module, model.BaseName(spec.Path)))
+}
+
+// answered is the one path that answered, the Candidates where several did.
+func answered(found []string) Result {
+	switch len(found) {
+	case 0:
+		return Result{}
+	case 1:
+		return Result{Path: found[0], Source: SourceMoved}
+	default:
+		return Result{Candidates: sorted(found)}
+	}
+}
+
+// called are the packages of a module whose package clause writes name.
+func (i *Index) called(module, name string) []string {
+	if !model.IsPackageName(name) {
+		return nil
+	}
+
+	var found []string
+	for importPath, clause := range i.names {
+		if clause != name || !strings.HasPrefix(importPath, module+"/") || unread(importPath) {
+			continue
+		}
+		found = append(found, importPath)
+	}
+	return found
+}
+
+// module is the module of the tree importPath sits under, none where a requirement answers for it.
+func (i *Index) module(importPath string) string {
+	out := ""
+	for _, module := range i.modules {
+		if strings.HasPrefix(importPath, module+"/") && len(module) > len(out) {
+			out = module
+		}
+	}
+	if out == "" {
+		return ""
+	}
+
+	for _, paths := range i.requires {
+		for _, required := range paths {
+			if strings.HasPrefix(importPath, required+"/") {
+				return ""
+			}
+		}
+	}
+
+	return out
+}
+
+// unread reports a path the go tool reads no package from: testdata, or a segment opening on _ or a dot.
+func unread(importPath string) bool {
+	for _, segment := range strings.Split(importPath, "/") {
+		if segment == "testdata" || strings.HasPrefix(segment, "_") || strings.HasPrefix(segment, ".") {
+			return true
+		}
+	}
+	return false
+}
+
+// under are the packages of a module whose path ends in tail, reached by the name the spec writes.
+func (i *Index) under(module, tail string, spec model.ImportSpec) []string {
+	var found []string
+	for importPath, name := range i.names {
+		if !strings.HasPrefix(importPath, module+"/") || !strings.HasSuffix(importPath, tail) {
+			continue
+		}
+		if unread(importPath) {
+			continue
+		}
+		// Without an alias the file writes the base name of the path it holds.
+		// A package called something else does not compile under it.
+		if spec.Name == "" && name != model.BaseName(spec.Path) {
+			continue
+		}
+		found = append(found, importPath)
+	}
+	return found
 }
 
 // local is the package of the tree the name refers to, found by walking up

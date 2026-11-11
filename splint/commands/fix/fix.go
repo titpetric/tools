@@ -15,6 +15,7 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -133,9 +134,17 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 
 			fix := FileFix{Path: path, Name: name(root, path)}
 			if !settled {
+				// A move is the one import under two paths: what the file
+				// writes goes and what the tree answers to takes its place.
+				added, removed := slices.Clone(decision.Added), slices.Clone(decision.Removed)
+				for _, move := range decision.Moved {
+					added = append(added, move.To)
+					removed = append(removed, move.From)
+				}
+
 				fix.Edits = edits(file.ImportDecls.Free(), decision.Text())
-				fix.Added = literals(decision.Added)
-				fix.Removed = literals(decision.Removed)
+				fix.Added = literals(added)
+				fix.Removed = literals(removed)
 			}
 			plan.Files = append(plan.Files, fix)
 		}

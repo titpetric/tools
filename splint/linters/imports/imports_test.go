@@ -138,6 +138,7 @@ func TestFixGolden(t *testing.T) {
 				"dangle/dangle.go",
 				"dangle/merged.go",
 				"main.go",
+				"moved/moved.go",
 				"odd/empty.go",
 				"odd/indented.go",
 				"odd/oneline.go",
@@ -363,6 +364,7 @@ func TestRulesOverTheUnformattedFixture(t *testing.T) {
 		"client/client_test.go",
 		"dangle/dangle.go",
 		"dangle/merged.go",
+		"moved/moved.go",
 		"odd/empty.go",
 		"odd/indented.go",
 		"odd/oneline.go",
@@ -389,6 +391,28 @@ func TestRulesOverTheUnformattedFixture(t *testing.T) {
 	assert.Equal(t, "nope", unresolved.Symbol)
 	assert.Equal(t, model.SeverityError, unresolved.Severity)
 	assert.Contains(t, unresolved.Message, "nope.Value")
+}
+
+// TestAMovedPackageIsReportedAtItsNewPath covers the import of a path the
+// tree's own module holds no package at, where one package answers to the
+// name from somewhere else: the package moved and the import did not.
+func TestAMovedPackageIsReportedAtItsNewPath(t *testing.T) {
+	byRule := fixture(t, inputDir, nil)
+
+	require.Len(t, byRule[imports.RuleMoved], 1)
+	moved := byRule[imports.RuleMoved][0]
+	assert.Equal(t, "moved/moved.go", moved.Position.Path())
+	assert.Equal(t, "storage", moved.Symbol)
+	assert.Equal(t, model.SeverityError, moved.Severity)
+	assert.Contains(t, moved.Message, "example.com/imports/storage")
+	assert.Contains(t, moved.Message, "example.com/imports/service2/storage")
+
+	fix, ok := moved.Attr(imports.FixAttr)
+	assert.True(t, ok, "a moved import is one command away")
+	assert.Equal(t, imports.FixCommand, fix)
+
+	// The golden tree imports the path the package sits at. Nothing moved.
+	assert.Empty(t, fixture(t, goldenDir, nil)[imports.RuleMoved])
 }
 
 // TestAPathThatDoesNotSpellItsPackage is the case that breaks a formatter

@@ -23,4 +23,8 @@ type Metric struct {
 	// Unresolved how many names reach a package nothing can place.
 	Unused     int `json:"Unused" yaml:"Unused"`
 	Unresolved int `json:"Unresolved" yaml:"Unresolved"`
+
+	// Moved is how many imports name a path of the tree that no package of it
+	// answers to any more.
+	Moved int `json:"Moved" yaml:"Moved"`
 }

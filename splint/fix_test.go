@@ -74,7 +74,7 @@ func TestFixCommandRewritesTheTree(t *testing.T) {
 		"fixed: main.go",
 		"fixed: service2/storage/store.go",
 		"left alone: broken/broken.go",
-		"13 files rewritten, 0 files formatted, 1 left alone.",
+		"14 files rewritten, 0 files formatted, 1 left alone.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("splint fix did not report %q:\n%s", want, got)
@@ -106,8 +106,8 @@ func TestFixCountsWhatItRewrote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stats.Imports.Fixed != 13 {
-		t.Errorf("imports.fixed = %d, want 13", stats.Imports.Fixed)
+	if stats.Imports.Fixed != 14 {
+		t.Errorf("imports.fixed = %d, want 14", stats.Imports.Fixed)
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, settings.Filename)); !os.IsNotExist(err) {
@@ -124,8 +124,8 @@ func TestFixCountsWhatItRewrote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stats.Imports.Fixed != 13 {
-		t.Errorf("imports.fixed = %d after a run that wrote nothing, want 13", stats.Imports.Fixed)
+	if stats.Imports.Fixed != 14 {
+		t.Errorf("imports.fixed = %d after a run that wrote nothing, want 14", stats.Imports.Fixed)
 	}
 }
 

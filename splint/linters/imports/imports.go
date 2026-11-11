@@ -38,6 +38,10 @@ const (
 	// RuleUnresolved is a name the file reaches that nothing can place.
 	RuleUnresolved = "unresolved"
 
+	// RuleMoved is an import path of the tree that names no package of it,
+	// where one package answers to the name under another path.
+	RuleMoved = "moved"
+
 	// RulePollution is an external dependency imported from more of the tree
 	// than one place.
 	RulePollution = "pollution"
@@ -197,6 +201,18 @@ func (l *Linter) block(results *Results, metric *Metric, root *model.DocumentRoo
 				Fixable:  decision.Sound(),
 			})
 			metric.Unused++
+		}
+
+		for _, move := range decision.Moved {
+			results.add(metric, Result{
+				Rule:     RuleMoved,
+				Severity: model.SeverityError,
+				Position: model.Position{Package: position.Package, File: position.File, Line: move.From.Line},
+				Symbol:   move.From.Ref(),
+				Message:  fmt.Sprintf("%s names no package of the tree and %s is where it sits now", move.From.Path, move.To.Path),
+				Fixable:  decision.Sound(),
+			})
+			metric.Moved++
 		}
 
 		if !decision.Changed(file.ImportDecls) {

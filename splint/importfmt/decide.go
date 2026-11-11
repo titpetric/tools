@@ -19,6 +19,17 @@ type Resolver interface {
 	// Name is the package name code reaches an import path by, and whether
 	// the resolver knows it outright, without a guess from the path.
 	Name(importPath string) (string, bool)
+
+	// Moved resolves an import path of the tree that names no package of it,
+	// to the path the package sits at now.
+	Moved(spec model.ImportSpec) resolve.Result
+}
+
+// Move is an import a package of the tree has outgrown: From is the path the
+// file writes and To the path that answers to the name now.
+type Move struct {
+	From model.ImportSpec
+	To   model.ImportSpec
 }
 
 // Unresolved is a name a file reaches that nothing could place.
@@ -61,6 +72,10 @@ type Decision struct {
 	// have, and Removed the imports no name in the file reaches.
 	Added   []model.ImportSpec
 	Removed []model.ImportSpec
+
+	// Moved are the imports the block keeps under another path, because the
+	// package they name sits somewhere else in the tree now.
+	Moved []Move
 
 	// Unresolved are the names nothing could place. A file holding one of
 	// these keeps its block: a rewrite would drop an import the file needs,
@@ -201,6 +216,11 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 	guessing := false
 
 	for _, spec := range specs {
+		if to, ok := relocate(spec, idx); ok {
+			decision.Moved = append(decision.Moved, Move{From: spec, To: to})
+			spec = to
+		}
+
 		havePath[spec.Path] = true
 
 		if spec.Blank() || spec.Dot() {
@@ -287,6 +307,22 @@ func decideFile(def *model.Definition, file model.File, declared map[string]bool
 	decision.Specs = Canonical(kept, opts)
 	decision.Tail = file.ImportDecls.Free().Tail()
 	return decision
+}
+
+// relocate is the spec under the path its package sits at now, the alias and the comments kept.
+func relocate(spec model.ImportSpec, idx Resolver) (model.ImportSpec, bool) {
+	if idx == nil {
+		return spec, false
+	}
+
+	found := idx.Moved(spec)
+	if !found.Found() {
+		return spec, false
+	}
+
+	moved := spec
+	moved.Path = found.Path
+	return moved, true
 }
 
 // reachedBy is the name a file reaches an import by, and whether the name is

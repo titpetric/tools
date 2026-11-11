@@ -162,6 +162,83 @@ func TestLookupFindsNothing(t *testing.T) {
 	assert.Empty(t, result.Source)
 }
 
+// TestIndex_Moved covers the import nobody rewrote after the package behind it
+// moved: the path names no package of the tree and one package of the tree
+// answers to the name from another directory.
+func TestIndex_Moved(t *testing.T) {
+	index := resolve.New(tree(), nil)
+
+	tests := []struct {
+		name   string
+		path   string
+		expect string
+	}{
+		{"a package the tree moved under service2", "example.com/app/storage", "example.com/app/service2/storage"},
+		{"a package of the tree sits where the path says", "example.com/app/model", ""},
+		{"the standard library moves nowhere", "net/http", ""},
+		{"a requirement is not the tree's to move", "github.com/stretchr/testify/assert", ""},
+		{"a name three packages answer to places nothing", "example.com/app/old/model", ""},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := index.Moved(model.ImportSpec{Path: test.path})
+			assert.Equal(t, test.expect, result.Path)
+			if test.expect != "" {
+				assert.Equal(t, resolve.SourceMoved, result.Source)
+			}
+		})
+	}
+
+	assert.Equal(t, []string{"example.com/app/model", "example.com/app/service1/model", "example.com/app/service2/model"},
+		index.Moved(model.ImportSpec{Path: "example.com/app/old/model"}).Candidates,
+		"three packages answer to model and the result names all of them")
+}
+
+// TestMovedKeepsTheFileBuilding covers the package whose directory the path
+// ends in and whose name it does not: the file writes the base name of the
+// path it holds, and a package called something else does not compile under it.
+func TestMovedKeepsTheFileBuilding(t *testing.T) {
+	root := tree()
+	root.Packages = append(root.Packages, &model.Definition{
+		Package: model.Package{Package: "cli", ImportPath: "example.com/app/tool", Path: "./tool"},
+		Module:  root.Modules[0],
+	})
+
+	index := resolve.New(root, nil)
+
+	assert.False(t, index.Moved(model.ImportSpec{Path: "example.com/app/x/tool"}).Found(),
+		"the file writes tool and the package at that directory is called cli")
+	assert.Equal(t, "example.com/app/tool",
+		index.Moved(model.ImportSpec{Name: "cli", Path: "example.com/app/x/tool"}).Path,
+		"an alias says what the file writes, and cli is what it writes")
+}
+
+// TestMovedReadsARenamedDirectory covers the move no trailing segment places:
+// the directory took a new name and the package clause under it did not. One
+// package of the module writes the name, which is the one the file reaches.
+func TestMovedReadsARenamedDirectory(t *testing.T) {
+	root := tree()
+	root.Packages = append(root.Packages, &model.Definition{
+		Package: model.Package{Package: "cli", ImportPath: "example.com/app/tool", Path: "./tool"},
+		Module:  root.Modules[0],
+	})
+
+	result := resolve.New(root, nil).Moved(model.ImportSpec{Path: "example.com/app/cli"})
+	assert.Equal(t, "example.com/app/tool", result.Path)
+	assert.Equal(t, resolve.SourceMoved, result.Source)
+}
+
+// TestMovedLeavesARequiredModuleAlone covers a module the go.mod requires from
+// under the tree's own path: splint sits inside titpetric/tools that way. The
+// tree holds no package under that path, and nothing moved.
+func TestMovedLeavesARequiredModuleAlone(t *testing.T) {
+	root := tree()
+	root.Modules[0].Requires = append(root.Modules[0].Requires, model.Require{Path: "example.com/app/tool", Version: "v1.0.0"})
+
+	assert.False(t, resolve.New(root, nil).Moved(model.ImportSpec{Path: "example.com/app/tool/storage"}).Found())
+}
+
 // TestLookupStopsAtTheModule covers a package of another module: code reaches
 // it by importing that module. The walk up does not find it.
 func TestLookupStopsAtTheModule(t *testing.T) {
