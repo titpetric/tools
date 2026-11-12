@@ -8,7 +8,7 @@ func TestChecks_Failed(t *testing.T) {
 	checks := Checks{
 		{Path: "modules/login/dao", Rule: "dao/", OK: true},
 		{Path: "modules/login", Rule: "schema/*.up.sql", Detail: "missing schema/*.up.sql"},
-		{Path: "modules/login/index.php", Rule: "require: 'class mod_login {'", Detail: "no match"},
+		{Path: "modules/login/index.php", Rule: "require 'class mod_login {'", Detail: "no match"},
 	}
 	if got := checks.Failed(); got != 2 {
 		t.Fatalf("failed %d, want 2", got)

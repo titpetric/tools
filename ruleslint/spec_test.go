@@ -14,7 +14,7 @@ func TestHelpSpec(t *testing.T) {
 	if page.Name != "ruleslint" || page.Tagline == "" || len(page.Usage) != 1 {
 		t.Fatalf("got %+v", page)
 	}
-	for _, want := range []string{"dir <pattern>", "require:", "deny:", "linters"} {
+	for _, want := range []string{"dir <pattern>", "require '<text>'", "deny '<text>'", "linters", `"?"`, `"..."`} {
 		if !strings.Contains(page.Description, want) {
 			t.Errorf("the description does not name %q", want)
 		}

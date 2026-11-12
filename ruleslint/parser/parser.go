@@ -1,7 +1,8 @@
 // Package parser reads a rule file into a model.Config.
 //
 // The file is line based: a line ending in an unquoted "{" opens a block, a
-// line holding "}" closes one, and every other line is a key or a path.
+// line holding "}" closes one, and every other line is a key, a path or a
+// statement of the block it stands in.
 package parser
 
 import (
@@ -23,10 +24,17 @@ const (
 	kindSkip    = "unknown"
 )
 
-// The keys an entry block takes: text its files hold, and text none may.
+// The key of the root block, and the statements an entry block takes.
 const (
+	keyName    = "name"
 	keyRequire = "require"
 	keyDeny    = "deny"
+)
+
+// The marks a path takes: may be absent, and stands for the paths none names.
+const (
+	markOptional = "?"
+	markRest     = "..."
 )
 
 // ParseFile reads the rule file at path.
@@ -82,10 +90,6 @@ func (p *parser) read(n int, line string) {
 	case ok:
 		p.push(n, head)
 	default:
-		if key, value, ok := directive(line); ok {
-			p.set(n, key, value)
-			return
-		}
 		p.add(n, line)
 	}
 }
@@ -102,7 +106,7 @@ func (p *parser) push(n int, head string) {
 	case top.kind == kindRoot:
 		p.pushTop(n, head)
 	case top.kind == kindDir:
-		entry := &model.Entry{Pattern: head, Line: n}
+		entry := newEntry(n, head)
 		top.dir.Entries = append(top.dir.Entries, entry)
 		p.stack = append(p.stack, &block{kind: kindEntry, line: n, entry: entry})
 	default:
@@ -117,7 +121,7 @@ func (p *parser) pushTop(n int, head string) {
 	case head == kindLinters:
 		p.stack = append(p.stack, &block{kind: kindLinters, line: n})
 	case head == kindDir || strings.HasPrefix(head, kindDir+" "):
-		dir := &model.Dir{Pattern: strings.TrimSpace(strings.TrimPrefix(head, kindDir)), Line: n}
+		dir := newDir(n, strings.TrimSpace(strings.TrimPrefix(head, kindDir)))
 		p.cfg.Dirs = append(p.cfg.Dirs, dir)
 		p.stack = append(p.stack, &block{kind: kindDir, line: n, dir: dir})
 	default:
@@ -135,40 +139,71 @@ func (p *parser) pop(n int) {
 	p.stack = p.stack[:len(p.stack)-1]
 }
 
-// set stores a "key: value" line under the block that holds it.
-func (p *parser) set(n int, key, value string) {
-	top := p.top()
-	switch {
-	case top == nil:
-		p.errorf(n, "%q stands outside a block", key)
-	case top.kind == kindSkip:
-	case key == "name" && top.kind == kindRoot:
-		p.cfg.Name = value
-	case (key == keyRequire || key == keyDeny) && top.kind == kindEntry:
-		top.entry.Rules = append(top.entry.Rules, model.Rule{Text: value, Line: n, Deny: key == keyDeny})
-	default:
-		p.errorf(n, "unknown key %q in a %s block", key, top.kind)
-	}
-}
-
-// add stores a bare line: a path of a dir block, or a command of the linters.
+// add stores a line that opens and closes no block, under the block it stands in.
 func (p *parser) add(n int, line string) {
 	top := p.top()
 	switch {
 	case top == nil:
 		p.errorf(n, "%q stands outside a block", line)
 	case top.kind == kindSkip:
+	case top.kind == kindRoot:
+		p.key(n, line)
 	case top.kind == kindDir:
-		if line != "..." {
-			top.dir.Entries = append(top.dir.Entries, &model.Entry{Pattern: line, Line: n})
-		}
+		p.path(n, top.dir, line)
+	case top.kind == kindEntry:
+		p.rule(n, top.entry, line)
 	case top.kind == kindLinters:
 		p.cfg.Linters = append(p.cfg.Linters, model.Linter{Command: line, Line: n})
-	case top.kind == kindEntry:
-		p.errorf(n, "an entry block takes %q and %q only, got %q", "require:", "deny:", line)
-	default:
-		p.errorf(n, "want a block or a key, got %q", line)
 	}
+}
+
+// key stores the "name: <value>" line of the ruleslint block.
+func (p *parser) key(n int, line string) {
+	switch key, value, ok := directive(line); {
+	case !ok:
+		p.errorf(n, "want a block or a key, got %q", line)
+	case key != keyName:
+		p.errorf(n, "unknown key %q in a %s block", key, kindRoot)
+	default:
+		p.cfg.Name = value
+	}
+}
+
+// path stores one path of a dir block, and "..." as the paths none names.
+func (p *parser) path(n int, dir *model.Dir, line string) {
+	switch stmt, _, ok := statement(line); {
+	case line == markRest:
+		dir.Rest = true
+	case ok && (stmt == keyRequire || stmt == keyDeny):
+		p.errorf(n, "%q stands in a block under a path, not in a %s block", stmt, kindDir)
+	default:
+		dir.Entries = append(dir.Entries, newEntry(n, line))
+	}
+}
+
+// rule stores one statement of an entry block: require or deny, and its text.
+func (p *parser) rule(n int, entry *model.Entry, line string) {
+	if stmt, text, ok := statement(line); ok && (stmt == keyRequire || stmt == keyDeny) {
+		entry.Rules = append(entry.Rules, model.Rule{Text: text, Line: n, Deny: stmt == keyDeny})
+		return
+	}
+	if key, _, ok := directive(line); ok && (key == keyRequire || key == keyDeny) {
+		p.errorf(n, "%q takes no colon, write %q", key+":", key+" '<text>'")
+		return
+	}
+	p.errorf(n, "an entry block takes %q and %q only, got %q", "require '<text>'", "deny '<text>'", line)
+}
+
+// newDir reads a dir header, where "?" prefixes a directory that may be absent.
+func newDir(n int, pattern string) *model.Dir {
+	trimmed, optional := strings.CutPrefix(pattern, markOptional)
+	return &model.Dir{Pattern: trimmed, Line: n, Optional: optional}
+}
+
+// newEntry reads a path line, where "?" prefixes a path that may be absent.
+func newEntry(n int, line string) *model.Entry {
+	pattern, optional := strings.CutPrefix(line, markOptional)
+	return &model.Entry{Pattern: pattern, Line: n, Optional: optional}
 }
 
 // top returns the innermost open block, and nil before the first brace.
@@ -235,17 +270,31 @@ func directive(line string) (string, string, bool) {
 	if rest != "" && !strings.HasPrefix(rest, " ") && !strings.HasPrefix(rest, "\t") {
 		return "", "", false
 	}
-	return line[:i], unquote(strings.TrimSpace(rest)), true
+	value, _ := unquote(strings.TrimSpace(rest))
+	return line[:i], value, true
 }
 
-// unquote drops a pair of matching quotes around a value.
-func unquote(value string) string {
+// statement splits "<name> '<text>'", and refuses text written unquoted.
+func statement(line string) (string, string, bool) {
+	i := strings.IndexAny(line, " \t")
+	if i < 0 || !bareWord.MatchString(line[:i]) {
+		return "", "", false
+	}
+	text, ok := unquote(strings.TrimSpace(line[i+1:]))
+	if !ok {
+		return "", "", false
+	}
+	return line[:i], text, true
+}
+
+// unquote drops a pair of matching quotes, and reports whether it found one.
+func unquote(value string) (string, bool) {
 	if len(value) < 2 {
-		return value
+		return value, false
 	}
 	quote := value[0]
 	if (quote == '\'' || quote == '"') && value[len(value)-1] == quote {
-		return value[1 : len(value)-1]
+		return value[1 : len(value)-1], true
 	}
-	return value
+	return value, false
 }

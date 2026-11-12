@@ -42,27 +42,27 @@ const rules = `ruleslint {
     schema/*.up.sql
 
     api/*.php {
-      require: '@route'
-      deny: 'class '
+      require '@route'
+      deny 'class '
     }
 
     modinfo.php {
-      require: 'new Task\Module'
+      require 'new Task\Module'
     }
 
     index.php {
-      require: 'class mod_{module} {'
-      require: 'function get*'
+      require 'class mod_{module} {'
+      require 'function get*'
     }
 
     mod_{submodule}.php {
-      require: 'class mod_{submodule} {'
+      require 'class mod_{submodule} {'
     }
   }
 
   dir modules/{module}/dao {
     index.php {
-      require: 'class {module}_dao {'
+      require 'class {module}_dao {'
     }
   }
 }
@@ -119,9 +119,9 @@ func TestRunner_RunBindsAPlaceholderPerModule(t *testing.T) {
 	}
 
 	for _, want := range []model.Check{
-		{Path: "modules/login/index.php", Rule: "require: 'class mod_login {'", OK: true},
-		{Path: "modules/login/dao/index.php", Rule: "require: 'class login_dao {'", OK: true},
-		{Path: "modules/login/mod_admin.php", Rule: "require: 'class mod_admin {'", OK: true},
+		{Path: "modules/login/index.php", Rule: "require 'class mod_login {'", OK: true},
+		{Path: "modules/login/dao/index.php", Rule: "require 'class login_dao {'", OK: true},
+		{Path: "modules/login/mod_admin.php", Rule: "require 'class mod_admin {'", OK: true},
 	} {
 		if !slices.ContainsFunc(checks, func(one model.Check) bool {
 			return one.Path == want.Path && one.Rule == want.Rule && one.OK == want.OK
@@ -150,9 +150,83 @@ func TestRunner_RunNamesAMissingDirectory(t *testing.T) {
 	}
 }
 
+func TestRunner_RunSkipsAnOptionalPathThatIsAbsent(t *testing.T) {
+	root := tree(t, map[string]string{"modules/login/index.php": "<?php class mod_login {}"})
+	src := `ruleslint {
+ dir modules/login {
+  ?schema/*.up.sql
+  index.php {
+   require 'class mod_login {'
+  }
+  ?modinfo.php {
+   require 'new Task\Module'
+  }
+ }
+ dir ?modules/absent {
+  index.php
+ }
+}
+`
+	checks, err := Runner{Root: root}.Run(parse(t, src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fails(checks); got != nil {
+		t.Errorf("an absent optional path failed: %v", got)
+	}
+	if len(checks) != 2 {
+		t.Errorf("%d checks, want the path that is there and its rule", len(checks))
+	}
+}
+
+func TestRunner_RunChecksAnOptionalPathThatIsThere(t *testing.T) {
+	root := tree(t, map[string]string{"modules/login/modinfo.php": "<?php"})
+	src := "ruleslint {\n dir modules/login {\n  ?modinfo.php {\n   require 'new Task'\n  }\n  ...\n }\n}\n"
+
+	checks, err := Runner{Root: root}.Run(parse(t, src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"modules/login/modinfo.php: does not hold 'new Task'"}
+	if got := fails(checks); !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestRunner_RunNamesAPathNoRuleNames(t *testing.T) {
+	root := tree(t, map[string]string{
+		"modules/login/index.php": "",
+		"modules/login/other.php": "",
+		"theme/index.php":         "",
+		"theme/stray.css":         "",
+		"stray.txt":               "",
+	})
+	src := `ruleslint {
+ dir {
+  theme
+ }
+ dir modules/{module} {
+  index.php
+ }
+ dir theme {
+  index.php
+  ...
+ }
+}
+`
+	checks, err := Runner{Root: root}.Run(parse(t, src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"modules/login/other.php: no rule names it"}
+	if got := fails(checks); !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 func TestRunner_RunRefusesTheTextOfADirectory(t *testing.T) {
 	root := tree(t, map[string]string{"modules/login/dao/index.php": ""})
-	src := "ruleslint {\n dir modules/login {\n  dao {\n   require: 'class'\n  }\n }\n}\n"
+	src := "ruleslint {\n dir modules/login {\n  dao {\n   require 'class'\n  }\n }\n}\n"
 
 	checks, err := Runner{Root: root}.Run(parse(t, src))
 	if err != nil {

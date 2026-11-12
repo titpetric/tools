@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 
 	"github.com/titpetric/tools/ruleslint/model"
@@ -44,7 +45,7 @@ func (r Runner) dir(block *model.Dir) model.Checks {
 		}
 	}
 
-	if len(dirs) == 0 && !free(block.Pattern, nil) {
+	if len(dirs) == 0 && !block.Optional && !free(block.Pattern, nil) {
 		detail := "no such directory"
 		if len(matches) > 0 {
 			detail = "not a directory"
@@ -57,6 +58,38 @@ func (r Runner) dir(block *model.Dir) model.Checks {
 		for _, entry := range block.Entries {
 			checks = append(checks, r.entry(entry, one)...)
 		}
+		checks = append(checks, r.unnamed(block, one)...)
+	}
+	return checks
+}
+
+// unnamed reports the paths of a directory no entry of its block names.
+func (r Runner) unnamed(block *model.Dir, parent match) model.Checks {
+	if block.Pattern == "" || block.Rest {
+		return nil
+	}
+	entries, err := os.ReadDir(filepath.Join(r.Root, parent.path))
+	if err != nil {
+		return nil
+	}
+
+	named := make(map[string]bool, len(entries))
+	for _, entry := range block.Entries {
+		for _, one := range step(r.Root, parent, head(entry.Pattern)) {
+			named[path.Base(one.path)] = true
+		}
+	}
+
+	var checks model.Checks
+	for _, one := range entries {
+		if !named[one.Name()] {
+			checks = append(checks, model.Check{
+				Line:   block.Line,
+				Path:   path.Join(parent.path, one.Name()),
+				Rule:   "dir " + block.Pattern,
+				Detail: "no rule names it",
+			})
+		}
 	}
 	return checks
 }
@@ -67,7 +100,7 @@ func (r Runner) entry(entry *model.Entry, parent match) model.Checks {
 	matches := expand(r.Root, parent.path, entry.Pattern, parent.binds)
 
 	var checks model.Checks
-	if !free(entry.Pattern, parent.binds) {
+	if !entry.Optional && !free(entry.Pattern, parent.binds) {
 		one := model.Check{Line: entry.Line, Path: parent.path, Rule: pattern, OK: len(matches) > 0}
 		if !one.OK {
 			one.Detail = "missing " + pattern
@@ -86,7 +119,7 @@ func (r Runner) entry(entry *model.Entry, parent match) model.Checks {
 // rule reads a matched file and reports whether it holds what require names and holds nothing deny names.
 func (r Runner) rule(rule model.Rule, file match) model.Check {
 	text := subst(rule.Text, file.binds)
-	one := model.Check{Line: rule.Line, Path: file.path, Rule: rule.Key() + ": '" + text + "'"}
+	one := model.Check{Line: rule.Line, Path: file.path, Rule: rule.Key() + " '" + text + "'"}
 
 	if file.dir {
 		one.Detail = "is a directory and holds no text"

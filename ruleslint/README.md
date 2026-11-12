@@ -34,27 +34,27 @@ ruleslint {
     schema/*.up.sql
 
     api/*.php {
-      require: '@route'
-      deny: 'class '
+      require '@route'
+      deny 'class '
     }
 
     modinfo.php {
-      require: 'new Task\Module'
+      require 'new Task\Module'
     }
 
     index.php {
-      require: 'class mod_{module} {'
-      require: 'function get*'
+      require 'class mod_{module} {'
+      require 'function get*'
     }
 
     mod_{submodule}.php {
-      require: 'class mod_{submodule} {'
+      require 'class mod_{submodule} {'
     }
   }
 
   dir modules/{module}/dao {
     index.php {
-      require: 'class {module}_dao {'
+      require 'class {module}_dao {'
     }
   }
 
@@ -64,15 +64,9 @@ ruleslint {
 }
 ```
 
-The `...` are not tool functionality, they are user input for checking.
-Parsing is custom for the above schema. The parser is line based, blocks
-are opened and closed with `{}` braces and evaluate to `[]model.Check` for
-each line or brached statement.
+The `...` are not tool functionality, they are user input for checking. Parsing is custom for the above schema. The parser is line based, blocks are opened and closed with `{}` braces and evaluate to `[]model.Check` for each line or brached statement.
 
-A block under a path takes two keys. `require:` names text every file the
-path matched holds, and `deny:` names text none of them may: a file of
-`api/` routes and declares nothing, so it requires `@route` and denies
-`class `.
+A block under a path takes two keys. `require` names text every file the path matched holds, and `deny` names text none of them may: a file of `api/` routes and declares nothing, so it requires `@route` and denies `class `.
 
 ## Install and use
 

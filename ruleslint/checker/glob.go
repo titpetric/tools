@@ -39,6 +39,15 @@ func subst(text string, binds map[string]string) string {
 	})
 }
 
+// head is the first segment of a pattern: the path a directory holds of it.
+func head(pattern string) string {
+	trimmed := strings.Trim(pattern, "/")
+	if i := strings.IndexByte(trimmed, '/'); i >= 0 {
+		return trimmed[:i]
+	}
+	return trimmed
+}
+
 // expand resolves pattern under base, directories alone for a trailing slash.
 func expand(root, base, pattern string, binds map[string]string) []match {
 	trimmed := strings.Trim(pattern, "/")

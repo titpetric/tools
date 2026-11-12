@@ -12,16 +12,19 @@ type Config struct {
 // Dir names the paths that exist under a "dir <pattern>" block. The root block
 // of a file writes no pattern.
 type Dir struct {
-	Pattern string
-	Line    int
-	Entries []*Entry
+	Pattern  string
+	Line     int
+	Optional bool // the "?" prefix: an absent directory fails no check
+	Rest     bool // the "..." line: a path no entry names passes
+	Entries  []*Entry
 }
 
 // Entry holds one path pattern of a dir block and the rules written under it.
 type Entry struct {
-	Pattern string
-	Line    int
-	Rules   []Rule
+	Pattern  string
+	Line     int
+	Optional bool // the "?" prefix: an absent path fails no check
+	Rules    []Rule
 }
 
 // Rule names the text every file an entry matches holds, or holds nowhere when

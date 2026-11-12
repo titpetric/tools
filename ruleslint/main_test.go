@@ -14,7 +14,7 @@ const conf = `ruleslint {
 
   dir modules/{module} {
     index.php {
-      require: 'class mod_{module} {'
+      require 'class mod_{module} {'
     }
   }
 
@@ -56,7 +56,8 @@ func TestRunWritesEveryFailureThenExits1(t *testing.T) {
 	for _, want := range []string{
 		"modules/login/index.php: does not hold 'class mod_login {'",
 		"modules/threads: missing index.php",
-		"Modules: 4 checks, 2 failed",
+		"modules/threads/other.php: no rule names it",
+		"Modules: 5 checks, 3 failed",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q in:\n%s", want, out.String())
