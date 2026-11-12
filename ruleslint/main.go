@@ -1,7 +1,4 @@
-// Command ruleslint checks the directories of a site against a rule file.
-//
-// The rule file names the directories to check, and per directory a list of
-// rules: a path that has to exist, one that may, and one that must not.
+// Command ruleslint checks a source tree against the structure a rule file names.
 package main
 
 import (
@@ -10,6 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/titpetric/tools/ruleslint/checker"
+	"github.com/titpetric/tools/ruleslint/parser"
 )
 
 func main() {
@@ -21,11 +22,11 @@ func main() {
 	os.Exit(code)
 }
 
+// run checks the tree and writes the report, answering 1 when a check failed
+// and 2 when the rule file does not parse.
 func run(args []string, stdout, stderr io.Writer) (int, error) {
 	fs := flag.NewFlagSet("ruleslint", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-
-	verbose := fs.Bool("v", false, "list every check of every module, passed or not")
 
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -37,31 +38,24 @@ func run(args []string, stdout, stderr io.Writer) (int, error) {
 		return 0, errors.New("takes one rule file at most")
 	}
 
-	file := "rules/module.yml"
+	file := ".ruleslint.conf"
 	if fs.NArg() == 1 {
 		file = fs.Arg(0)
 	}
 
-	set, err := load(file, stderr)
-	var re *RuleErrors
-	if errors.As(err, &re) {
-		// report every bad rule, then fail
-		for _, e := range re.Errs {
-			fmt.Fprintln(stdout, e)
-		}
-		return 1, nil
+	cfg, err := parser.ParseFile(file)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2, nil
 	}
+
+	checks, err := checker.Runner{Root: filepath.Dir(file), Out: stderr}.Run(cfg)
 	if err != nil {
 		return 0, err
 	}
 
-	res, err := set.check()
-	if err != nil {
-		return 0, err
-	}
-	res.write(stdout, set.Name, *verbose)
-
-	if res.failed() {
+	report(stdout, file, cfg.Name, checks)
+	if checks.Failed() > 0 {
 		return 1, nil
 	}
 	return 0, nil

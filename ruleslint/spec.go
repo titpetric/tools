@@ -1,33 +1,40 @@
 package main
 
-import "flag"
+import (
+	"flag"
+)
 
 // helpSpec is the page the command prints.
 func helpSpec(fs *flag.FlagSet) spec {
 	return spec{
 		Name:    "ruleslint",
-		Tagline: "check the directories of a site against a rule file",
-		Usage:   []string{"ruleslint [-v] [rulefile]"},
-		Description: `Ruleslint reads a rule file, finds the directories its input names, and
-checks every one of them against the rules.
+		Tagline: "check a source tree against the structure a rule file names",
+		Usage:   []string{"ruleslint [rulefile]"},
+		Description: `Ruleslint reads a rule file, resolves the directories it describes and
+checks the paths of every one of them.
 
-A rule is "<kind> <path>", where the path is a glob inside the directory and
-"a or b" accepts either. "require" is a path that has to exist, "pass" is one
-that may, and counts when it does, and "error" is one that must not.`,
+A rule file is a tree of blocks. "dir <pattern>" opens a directory, and every
+bare line under it is a path that has to exist: a trailing slash wants a
+directory, "*" stands for a run of characters, and "{name}" binds what it
+matched for the rules under it. A path with a block under it takes
+"require: '<text>'", which every file it matched holds, and
+"deny: '<text>'", which none of them may. The commands of the "linters" block
+run in the root of the tree.
+
+A pattern holding a {name} nothing bound discovers what is there: it checks
+the paths that match and wants none.`,
 		Flags: fs,
 		Examples: []example{
-			{"ruleslint", "check with rules/module.yml of the current directory"},
-			{"ruleslint -v", "also list every check of every module: ok, miss (a pass path absent) or FAIL"},
-			{"ruleslint rules/module.yml", "check with a named rule file"},
+			{"ruleslint", "check the tree against .ruleslint.conf of the current directory"},
+			{"ruleslint site/php.conf", "check the site directory against a named rule file"},
+			{"ruleslint 2>/dev/null", "drop what the linters write and keep the report"},
 		},
-		Notes: `The input globs are resolved from the parent of the rule file's directory.
+		Notes: `The tree checked is the directory the rule file is in.
 
-Per module the output is one line per failing require and per present error,
-"<name> <dir>: <message>", then "<dir>: required met/total, passing n/m,
-errors: n". A last line, "total: required met/total, passing n, errors: n",
-sums the modules. With -v each module's checks come first, indented, one per
-line.
+A failing check reads "<rulefile>:<line>: <path>: <what failed>", and the last
+line counts the checks of the run. The report goes to stdout, and a linter
+writes to stderr.
 
-Exits 1 when a rule fails, and 2 when the rule file cannot be read.`,
+Exits 1 when a check failed, and 2 when the rule file does not parse.`,
 	}
 }

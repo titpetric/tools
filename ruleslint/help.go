@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// The palette of a help page matches the palette of the reports beside it: a
-// heading is bold amber, a name is teal, and what a name defaults to is grey.
+// The palette a help page uses, the same one the reports beside it use: a
+// heading is bold amber, a name is teal, a default grey.
 const (
 	helpReset   = "\033[0m"
 	helpSection = "\033[1;38;5;220m"
@@ -17,10 +17,10 @@ const (
 	helpDim     = "\033[38;5;245m"
 )
 
-// spec is a help page: what the tool is, how a user calls it, what it takes,
-// and what a run of it looks like.
+// spec is a help page: the tool, the way a user calls it, the flags it takes
+// and a run worth copying.
 //
-// The page omits a section with nothing in it, so a tool with no subcommands
+// The page drops a section with nothing in it. A tool with no subcommands
 // has no Commands heading at all.
 type spec struct {
 	// Name is the command as a user types it, and Tagline is the one line
@@ -45,20 +45,20 @@ type spec struct {
 	Notes    string
 }
 
-// command is one subcommand and what it does.
+// command names a subcommand and the work it stands for.
 type command struct {
 	Name  string
 	About string
 }
 
-// example is one run and its purpose.
+// example names a run and its purpose.
 type example struct {
 	Command string
 	About   string
 }
 
-// flagDoc is one flag as a page reads it: the name, the name of its value,
-// what it defaults to, and what it does.
+// flagDoc holds a flag as a page reads it: the name, the name a value takes,
+// the default and the line about it.
 type flagDoc struct {
 	Name        string
 	Placeholder string
@@ -178,8 +178,8 @@ func helpMarkdown(w io.Writer, s spec) error {
 	return err
 }
 
-// spelled is the flag as a user types it, with the name of its value after
-// it where it takes one.
+// spelled is the flag as a user types it, with the name a value takes after
+// it where the flag takes one.
 func (f flagDoc) spelled() string {
 	if f.Placeholder == "" {
 		return "-" + f.Name
@@ -187,11 +187,12 @@ func (f flagDoc) spelled() string {
 	return "-" + f.Name + " " + f.Placeholder
 }
 
-// flagDocs reads the flags off the parser, in the order it walks them, which
-// is the order a reader looks them up in.
+// flagDocs reads the flags off the parser, in the order it walks them: the
+// order a reader looks them up in.
 //
-// A default equal to the zero of its type says nothing, so the page omits
-// it: an off bool and an empty string already mean what an absent flag means.
+// A default that is the zero of its type says nothing. The page drops it: a
+// bool that is off and a string that is empty already mean what an absent
+// flag means.
 func flagDocs(fs *flag.FlagSet) []flagDoc {
 	if fs == nil {
 		return nil
@@ -227,9 +228,9 @@ func code(value string) string {
 	return "`" + value + "`"
 }
 
-// isTerminal reports whether a writer is a terminal, and that decides whether
-// the page carries colour. A dumb terminal does not count: a pager or an
-// editor sets TERM=dumb to get plain text.
+// isTerminal reports whether a writer is a terminal; that decides whether the
+// page holds colour. A dumb terminal does not count: a pager or an editor
+// sets TERM=dumb to get plain text.
 func isTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok || os.Getenv("TERM") == "dumb" {
