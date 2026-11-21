@@ -33,10 +33,16 @@ func Prose(root string, recursive bool) ([]*model.ProseFile, error) {
 	return found, nil
 }
 
+// isIndented reports a line an indented code block owns.
+func isIndented(line string) bool {
+	return strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "    ")
+}
+
 // ProseFile reads one file's paragraphs.
 //
-// A fence, a table and a heading come out. The rest is running text, one
-// block per paragraph, each joined into the sentence a reader reads.
+// A fence, an indented block, a table and a heading come out. The rest is
+// running text, one block per paragraph, each joined into the sentence a
+// reader reads.
 func ProseFile(root, path string) (*model.ProseFile, error) {
 	handle, err := os.Open(path)
 	if err != nil {
@@ -56,6 +62,7 @@ func ProseFile(root, path string) (*model.ProseFile, error) {
 		start   int
 		number  int
 		fenced  bool
+		code    bool
 	)
 
 	flush := func() {
@@ -71,16 +78,34 @@ func ProseFile(root, path string) (*model.ProseFile, error) {
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
 		number++
-		line := strings.TrimSpace(scanner.Text())
+		raw := scanner.Text()
+		line := strings.TrimSpace(raw)
 
 		if strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~") {
 			flush()
 			fenced = !fenced
+			code = false
 			continue
 		}
-		if fenced || line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "|") {
+		if fenced {
 			flush()
 			continue
+		}
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "|") {
+			flush()
+			code = false
+			continue
+		}
+
+		// A block that starts four spaces in is an example, not a paragraph.
+		if len(lines) == 0 && isIndented(raw) {
+			code = true
+		}
+		if code {
+			if isIndented(raw) {
+				continue
+			}
+			code = false
 		}
 
 		if len(lines) == 0 {

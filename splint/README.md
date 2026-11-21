@@ -762,6 +762,7 @@ So this rule holds no list. It compares the writing of the tree against the Go s
 | `shape`     | WARN     | one construction the tree writes far more often per word than the baseline does      |
 | `density`   | WARN     | one measure of sentence shape running half again above the baseline, and by how much |
 | `placement` | WARN     | one comment a configuration file writes below its top level                          |
+| `semicolon` | WARN     | one semicolon in running text, which joins two sentences                             |
 
 It reads doc comments, markdown paragraphs and YAML prose together: a sentence in a README, a sentence over a function and a `desc` field in an atkins.yml answer to the same rule. A fence, a table and a heading are not sentences and stay out. A copyright header, a `//go:` directive and a generated file stay out too. The parse walks for the prose only when a run selects this linter.
 
@@ -791,6 +792,16 @@ atkins.yml:20  a comment 1 level into the tree; one line above a top-level key i
 ```
 
 The rule is structural and measures against no corpus: the standard library holds no configuration file. It reports whether or not a baseline loaded, which is the one rule here a machine with no Go toolchain still gets.
+
+### Semicolons
+
+A semicolon welds two sentences into one line. The report asks for the shorter of two rewrites: cut words until one sentence remains, or end the first and start the next.
+
+```
+docs/guide.md:12  a semicolon joins two sentences. Condense them into one, or end the first and start the next.
+```
+
+A fence, an indented block and a code span hold code, and their semicolons answer nothing: the scanner drops the first two, and the rule blanks the third before it looks. The rule is structural and measures against no corpus, like `placement`.
 
 ### The shapes
 

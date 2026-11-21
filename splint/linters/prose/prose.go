@@ -32,6 +32,9 @@ const (
 
 	// RulePlacement is a comment a configuration file writes below its top level.
 	RulePlacement = "placement"
+
+	// RuleSemicolon is a semicolon in running text, which joins two sentences.
+	RuleSemicolon = "semicolon"
 )
 
 // Defaults is the floor a finding clears, and the shape size.
@@ -104,20 +107,20 @@ func (l *Linter) Name() string {
 // none either. A machine with no Go toolchain is that run: the standard
 // library is the baseline. The other linters run on regardless.
 func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.LintReport, error) {
-	// Placement is structural and answers to no baseline, which is why it is
+	// The structural rules answer to no baseline, which is why they are
 	// measured ahead of the two returns below.
-	placement := placementFindings(root.Prose)
+	structural := append(placementFindings(root.Prose), semicolonFindings(root.Prose)...)
 
 	corpus := FromDocument(root)
 	if len(corpus.Blocks) == 0 {
-		return withPlacement(&Results{}, placement), nil
+		return withStructural(&Results{}, structural), nil
 	}
 
 	// A run with no baseline has no toolchain to read the standard library
 	// from. The rule reports nothing, and never measures against nothing.
 	path := l.options.Baseline
 	if path == "" {
-		return withPlacement(&Results{}, placement), nil
+		return withStructural(&Results{}, structural), nil
 	}
 
 	baseline, err := LoadBaseline(path, l.options.Size)
@@ -162,11 +165,11 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 		results.add(one)
 	}
 
-	return withPlacement(results, placement), nil
+	return withStructural(results, structural), nil
 }
 
-func withPlacement(results *Results, placement []Result) *Results {
-	for _, one := range placement {
+func withStructural(results *Results, structural []Result) *Results {
+	for _, one := range structural {
 		results.add(one)
 	}
 	return results
