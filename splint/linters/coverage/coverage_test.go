@@ -86,6 +86,7 @@ func TestLinter_Lint(t *testing.T) {
 	open := &model.Declaration{Kind: model.FuncKind, Name: "Open", File: "x.go", Line: 3}
 	closeMethod := &model.Declaration{Kind: model.FuncKind, Name: "Close", Receiver: "*Client", File: "x.go", Line: 7}
 	constructor := &model.Declaration{Kind: model.FuncKind, Name: "NewClient", File: "x.go", Line: 5, Returns: []string{"*Client"}}
+	deprecated := &model.Declaration{Kind: model.FuncKind, Name: "Old", File: "x.go", Line: 9, Doc: "Old does it the old way.\n\nDeprecated: use Open."}
 
 	tests := []struct {
 		title string
@@ -104,6 +105,7 @@ func TestLinter_Lint(t *testing.T) {
 		{"the constructor under the test of what it returns", constructor, []string{"TestClient"}, ""},
 		{"the constructor under its own name", constructor, []string{"TestNewClient"}, ""},
 		{"the constructor named by nothing", constructor, nil, "TestNewClient"},
+		{"a deprecated symbol needs no test", deprecated, nil, ""},
 	}
 
 	for _, test := range tests {

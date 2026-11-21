@@ -96,12 +96,9 @@ func (l *Linter) Lint(ctx context.Context, root *model.DocumentRoot) (model.Lint
 	return results, nil
 }
 
-// reachable reports a declaration somebody outside the package can name, which
-// is what a test exists for. A symbol declared in a test file belongs to
-// the test and not to what it tests. One in a generated file is
-// nobody's to write a test for.
+// reachable reports a declaration a test exists for, and no test, deprecated or generated one.
 func reachable(def *model.Definition, decl *model.Declaration) bool {
-	if !decl.IsExported() || decl.IsTestScope() {
+	if !decl.IsExported() || decl.IsTestScope() || deprecated(decl.Doc) {
 		return false
 	}
 	if file, known := def.Files.Find(decl.File); known && file.Generated {
@@ -110,9 +107,17 @@ func reachable(def *model.Definition, decl *model.Declaration) bool {
 	return true
 }
 
-// isConstructor reports a function that builds a value. The linter counts it apart
-// because the test of the type it returns reaches a constructor, so
-// a package of constructors reads as better covered than the truth.
+// deprecated reports a doc comment with a Deprecated paragraph.
+func deprecated(doc string) bool {
+	for _, line := range strings.Split(doc, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Deprecated:") {
+			return true
+		}
+	}
+	return false
+}
+
+// isConstructor reports a function named New that builds a value.
 func isConstructor(decl *model.Declaration) bool {
 	return decl.Kind == model.FuncKind &&
 		decl.Receiver == "" &&
@@ -120,9 +125,7 @@ func isConstructor(decl *model.Declaration) bool {
 		strings.HasPrefix(decl.Name, "New")
 }
 
-// reached reports a symbol some test gets to: one that references it, read
-// off the index, or one named for it, read off the claims. The reference is
-// the evidence and the name is the convention; either answers for the symbol.
+// reached reports a symbol a test gets to, by reference or by name.
 func reached(index *refindex.Index, claimed map[string]bool, def *model.Definition, decl *model.Declaration) bool {
 	symbol := decl.Symbol()
 	if covers(claimed, symbol) {
@@ -134,22 +137,12 @@ func reached(index *refindex.Index, claimed map[string]bool, def *model.Definiti
 	})
 }
 
-// covers reports whether the tests of a package name the symbol.
-//
-// The linter looks for a method under both the names its test can hold:
-// Client.Close is what TestClient_Close claims, and ClientClose is what
-// TestClientClose claims, which is the same symbol with the dot taken out.
+// covers reports whether the tests of a package name the symbol, with or without its dot.
 func covers(claimed map[string]bool, symbol string) bool {
 	return claimed[symbol] || claimed[strings.ReplaceAll(symbol, ".", "")]
 }
 
-// claims indexes what the tests of a document say they test, keyed by the
-// directory holding the package they are in.
-//
-// The directory is the key. The import path is not, because a test package
-// arrives as a separate definition: the tests of a package are not in the
-// definition its symbols are in, the two hold different package names and
-// different import paths. Their place on disk is what they share.
+// claims indexes what the tests of each directory say they test; the directory is the key.
 func claims(root *model.DocumentRoot) map[string]map[string]bool {
 	claimed := map[string]map[string]bool{}
 
@@ -178,11 +171,6 @@ func claims(root *model.DocumentRoot) map[string]map[string]bool {
 }
 
 // subjects are the symbols one test or benchmark function claims to cover.
-//
-// A test holds the name of what it tests and may say more after an underscore, so
-// TestOpen and TestOpen_missingFile both test Open and TestClient_Close tests
-// the method. TestClient claims NewClient as well, because a test of a type
-// exercises the thing that builds it.
 func subjects(name string) []string {
 	base := strings.TrimPrefix(name, "Test")
 	if base == name {
@@ -215,8 +203,7 @@ func result(pkg model.Package, decl *model.Declaration) Result {
 	}
 }
 
-// wanted is the test name a symbol calls for: TestOpen for a function,
-// TestClient_Close for a method on Client.
+// wanted returns the test name a symbol calls for: TestClient_Close for Client.Close.
 func wanted(symbol string) string {
 	return "Test" + strings.ReplaceAll(symbol, ".", "_")
 }
