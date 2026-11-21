@@ -4,6 +4,7 @@ package linters
 
 import (
 	"github.com/titpetric/tools/splint/linters/coverage"
+	"github.com/titpetric/tools/splint/linters/deprecated"
 	"github.com/titpetric/tools/splint/linters/filecheck"
 	"github.com/titpetric/tools/splint/linters/funcargs"
 	"github.com/titpetric/tools/splint/linters/funcreturns"
@@ -38,6 +39,7 @@ func All() []model.Linter {
 		modcheck.New(),
 		importpolicy.New(),
 		integration.New(),
+		deprecated.New(),
 		prose.New(),
 	}
 }
