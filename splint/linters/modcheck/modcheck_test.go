@@ -295,6 +295,52 @@ func TestLinter_LintBlank(t *testing.T) {
 	}
 }
 
+// TestLinter_LintBlankNestedModule covers a blank import in a module nested
+// below the root. The dot in the recorded path marks the nested module and
+// names no directory, so the finding names the file a reader opens: "tests/",
+// and not the ".tests/" the model spells.
+func TestLinter_LintBlankNestedModule(t *testing.T) {
+	root := &model.DocumentRoot{
+		Modules: []*model.Module{
+			{
+				Path:     "example.com/main",
+				Requires: []model.Require{{Path: "example.com/driver", Version: "v1.0.0"}},
+			},
+			{
+				Path:     "example.com/main/tests",
+				Requires: []model.Require{{Path: "example.com/driver", Version: "v1.0.0"}},
+			},
+		},
+		Packages: model.DefinitionList{
+			{
+				Package: model.Package{Package: "tests", ImportPath: "example.com/main/tests", Path: ".tests"},
+				Imports: model.StringSet{"helper.go": {`_ "example.com/driver"`}},
+			},
+			{
+				Package: model.Package{Package: "suite", ImportPath: "example.com/main/tests/suite", Path: ".tests/suite"},
+				Imports: model.StringSet{"suite.go": {`_ "example.com/driver"`}},
+			},
+		},
+	}
+
+	want := map[string]bool{"tests/helper.go": false, "tests/suite/suite.go": false}
+	for issue := range lint(t, root).All() {
+		if issue.Rule != modcheck.RuleBlank {
+			continue
+		}
+		if _, known := want[issue.Position.Ref()]; !known {
+			t.Errorf("position = %q, want a path under tests/", issue.Position.Ref())
+			continue
+		}
+		want[issue.Position.Ref()] = true
+	}
+	for path, found := range want {
+		if !found {
+			t.Errorf("no blank finding at %q", path)
+		}
+	}
+}
+
 // fakeProxy answers the four questions a lookup asks. Every module weighs a
 // thousand bytes. The one named deep requires thin. The reach of a
 // dependency is something a test can count.

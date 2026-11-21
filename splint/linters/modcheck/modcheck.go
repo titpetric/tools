@@ -152,10 +152,11 @@ func blanks(results *Results, root *model.DocumentRoot, catalogue *gomod.Catalog
 
 // where is the root relative path of a file of a package.
 func where(def *model.Definition, file string) string {
-	dir := strings.TrimPrefix(def.Package.Path, "./")
-	if dir == "." {
-		return file
-	}
+	// The model spells a package of a module nested below the root ".tests"
+	// for a module in tests/: the dot marks the nested module and takes the
+	// place of the "./" separator. Dropping it names the directory a reader
+	// opens, the conversion every other report of a file makes.
+	dir := strings.TrimPrefix(strings.TrimPrefix(def.Package.Path, "."), "/")
 	return path.Join(dir, file)
 }
 
