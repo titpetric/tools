@@ -114,7 +114,7 @@ func Build(root *model.DocumentRoot, opts importfmt.Options, aliases map[string]
 			// run would read as a run that found nothing wrong.
 			settled := decision.Sound() && !decision.Changed(file.ImportDecls)
 
-			path := filepath.Join(root.Root, filepath.FromSlash(def.Package.Path), file.Name)
+			path := filepath.Join(root.Root, filepath.FromSlash(packageDir(def.Package.Path)), file.Name)
 			if seen[path] {
 				// A file is in the definition of the scope declaring it and nowhere
 				// else, but a document merged from two parses can hold it
@@ -200,6 +200,17 @@ func literals(specs []model.ImportSpec) []string {
 		out = append(out, spec.Literal())
 	}
 	return out
+}
+
+// packageDir is the directory a package path names, relative to the root.
+//
+// The root module's packages are spelled "." or "./cmd". A module nested below
+// the root spells its packages from the root as well, after a dot and with no
+// separator: a module in tests/ is ".tests", and its runner package
+// ".tests/runner". The dot marks the nested module: no directory is named
+// ".tests", and dropping it names the directory "tests".
+func packageDir(path string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(path, "."), "/")
 }
 
 // name is a file as a report names it, relative to the root of the parse.

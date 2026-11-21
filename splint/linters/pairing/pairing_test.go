@@ -232,6 +232,10 @@ func TestLinter_Lint_TestsDirectory(t *testing.T) {
 			pkg:  model.Package{Package: "vm_test", ImportPath: "example.com/test/vm", Path: "./test/vm", TestPackage: true},
 			want: 0,
 		},
+		"tests of a nested module": {
+			pkg:  model.Package{Package: "suite_test", ImportPath: "example.com/fixture/suite", Path: ".tests", TestPackage: true},
+			want: 0,
+		},
 		"a directory whose name merely holds the word": {
 			pkg:  model.Package{Package: "audit", ImportPath: "example.com/attestation", Path: "./attestation", TestPackage: false},
 			want: 1,

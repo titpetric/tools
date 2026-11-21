@@ -200,6 +200,24 @@ func TestInsertPutsTheBlockUnderThePackageClause(t *testing.T) {
 	assert.Equal(t, "// Package x does a thing.\npackage x\n\nimport (\n\t\"fmt\"\n)\n\nfunc F() string { return fmt.Sprint(1) }\n", out)
 }
 
+// TestPackageDir covers the directory each package path names. The root
+// module's packages read "." or "./cmd"; a module nested below the root has
+// its directory after a dot and no separator, so ".tests" names tests/.
+func TestPackageDir(t *testing.T) {
+	for path, want := range map[string]string{
+		".":          "",
+		"":           "",
+		"./cmd":      "cmd",
+		"./a/b":      "a/b",
+		".tests":     "tests",
+		".tests/sub": "tests/sub",
+	} {
+		if got := packageDir(path); got != want {
+			t.Errorf("packageDir(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
+
 // read returns the contents of a file on disk, line endings and all.
 func read(t *testing.T, path string) string {
 	t.Helper()

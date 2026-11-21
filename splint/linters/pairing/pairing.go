@@ -290,6 +290,10 @@ func excused(pkg model.Package) bool {
 
 // inTestDirectory reports a path with a directory named test or tests in it.
 func inTestDirectory(path string) bool {
+	// A package of a module nested below the root is spelled ".tests" for a
+	// module in tests/. The dot marks the nested module and is not part of the
+	// directory name.
+	path = strings.TrimPrefix(path, ".")
 	for _, segment := range strings.Split(filepath.ToSlash(path), "/") {
 		switch segment {
 		case "test", "tests":
